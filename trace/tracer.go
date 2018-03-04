@@ -328,7 +328,7 @@ func (t *Tracer) loop() {
 				// The queue was already full, and a retry
 				// timer is running; wait for it to fire.
 				t.statsMu.Lock()
-				t.stats.Accumulate(statsUpdates)
+				t.stats.accumulate(statsUpdates)
 				t.statsMu.Unlock()
 				continue
 			}
@@ -382,15 +382,17 @@ func (t *Tracer) loop() {
 			}
 		}
 
-		t.statsMu.Lock()
-		t.stats.Accumulate(statsUpdates)
-		t.statsMu.Unlock()
+		if !statsUpdates.isZero() {
+			t.statsMu.Lock()
+			t.stats.accumulate(statsUpdates)
+			t.statsMu.Unlock()
 
-		if statsUpdates.Errors.SendTransactions != 0 || statsUpdates.Errors.SendErrors != 0 {
-			// Sending transactions or errors failed, start a new timer to resend.
-			// TODO(axw) exponential backoff on this?
-			startTimer()
-			continue
+			if statsUpdates.Errors.SendTransactions != 0 || statsUpdates.Errors.SendErrors != 0 {
+				// Sending transactions or errors failed, start a new timer to resend.
+				// TODO(axw) exponential backoff on this?
+				startTimer()
+				continue
+			}
 		}
 		if sendTransactions && flushed != nil {
 			forceFlush = t.forceFlush

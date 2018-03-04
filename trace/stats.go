@@ -16,9 +16,13 @@ type TracerStatsErrors struct {
 	SendErrors       uint64
 }
 
-// Accumulate updates the stats by accumulating them with
+func (s TracerStats) isZero() bool {
+	return s == TracerStats{}
+}
+
+// accumulate updates the stats by accumulating them with
 // the values in rhs.
-func (s *TracerStats) Accumulate(rhs TracerStats) {
+func (s *TracerStats) accumulate(rhs TracerStats) {
 	s.Errors.SetContext += rhs.Errors.SetContext
 	s.Errors.SendTransactions += rhs.Errors.SendTransactions
 	s.Errors.SendErrors += rhs.Errors.SendErrors
