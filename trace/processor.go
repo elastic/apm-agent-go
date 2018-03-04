@@ -20,7 +20,7 @@ type ErrorProcessor interface {
 	ProcessError(*model.Error)
 }
 
-// ErrorProcessor providing methods for making adjustments to transaction
+// TransactionProcessor providing methods for making adjustments to transaction
 // values before sending them to the APM server.
 type TransactionProcessor interface {
 	// ProcessTransaction processes a model.Transaction, possibly making

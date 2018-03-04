@@ -1,4 +1,4 @@
-# apm-agent-go: APM Agent for Go (pre-alpha)
+# apm-agent-go: APM Agent for Go (pre-alpha) [![GoDoc](https://godoc.org/github.com/elastic/apm-agent-go/trace?status.svg)](http://godoc.org/github.com/elastic/apm-agent-go/trace)
 
 This is the official Go package for [Elastic APM][].
 
