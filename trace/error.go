@@ -156,7 +156,6 @@ func initException(e *model.Exception, err error) {
 	}
 
 	// Set Module, Type, Attributes, and Code.
-	var temporary, timeout bool
 	switch err := err.(type) {
 	case *net.OpError:
 		e.Module, e.Type = "net", "OpError"
@@ -164,8 +163,6 @@ func initException(e *model.Exception, err error) {
 		setAttr("net", err.Net)
 		setAttr("source", err.Source)
 		setAttr("addr", err.Addr)
-		temporary = err.Temporary()
-		timeout = err.Timeout()
 	case *os.LinkError:
 		e.Module, e.Type = "os", "LinkError"
 		setAttr("op", err.Op)
@@ -175,29 +172,23 @@ func initException(e *model.Exception, err error) {
 		e.Module, e.Type = "os", "PathError"
 		setAttr("op", err.Op)
 		setAttr("path", err.Path)
-		timeout = err.Timeout()
 	case *os.SyscallError:
 		e.Module, e.Type = "os", "SyscallError"
 		setAttr("syscall", err.Syscall)
-		timeout = err.Timeout()
 	case syscall.Errno:
 		e.Module, e.Type = "syscall", "Errno"
 		e.Code = uintptr(err)
-		temporary = err.Temporary()
-		timeout = err.Timeout()
 	default:
 		t := reflect.TypeOf(err)
 		if t.Name() == "" && t.Kind() == reflect.Ptr {
 			t = t.Elem()
 		}
 		e.Module, e.Type = t.PkgPath(), t.Name()
-		temporary = errTemporary(err)
-		timeout = errTimeout(err)
 	}
-	if temporary {
+	if errTemporary(err) {
 		setAttr("temporary", true)
 	}
-	if timeout {
+	if errTimeout(err) {
 		setAttr("timeout", true)
 	}
 }
