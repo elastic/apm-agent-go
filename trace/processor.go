@@ -32,6 +32,21 @@ type TransactionProcessor interface {
 	ProcessTransaction(*model.Transaction)
 }
 
+// ErrorProcessorFunc is a function type implementing ErrorProcessor.
+type ErrorProcessorFunc func(*model.Error)
+
+func (f ErrorProcessorFunc) ProcessError(e *model.Error) {
+	f(e)
+}
+
+// TransactionProcessorFunc is a function type implementing
+// TransactionProcessor.
+type TransactionProcessorFunc func(*model.Transaction)
+
+func (f TransactionProcessorFunc) ProcessTransaction(t *model.Transaction) {
+	f(t)
+}
+
 // Processors is a slice of Processors; each entry's Process methods
 // will be invoked in series.
 type Processors []Processor

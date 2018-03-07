@@ -18,13 +18,11 @@ const (
 	transactionsChannelCap = 1000
 	errorsChannelCap       = 1000
 
-	// errorsMaxQueueSize is the maximum number
-	// of errors to enqueue in the tracer. When
-	// this fills up, errors will start being
-	// dropped (when the channel is also full).
-	//
-	// TODO(axw) make this configurable.
-	errorsMaxQueueSize = 1000
+	// defaultMaxErrorQueueSize is the default maximum number
+	// of errors to enqueue in the tracer. When this fills up,
+	// errors will start being dropped (when the channel is
+	// also full).
+	defaultMaxErrorQueueSize = 1000
 )
 
 // Tracer manages the sampling and sending of transactions to
@@ -53,18 +51,19 @@ type Tracer struct {
 	process *model.Process
 	system  *model.System
 
-	closing          chan struct{}
-	closed           chan struct{}
-	forceFlush       chan chan<- struct{}
-	setFlushInterval chan time.Duration
-	setMaxQueueSize  chan int
-	setPreContext    chan int
-	setPostContext   chan int
-	setContextSetter chan stacktrace.ContextSetter
-	setLogger        chan Logger
-	setProcessor     chan Processor
-	transactions     chan *Transaction
-	errors           chan *Error
+	closing                    chan struct{}
+	closed                     chan struct{}
+	forceFlush                 chan chan<- struct{}
+	setFlushInterval           chan time.Duration
+	setMaxTransactionQueueSize chan int
+	setMaxErrorQueueSize       chan int
+	setPreContext              chan int
+	setPostContext             chan int
+	setContextSetter           chan stacktrace.ContextSetter
+	setLogger                  chan Logger
+	setProcessor               chan Processor
+	transactions               chan *Transaction
+	errors                     chan *Error
 
 	statsMu sync.Mutex
 	stats   TracerStats
@@ -99,7 +98,7 @@ func NewTracer(serviceName, serviceVersion string) (*Tracer, error) {
 	if err != nil {
 		return nil, err
 	}
-	maxQueueSize, err := initialMaxQueueSize()
+	maxTransactionQueueSize, err := initialMaxTransactionQueueSize()
 	if err != nil {
 		return nil, err
 	}
@@ -108,27 +107,29 @@ func NewTracer(serviceName, serviceVersion string) (*Tracer, error) {
 		return nil, err
 	}
 	t := &Tracer{
-		Transport:        transport.Default,
-		Service:          service,
-		process:          &currentProcess,
-		system:           &localSystem,
-		closing:          make(chan struct{}),
-		closed:           make(chan struct{}),
-		forceFlush:       make(chan chan<- struct{}),
-		setFlushInterval: make(chan time.Duration),
-		setMaxQueueSize:  make(chan int),
-		setPreContext:    make(chan int),
-		setPostContext:   make(chan int),
-		setContextSetter: make(chan stacktrace.ContextSetter),
-		setLogger:        make(chan Logger),
-		setProcessor:     make(chan Processor),
-		transactions:     make(chan *Transaction, transactionsChannelCap),
-		errors:           make(chan *Error, errorsChannelCap),
-		maxSpans:         maxSpans,
+		Transport:                  transport.Default,
+		Service:                    service,
+		process:                    &currentProcess,
+		system:                     &localSystem,
+		closing:                    make(chan struct{}),
+		closed:                     make(chan struct{}),
+		forceFlush:                 make(chan chan<- struct{}),
+		setFlushInterval:           make(chan time.Duration),
+		setMaxTransactionQueueSize: make(chan int),
+		setMaxErrorQueueSize:       make(chan int),
+		setPreContext:              make(chan int),
+		setPostContext:             make(chan int),
+		setContextSetter:           make(chan stacktrace.ContextSetter),
+		setLogger:                  make(chan Logger),
+		setProcessor:               make(chan Processor),
+		transactions:               make(chan *Transaction, transactionsChannelCap),
+		errors:                     make(chan *Error, errorsChannelCap),
+		maxSpans:                   maxSpans,
 	}
 	go t.loop()
 	t.setFlushInterval <- flushInterval
-	t.setMaxQueueSize <- maxQueueSize
+	t.setMaxTransactionQueueSize <- maxTransactionQueueSize
+	t.setMaxErrorQueueSize <- defaultMaxErrorQueueSize
 	t.setPreContext <- defaultPreContext
 	t.setPostContext <- defaultPostContext
 	return t, nil
@@ -171,12 +172,23 @@ func (t *Tracer) SetFlushInterval(d time.Duration) {
 	}
 }
 
-// SetMaxQueueSize sets the maximum queue size -- the maximum number
-// of transactions to buffer before flushing to the APM server. If
-// set to a non-positive value, the queue size is unlimited.
-func (t *Tracer) SetMaxQueueSize(n int) {
+// SetMaxTransactionQueueSize sets the maximum transaction queue size -- the
+// maximum number of transactions to buffer before flushing to the APM server.
+// If set to a non-positive value, the queue size is unlimited.
+func (t *Tracer) SetMaxTransactionQueueSize(n int) {
 	select {
-	case t.setMaxQueueSize <- n:
+	case t.setMaxTransactionQueueSize <- n:
+	case <-t.closing:
+	case <-t.closed:
+	}
+}
+
+// SetMaxErrorQueueSize sets the maximum error queue size -- the
+// maximum number of errors to buffer before they will start getting
+// dropped. If set to a non-positive value, the queue size is unlimited.
+func (t *Tracer) SetMaxErrorQueueSize(n int) {
+	select {
+	case t.setMaxErrorQueueSize <- n:
 	case <-t.closing:
 	case <-t.closed:
 	}
@@ -247,7 +259,8 @@ func (t *Tracer) loop() {
 	}()
 
 	var flushInterval time.Duration
-	var maxQueueSize int
+	var maxTransactionQueueSize int
+	var maxErrorQueueSize int
 	var flushC <-chan time.Time
 	var transactions []*Transaction
 	var errors []*Error
@@ -278,11 +291,11 @@ func (t *Tracer) loop() {
 		flushC = flushTimer.C
 	}
 	receivedTransaction := func(tx *Transaction, stats *TracerStats) {
-		if maxQueueSize > 0 && len(transactions) >= maxQueueSize {
+		if maxTransactionQueueSize > 0 && len(transactions) >= maxTransactionQueueSize {
 			// The queue is full, so pop the oldest item.
 			// TODO(axw) use container/ring? implement
 			// ring buffer on top of slice? profile
-			n := uint64(len(transactions) - maxQueueSize + 1)
+			n := uint64(len(transactions) - maxTransactionQueueSize + 1)
 			for _, tx := range transactions[:n] {
 				tx.reset()
 				t.transactionPool.Put(tx)
@@ -303,10 +316,15 @@ func (t *Tracer) loop() {
 			return
 		case flushInterval = <-t.setFlushInterval:
 			continue
-		case maxQueueSize = <-t.setMaxQueueSize:
-			if maxQueueSize <= 0 || len(transactions) < maxQueueSize {
+		case maxTransactionQueueSize = <-t.setMaxTransactionQueueSize:
+			if maxTransactionQueueSize <= 0 || len(transactions) < maxTransactionQueueSize {
 				continue
 			}
+		case maxErrorQueueSize = <-t.setMaxErrorQueueSize:
+			if maxErrorQueueSize <= 0 || len(errors) < maxErrorQueueSize {
+				errorsC = t.errors
+			}
+			continue
 		case sender.preContext = <-t.setPreContext:
 			continue
 		case sender.postContext = <-t.setPostContext:
@@ -332,7 +350,7 @@ func (t *Tracer) loop() {
 				t.statsMu.Unlock()
 				continue
 			}
-			if maxQueueSize <= 0 || len(transactions) < maxQueueSize {
+			if maxTransactionQueueSize <= 0 || len(transactions) < maxTransactionQueueSize {
 				startTimer()
 				continue
 			}
@@ -355,7 +373,7 @@ func (t *Tracer) loop() {
 			sendTransactions = true
 		}
 
-		if remainder := errorsMaxQueueSize - len(errors); remainder > 0 {
+		if remainder := maxErrorQueueSize - len(errors); remainder > 0 {
 			// Drain any errors in the channel, up to the maximum queue size.
 			for n := len(t.errors); n > 0 && remainder > 0; n-- {
 				errors = append(errors, <-t.errors)
@@ -369,7 +387,7 @@ func (t *Tracer) loop() {
 			}
 			errors = errors[:0]
 			errorsC = t.errors
-		} else if len(errors) == errorsMaxQueueSize {
+		} else if len(errors) == maxErrorQueueSize {
 			errorsC = nil
 		}
 		if sendTransactions {
