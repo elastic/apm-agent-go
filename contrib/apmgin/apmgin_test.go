@@ -42,7 +42,6 @@ func BenchmarkWithMiddleware(b *testing.B) {
 }
 
 func benchmarkEngine(b *testing.B, path string, addMiddleware func(*gin.Engine)) {
-	b.Helper()
 	w := httptest.NewRecorder()
 	r := testRouter(addMiddleware)
 	b.ResetTimer()
