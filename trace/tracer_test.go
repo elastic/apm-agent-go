@@ -1,19 +1,16 @@
 package trace_test
 
 import (
-	"context"
-	"encoding/json"
 	"log"
 	"runtime"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/elastic/apm-agent-go/model"
 	"github.com/elastic/apm-agent-go/trace"
+	"github.com/elastic/apm-agent-go/transport/transporttest"
 )
 
 func TestTracerStats(t *testing.T) {
@@ -22,7 +19,7 @@ func TestTracerStats(t *testing.T) {
 		log.Fatal(err)
 	}
 	defer tracer.Close()
-	tracer.Transport = nopTransport{}
+	tracer.Transport = transporttest.Discard
 
 	for i := 0; i < 500; i++ {
 		tracer.StartTransaction("name", "type").Done(-1)
@@ -39,7 +36,7 @@ func TestTracerFlushInterval(t *testing.T) {
 		log.Fatal(err)
 	}
 	defer tracer.Close()
-	tracer.Transport = nopTransport{}
+	tracer.Transport = transporttest.Discard
 
 	interval := time.Second
 	tracer.SetFlushInterval(interval)
@@ -61,7 +58,7 @@ func TestTracerMaxQueueSize(t *testing.T) {
 	defer tracer.Close()
 
 	// Prevent any transactions from being sent.
-	tracer.Transport = nopTransport{errors.New("nope")}
+	tracer.Transport = transporttest.ErrorTransport{errors.New("nope")}
 
 	// Enqueue 10 transactions with a queue size of 5;
 	// we should see 5 transactons dropped.
@@ -88,7 +85,7 @@ func TestTracerRetryTimer(t *testing.T) {
 	defer tracer.Close()
 
 	// Prevent any transactions from being sent.
-	tracer.Transport = nopTransport{errors.New("nope")}
+	tracer.Transport = transporttest.ErrorTransport{errors.New("nope")}
 
 	interval := time.Second
 	tracer.SetFlushInterval(interval)
@@ -122,7 +119,7 @@ func TestTracerRetryTimer(t *testing.T) {
 }
 
 func TestTracerMaxSpans(t *testing.T) {
-	var r recorderTransport
+	var r transporttest.RecorderTransport
 	tracer, err := trace.NewTracer("tracer.testing", "")
 	if err != nil {
 		log.Fatal(err)
@@ -146,15 +143,16 @@ func TestTracerMaxSpans(t *testing.T) {
 	assert.True(t, s2.Dropped())
 
 	tracer.Flush(nil)
-	assert.Len(t, r.payloads, 1)
-	transactions := r.payloads[0]["transactions"].([]interface{})
+	payloads := r.Payloads()
+	assert.Len(t, payloads, 1)
+	transactions := payloads[0]["transactions"].([]interface{})
 	assert.Len(t, transactions, 1)
 	transaction := transactions[0].(map[string]interface{})
 	assert.Len(t, transaction["spans"], 2)
 }
 
 func TestTracerErrors(t *testing.T) {
-	var r recorderTransport
+	var r transporttest.RecorderTransport
 	tracer, err := trace.NewTracer("tracer.testing", "")
 	if err != nil {
 		log.Fatal(err)
@@ -169,8 +167,9 @@ func TestTracerErrors(t *testing.T) {
 	error_.Send()
 	tracer.Flush(nil)
 
-	assert.Len(t, r.payloads, 1)
-	errors := r.payloads[0]["errors"].([]interface{})
+	payloads := r.Payloads()
+	assert.Len(t, payloads, 1)
+	errors := payloads[0]["errors"].([]interface{})
 	assert.Len(t, errors, 1)
 	exception := errors[0].(map[string]interface{})["exception"].(map[string]interface{})
 	assert.Equal(t, "zing", exception["message"])
@@ -187,46 +186,6 @@ func TestTracerErrors(t *testing.T) {
 func TestTracerErrorsBuffered(t *testing.T) {
 	// TODO(axw) show that errors are buffered,
 	// dropped when full, and sent when possible.
-}
-
-type nopTransport struct {
-	err error
-}
-
-func (t nopTransport) SendTransactions(context.Context, *model.TransactionsPayload) error {
-	return t.err
-}
-
-func (t nopTransport) SendErrors(context.Context, *model.ErrorsPayload) error {
-	return t.err
-}
-
-type recorderTransport struct {
-	mu       sync.Mutex
-	payloads []map[string]interface{}
-}
-
-func (r *recorderTransport) SendTransactions(ctx context.Context, payload *model.TransactionsPayload) error {
-	return r.record(payload)
-}
-
-func (r *recorderTransport) SendErrors(ctx context.Context, payload *model.ErrorsPayload) error {
-	return r.record(payload)
-}
-
-func (r *recorderTransport) record(payload interface{}) error {
-	data, err := json.Marshal(payload)
-	if err != nil {
-		panic(err)
-	}
-	var m map[string]interface{}
-	if err := json.Unmarshal(data, &m); err != nil {
-		panic(err)
-	}
-	r.mu.Lock()
-	r.payloads = append(r.payloads, m)
-	r.mu.Unlock()
-	return nil
 }
 
 type testLogger struct {
