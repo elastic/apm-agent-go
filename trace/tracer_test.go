@@ -1,11 +1,8 @@
 package trace_test
 
 import (
-	"context"
-	"encoding/json"
-	"log"
+	"fmt"
 	"runtime"
-	"sync"
 	"testing"
 	"time"
 
@@ -14,15 +11,14 @@ import (
 
 	"github.com/elastic/apm-agent-go/model"
 	"github.com/elastic/apm-agent-go/trace"
+	"github.com/elastic/apm-agent-go/transport/transporttest"
 )
 
 func TestTracerStats(t *testing.T) {
 	tracer, err := trace.NewTracer("tracer.testing", "")
-	if err != nil {
-		log.Fatal(err)
-	}
+	assert.NoError(t, err)
 	defer tracer.Close()
-	tracer.Transport = nopTransport{}
+	tracer.Transport = transporttest.Discard
 
 	for i := 0; i < 500; i++ {
 		tracer.StartTransaction("name", "type").Done(-1)
@@ -33,13 +29,22 @@ func TestTracerStats(t *testing.T) {
 	}, tracer.Stats())
 }
 
+func TestTracerClosedSendNonblocking(t *testing.T) {
+	tracer, err := trace.NewTracer("tracer.testing", "")
+	assert.NoError(t, err)
+	tracer.Close()
+
+	for i := 0; i < 1001; i++ {
+		tracer.StartTransaction("name", "type").Done(-1)
+	}
+	assert.Equal(t, uint64(1), tracer.Stats().TransactionsDropped)
+}
+
 func TestTracerFlushInterval(t *testing.T) {
 	tracer, err := trace.NewTracer("tracer.testing", "")
-	if err != nil {
-		log.Fatal(err)
-	}
+	assert.NoError(t, err)
 	defer tracer.Close()
-	tracer.Transport = nopTransport{}
+	tracer.Transport = transporttest.Discard
 
 	interval := time.Second
 	tracer.SetFlushInterval(interval)
@@ -55,17 +60,15 @@ func TestTracerFlushInterval(t *testing.T) {
 
 func TestTracerMaxQueueSize(t *testing.T) {
 	tracer, err := trace.NewTracer("tracer.testing", "")
-	if err != nil {
-		log.Fatal(err)
-	}
+	assert.NoError(t, err)
 	defer tracer.Close()
 
 	// Prevent any transactions from being sent.
-	tracer.Transport = nopTransport{errors.New("nope")}
+	tracer.Transport = transporttest.ErrorTransport{errors.New("nope")}
 
 	// Enqueue 10 transactions with a queue size of 5;
 	// we should see 5 transactons dropped.
-	tracer.SetMaxQueueSize(5)
+	tracer.SetMaxTransactionQueueSize(5)
 	for i := 0; i < 10; i++ {
 		tracer.StartTransaction("name", "type").Done(-1)
 	}
@@ -82,17 +85,15 @@ func TestTracerMaxQueueSize(t *testing.T) {
 
 func TestTracerRetryTimer(t *testing.T) {
 	tracer, err := trace.NewTracer("tracer.testing", "")
-	if err != nil {
-		log.Fatal(err)
-	}
+	assert.NoError(t, err)
 	defer tracer.Close()
 
 	// Prevent any transactions from being sent.
-	tracer.Transport = nopTransport{errors.New("nope")}
+	tracer.Transport = transporttest.ErrorTransport{errors.New("nope")}
 
 	interval := time.Second
 	tracer.SetFlushInterval(interval)
-	tracer.SetMaxQueueSize(1)
+	tracer.SetMaxTransactionQueueSize(1)
 
 	before := time.Now()
 	tracer.StartTransaction("name", "type").Done(-1)
@@ -122,11 +123,9 @@ func TestTracerRetryTimer(t *testing.T) {
 }
 
 func TestTracerMaxSpans(t *testing.T) {
-	var r recorderTransport
+	var r transporttest.RecorderTransport
 	tracer, err := trace.NewTracer("tracer.testing", "")
-	if err != nil {
-		log.Fatal(err)
-	}
+	assert.NoError(t, err)
 	defer tracer.Close()
 	tracer.Transport = &r
 
@@ -146,19 +145,18 @@ func TestTracerMaxSpans(t *testing.T) {
 	assert.True(t, s2.Dropped())
 
 	tracer.Flush(nil)
-	assert.Len(t, r.payloads, 1)
-	transactions := r.payloads[0]["transactions"].([]interface{})
+	payloads := r.Payloads()
+	assert.Len(t, payloads, 1)
+	transactions := payloads[0]["transactions"].([]interface{})
 	assert.Len(t, transactions, 1)
 	transaction := transactions[0].(map[string]interface{})
 	assert.Len(t, transaction["spans"], 2)
 }
 
 func TestTracerErrors(t *testing.T) {
-	var r recorderTransport
+	var r transporttest.RecorderTransport
 	tracer, err := trace.NewTracer("tracer.testing", "")
-	if err != nil {
-		log.Fatal(err)
-	}
+	assert.NoError(t, err)
 	defer tracer.Close()
 	tracer.Transport = &r
 
@@ -169,8 +167,9 @@ func TestTracerErrors(t *testing.T) {
 	error_.Send()
 	tracer.Flush(nil)
 
-	assert.Len(t, r.payloads, 1)
-	errors := r.payloads[0]["errors"].([]interface{})
+	payloads := r.Payloads()
+	assert.Len(t, payloads, 1)
+	errors := payloads[0]["errors"].([]interface{})
 	assert.Len(t, errors, 1)
 	exception := errors[0].(map[string]interface{})["exception"].(map[string]interface{})
 	assert.Equal(t, "zing", exception["message"])
@@ -185,48 +184,126 @@ func TestTracerErrors(t *testing.T) {
 }
 
 func TestTracerErrorsBuffered(t *testing.T) {
-	// TODO(axw) show that errors are buffered,
-	// dropped when full, and sent when possible.
-}
+	tracer, err := trace.NewTracer("tracer.testing", "")
+	assert.NoError(t, err)
+	defer tracer.Close()
+	errors := make(chan transporttest.SendErrorsRequest)
+	tracer.Transport = &transporttest.ChannelTransport{Errors: errors}
 
-type nopTransport struct {
-	err error
-}
-
-func (t nopTransport) SendTransactions(context.Context, *model.TransactionsPayload) error {
-	return t.err
-}
-
-func (t nopTransport) SendErrors(context.Context, *model.ErrorsPayload) error {
-	return t.err
-}
-
-type recorderTransport struct {
-	mu       sync.Mutex
-	payloads []map[string]interface{}
-}
-
-func (r *recorderTransport) SendTransactions(ctx context.Context, payload *model.TransactionsPayload) error {
-	return r.record(payload)
-}
-
-func (r *recorderTransport) SendErrors(ctx context.Context, payload *model.ErrorsPayload) error {
-	return r.record(payload)
-}
-
-func (r *recorderTransport) record(payload interface{}) error {
-	data, err := json.Marshal(payload)
-	if err != nil {
-		panic(err)
+	tracer.SetMaxErrorQueueSize(10)
+	sendError := func(msg string) {
+		e := tracer.NewError()
+		e.SetException(fmt.Errorf("%s", msg))
+		e.Send()
 	}
-	var m map[string]interface{}
-	if err := json.Unmarshal(data, &m); err != nil {
-		panic(err)
+
+	// Send an initial error, which should send a request
+	// on the transport's errors channel.
+	sendError("0")
+	var req transporttest.SendErrorsRequest
+	select {
+	case req = <-errors:
+	case <-time.After(10 * time.Second):
+		t.Fatalf("timed out waiting for errors payload")
 	}
-	r.mu.Lock()
-	r.payloads = append(r.payloads, m)
-	r.mu.Unlock()
-	return nil
+	assert.Len(t, req.Payload.Errors, 1)
+
+	// While we're still sending the first error, try to
+	// enqueue another 1010. The first 1000 should be
+	// buffered in the channel, but the internal queue
+	// will not be filled until the send has completed,
+	// so the additional 10 will be dropped.
+	for i := 1; i <= 1010; i++ {
+		sendError(fmt.Sprint(i))
+	}
+	req.Result <- fmt.Errorf("nope")
+
+	stats := tracer.Stats()
+	assert.Equal(t, stats.ErrorsDropped, uint64(10))
+
+	// The tracer should send 100 lots of 10 errors.
+	for i := 0; i < 100; i++ {
+		select {
+		case req = <-errors:
+		case <-time.After(10 * time.Second):
+			t.Fatalf("timed out waiting for errors payload")
+		}
+		assert.Len(t, req.Payload.Errors, 10)
+		for j, e := range req.Payload.Errors {
+			assert.Equal(t, e.Exception.Message, fmt.Sprintf("%d", i*10+j))
+		}
+		req.Result <- nil
+	}
+}
+
+func TestTracerProcessor(t *testing.T) {
+	tracer, err := trace.NewTracer("tracer.testing", "")
+	assert.NoError(t, err)
+	defer tracer.Close()
+	tracer.Transport = transporttest.Discard
+
+	e_ := tracer.NewError()
+	tx_ := tracer.StartTransaction("name", "type")
+
+	var processedError bool
+	var processedTransaction bool
+	processError := func(e *model.Error) {
+		processedError = true
+		assert.Equal(t, &e_.Error, e)
+	}
+	processTransaction := func(tx *model.Transaction) {
+		processedTransaction = true
+		assert.Equal(t, &tx_.Transaction, tx)
+	}
+	tracer.SetProcessor(struct {
+		trace.ErrorProcessor
+		trace.TransactionProcessor
+	}{
+		trace.ErrorProcessorFunc(processError),
+		trace.TransactionProcessorFunc(processTransaction),
+	})
+
+	e_.Send()
+	tx_.Done(-1)
+	tracer.Flush(nil)
+	assert.True(t, processedError)
+	assert.True(t, processedTransaction)
+}
+
+func TestTracerRecover(t *testing.T) {
+	var r transporttest.RecorderTransport
+	tracer, err := trace.NewTracer("tracer.testing", "")
+	assert.NoError(t, err)
+	defer tracer.Close()
+	tracer.Transport = &r
+
+	capturePanic(tracer, "blam")
+	tracer.Flush(nil)
+
+	payloads := r.Payloads()
+	assert.Len(t, payloads, 2)
+
+	assert.Contains(t, payloads[0], "errors")
+	errors := payloads[0]["errors"].([]interface{})
+	assert.Len(t, errors, 1)
+	error0 := errors[0].(map[string]interface{})
+	exception := error0["exception"].(map[string]interface{})
+	assert.Equal(t, "blam", exception["message"])
+
+	assert.Contains(t, payloads[1], "transactions")
+	transactions := payloads[1]["transactions"].([]interface{})
+	assert.Len(t, transactions, 1)
+	transaction0 := transactions[0].(map[string]interface{})
+
+	errorTransaction := error0["transaction"].(map[string]interface{})
+	assert.Equal(t, transaction0["id"], errorTransaction["id"])
+}
+
+func capturePanic(tracer *trace.Tracer, v interface{}) {
+	tx := tracer.StartTransaction("name", "type")
+	defer tx.Done(-1)
+	defer tracer.Recover(tx)
+	panic(v)
 }
 
 type testLogger struct {

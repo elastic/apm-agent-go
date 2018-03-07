@@ -33,7 +33,7 @@ func initialFlushInterval() (time.Duration, error) {
 	return d, nil
 }
 
-func initialMaxQueueSize() (int, error) {
+func initialMaxTransactionQueueSize() (int, error) {
 	value := os.Getenv(envMaxQueueSize)
 	if value == "" {
 		return defaultMaxQueueSize, nil
