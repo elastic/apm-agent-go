@@ -64,7 +64,7 @@ func TestTracerMaxQueueSize(t *testing.T) {
 	defer tracer.Close()
 
 	// Prevent any transactions from being sent.
-	tracer.Transport = transporttest.ErrorTransport{errors.New("nope")}
+	tracer.Transport = transporttest.ErrorTransport{Error: errors.New("nope")}
 
 	// Enqueue 10 transactions with a queue size of 5;
 	// we should see 5 transactons dropped.
@@ -89,7 +89,7 @@ func TestTracerRetryTimer(t *testing.T) {
 	defer tracer.Close()
 
 	// Prevent any transactions from being sent.
-	tracer.Transport = transporttest.ErrorTransport{errors.New("nope")}
+	tracer.Transport = transporttest.ErrorTransport{Error: errors.New("nope")}
 
 	interval := time.Second
 	tracer.SetFlushInterval(interval)

@@ -13,9 +13,9 @@ var (
 	currentProcess model.Process
 	envFramework   *model.Framework
 	envService     *model.Service
-	goAgent        = model.Agent{"go", elasticapm.AgentVersion}
-	goLanguage     = model.Language{"go", runtime.Version()}
-	goRuntime      = model.Runtime{runtime.Compiler, runtime.Version()}
+	goAgent        = model.Agent{Name: "go", Version: elasticapm.AgentVersion}
+	goLanguage     = model.Language{Name: "go", Version: runtime.Version()}
+	goRuntime      = model.Runtime{Name: runtime.Compiler, Version: runtime.Version()}
 	localSystem    model.System
 )
 
