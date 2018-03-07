@@ -82,9 +82,15 @@ func NewHTTPTransport(serverURL, secretToken string) (*HTTPTransport, error) {
 		tlsConfig := &tls.Config{
 			InsecureSkipVerify: true,
 		}
-		httpTransport := *defaultHTTPTransport
-		httpTransport.TLSClientConfig = tlsConfig
-		client.Transport = &httpTransport
+		client.Transport = &http.Transport{
+			Proxy:                 defaultHTTPTransport.Proxy,
+			DialContext:           defaultHTTPTransport.DialContext,
+			MaxIdleConns:          defaultHTTPTransport.MaxIdleConns,
+			IdleConnTimeout:       defaultHTTPTransport.IdleConnTimeout,
+			TLSHandshakeTimeout:   defaultHTTPTransport.TLSHandshakeTimeout,
+			ExpectContinueTimeout: defaultHTTPTransport.ExpectContinueTimeout,
+			TLSClientConfig:       tlsConfig,
+		}
 	}
 
 	headers := make(http.Header)

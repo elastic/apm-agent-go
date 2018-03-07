@@ -154,7 +154,7 @@ func (tx *Transaction) Done(d time.Duration) {
 	if tx.spansDropped > 0 {
 		tx.SpanCount = &model.SpanCount{
 			Dropped: &model.SpanCountDropped{
-				tx.spansDropped,
+				Total: tx.spansDropped,
 			},
 		}
 	}
