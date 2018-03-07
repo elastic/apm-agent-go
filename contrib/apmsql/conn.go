@@ -28,7 +28,7 @@ func newConn(in driver.Conn, d *tracingDriver, dsn_ string) driver.Conn {
 	conn.execer, _ = in.(driver.Execer)
 	conn.execerContext, _ = in.(driver.ExecerContext)
 	conn.connBeginTx, _ = in.(driver.ConnBeginTx)
-	conn.sessionResetter, _ = in.(driver.SessionResetter)
+	conn.connGo110.init(in)
 	if in, ok := in.(driver.ConnBeginTx); ok {
 		return &connBeginTx{conn, in}
 	}
@@ -37,6 +37,7 @@ func newConn(in driver.Conn, d *tracingDriver, dsn_ string) driver.Conn {
 
 type conn struct {
 	driver.Conn
+	connGo110
 	driver          *tracingDriver
 	spanContextBase model.SpanContext
 
@@ -47,7 +48,6 @@ type conn struct {
 	execer             driver.Execer
 	execerContext      driver.ExecerContext
 	connBeginTx        driver.ConnBeginTx
-	sessionResetter    driver.SessionResetter
 }
 
 func (c *conn) finishSpan(ctx context.Context, span *trace.Span, query string, resultError error) {
@@ -89,13 +89,6 @@ func (c *conn) Ping(ctx context.Context) (resultError error) {
 		defer c.finishSpan(ctx, span, "", resultError)
 	}
 	return c.pinger.Ping(ctx)
-}
-
-func (c *conn) ResetSession(ctx context.Context) error {
-	if c.sessionResetter != nil {
-		return c.sessionResetter.ResetSession(ctx)
-	}
-	return nil
 }
 
 func (c *conn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (_ driver.Rows, resultError error) {

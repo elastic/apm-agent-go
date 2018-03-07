@@ -16,22 +16,22 @@ func newStmt(in driver.Stmt, conn *conn, query string) driver.Stmt {
 		spanContext: conn.spanContext(query),
 	}
 	stmt.columnConverter, _ = in.(driver.ColumnConverter)
-	stmt.namedValueChecker, _ = in.(driver.NamedValueChecker)
 	stmt.stmtExecContext, _ = in.(driver.StmtExecContext)
 	stmt.stmtQueryContext, _ = in.(driver.StmtQueryContext)
+	stmt.stmtGo19.init(in)
 	return stmt
 }
 
 type stmt struct {
 	driver.Stmt
+	stmtGo19
 	conn        *conn
 	signature   string
 	spanContext *model.SpanContext
 
-	columnConverter   driver.ColumnConverter
-	namedValueChecker driver.NamedValueChecker
-	stmtExecContext   driver.StmtExecContext
-	stmtQueryContext  driver.StmtQueryContext
+	columnConverter  driver.ColumnConverter
+	stmtExecContext  driver.StmtExecContext
+	stmtQueryContext driver.StmtQueryContext
 }
 
 func (s *stmt) finishSpan(ctx context.Context, span *trace.Span, resultError error) {
@@ -44,13 +44,6 @@ func (s *stmt) ColumnConverter(idx int) driver.ValueConverter {
 		return s.columnConverter.ColumnConverter(idx)
 	}
 	return driver.DefaultParameterConverter
-}
-
-func (s *stmt) CheckNamedValue(nv *driver.NamedValue) error {
-	if s.namedValueChecker != nil {
-		return s.namedValueChecker.CheckNamedValue(nv)
-	}
-	return driver.ErrSkip
 }
 
 func (s *stmt) ExecContext(ctx context.Context, args []driver.NamedValue) (_ driver.Result, resultError error) {

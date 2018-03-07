@@ -2,6 +2,8 @@ package transport_test
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -98,9 +100,18 @@ func TestHTTPTransportTLS(t *testing.T) {
 	err = transport.SendTransactions(context.Background(), p)
 	assert.Error(t, err)
 
-	// Reconfigure the transport with an http.Client that
-	// knows about the CA certificate.
-	transport.Client = server.Client()
+	// Reconfigure the transport so that it knows about the
+	// CA certificate. We avoid using server.Client here, as
+	// it is not available in older versions of Go.
+	certificate, err := x509.ParseCertificate(server.TLS.Certificates[0].Certificate[0])
+	assert.NoError(t, err)
+	certpool := x509.NewCertPool()
+	certpool.AddCert(certificate)
+	transport.Client.Transport = &http.Transport{
+		TLSClientConfig: &tls.Config{
+			RootCAs: certpool,
+		},
+	}
 	err = transport.SendTransactions(context.Background(), p)
 	assert.NoError(t, err)
 }
@@ -155,8 +166,6 @@ func TestConcurrentSendErrors(t *testing.T) {
 }
 
 func testConcurrentSend(t *testing.T, write func(transport.Transport)) {
-	t.Helper()
-
 	transport, server := newHTTPTransport(t, nopHandler{})
 	defer server.Close()
 
@@ -174,7 +183,6 @@ func testConcurrentSend(t *testing.T, write func(transport.Transport)) {
 }
 
 func newHTTPTransport(t *testing.T, handler http.Handler) (*transport.HTTPTransport, *httptest.Server) {
-	t.Helper()
 	server := httptest.NewServer(handler)
 	transport, err := transport.NewHTTPTransport(server.URL, "")
 	if !assert.NoError(t, err) {
@@ -200,7 +208,6 @@ func (h *recordingHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func assertAuthorization(t *testing.T, req *http.Request, token string) {
-	t.Helper()
 	values, ok := req.Header["Authorization"]
 	if !ok {
 		if token == "" {

@@ -70,14 +70,12 @@ func TestSplitFunctionNameUnescape(t *testing.T) {
 }
 
 func assertModule(t *testing.T, got, expect string) {
-	t.Helper()
 	if got != expect {
 		t.Errorf("got module %q, expected %q", got, expect)
 	}
 }
 
 func assertFunction(t *testing.T, got, expect string) {
-	t.Helper()
 	if got != expect {
 		t.Errorf("got function %q, expected %q", got, expect)
 	}

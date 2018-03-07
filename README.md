@@ -1,4 +1,4 @@
-# apm-agent-go: APM Agent for Go (pre-alpha) [![GoDoc](https://godoc.org/github.com/elastic/apm-agent-go/trace?status.svg)](http://godoc.org/github.com/elastic/apm-agent-go/trace)
+# apm-agent-go: APM Agent for Go (pre-alpha) [![GoDoc](https://godoc.org/github.com/elastic/apm-agent-go/trace?status.svg)](http://godoc.org/github.com/elastic/apm-agent-go/trace) [![Travis-CI](https://travis-ci.org/elastic/apm-agent-go.svg)](https://travis-ci.org/elastic/apm-agent-go)
 
 This is the official Go package for [Elastic APM][].
 

@@ -65,7 +65,6 @@ func testSetContext(
 	nPre, nPost int,
 	expectedContext string, expectedPre, expectedPost []string,
 ) {
-	t.Helper()
 	frames := []model.StacktraceFrame{frame}
 	err := stacktrace.SetContext(setter, frames, nPre, nPost)
 	if err != nil {
