@@ -1,6 +1,7 @@
 package trace
 
 import (
+	"math/rand"
 	"os"
 	"strconv"
 	"time"
@@ -9,9 +10,10 @@ import (
 )
 
 const (
-	envFlushInterval = "ELASTIC_APM_FLUSH_INTERVAL"
-	envMaxQueueSize  = "ELASTIC_APM_MAX_QUEUE_SIZE"
-	envMaxSpans      = "ELASTIC_APM_TRANSACTION_MAX_SPANS"
+	envFlushInterval         = "ELASTIC_APM_FLUSH_INTERVAL"
+	envMaxQueueSize          = "ELASTIC_APM_MAX_QUEUE_SIZE"
+	envMaxSpans              = "ELASTIC_APM_TRANSACTION_MAX_SPANS"
+	envTransactionSampleRate = "ELASTIC_APM_TRANSACTION_SAMPLE_RATE"
 
 	defaultFlushInterval = 10 * time.Second
 	defaultMaxQueueSize  = 500
@@ -62,4 +64,24 @@ func initialMaxSpans() (int, error) {
 		return 0, errors.Wrapf(err, "failed to parse %s", envMaxSpans)
 	}
 	return max, nil
+}
+
+// initialSampler returns a nil Sampler if all transactions should be sampled.
+func initialSampler() (Sampler, error) {
+	value := os.Getenv(envTransactionSampleRate)
+	if value == "" || value == "1.0" {
+		return nil, nil
+	}
+	ratio, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to parse %s", envTransactionSampleRate)
+	}
+	if ratio < 0.0 || ratio > 1.0 {
+		return nil, errors.Errorf(
+			"invalid %s value %s: out of range [0,1.0]",
+			envTransactionSampleRate, value,
+		)
+	}
+	source := rand.NewSource(time.Now().Unix())
+	return NewRatioSampler(ratio, source), nil
 }

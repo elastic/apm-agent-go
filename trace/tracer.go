@@ -71,6 +71,9 @@ type Tracer struct {
 	maxSpansMu sync.RWMutex
 	maxSpans   int
 
+	samplerMu sync.RWMutex
+	sampler   Sampler
+
 	errorPool       sync.Pool
 	spanPool        sync.Pool
 	transactionPool sync.Pool
@@ -106,6 +109,10 @@ func NewTracer(serviceName, serviceVersion string) (*Tracer, error) {
 	if err != nil {
 		return nil, err
 	}
+	sampler, err := initialSampler()
+	if err != nil {
+		return nil, err
+	}
 	t := &Tracer{
 		Transport:                  transport.Default,
 		Service:                    service,
@@ -125,6 +132,7 @@ func NewTracer(serviceName, serviceVersion string) (*Tracer, error) {
 		transactions:               make(chan *Transaction, transactionsChannelCap),
 		errors:                     make(chan *Error, errorsChannelCap),
 		maxSpans:                   maxSpans,
+		sampler:                    sampler,
 	}
 	go t.loop()
 	t.setFlushInterval <- flushInterval
@@ -226,6 +234,14 @@ func (t *Tracer) SetProcessor(p ...Processor) {
 	case <-t.closing:
 	case <-t.closed:
 	}
+}
+
+// SetSampler sets the sampler the tracer. It is valid to pass nil,
+// in which case all transactions will be sampled.
+func (t *Tracer) SetSampler(s Sampler) {
+	t.samplerMu.Lock()
+	t.sampler = s
+	t.samplerMu.Unlock()
 }
 
 // SetMaxSpans sets the maximum number of spans that will be added
