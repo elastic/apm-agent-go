@@ -203,7 +203,7 @@ func initErrorsStacktrace(e *model.Exception, err error) {
 		for i, frame := range stackTrace {
 			pc[i] = uintptr(frame)
 		}
-		e.Stacktrace = stacktrace.StacktraceCallers(pc)
+		e.Stacktrace = stacktrace.Callers(pc)
 	}
 }
 
