@@ -12,6 +12,8 @@ import (
 	"github.com/elastic/apm-agent-go/contrib/apmsql/dsn"
 )
 
+// ParseDSN parses the given lib/pq datasource name, which may
+// be either a URL or connection string.
 func ParseDSN(name string) dsn.Info {
 	if connStr, err := parseURL(name); err == nil {
 		name = connStr

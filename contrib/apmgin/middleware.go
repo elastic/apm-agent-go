@@ -13,6 +13,8 @@ import (
 	"github.com/elastic/apm-agent-go/trace"
 )
 
+// Framework is a model.Framework initialized with values
+// describing the gin framework name and version.
 var Framework = model.Framework{
 	Name:    "gin",
 	Version: gin.Version,

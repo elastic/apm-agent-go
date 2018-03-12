@@ -16,6 +16,9 @@ const (
 // are sent to the APM server.
 type Processor struct{}
 
+// ProcessError processes the error by marking its exception and log
+// stacktrace frames originating within gin packages as being library
+// frames.
 func (Processor) ProcessError(e *model.Error) {
 	if e.Exception != nil {
 		setGinLibraryFrames(e.Exception.Stacktrace)
@@ -25,6 +28,9 @@ func (Processor) ProcessError(e *model.Error) {
 	}
 }
 
+// ProcessTransaction processes the transaction by marking its spans'
+// stacktrace frames originating within gin packages as being library
+// frames.
 func (Processor) ProcessTransaction(t *model.Transaction) {
 	for _, s := range t.Spans {
 		setGinLibraryFrames(s.Stacktrace)

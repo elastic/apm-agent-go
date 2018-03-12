@@ -5,16 +5,16 @@ import (
 	"database/sql/driver"
 	"errors"
 
-	"github.com/elastic/apm-agent-go/contrib/apmsql/dsn"
+	apmsqldsn "github.com/elastic/apm-agent-go/contrib/apmsql/dsn"
 	"github.com/elastic/apm-agent-go/model"
 	"github.com/elastic/apm-agent-go/trace"
 )
 
-func newConn(in driver.Conn, d *tracingDriver, dsn_ string) driver.Conn {
+func newConn(in driver.Conn, d *tracingDriver, dsn string) driver.Conn {
 	conn := &conn{Conn: in, driver: d}
-	var dsnInfo dsn.Info
+	var dsnInfo apmsqldsn.Info
 	if d.dsnParser != nil {
-		dsnInfo = d.dsnParser(dsn_)
+		dsnInfo = d.dsnParser(dsn)
 	}
 	conn.spanContextBase.Database = &model.DatabaseSpanContext{
 		Type:     "sql",
