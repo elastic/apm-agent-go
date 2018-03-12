@@ -10,21 +10,21 @@ import (
 
 // StartTransaction returns a new Transaction with the specified
 // name and type, and with the start time set to the current time.
-func (t *Tracer) StartTransaction(name, type_ string) *Transaction {
-	tx := t.newTransaction(name, type_)
+func (t *Tracer) StartTransaction(name, transactionType string) *Transaction {
+	tx := t.newTransaction(name, transactionType)
 	tx.Timestamp = time.Now()
 	return tx
 }
 
 // newTransaction returns a new Transaction with the specified
 // name and type, and sampling applied.
-func (t *Tracer) newTransaction(name, type_ string) *Transaction {
+func (t *Tracer) newTransaction(name, transactionType string) *Transaction {
 	tx, _ := t.transactionPool.Get().(*Transaction)
 	if tx == nil {
 		tx = &Transaction{tracer: t}
 	}
 	tx.Name = name
-	tx.Type = type_
+	tx.Type = transactionType
 
 	// Take a snapshot of the max spans config to ensure
 	// that once the maximum is reached, all future span
@@ -200,7 +200,7 @@ func (tx *Transaction) enqueue() {
 // If the transaction is sampled, then the span's ID will be set,
 // and its stacktrace will be set if the tracer is configured
 // accordingly.
-func (tx *Transaction) StartSpan(name, type_ string, parent *Span) *Span {
+func (tx *Transaction) StartSpan(name, transactionType string, parent *Span) *Span {
 	if !tx.Sampled() {
 		return nil
 	}
@@ -212,7 +212,7 @@ func (tx *Transaction) StartSpan(name, type_ string, parent *Span) *Span {
 	}
 	span.tx = tx
 	span.Name = name
-	span.Type = type_
+	span.Type = transactionType
 	span.Start = start
 
 	tx.mu.Lock()

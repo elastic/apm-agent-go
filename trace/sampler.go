@@ -45,6 +45,8 @@ func NewRatioSampler(r float64, source rand.Source) *RatioSampler {
 	}
 }
 
+// Sample samples the transaction according to the configured
+// ratio and pseudo-random source.
 func (s *RatioSampler) Sample(*Transaction) bool {
 	s.mu.Lock()
 	v := s.rng.Float64()
