@@ -338,8 +338,6 @@ func (t *Tracer) loop() {
 		case e := <-errorsC:
 			errors = append(errors, e)
 		case tx := <-t.transactions:
-			// TODO(axw) don't pull transactions off the channel
-			// if the queue is full.
 			beforeLen := len(transactions)
 			receivedTransaction(tx, &statsUpdates)
 			if len(transactions) == beforeLen && flushC != nil {
@@ -407,7 +405,6 @@ func (t *Tracer) loop() {
 
 			if statsUpdates.Errors.SendTransactions != 0 || statsUpdates.Errors.SendErrors != 0 {
 				// Sending transactions or errors failed, start a new timer to resend.
-				// TODO(axw) exponential backoff on this?
 				startTimer()
 				continue
 			}

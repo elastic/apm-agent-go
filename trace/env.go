@@ -23,10 +23,17 @@ func initialFlushInterval() (time.Duration, error) {
 	if value == "" {
 		return defaultFlushInterval, nil
 	}
-	// TODO(axw) check what format other agents accept
-	// in ELASTIC_APM_FLUSH_INTERVAL. Ideally we should
-	// accept a common format.
 	d, err := time.ParseDuration(value)
+	if err != nil {
+		// We allow the value to have no suffix, in which case
+		// we assume seconds, to be compatible with configuration
+		// for other Elastic APM agents.
+		var err2 error
+		d, err2 = time.ParseDuration(value + "s")
+		if err2 == nil {
+			err = nil
+		}
+	}
 	if err != nil {
 		return 0, errors.Wrapf(err, "failed to parse %s", envFlushInterval)
 	}
