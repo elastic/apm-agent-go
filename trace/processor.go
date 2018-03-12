@@ -35,6 +35,7 @@ type TransactionProcessor interface {
 // ErrorProcessorFunc is a function type implementing ErrorProcessor.
 type ErrorProcessorFunc func(*model.Error)
 
+// ProcessError processes the error by calling f(e).
 func (f ErrorProcessorFunc) ProcessError(e *model.Error) {
 	f(e)
 }
@@ -43,6 +44,7 @@ func (f ErrorProcessorFunc) ProcessError(e *model.Error) {
 // TransactionProcessor.
 type TransactionProcessorFunc func(*model.Transaction)
 
+// ProcessTransaction processes the transaction by calling f(t).
 func (f TransactionProcessorFunc) ProcessTransaction(t *model.Transaction) {
 	f(t)
 }
@@ -51,12 +53,16 @@ func (f TransactionProcessorFunc) ProcessTransaction(t *model.Transaction) {
 // will be invoked in series.
 type Processors []Processor
 
+// ProcessError processes the error by passing to each processor in the
+// slice in sequence.
 func (p Processors) ProcessError(e *model.Error) {
 	for _, p := range p {
 		p.ProcessError(e)
 	}
 }
 
+// ProcessTransaction processes the transaction by passing to each processor
+// in the slice in sequence.
 func (p Processors) ProcessTransaction(t *model.Transaction) {
 	for _, p := range p {
 		p.ProcessTransaction(t)

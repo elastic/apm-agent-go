@@ -12,38 +12,41 @@ const (
 	dateTimeFormat = "2006-01-02T15:04:05.999Z"
 )
 
+// MarshalJSON returns the JSON encoding of t.
 func (t *Transaction) MarshalJSON() ([]byte, error) {
 	// Wrap the Transaction type so we can format the timestamp and
 	// duration fields according to the JSON Schema.
-	type Transaction_ Transaction
-	var t_ = struct {
-		*Transaction_
+	type TransactionInternal Transaction
+	var ti = struct {
+		*TransactionInternal
 		Timestamp string  `json:"timestamp"`
 		Duration  float64 `json:"duration"`
 	}{
-		(*Transaction_)(t),
+		(*TransactionInternal)(t),
 		t.Timestamp.UTC().Format(dateTimeFormat),
 		t.Duration.Seconds() * 1000,
 	}
-	return json.Marshal(t_)
+	return json.Marshal(ti)
 }
 
+// MarshalJSON returns the JSON encoding of s.
 func (s *Span) MarshalJSON() ([]byte, error) {
 	// Wrap the Span type so we can format the start and
 	// duration fields according to the JSON Schema.
-	type Span_ Span
-	var s_ = struct {
-		*Span_
+	type SpanInternal Span
+	var si = struct {
+		*SpanInternal
 		Start    float64 `json:"start"`
 		Duration float64 `json:"duration"`
 	}{
-		(*Span_)(s),
+		(*SpanInternal)(s),
 		s.Start.Seconds() * 1000,
 		s.Duration.Seconds() * 1000,
 	}
-	return json.Marshal(s_)
+	return json.Marshal(si)
 }
 
+// MarshalJSON returns the JSON encoding of r.
 func (r *Request) MarshalJSON() ([]byte, error) {
 	var url interface{}
 	if r.URL != nil {
@@ -60,17 +63,18 @@ func (r *Request) MarshalJSON() ([]byte, error) {
 
 	// Wrap the Request type so we can format the URL
 	// and cookies fields according to the JSON Schema.
-	type Request_ Request
-	var r_ = struct {
-		*Request_
+	type RequestInternal Request
+	var ri = struct {
+		*RequestInternal
 		URL     interface{}            `json:"url,omitepty"`
 		Cookies map[string]interface{} `json:"cookies,omitempty"`
 	}{
-		(*Request_)(r), url, cookies,
+		(*RequestInternal)(r), url, cookies,
 	}
-	return json.Marshal(r_)
+	return json.Marshal(ri)
 }
 
+// MarshalJSON returns the JSON encoding of b.
 func (b *RequestBody) MarshalJSON() ([]byte, error) {
 	if b.Form != nil {
 		if b.Raw != "" {
@@ -90,27 +94,28 @@ func (b *RequestBody) MarshalJSON() ([]byte, error) {
 	return json.Marshal(b.Raw)
 }
 
+// MarshalJSON returns the JSON encoding of e.
 func (e *Error) MarshalJSON() ([]byte, error) {
 	// Wrap the Error type so we can format the timestamp and
 	// duration fields according to the JSON Schema.
-	type Error_ Error
-	type Transaction_ struct {
+	type ErrorInternal Error
+	type TransactionInternal struct {
 		ID string `json:"id"`
 	}
-	var transaction *Transaction_
+	var transaction *TransactionInternal
 	if e.TransactionID != "" {
-		transaction = &Transaction_{ID: e.TransactionID}
+		transaction = &TransactionInternal{ID: e.TransactionID}
 	}
-	var e_ = struct {
-		*Error_
-		Timestamp   string        `json:"timestamp"`
-		Transaction *Transaction_ `json:"transaction,omitempty"`
+	var ei = struct {
+		*ErrorInternal
+		Timestamp   string               `json:"timestamp"`
+		Transaction *TransactionInternal `json:"transaction,omitempty"`
 	}{
-		(*Error_)(e),
+		(*ErrorInternal)(e),
 		e.Timestamp.UTC().Format(dateTimeFormat),
 		transaction,
 	}
-	return json.Marshal(e_)
+	return json.Marshal(ei)
 }
 
 func deconstructURL(u *url.URL) interface{} {

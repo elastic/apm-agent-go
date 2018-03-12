@@ -17,10 +17,12 @@ type ErrorTransport struct {
 	Error error
 }
 
+// SendTransactions discards the payload and returns t.Error.
 func (t ErrorTransport) SendTransactions(context.Context, *model.TransactionsPayload) error {
 	return t.Error
 }
 
+// SendErrors discards the payload and returns t.Error.
 func (t ErrorTransport) SendErrors(context.Context, *model.ErrorsPayload) error {
 	return t.Error
 }

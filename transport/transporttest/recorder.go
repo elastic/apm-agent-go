@@ -16,10 +16,14 @@ type RecorderTransport struct {
 	payloads []map[string]interface{}
 }
 
+// SendTransactions records the transactions payload such that it can later be
+// obtained via Payloads.
 func (r *RecorderTransport) SendTransactions(ctx context.Context, payload *model.TransactionsPayload) error {
 	return r.record(payload)
 }
 
+// SendErrors records the errors payload such that it can later be obtained via
+// Payloads.
 func (r *RecorderTransport) SendErrors(ctx context.Context, payload *model.ErrorsPayload) error {
 	return r.record(payload)
 }

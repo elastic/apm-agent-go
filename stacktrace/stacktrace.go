@@ -42,15 +42,15 @@ func Stacktrace(skip, n int) []model.StacktraceFrame {
 			pc = append(pc, 0)
 		}
 	}
-	return StacktraceCallers(pc)
+	return Callers(pc)
 }
 
-// StacktraceCallers returns a slice of StacktraceFrame
+// Callers returns a slice of StacktraceFrame
 // for the given callers (program counter values).
 //
 // See RuntimeStacktraceFrame for information on what
 // details are included.
-func StacktraceCallers(callers []uintptr) []model.StacktraceFrame {
+func Callers(callers []uintptr) []model.StacktraceFrame {
 	if len(callers) == 0 {
 		return nil
 	}

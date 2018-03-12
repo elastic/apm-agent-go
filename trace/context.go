@@ -36,12 +36,12 @@ func TransactionFromContext(ctx context.Context) *Transaction {
 //
 // If there is no transaction in the context, or it is not being sampled,
 // StartSpan returns nil.
-func StartSpan(ctx context.Context, name, type_ string) (*Span, context.Context) {
+func StartSpan(ctx context.Context, name, spanType string) (*Span, context.Context) {
 	tx := TransactionFromContext(ctx)
 	if tx == nil || !tx.Sampled() {
 		return nil, ctx
 	}
-	span := tx.StartSpan(name, type_, SpanFromContext(ctx))
+	span := tx.StartSpan(name, spanType, SpanFromContext(ctx))
 	return span, context.WithValue(ctx, contextSpanKey{}, span)
 }
 
