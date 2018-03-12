@@ -111,6 +111,7 @@ func NewHTTPTransport(serverURL, secretToken string) (*HTTPTransport, error) {
 	}, nil
 }
 
+// SendTransactions sends the transactions payload over HTTP.
 func (t *HTTPTransport) SendTransactions(ctx context.Context, p *model.TransactionsPayload) error {
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(p); err != nil {
@@ -122,6 +123,7 @@ func (t *HTTPTransport) SendTransactions(ctx context.Context, p *model.Transacti
 	return t.send(req, "SendTransactions")
 }
 
+// SendErrors sends the errors payload over HTTP.
 func (t *HTTPTransport) SendErrors(ctx context.Context, p *model.ErrorsPayload) error {
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(p); err != nil {
