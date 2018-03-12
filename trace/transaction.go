@@ -33,9 +33,12 @@ func (t *Tracer) newTransaction(name, type_ string) *Transaction {
 	tx.maxSpans = t.maxSpans
 	t.maxSpansMu.RUnlock()
 
-	// TODO(axw) sampling
+	t.samplerMu.RLock()
+	sampler := t.sampler
+	t.samplerMu.RUnlock()
 	tx.sampled = true
-	if !tx.sampled {
+	if sampler != nil && !sampler.Sample(tx) {
+		tx.sampled = false
 		tx.Transaction.Sampled = &tx.sampled
 	}
 	return tx
