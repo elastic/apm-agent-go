@@ -275,6 +275,7 @@ func (t *Tracer) loop() {
 	}()
 
 	var flushInterval time.Duration
+	var flushed chan<- struct{}
 	var maxTransactionQueueSize int
 	var maxErrorQueueSize int
 	var flushC <-chan time.Time
@@ -324,7 +325,6 @@ func (t *Tracer) loop() {
 
 	for {
 		var sendTransactions bool
-		var flushed chan<- struct{}
 		statsUpdates = TracerStats{}
 
 		select {
