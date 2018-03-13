@@ -5,3 +5,9 @@ go:
   - "1.8.x"
   - "1.9.x"
   - "1.10.x"
+
+script:
+  - bash ./scripts/test_coverage.sh
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
