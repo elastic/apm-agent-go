@@ -122,6 +122,45 @@ func TestTracerRetryTimer(t *testing.T) {
 	}, tracer.Stats())
 }
 
+func TestTracerRetryTimerFlush(t *testing.T) {
+	tracer, err := trace.NewTracer("tracer.testing", "")
+	assert.NoError(t, err)
+	defer tracer.Close()
+	interval := time.Second
+	tracer.SetFlushInterval(interval)
+	transactions := make(chan transporttest.SendTransactionsRequest)
+	tracer.Transport = &transporttest.ChannelTransport{Transactions: transactions}
+
+	tracer.StartTransaction("name", "type").Done(-1)
+	before := time.Now()
+	after := make(chan time.Time, 1)
+	cancel := make(chan struct{})
+	defer close(cancel)
+	go func() {
+		tracer.Flush(cancel)
+		after <- time.Now()
+	}()
+
+	// The first attempt to send the transaction fails,
+	// causing the tracer to wait and retry. The flush
+	//
+	for _, err := range []error{errors.New("nope"), nil} {
+		select {
+		case req := <-transactions:
+			req.Result <- err
+		case <-time.After(10 * time.Second):
+			t.Fatal("timed out waiting for transaction to be sent")
+		}
+	}
+
+	select {
+	case now := <-after:
+		assert.WithinDuration(t, before.Add(interval), now, 100*time.Millisecond)
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out waiting for Flush to return")
+	}
+}
+
 func TestTracerMaxSpans(t *testing.T) {
 	var r transporttest.RecorderTransport
 	tracer, err := trace.NewTracer("tracer.testing", "")
