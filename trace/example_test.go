@@ -122,7 +122,7 @@ func (api *api) handleOrder(ctx context.Context, product string) {
 }
 
 func storeOrder(ctx context.Context, product string) {
-	span, ctx := trace.StartSpan(ctx, "store_order", "rpc")
+	span, _ := trace.StartSpan(ctx, "store_order", "rpc")
 	if span != nil {
 		defer span.Done(-1)
 	}
