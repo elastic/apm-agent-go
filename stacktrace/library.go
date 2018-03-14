@@ -199,7 +199,6 @@ var libraryPackages = map[string]struct{}{
 	"github.com/elastic/apm-agent-go/internal/uuid":                     {},
 	"github.com/elastic/apm-agent-go/model":                             {},
 	"github.com/elastic/apm-agent-go/stacktrace":                        {},
-	"github.com/elastic/apm-agent-go/trace":                             {},
 	"github.com/elastic/apm-agent-go/transport":                         {},
 	"github.com/elastic/apm-agent-go/transport/transporttest":           {},
 }

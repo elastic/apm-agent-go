@@ -11,9 +11,9 @@ const (
 	ginContribPackagePrefix = "github.com/gin-contrib/"
 )
 
-// Processor is an implementation of apm-agent-go/trace.Processor
-// for making Gin-specific adjustments to model values before they
-// are sent to the APM server.
+// Processor is an implementation of elasticapm.Processor for making
+// Gin-specific adjustments to model values before they are sent to
+// the APM server.
 type Processor struct{}
 
 // ProcessError processes the error by marking its exception and log

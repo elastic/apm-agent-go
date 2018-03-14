@@ -1,4 +1,4 @@
-package trace
+package elasticapm
 
 import (
 	"math/rand"

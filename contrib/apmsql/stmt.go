@@ -4,8 +4,8 @@ import (
 	"context"
 	"database/sql/driver"
 
+	"github.com/elastic/apm-agent-go"
 	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/trace"
 )
 
 func newStmt(in driver.Stmt, conn *conn, query string) driver.Stmt {
@@ -34,7 +34,7 @@ type stmt struct {
 	stmtQueryContext driver.StmtQueryContext
 }
 
-func (s *stmt) finishSpan(ctx context.Context, span *trace.Span, resultError error) {
+func (s *stmt) finishSpan(ctx context.Context, span *elasticapm.Span, resultError error) {
 	span.Context = s.spanContext
 	s.conn.finishSpan(ctx, span, "", resultError)
 }
@@ -47,7 +47,7 @@ func (s *stmt) ColumnConverter(idx int) driver.ValueConverter {
 }
 
 func (s *stmt) ExecContext(ctx context.Context, args []driver.NamedValue) (_ driver.Result, resultError error) {
-	span, ctx := trace.StartSpan(ctx, s.signature, s.conn.driver.spanType("exec"))
+	span, ctx := elasticapm.StartSpan(ctx, s.signature, s.conn.driver.spanType("exec"))
 	if span != nil {
 		defer s.finishSpan(ctx, span, resultError)
 	}
@@ -67,7 +67,7 @@ func (s *stmt) ExecContext(ctx context.Context, args []driver.NamedValue) (_ dri
 }
 
 func (s *stmt) QueryContext(ctx context.Context, args []driver.NamedValue) (_ driver.Rows, resultError error) {
-	span, ctx := trace.StartSpan(ctx, s.signature, s.conn.driver.spanType("query"))
+	span, ctx := elasticapm.StartSpan(ctx, s.signature, s.conn.driver.spanType("query"))
 	if span != nil {
 		defer s.finishSpan(ctx, span, resultError)
 	}

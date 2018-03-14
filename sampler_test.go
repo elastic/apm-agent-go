@@ -1,18 +1,18 @@
-package trace_test
+package elasticapm_test
 
 import (
 	"math/rand"
 	"sync"
 	"testing"
 
-	"github.com/elastic/apm-agent-go/trace"
+	"github.com/elastic/apm-agent-go"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestRatioSampler(t *testing.T) {
 	ratio := 0.75
 	source := rand.NewSource(0) // fixed seed for test
-	s := trace.NewRatioSampler(ratio, source)
+	s := elasticapm.NewRatioSampler(ratio, source)
 
 	const (
 		numGoroutines = 100

@@ -1,11 +1,10 @@
-package trace
+package elasticapm
 
 import (
 	"os"
 	"runtime"
 	"strings"
 
-	"github.com/elastic/apm-agent-go"
 	"github.com/elastic/apm-agent-go/model"
 )
 
@@ -13,7 +12,7 @@ var (
 	currentProcess model.Process
 	envFramework   *model.Framework
 	envService     *model.Service
-	goAgent        = model.Agent{Name: "go", Version: elasticapm.AgentVersion}
+	goAgent        = model.Agent{Name: "go", Version: AgentVersion}
 	goLanguage     = model.Language{Name: "go", Version: runtime.Version()}
 	goRuntime      = model.Runtime{Name: runtime.Compiler, Version: runtime.Version()}
 	localSystem    model.System

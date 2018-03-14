@@ -8,8 +8,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/elastic/apm-agent-go"
 	"github.com/elastic/apm-agent-go/contrib/apmgin"
-	"github.com/elastic/apm-agent-go/trace"
 	"github.com/elastic/apm-agent-go/transport"
 )
 
@@ -53,8 +53,8 @@ func benchmarkEngine(b *testing.B, path string, addMiddleware func(*gin.Engine))
 	}
 }
 
-func newTracer() *trace.Tracer {
-	tracer, err := trace.NewTracer("apmgin_test", "0.1")
+func newTracer() *elasticapm.Tracer {
+	tracer, err := elasticapm.NewTracer("apmgin_test", "0.1")
 	if err != nil {
 		panic(err)
 	}

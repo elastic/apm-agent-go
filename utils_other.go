@@ -1,6 +1,6 @@
 //+build !linux
 
-package trace
+package elasticapm
 
 func currentProcessTitle() (string, error) {
 	// TODO(axw)
