@@ -2,6 +2,7 @@ package elasticapm
 
 import (
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -62,7 +63,7 @@ func getEnvironmentFramework() *model.Framework {
 func getEnvironmentService() *model.Service {
 	name := os.Getenv(envServiceName)
 	if name == "" {
-		return nil
+		name = filepath.Base(os.Args[0])
 	}
 	return newService(name, "")
 }
