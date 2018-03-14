@@ -191,6 +191,7 @@ var libraryPackages = map[string]struct{}{
 	"github.com/elastic/apm-agent-go":                                   {},
 	"github.com/elastic/apm-agent-go/contrib/apmgin":                    {},
 	"github.com/elastic/apm-agent-go/contrib/apmhttp":                   {},
+	"github.com/elastic/apm-agent-go/contrib/apmlambda":                 {},
 	"github.com/elastic/apm-agent-go/contrib/apmsql":                    {},
 	"github.com/elastic/apm-agent-go/contrib/apmsql/dsn":                {},
 	"github.com/elastic/apm-agent-go/contrib/apmsql/pq":                 {},
