@@ -1,4 +1,4 @@
-package trace_test
+package elasticapm_test
 
 import (
 	"os"
@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/apm-agent-go/trace"
+	"github.com/elastic/apm-agent-go"
 	"github.com/elastic/apm-agent-go/transport/transporttest"
 )
 
@@ -25,7 +25,7 @@ func TestTracerFlushIntervalEnvInvalid(t *testing.T) {
 	os.Setenv("ELASTIC_APM_FLUSH_INTERVAL", "aeon")
 	defer os.Unsetenv("ELASTIC_APM_FLUSH_INTERVAL")
 
-	_, err := trace.NewTracer("tracer.testing", "")
+	_, err := elasticapm.NewTracer("tracer.testing", "")
 	assert.EqualError(t, err, "failed to parse ELASTIC_APM_FLUSH_INTERVAL: time: invalid duration aeon")
 }
 
@@ -33,14 +33,14 @@ func testTracerFlushIntervalEnv(t *testing.T, envValue string, expectedInterval 
 	os.Setenv("ELASTIC_APM_FLUSH_INTERVAL", envValue)
 	defer os.Unsetenv("ELASTIC_APM_FLUSH_INTERVAL")
 
-	tracer, err := trace.NewTracer("tracer.testing", "")
+	tracer, err := elasticapm.NewTracer("tracer.testing", "")
 	require.NoError(t, err)
 	defer tracer.Close()
 	tracer.Transport = transporttest.Discard
 
 	before := time.Now()
 	tracer.StartTransaction("name", "type").Done(-1)
-	assert.Equal(t, trace.TracerStats{TransactionsSent: 0}, tracer.Stats())
+	assert.Equal(t, elasticapm.TracerStats{TransactionsSent: 0}, tracer.Stats())
 	for tracer.Stats().TransactionsSent == 0 {
 		time.Sleep(10 * time.Millisecond)
 	}
@@ -63,7 +63,7 @@ func TestTracerTransactionRateEnvInvalid(t *testing.T) {
 	os.Setenv("ELASTIC_APM_TRANSACTION_SAMPLE_RATE", "2.0")
 	defer os.Unsetenv("ELASTIC_APM_TRANSACTION_SAMPLE_RATE")
 
-	_, err := trace.NewTracer("tracer.testing", "")
+	_, err := elasticapm.NewTracer("tracer.testing", "")
 	assert.EqualError(t, err, "invalid ELASTIC_APM_TRANSACTION_SAMPLE_RATE value 2.0: out of range [0,1.0]")
 }
 
@@ -71,7 +71,7 @@ func testTracerTransactionRateEnv(t *testing.T, envValue string, ratio float64) 
 	os.Setenv("ELASTIC_APM_TRANSACTION_SAMPLE_RATE", envValue)
 	defer os.Unsetenv("ELASTIC_APM_TRANSACTION_SAMPLE_RATE")
 
-	tracer, err := trace.NewTracer("tracer.testing", "")
+	tracer, err := elasticapm.NewTracer("tracer.testing", "")
 	require.NoError(t, err)
 	defer tracer.Close()
 	tracer.Transport = transporttest.Discard

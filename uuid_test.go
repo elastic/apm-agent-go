@@ -1,14 +1,14 @@
-package trace_test
+package elasticapm_test
 
 import (
 	"regexp"
 	"testing"
 
-	"github.com/elastic/apm-agent-go/trace"
+	"github.com/elastic/apm-agent-go"
 )
 
 func TestNewUUID(t *testing.T) {
-	id, err := trace.NewUUID()
+	id, err := elasticapm.NewUUID()
 	if err != nil {
 		t.Fatalf("NewUUID failed: %v", err)
 	}

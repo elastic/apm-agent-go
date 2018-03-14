@@ -1,4 +1,4 @@
-package trace_test
+package elasticapm_test
 
 import (
 	"fmt"
@@ -9,13 +9,13 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/elastic/apm-agent-go"
 	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/trace"
 	"github.com/elastic/apm-agent-go/transport/transporttest"
 )
 
 func TestTracerStats(t *testing.T) {
-	tracer, err := trace.NewTracer("tracer.testing", "")
+	tracer, err := elasticapm.NewTracer("tracer.testing", "")
 	assert.NoError(t, err)
 	defer tracer.Close()
 	tracer.Transport = transporttest.Discard
@@ -24,13 +24,13 @@ func TestTracerStats(t *testing.T) {
 		tracer.StartTransaction("name", "type").Done(-1)
 	}
 	tracer.Flush(nil)
-	assert.Equal(t, trace.TracerStats{
+	assert.Equal(t, elasticapm.TracerStats{
 		TransactionsSent: 500,
 	}, tracer.Stats())
 }
 
 func TestTracerClosedSendNonblocking(t *testing.T) {
-	tracer, err := trace.NewTracer("tracer.testing", "")
+	tracer, err := elasticapm.NewTracer("tracer.testing", "")
 	assert.NoError(t, err)
 	tracer.Close()
 
@@ -41,7 +41,7 @@ func TestTracerClosedSendNonblocking(t *testing.T) {
 }
 
 func TestTracerFlushInterval(t *testing.T) {
-	tracer, err := trace.NewTracer("tracer.testing", "")
+	tracer, err := elasticapm.NewTracer("tracer.testing", "")
 	assert.NoError(t, err)
 	defer tracer.Close()
 	tracer.Transport = transporttest.Discard
@@ -51,7 +51,7 @@ func TestTracerFlushInterval(t *testing.T) {
 
 	before := time.Now()
 	tracer.StartTransaction("name", "type").Done(-1)
-	assert.Equal(t, trace.TracerStats{TransactionsSent: 0}, tracer.Stats())
+	assert.Equal(t, elasticapm.TracerStats{TransactionsSent: 0}, tracer.Stats())
 	for tracer.Stats().TransactionsSent == 0 {
 		time.Sleep(10 * time.Millisecond)
 	}
@@ -59,7 +59,7 @@ func TestTracerFlushInterval(t *testing.T) {
 }
 
 func TestTracerMaxQueueSize(t *testing.T) {
-	tracer, err := trace.NewTracer("tracer.testing", "")
+	tracer, err := elasticapm.NewTracer("tracer.testing", "")
 	assert.NoError(t, err)
 	defer tracer.Close()
 
@@ -75,8 +75,8 @@ func TestTracerMaxQueueSize(t *testing.T) {
 	for tracer.Stats().TransactionsDropped < 5 {
 		time.Sleep(10 * time.Millisecond)
 	}
-	assert.Equal(t, trace.TracerStats{
-		Errors: trace.TracerStatsErrors{
+	assert.Equal(t, elasticapm.TracerStats{
+		Errors: elasticapm.TracerStatsErrors{
 			SendTransactions: 1,
 		},
 		TransactionsDropped: 5,
@@ -84,7 +84,7 @@ func TestTracerMaxQueueSize(t *testing.T) {
 }
 
 func TestTracerRetryTimer(t *testing.T) {
-	tracer, err := trace.NewTracer("tracer.testing", "")
+	tracer, err := elasticapm.NewTracer("tracer.testing", "")
 	assert.NoError(t, err)
 	defer tracer.Close()
 
@@ -100,8 +100,8 @@ func TestTracerRetryTimer(t *testing.T) {
 	for tracer.Stats().Errors.SendTransactions < 1 {
 		time.Sleep(10 * time.Millisecond)
 	}
-	assert.Equal(t, trace.TracerStats{
-		Errors: trace.TracerStatsErrors{
+	assert.Equal(t, elasticapm.TracerStats{
+		Errors: elasticapm.TracerStatsErrors{
 			SendTransactions: 1,
 		},
 	}, tracer.Stats())
@@ -114,8 +114,8 @@ func TestTracerRetryTimer(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	assert.WithinDuration(t, before.Add(interval), time.Now(), 100*time.Millisecond)
-	assert.Equal(t, trace.TracerStats{
-		Errors: trace.TracerStatsErrors{
+	assert.Equal(t, elasticapm.TracerStats{
+		Errors: elasticapm.TracerStatsErrors{
 			SendTransactions: 2,
 		},
 		TransactionsDropped: 1,
@@ -123,7 +123,7 @@ func TestTracerRetryTimer(t *testing.T) {
 }
 
 func TestTracerRetryTimerFlush(t *testing.T) {
-	tracer, err := trace.NewTracer("tracer.testing", "")
+	tracer, err := elasticapm.NewTracer("tracer.testing", "")
 	assert.NoError(t, err)
 	defer tracer.Close()
 	interval := time.Second
@@ -163,7 +163,7 @@ func TestTracerRetryTimerFlush(t *testing.T) {
 
 func TestTracerMaxSpans(t *testing.T) {
 	var r transporttest.RecorderTransport
-	tracer, err := trace.NewTracer("tracer.testing", "")
+	tracer, err := elasticapm.NewTracer("tracer.testing", "")
 	assert.NoError(t, err)
 	defer tracer.Close()
 	tracer.Transport = &r
@@ -194,7 +194,7 @@ func TestTracerMaxSpans(t *testing.T) {
 
 func TestTracerErrors(t *testing.T) {
 	var r transporttest.RecorderTransport
-	tracer, err := trace.NewTracer("tracer.testing", "")
+	tracer, err := elasticapm.NewTracer("tracer.testing", "")
 	assert.NoError(t, err)
 	defer tracer.Close()
 	tracer.Transport = &r
@@ -212,7 +212,7 @@ func TestTracerErrors(t *testing.T) {
 	assert.Len(t, errors, 1)
 	exception := errors[0].(map[string]interface{})["exception"].(map[string]interface{})
 	assert.Equal(t, "zing", exception["message"])
-	assert.Equal(t, "github.com/elastic/apm-agent-go/trace_test", exception["module"])
+	assert.Equal(t, "github.com/elastic/apm-agent-go_test", exception["module"])
 	assert.Equal(t, "testError", exception["type"])
 	stacktrace := exception["stacktrace"].([]interface{})
 	assert.Len(t, stacktrace, 2)
@@ -223,7 +223,7 @@ func TestTracerErrors(t *testing.T) {
 }
 
 func TestTracerErrorsBuffered(t *testing.T) {
-	tracer, err := trace.NewTracer("tracer.testing", "")
+	tracer, err := elasticapm.NewTracer("tracer.testing", "")
 	assert.NoError(t, err)
 	defer tracer.Close()
 	errors := make(chan transporttest.SendErrorsRequest)
@@ -276,7 +276,7 @@ func TestTracerErrorsBuffered(t *testing.T) {
 }
 
 func TestTracerProcessor(t *testing.T) {
-	tracer, err := trace.NewTracer("tracer.testing", "")
+	tracer, err := elasticapm.NewTracer("tracer.testing", "")
 	assert.NoError(t, err)
 	defer tracer.Close()
 	tracer.Transport = transporttest.Discard
@@ -295,11 +295,11 @@ func TestTracerProcessor(t *testing.T) {
 		assert.Equal(t, &tx_.Transaction, tx)
 	}
 	tracer.SetProcessor(struct {
-		trace.ErrorProcessor
-		trace.TransactionProcessor
+		elasticapm.ErrorProcessor
+		elasticapm.TransactionProcessor
 	}{
-		trace.ErrorProcessorFunc(processError),
-		trace.TransactionProcessorFunc(processTransaction),
+		elasticapm.ErrorProcessorFunc(processError),
+		elasticapm.TransactionProcessorFunc(processTransaction),
 	})
 
 	e_.Send()
@@ -311,7 +311,7 @@ func TestTracerProcessor(t *testing.T) {
 
 func TestTracerRecover(t *testing.T) {
 	var r transporttest.RecorderTransport
-	tracer, err := trace.NewTracer("tracer.testing", "")
+	tracer, err := elasticapm.NewTracer("tracer.testing", "")
 	assert.NoError(t, err)
 	defer tracer.Close()
 	tracer.Transport = &r
@@ -338,7 +338,7 @@ func TestTracerRecover(t *testing.T) {
 	assert.Equal(t, transaction0["id"], errorTransaction["id"])
 }
 
-func capturePanic(tracer *trace.Tracer, v interface{}) {
+func capturePanic(tracer *elasticapm.Tracer, v interface{}) {
 	tx := tracer.StartTransaction("name", "type")
 	defer tx.Done(-1)
 	defer tracer.Recover(tx)

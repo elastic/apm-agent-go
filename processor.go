@@ -1,4 +1,4 @@
-package trace
+package elasticapm
 
 import "github.com/elastic/apm-agent-go/model"
 

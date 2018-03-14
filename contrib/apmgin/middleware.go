@@ -8,9 +8,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/elastic/apm-agent-go"
 	"github.com/elastic/apm-agent-go/contrib/apmhttp"
 	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/trace"
 )
 
 // Framework is a model.Framework initialized with values
@@ -25,14 +25,14 @@ var Framework = model.Framework{
 //
 // This middleware will recover and report panics, so it can
 // be used instead of the standard gin.Recovery middleware.
-func Middleware(engine *gin.Engine, tracer *trace.Tracer) gin.HandlerFunc {
+func Middleware(engine *gin.Engine, tracer *elasticapm.Tracer) gin.HandlerFunc {
 	m := &middleware{engine: engine, tracer: tracer}
 	return m.handle
 }
 
 type middleware struct {
 	engine *gin.Engine
-	tracer *trace.Tracer
+	tracer *elasticapm.Tracer
 
 	setRouteMapOnce sync.Once
 	routeMap        map[string]map[string]string
@@ -59,12 +59,12 @@ func (m *middleware) handle(c *gin.Context) {
 		requestName += " " + routePath
 	}
 	tx := m.tracer.StartTransaction(requestName, "request")
-	ctx := trace.ContextWithTransaction(c.Request.Context(), tx)
+	ctx := elasticapm.ContextWithTransaction(c.Request.Context(), tx)
 	span := tx.StartSpan(requestName, tx.Type, nil)
 	if span != nil {
 		// TODO(axw) configurable span stack traces, off by default.
 		// span.SetStacktrace(1)
-		ctx = trace.ContextWithSpan(ctx, span)
+		ctx = elasticapm.ContextWithSpan(ctx, span)
 	}
 	c.Request = c.Request.WithContext(ctx)
 

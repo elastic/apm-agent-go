@@ -6,7 +6,7 @@ import (
 	"context"
 	"database/sql/driver"
 
-	"github.com/elastic/apm-agent-go/trace"
+	"github.com/elastic/apm-agent-go"
 )
 
 func (d *tracingDriver) OpenConnector(name string) (driver.Connector, error) {
@@ -30,7 +30,7 @@ type driverConnector struct {
 }
 
 func (d *driverConnector) Connect(ctx context.Context) (driver.Conn, error) {
-	span, ctx := trace.StartSpan(ctx, "connect", d.driver.spanType("connect"))
+	span, ctx := elasticapm.StartSpan(ctx, "connect", d.driver.spanType("connect"))
 	if span != nil {
 		defer span.Done(-1)
 	}

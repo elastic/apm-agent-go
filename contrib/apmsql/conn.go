@@ -5,9 +5,9 @@ import (
 	"database/sql/driver"
 	"errors"
 
+	"github.com/elastic/apm-agent-go"
 	apmsqldsn "github.com/elastic/apm-agent-go/contrib/apmsql/dsn"
 	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/trace"
 )
 
 func newConn(in driver.Conn, d *tracingDriver, dsn string) driver.Conn {
@@ -50,7 +50,7 @@ type conn struct {
 	connBeginTx        driver.ConnBeginTx
 }
 
-func (c *conn) finishSpan(ctx context.Context, span *trace.Span, query string, resultError error) {
+func (c *conn) finishSpan(ctx context.Context, span *elasticapm.Span, query string, resultError error) {
 	if resultError == driver.ErrSkip {
 		// TODO(axw) mark span as abandoned,
 		// so it's not sent and not counted
@@ -66,7 +66,7 @@ func (c *conn) finishSpan(ctx context.Context, span *trace.Span, query string, r
 		span.Context = c.spanContext(query)
 	}
 	span.Done(-1)
-	if e := trace.CaptureError(ctx, resultError); e != nil {
+	if e := elasticapm.CaptureError(ctx, resultError); e != nil {
 		if e.Exception.Stacktrace == nil {
 			e.SetExceptionStacktrace(2)
 		}
@@ -84,7 +84,7 @@ func (c *conn) Ping(ctx context.Context) (resultError error) {
 	if c.pinger == nil {
 		return nil
 	}
-	span, ctx := trace.StartSpan(ctx, "ping", c.driver.spanType("ping"))
+	span, ctx := elasticapm.StartSpan(ctx, "ping", c.driver.spanType("ping"))
 	if span != nil {
 		defer c.finishSpan(ctx, span, "", resultError)
 	}
@@ -95,7 +95,7 @@ func (c *conn) QueryContext(ctx context.Context, query string, args []driver.Nam
 	if c.queryerContext == nil && c.queryer == nil {
 		return nil, driver.ErrSkip
 	}
-	span, ctx := trace.StartSpan(ctx, "", c.driver.spanType("query"))
+	span, ctx := elasticapm.StartSpan(ctx, "", c.driver.spanType("query"))
 	if span != nil {
 		defer c.finishSpan(ctx, span, query, resultError)
 	}
@@ -120,7 +120,7 @@ func (*conn) Query(query string, args []driver.Value) (driver.Rows, error) {
 }
 
 func (c *conn) PrepareContext(ctx context.Context, query string) (_ driver.Stmt, resultError error) {
-	span, ctx := trace.StartSpan(ctx, "", c.driver.spanType("prepare"))
+	span, ctx := elasticapm.StartSpan(ctx, "", c.driver.spanType("prepare"))
 	if span != nil {
 		defer c.finishSpan(ctx, span, query, resultError)
 	}
@@ -149,7 +149,7 @@ func (c *conn) ExecContext(ctx context.Context, query string, args []driver.Name
 	if c.execerContext == nil && c.execer == nil {
 		return nil, driver.ErrSkip
 	}
-	span, ctx := trace.StartSpan(ctx, "", c.driver.spanType("exec"))
+	span, ctx := elasticapm.StartSpan(ctx, "", c.driver.spanType("exec"))
 	if span != nil {
 		defer c.finishSpan(ctx, span, query, resultError)
 	}

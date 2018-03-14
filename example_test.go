@@ -1,4 +1,4 @@
-package trace_test
+package elasticapm_test
 
 import (
 	"context"
@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/elastic/apm-agent-go"
 	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/trace"
 	"github.com/elastic/apm-agent-go/transport"
 )
 
@@ -32,7 +32,7 @@ func ExampleTracer() {
 
 	const serviceName = "service-name"
 	const serviceVersion = "1.0.0"
-	tracer, err := trace.NewTracer(serviceName, serviceVersion)
+	tracer, err := elasticapm.NewTracer(serviceName, serviceVersion)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -102,13 +102,13 @@ func ExampleTracer() {
 }
 
 type api struct {
-	tracer *trace.Tracer
+	tracer *elasticapm.Tracer
 }
 
 func (api *api) handleOrder(ctx context.Context, product string) {
 	tx := api.tracer.StartTransaction("order", "request")
 	defer tx.Done(-1)
-	ctx = trace.ContextWithTransaction(ctx, tx)
+	ctx = elasticapm.ContextWithTransaction(ctx, tx)
 
 	tx.Context = &model.Context{
 		Custom: map[string]interface{}{
@@ -122,7 +122,7 @@ func (api *api) handleOrder(ctx context.Context, product string) {
 }
 
 func storeOrder(ctx context.Context, product string) {
-	span, _ := trace.StartSpan(ctx, "store_order", "rpc")
+	span, _ := elasticapm.StartSpan(ctx, "store_order", "rpc")
 	if span != nil {
 		defer span.Done(-1)
 	}
