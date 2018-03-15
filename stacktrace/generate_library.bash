@@ -13,7 +13,9 @@ var libraryPackages = map[string]struct{}{
 $_PKGS
 }
 
-func isLibraryPackage(pkg string) bool {
+// IsLibraryPackage reports whether or not the given package path is
+// a well-known library path (stdlib or apm-agent-go).
+func IsLibraryPackage(pkg string) bool {
 	_, ok := libraryPackages[pkg]
 	return ok
 }

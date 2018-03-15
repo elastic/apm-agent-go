@@ -2,6 +2,7 @@ package elasticapm
 
 import (
 	"context"
+	"log"
 	"sync"
 	"time"
 
@@ -24,6 +25,65 @@ const (
 	// also full).
 	defaultMaxErrorQueueSize = 1000
 )
+
+var (
+	// DefaultTracer is the default global Tracer, set at package
+	// initialization time, configured via environment variables.
+	//
+	// This will always be initialized to a non-nil value. If any
+	// of the environment variables are invalid, the corresponding
+	// errors will be logged to stderr and the default values will
+	// be used instead.
+	DefaultTracer *Tracer
+)
+
+func init() {
+	var opts options
+	opts.init(true)
+	DefaultTracer = newTracer(envService, opts)
+}
+
+type options struct {
+	flushInterval           time.Duration
+	maxTransactionQueueSize int
+	maxSpans                int
+	sampler                 Sampler
+}
+
+func (opts *options) init(continueOnError bool) error {
+	var errs []error
+	flushInterval, err := initialFlushInterval()
+	if err != nil {
+		flushInterval = defaultFlushInterval
+		errs = append(errs, err)
+	}
+	maxTransactionQueueSize, err := initialMaxTransactionQueueSize()
+	if err != nil {
+		maxTransactionQueueSize = defaultMaxTransactionQueueSize
+		errs = append(errs, err)
+	}
+	maxSpans, err := initialMaxSpans()
+	if err != nil {
+		maxSpans = defaultMaxSpans
+		errs = append(errs, err)
+	}
+	sampler, err := initialSampler()
+	if err != nil {
+		sampler = nil
+		errs = append(errs, err)
+	}
+	if len(errs) != 0 && !continueOnError {
+		return errs[0]
+	}
+	for _, err := range errs {
+		log.Printf("[elasticapm]: %s", err)
+	}
+	opts.flushInterval = flushInterval
+	opts.maxTransactionQueueSize = maxTransactionQueueSize
+	opts.maxSpans = maxSpans
+	opts.sampler = sampler
+	return nil
+}
 
 // Tracer manages the sampling and sending of transactions to
 // Elastic APM.
@@ -96,23 +156,14 @@ func NewTracer(serviceName, serviceVersion string) (*Tracer, error) {
 			envServiceName,
 		)
 	}
+	var opts options
+	if err := opts.init(false); err != nil {
+		return nil, err
+	}
+	return newTracer(service, opts), nil
+}
 
-	flushInterval, err := initialFlushInterval()
-	if err != nil {
-		return nil, err
-	}
-	maxTransactionQueueSize, err := initialMaxTransactionQueueSize()
-	if err != nil {
-		return nil, err
-	}
-	maxSpans, err := initialMaxSpans()
-	if err != nil {
-		return nil, err
-	}
-	sampler, err := initialSampler()
-	if err != nil {
-		return nil, err
-	}
+func newTracer(service *model.Service, opts options) *Tracer {
 	t := &Tracer{
 		Transport:                  transport.Default,
 		Service:                    service,
@@ -131,16 +182,16 @@ func NewTracer(serviceName, serviceVersion string) (*Tracer, error) {
 		setProcessor:               make(chan Processor),
 		transactions:               make(chan *Transaction, transactionsChannelCap),
 		errors:                     make(chan *Error, errorsChannelCap),
-		maxSpans:                   maxSpans,
-		sampler:                    sampler,
+		maxSpans:                   opts.maxSpans,
+		sampler:                    opts.sampler,
 	}
 	go t.loop()
-	t.setFlushInterval <- flushInterval
-	t.setMaxTransactionQueueSize <- maxTransactionQueueSize
+	t.setFlushInterval <- opts.flushInterval
+	t.setMaxTransactionQueueSize <- opts.maxTransactionQueueSize
 	t.setMaxErrorQueueSize <- defaultMaxErrorQueueSize
 	t.setPreContext <- defaultPreContext
 	t.setPostContext <- defaultPostContext
-	return t, nil
+	return t
 }
 
 // Close closes the Tracer, preventing transactions from being

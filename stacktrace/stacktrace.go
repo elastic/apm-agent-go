@@ -93,7 +93,7 @@ func RuntimeStacktraceFrame(in *runtime.Frame) model.StacktraceFrame {
 		Line:         in.Line,
 		Function:     function,
 		Module:       packagePath,
-		LibraryFrame: isLibraryPackage(packagePath),
+		LibraryFrame: IsLibraryPackage(packagePath),
 	}
 }
 

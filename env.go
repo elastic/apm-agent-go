@@ -15,9 +15,9 @@ const (
 	envMaxSpans              = "ELASTIC_APM_TRANSACTION_MAX_SPANS"
 	envTransactionSampleRate = "ELASTIC_APM_TRANSACTION_SAMPLE_RATE"
 
-	defaultFlushInterval = 10 * time.Second
-	defaultMaxQueueSize  = 500
-	defaultMaxSpans      = 500
+	defaultFlushInterval           = 10 * time.Second
+	defaultMaxTransactionQueueSize = 500
+	defaultMaxSpans                = 500
 )
 
 func initialFlushInterval() (time.Duration, error) {
@@ -45,7 +45,7 @@ func initialFlushInterval() (time.Duration, error) {
 func initialMaxTransactionQueueSize() (int, error) {
 	value := os.Getenv(envMaxQueueSize)
 	if value == "" {
-		return defaultMaxQueueSize, nil
+		return defaultMaxTransactionQueueSize, nil
 	}
 	size, err := strconv.Atoi(value)
 	if err != nil {

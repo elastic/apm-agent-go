@@ -191,6 +191,7 @@ var libraryPackages = map[string]struct{}{
 	"github.com/elastic/apm-agent-go":                                   {},
 	"github.com/elastic/apm-agent-go/contrib/apmgin":                    {},
 	"github.com/elastic/apm-agent-go/contrib/apmhttp":                   {},
+	"github.com/elastic/apm-agent-go/contrib/apmlambda":                 {},
 	"github.com/elastic/apm-agent-go/contrib/apmsql":                    {},
 	"github.com/elastic/apm-agent-go/contrib/apmsql/dsn":                {},
 	"github.com/elastic/apm-agent-go/contrib/apmsql/pq":                 {},
@@ -204,7 +205,9 @@ var libraryPackages = map[string]struct{}{
 	"github.com/elastic/apm-agent-go/transport/transporttest":           {},
 }
 
-func isLibraryPackage(pkg string) bool {
+// IsLibraryPackage reports whether or not the given package path is
+// a well-known library path (stdlib or apm-agent-go).
+func IsLibraryPackage(pkg string) bool {
 	_, ok := libraryPackages[pkg]
 	return ok
 }
