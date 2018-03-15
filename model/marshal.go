@@ -3,8 +3,6 @@ package model
 import (
 	"encoding/json"
 	"errors"
-	"net"
-	"net/url"
 )
 
 const (
@@ -48,11 +46,6 @@ func (s *Span) MarshalJSON() ([]byte, error) {
 
 // MarshalJSON returns the JSON encoding of r.
 func (r *Request) MarshalJSON() ([]byte, error) {
-	var url interface{}
-	if r.URL != nil {
-		url = deconstructURL(r.URL)
-	}
-
 	var cookies map[string]interface{}
 	if len(r.Cookies) != 0 {
 		cookies = make(map[string]interface{}, len(r.Cookies))
@@ -66,10 +59,9 @@ func (r *Request) MarshalJSON() ([]byte, error) {
 	type RequestInternal Request
 	var ri = struct {
 		*RequestInternal
-		URL     interface{}            `json:"url,omitepty"`
 		Cookies map[string]interface{} `json:"cookies,omitempty"`
 	}{
-		(*RequestInternal)(r), url, cookies,
+		(*RequestInternal)(r), cookies,
 	}
 	return json.Marshal(ri)
 }
@@ -116,38 +108,4 @@ func (e *Error) MarshalJSON() ([]byte, error) {
 		transaction,
 	}
 	return json.Marshal(ei)
-}
-
-func deconstructURL(u *url.URL) interface{} {
-	type URL struct {
-		Full     string `json:"full,omitempty"`
-		Protocol string `json:"protocol,omitempty"`
-		Hostname string `json:"hostname,omitempty"`
-		Port     string `json:"port,omitempty"`
-		Path     string `json:"pathname,omitempty"`
-		Search   string `json:"search,omitempty"`
-		Hash     string `json:"hash,omitempty"`
-	}
-	host, port, err := net.SplitHostPort(u.Host)
-	if err != nil {
-		host = u.Host
-		port = ""
-	}
-	// If the URL contains user info, remove it so it doesn't
-	// make its way into the "full" URL, to avoid leaking PII
-	// or secrets.
-	if u.User != nil {
-		uCopy := *u
-		uCopy.User = nil
-		u = &uCopy
-	}
-	return &URL{
-		Full:     u.String(),
-		Protocol: u.Scheme,
-		Hostname: host,
-		Port:     port,
-		Path:     u.Path,
-		Search:   u.RawQuery,
-		Hash:     u.Fragment,
-	}
 }
