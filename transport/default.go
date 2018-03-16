@@ -2,6 +2,8 @@ package transport
 
 import (
 	"os"
+
+	"github.com/elastic/apm-agent-go/internal/apmdebug"
 )
 
 var (
@@ -28,16 +30,22 @@ func init() {
 // if the environment variable configuration is invalid. The Transport returned
 // is always non-nil.
 func InitDefault() (Transport, error) {
+	t, err := getDefault()
+	if apmdebug.TraceTransport {
+		t = &debugTransport{transport: t}
+	}
+	Default = t
+	return t, err
+}
+
+func getDefault() (Transport, error) {
 	url := os.Getenv(envServerURL)
 	if url == "" {
-		Default = Discard
-		return Default, nil
+		return Discard, nil
 	}
 	t, err := NewHTTPTransport(url, "")
 	if err != nil {
-		Default = discardTransport{err}
-		return Default, err
+		return discardTransport{err}, err
 	}
-	Default = t
-	return Default, nil
+	return t, nil
 }
