@@ -357,7 +357,7 @@ type Log struct {
 // Request represents an HTTP request.
 type Request struct {
 	// URL is the request URL.
-	URL *url.URL `json:"url"`
+	URL URL `json:"url"`
 
 	// Method holds the HTTP request method.
 	Method string `json:"method"`
@@ -414,6 +414,32 @@ type RequestSocket struct {
 
 	// RemoteAddress holds the remote address for the request.
 	RemoteAddress string `json:"remote_address,omitempty"`
+}
+
+// URL represents a request URL.
+type URL struct {
+	// Full is the full URL, e.g.
+	// "https://example.com:443/search/?q=elasticsearch#top".
+	Full string `json:"full,omitempty"`
+
+	// Protocol is the scheme of the URL, e.g. "https".
+	Protocol string `json:"protocol,omitempty"`
+
+	// Hostname is the hostname for the URL, e.g. "example.com".
+	Hostname string `json:"hostname,omitempty"`
+
+	// Port is the port number in the URL, e.g. "443".
+	Port string `json:"port,omitempty"`
+
+	// Path is the path of the URL, e.g. "/search".
+	Path string `json:"pathname,omitempty"`
+
+	// Search is the query string of the URL, e.g. "q=elasticsearch".
+	Search string `json:"search,omitempty"`
+
+	// Hash is the fragment for references, e.g. "top" in the
+	// URL example provided for Full.
+	Hash string `json:"hash,omitempty"`
 }
 
 // Response represents an HTTP response.

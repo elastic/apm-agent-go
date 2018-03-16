@@ -12,7 +12,7 @@ import (
 var (
 	currentProcess model.Process
 	envFramework   *model.Framework
-	envService     *model.Service
+	envService     model.Service
 	goAgent        = model.Agent{Name: "go", Version: AgentVersion}
 	goLanguage     = model.Language{Name: "go", Version: runtime.Version()}
 	goRuntime      = model.Runtime{Name: runtime.Compiler, Version: runtime.Version()}
@@ -60,12 +60,13 @@ func getEnvironmentFramework() *model.Framework {
 	}
 }
 
-func getEnvironmentService() *model.Service {
+func getEnvironmentService() model.Service {
 	name := os.Getenv(envServiceName)
 	if name == "" {
 		name = filepath.Base(os.Args[0])
 	}
-	return newService(name, "")
+	svc := newService(name, "")
+	return *svc
 }
 
 func newService(name, version string) *model.Service {

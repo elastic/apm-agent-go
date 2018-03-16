@@ -40,7 +40,7 @@ var (
 func init() {
 	var opts options
 	opts.init(true)
-	DefaultTracer = newTracer(envService, opts)
+	DefaultTracer = newTracer(&envService, opts)
 }
 
 type options struct {
@@ -147,7 +147,7 @@ type Tracer struct {
 // If service is nil, then the service will be defined using the
 // ELASTIC_APM_* environment variables.
 func NewTracer(serviceName, serviceVersion string) (*Tracer, error) {
-	service := envService
+	service := &envService
 	if serviceName != "" {
 		service = newService(serviceName, serviceVersion)
 	} else if service == nil {

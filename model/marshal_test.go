@@ -128,7 +128,14 @@ func fakeTransaction() *model.Transaction {
 		Result:    "418",
 		Context: &model.Context{
 			Request: &model.Request{
-				URL:    mustParseURL("https://user:pass@testing.invalid/foo/bar?baz#qux"),
+				URL: model.URL{
+					Full:     "https://testing.invalid/foo/bar?baz#qux",
+					Hostname: "testing.invalid",
+					Protocol: "https",
+					Path:     "/foo/bar",
+					Search:   "baz",
+					Hash:     "qux",
+				},
 				Method: "GET",
 				Headers: &model.RequestHeaders{
 					UserAgent: "Mosaic/0.2 (Windows 3.1)",

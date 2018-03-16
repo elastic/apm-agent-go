@@ -33,9 +33,10 @@ func RequestContext(req *http.Request) *model.Context {
 	if !ok && req.URL.User != nil {
 		username = req.URL.User.Username()
 	}
+
 	ctx := model.Context{
 		Request: &model.Request{
-			URL:         req.URL,
+			URL:         RequestURL(req),
 			Method:      req.Method,
 			Headers:     RequestHeaders(req),
 			HTTPVersion: fmt.Sprintf("%d.%d", req.ProtoMajor, req.ProtoMinor),
@@ -52,6 +53,56 @@ func RequestContext(req *http.Request) *model.Context {
 		}
 	}
 	return &ctx
+}
+
+// RequestURL returns a model.URL for the given HTTP request.
+//
+// If the URL contains user info, it will be removed and
+// excluded from the URL's "full" field.
+func RequestURL(req *http.Request) model.URL {
+	fullHost := req.Host
+	if fullHost == "" {
+		fullHost = req.URL.Host
+	}
+	host, port, err := net.SplitHostPort(fullHost)
+	if err != nil {
+		host = fullHost
+		port = ""
+	}
+	out := model.URL{
+		Hostname: host,
+		Port:     port,
+		Path:     req.URL.Path,
+		Search:   req.URL.RawQuery,
+		Hash:     req.URL.Fragment,
+	}
+	if req.URL.Scheme != "" {
+		// If the URL contains user info, remove it before formatting
+		// so it doesn't make its way into the "full" URL, to avoid
+		// leaking PII or secrets.
+		user := req.URL.User
+		req.URL.User = nil
+		out.Full = req.URL.String()
+		out.Protocol = req.URL.Scheme
+		req.URL.User = user
+	} else {
+		// Server-side, req.URL contains the
+		// URI only. We synthesize the URL
+		// by adding in req.Host, and the
+		// scheme determined by the presence
+		// of TLS configuration.
+		scheme := "http"
+		if req.TLS != nil {
+			scheme = "https"
+		}
+		u := *req.URL
+		u.Scheme = scheme
+		u.User = nil
+		u.Host = fullHost
+		out.Full = u.String()
+		out.Protocol = scheme
+	}
+	return out
 }
 
 // RequestHeaders returns the headers for the HTTP request relevant to tracing.
