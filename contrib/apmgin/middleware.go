@@ -20,12 +20,27 @@ var Framework = model.Framework{
 	Version: gin.Version,
 }
 
+func init() {
+	if elasticapm.DefaultTracer.Service.Framework == nil {
+		// TODO(axw) this is not ideal, as there could be multiple
+		// frameworks in use within a program. The intake API should
+		// be extended to support specifying a framework on a
+		// transaction, or perhaps specifying multiple frameworks
+		// in the payload and referencing one from the transaction.
+		elasticapm.DefaultTracer.Service.Framework = &Framework
+	}
+}
+
 // Middleware returns a new Gin middleware handler for tracing
-// requests and reporting errors.
+// requests and reporting errors, using the given tracer, or
+// elasticapm.DefaultTracer if the tracer is nil.
 //
 // This middleware will recover and report panics, so it can
 // be used instead of the standard gin.Recovery middleware.
 func Middleware(engine *gin.Engine, tracer *elasticapm.Tracer) gin.HandlerFunc {
+	if tracer == nil {
+		tracer = elasticapm.DefaultTracer
+	}
 	m := &middleware{engine: engine, tracer: tracer}
 	return m.handle
 }
@@ -60,12 +75,6 @@ func (m *middleware) handle(c *gin.Context) {
 	}
 	tx := m.tracer.StartTransaction(requestName, "request")
 	ctx := elasticapm.ContextWithTransaction(c.Request.Context(), tx)
-	span := tx.StartSpan(requestName, tx.Type, nil)
-	if span != nil {
-		// TODO(axw) configurable span stack traces, off by default.
-		// span.SetStacktrace(1)
-		ctx = elasticapm.ContextWithSpan(ctx, span)
-	}
 	c.Request = c.Request.WithContext(ctx)
 
 	defer func() {
@@ -100,9 +109,6 @@ func (m *middleware) handle(c *gin.Context) {
 		}
 		if tx.Sampled() {
 			tx.Context = txContext
-		}
-		if span != nil {
-			span.Done(duration)
 		}
 		tx.Done(duration)
 
