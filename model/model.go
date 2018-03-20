@@ -1,9 +1,7 @@
 package model
 
 import (
-	"net/http"
 	"net/url"
-	"time"
 )
 
 // Service represents the service handling transactions being traced.
@@ -112,10 +110,12 @@ type Transaction struct {
 	Type string `json:"type"`
 
 	// Timestamp holds the time at which the transaction started.
-	Timestamp time.Time `json:"-"`
+	// This should be in the format "YYYY-MM-DDTHH:mm:ss.sssZ".
+	Timestamp string `json:"timestamp"`
 
-	// Duration records how long the transaction took to complete.
-	Duration time.Duration `json:"-"`
+	// Duration records how long the transaction took to complete,
+	// in milliseconds.
+	Duration float64 `json:"duration"`
 
 	// Result holds the result of the transaction, e.g. the status code
 	// for HTTP requests.
@@ -157,12 +157,12 @@ type Span struct {
 	// Name holds the name of the span.
 	Name string `json:"name"`
 
-	// Start is the start time of the span, as a duration relative to the
-	// containing transaction's timestamp.
-	Start time.Duration `json:"-"`
+	// Start is the start time of the span, in milliseconds relative to
+	// the containing transaction's timestamp.
+	Start float64 `json:"start"`
 
-	// Duration holds the duration of the span.
-	Duration time.Duration `json:"-"`
+	// Duration holds the duration of the span, in milliseconds.
+	Duration float64 `json:"duration"`
 
 	// Type identifies the service-domain specific type of the span,
 	// e.g. "db.postgresql.query".
@@ -244,14 +244,15 @@ type User struct {
 // Error represents an error occurring in the service.
 type Error struct {
 	// Timestamp holds the time at which the error occurred.
-	Timestamp time.Time `json:"timestamp"`
+	// This should be in the format "YYYY-MM-DDTHH:mm:ss.sssZ".
+	Timestamp string `json:"timestamp"`
 
 	// ID holds a hex-formatted UUID for the error.
 	ID string `json:"id,omitempty"`
 
 	// TransactionID holds the UUID of the transaction to which
 	// this error relates, if any.
-	TransactionID string `json:"-"`
+	TransactionID ErrorTransactionID `json:"transaction,omitempty"`
 
 	// Culprit holds the name of the function which
 	// produced the error.
@@ -267,6 +268,10 @@ type Error struct {
 	// Log holds additional information added when logging the error.
 	Log *Log `json:"log,omitempty"`
 }
+
+// ErrorTransactionID is the ID of the transaction within which the
+// error occurred.
+type ErrorTransactionID string
 
 // Exception represents an exception: an error or panic.
 type Exception struct {
@@ -372,7 +377,7 @@ type Request struct {
 	HTTPVersion string `json:"http_version,omitempty"`
 
 	// Cookies holds the parsed cookies.
-	Cookies []*http.Cookie `json:"-"`
+	Cookies map[string]string `json:"cookies,omitempty"`
 
 	// Env holds environment information passed from the
 	// web framework to the request handler.

@@ -55,6 +55,7 @@ func (t *Tracer) newTransaction(name, transactionType string) *Transaction {
 // fields concurrently, but may concurrently invoke any methods.
 type Transaction struct {
 	model.Transaction
+	Timestamp time.Time
 
 	tracer   *Tracer
 	sampled  bool
@@ -141,7 +142,8 @@ func (tx *Transaction) Done(d time.Duration) {
 	if d < 0 {
 		d = time.Since(tx.Timestamp)
 	}
-	tx.Duration = d
+	tx.Duration = d.Seconds() * 1000
+	tx.Transaction.Timestamp = model.FormatTime(tx.Timestamp)
 
 	tx.mu.Lock()
 	spans := tx.spans[:len(tx.spans)]
@@ -205,7 +207,7 @@ func (tx *Transaction) StartSpan(name, transactionType string, parent *Span) *Sp
 		return nil
 	}
 
-	start := time.Since(tx.Timestamp)
+	start := time.Now()
 	span, _ := tx.tracer.spanPool.Get().(*Span)
 	if span == nil {
 		span = &Span{}
@@ -234,6 +236,8 @@ func (tx *Transaction) StartSpan(name, transactionType string, parent *Span) *Sp
 // Span describes an operation within a transaction.
 type Span struct {
 	model.Span
+	Start time.Time
+
 	tx      *Transaction
 	dropped bool
 
@@ -274,7 +278,7 @@ func (s *Span) Dropped() bool {
 // must not be used after this.
 //
 // If the duration specified is negative, then Done will set the
-// duration to "time.Since(tx.Timestamp.Add(s.Start))" instead.
+// duration to "time.Since(s.Start)" instead.
 //
 // If the span is dropped, this method is a no-op.
 func (s *Span) Done(d time.Duration) {
@@ -282,13 +286,13 @@ func (s *Span) Done(d time.Duration) {
 		return
 	}
 	if d < 0 {
-		start := s.tx.Timestamp.Add(s.Start)
-		d = time.Since(start)
+		d = time.Since(s.Start)
 	}
 	s.mu.Lock()
+	s.Span.Start = s.Start.Sub(s.tx.Timestamp).Seconds() * 1000
 	if !s.truncated {
 		s.done = true
-		s.Duration = d
+		s.Duration = d.Seconds() * 1000
 	}
 	s.mu.Unlock()
 }
@@ -298,7 +302,7 @@ func (s *Span) truncate(d time.Duration) {
 	if !s.done {
 		s.truncated = true
 		s.Type += ".truncated"
-		s.Duration = d
+		s.Duration = d.Seconds() * 1000
 	}
 	s.mu.Unlock()
 }

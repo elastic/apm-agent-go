@@ -2,7 +2,6 @@ package model_test
 
 import (
 	"encoding/json"
-	"net/http"
 	"net/url"
 	"testing"
 	"time"
@@ -108,14 +107,15 @@ func TestMarshalJSON(t *testing.T) {
 
 func TestErrorMarshalJSON(t *testing.T) {
 	var e model.Error
+	e.Timestamp = "1970-01-01T00:02:03Z"
 	out, err := json.Marshal(&e)
 	assert.NoError(t, err)
-	assert.Equal(t, `{"timestamp":"0001-01-01T00:00:00Z"}`, string(out))
+	assert.Equal(t, `{"timestamp":"1970-01-01T00:02:03Z"}`, string(out))
 
 	e.TransactionID = "xyz"
 	out, err = json.Marshal(&e)
 	assert.NoError(t, err)
-	assert.Equal(t, `{"timestamp":"0001-01-01T00:00:00Z","transaction":{"id":"xyz"}}`, string(out))
+	assert.Equal(t, `{"timestamp":"1970-01-01T00:02:03Z","transaction":{"id":"xyz"}}`, string(out))
 }
 
 func fakeTransaction() *model.Transaction {
@@ -123,8 +123,8 @@ func fakeTransaction() *model.Transaction {
 		ID:        "d51ae41d-93da-4984-bba3-ae15e9b2247f",
 		Name:      "GET /foo/bar",
 		Type:      "request",
-		Timestamp: time.Unix(123, 0),
-		Duration:  123456 * time.Microsecond,
+		Timestamp: model.FormatTime(time.Unix(123, 0)),
+		Duration:  123.456,
 		Result:    "418",
 		Context: &model.Context{
 			Request: &model.Request{
@@ -145,9 +145,9 @@ func fakeTransaction() *model.Transaction {
 					Raw: "ahoj",
 				},
 				HTTPVersion: "1.1",
-				Cookies: []*http.Cookie{
-					{Name: "monster", Value: "yumyum"},
-					{Name: "random", Value: "junk"},
+				Cookies: map[string]string{
+					"monster": "yumyum",
+					"random":  "junk",
 				},
 				Socket: &model.RequestSocket{
 					Encrypted:     true,
@@ -180,8 +180,8 @@ func fakeTransaction() *model.Transaction {
 		},
 		Spans: []*model.Span{{
 			Name:     "SELECT FROM bar",
-			Start:    2 * time.Millisecond,
-			Duration: 3 * time.Millisecond,
+			Start:    2,
+			Duration: 3,
 			Type:     "db.postgresql.query",
 			Context: &model.SpanContext{
 				Database: &model.DatabaseSpanContext{
