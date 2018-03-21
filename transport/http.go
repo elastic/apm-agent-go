@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/elastic/apm-agent-go/internal/fastjson"
 	"github.com/elastic/apm-agent-go/model"
 )
 
@@ -40,6 +40,7 @@ type HTTPTransport struct {
 	transactionsURL *url.URL
 	errorsURL       *url.URL
 	headers         http.Header
+	jsonwriter      fastjson.Writer
 }
 
 // NewHTTPTransport returns a new HTTPTransport, which can be used for sending
@@ -113,25 +114,25 @@ func NewHTTPTransport(serverURL, secretToken string) (*HTTPTransport, error) {
 
 // SendTransactions sends the transactions payload over HTTP.
 func (t *HTTPTransport) SendTransactions(ctx context.Context, p *model.TransactionsPayload) error {
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(p); err != nil {
-		return errors.Wrap(err, "encoding transactions payload failed")
-	}
+	t.jsonwriter.Reset()
+	p.MarshalFastJSON(&t.jsonwriter)
+	buf := t.jsonwriter.Bytes()
+
 	req := t.newTransactionsRequest().WithContext(ctx)
-	req.ContentLength = int64(buf.Len())
-	req.Body = ioutil.NopCloser(&buf)
+	req.ContentLength = int64(len(buf))
+	req.Body = ioutil.NopCloser(bytes.NewReader(buf))
 	return t.send(req, "SendTransactions")
 }
 
 // SendErrors sends the errors payload over HTTP.
 func (t *HTTPTransport) SendErrors(ctx context.Context, p *model.ErrorsPayload) error {
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(p); err != nil {
-		return errors.Wrap(err, "encoding errors payload failed")
-	}
+	t.jsonwriter.Reset()
+	p.MarshalFastJSON(&t.jsonwriter)
+	buf := t.jsonwriter.Bytes()
+
 	req := t.newErrorsRequest().WithContext(ctx)
-	req.ContentLength = int64(buf.Len())
-	req.Body = ioutil.NopCloser(&buf)
+	req.ContentLength = int64(len(buf))
+	req.Body = ioutil.NopCloser(bytes.NewReader(buf))
 	return t.send(req, "SendErrors")
 }
 

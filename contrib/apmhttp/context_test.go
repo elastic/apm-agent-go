@@ -2,6 +2,7 @@ package apmhttp_test
 
 import (
 	"net/http"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -26,4 +27,10 @@ func TestRequestRemoteAddress(t *testing.T) {
 
 	req.Header.Set("X-Real-IP", "127.1.2.3")
 	assert.Equal(t, "127.1.2.3", apmhttp.RequestRemoteAddress(req))
+}
+
+func TestStatusCode(t *testing.T) {
+	for i := 100; i < 600; i++ {
+		assert.Equal(t, strconv.Itoa(i), apmhttp.StatusCodeString(i))
+	}
 }

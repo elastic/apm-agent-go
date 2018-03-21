@@ -1,6 +1,7 @@
 package model
 
 import (
+	"net/http"
 	"net/url"
 )
 
@@ -252,7 +253,7 @@ type Error struct {
 
 	// TransactionID holds the UUID of the transaction to which
 	// this error relates, if any.
-	TransactionID ErrorTransactionID `json:"transaction,omitempty"`
+	Transaction ErrorTransaction `json:"transaction,omitempty"`
 
 	// Culprit holds the name of the function which
 	// produced the error.
@@ -269,9 +270,11 @@ type Error struct {
 	Log *Log `json:"log,omitempty"`
 }
 
-// ErrorTransactionID is the ID of the transaction within which the
-// error occurred.
-type ErrorTransactionID string
+// ErrorTransaction identifies the transaction within which the error occurred.
+type ErrorTransaction struct {
+	// ID is the UUID of the transaction.
+	ID string `json:"id"`
+}
 
 // Exception represents an exception: an error or panic.
 type Exception struct {
@@ -279,7 +282,7 @@ type Exception struct {
 	Message string `json:"message"`
 
 	// Code holds the error code. This may be a number or a string.
-	Code interface{} `json:"code,omitempty"`
+	Code ExceptionCode `json:"code,omitempty"`
 
 	// Type holds the type of the exception.
 	Type string `json:"type,omitempty"`
@@ -297,11 +300,17 @@ type Exception struct {
 	Handled bool `json:"handled"`
 }
 
+// ExceptionCode represents an exception code as either a number or a string.
+type ExceptionCode struct {
+	String string
+	Number float64
+}
+
 // StacktraceFrame describes a stack frame.
 type StacktraceFrame struct {
 	// AbsolutePath holds the absolute path of the source file for the
 	// stack frame.
-	AbsolutePath string `json:"abs_path,omitemmpty"`
+	AbsolutePath string `json:"abs_path,omitempty"`
 
 	// File holds the base filename of the source file for the stack frame.
 	File string `json:"filename"`
@@ -377,15 +386,18 @@ type Request struct {
 	HTTPVersion string `json:"http_version,omitempty"`
 
 	// Cookies holds the parsed cookies.
-	Cookies map[string]string `json:"cookies,omitempty"`
+	Cookies Cookies `json:"cookies,omitempty"`
 
 	// Env holds environment information passed from the
 	// web framework to the request handler.
-	Env map[string]interface{} `json:"env,omitempty"`
+	Env map[string]string `json:"env,omitempty"`
 
 	// Socket holds transport-level information.
 	Socket *RequestSocket `json:"socket,omitempty"`
 }
+
+// Cookies holds a collection of HTTP cookies.
+type Cookies []*http.Cookie
 
 // RequestBody holds a request body.
 //

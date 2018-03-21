@@ -179,7 +179,7 @@ func initException(e *model.Exception, err error) {
 		setAttr("syscall", err.Syscall)
 	case syscall.Errno:
 		e.Module, e.Type = "syscall", "Errno"
-		e.Code = uintptr(err)
+		e.Code.Number = float64(uintptr(err))
 	default:
 		t := reflect.TypeOf(err)
 		if t.Name() == "" && t.Kind() == reflect.Ptr {

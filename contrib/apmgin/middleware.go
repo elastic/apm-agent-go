@@ -2,7 +2,6 @@ package apmgin
 
 import (
 	"net/http"
-	"strconv"
 	"sync"
 	"time"
 
@@ -88,7 +87,7 @@ func (m *middleware) handle(c *gin.Context) {
 			e.Context = apmhttp.RequestContext(c.Request)
 			e.Send()
 		}
-		tx.Result = strconv.Itoa(c.Writer.Status())
+		tx.Result = apmhttp.StatusCodeString(c.Writer.Status())
 		var txContext *model.Context
 		if tx.Sampled() || len(c.Errors) > 0 {
 			// TODO(axw) optimize allocations below.

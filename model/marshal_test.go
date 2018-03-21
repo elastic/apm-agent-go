@@ -2,24 +2,26 @@ package model_test
 
 import (
 	"encoding/json"
+	"errors"
+	"net/http"
 	"net/url"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/elastic/apm-agent-go/internal/fastjson"
 	"github.com/elastic/apm-agent-go/model"
 )
 
-func TestMarshalJSON(t *testing.T) {
+func TestMarshalTransaction(t *testing.T) {
 	tx := fakeTransaction()
-	out, err := json.Marshal(tx)
-	if err != nil {
-		t.Fatalf("encoding/json.Marshal failed: %v", err)
-	}
+
+	var w fastjson.Writer
+	tx.MarshalFastJSON(&w)
 
 	var in map[string]interface{}
-	if err := json.Unmarshal(out, &in); err != nil {
+	if err := json.Unmarshal(w.Bytes(), &in); err != nil {
 		t.Fatalf("unmarshalling result failed: %v", err)
 	}
 
@@ -70,7 +72,7 @@ func TestMarshalJSON(t *testing.T) {
 				"username": "wanda",
 			},
 			"custom": map[string]interface{}{
-				"custom.foo": map[string]interface{}{
+				"foo": map[string]interface{}{
 					"bar": "baz",
 					"qux": float64(123),
 				},
@@ -105,17 +107,277 @@ func TestMarshalJSON(t *testing.T) {
 	assert.Equal(t, expect, in)
 }
 
-func TestErrorMarshalJSON(t *testing.T) {
+func TestMarshalPayloads(t *testing.T) {
+	tp := fakeTransactionsPayload(0)
+	var w fastjson.Writer
+	tp.MarshalFastJSON(&w)
+
+	var in map[string]interface{}
+	if err := json.Unmarshal(w.Bytes(), &in); err != nil {
+		t.Fatalf("unmarshalling result failed: %v", err)
+	}
+
+	expect := map[string]interface{}{
+		"process": map[string]interface{}{
+			"pid":   float64(1234),
+			"ppid":  float64(1),
+			"title": "my-fake-service",
+			"argv":  []interface{}{"my-fake-service", "-f", "config.yml"},
+		},
+		"service": map[string]interface{}{
+			"environment": "dev",
+			"agent": map[string]interface{}{
+				"name":    "go",
+				"version": "0.1.0",
+			},
+			"framework": map[string]interface{}{
+				"name":    "gin",
+				"version": "1.0",
+			},
+			"language": map[string]interface{}{
+				"name":    "go",
+				"version": "1.10",
+			},
+			"runtime": map[string]interface{}{
+				"name":    "go",
+				"version": "gc 1.10",
+			},
+			"name":    "fake-service",
+			"version": "1.0.0-rc1",
+		},
+		"system": map[string]interface{}{
+			"architecture": "x86_64",
+			"hostname":     "host.example",
+			"platform":     "linux",
+		},
+		"transactions": []interface{}{},
+	}
+	assert.Equal(t, expect, in)
+
+	ep := &model.ErrorsPayload{
+		Service: tp.Service,
+		Process: tp.Process,
+		System:  tp.System,
+		Errors:  []*model.Error{},
+	}
+	w.Reset()
+	ep.MarshalFastJSON(&w)
+
+	in = make(map[string]interface{})
+	if err := json.Unmarshal(w.Bytes(), &in); err != nil {
+		t.Fatalf("unmarshalling result failed: %v", err)
+	}
+	delete(expect, "transactions")
+	expect["errors"] = []interface{}{}
+	assert.Equal(t, expect, in)
+}
+
+func TestMarshalError(t *testing.T) {
 	var e model.Error
 	e.Timestamp = "1970-01-01T00:02:03Z"
-	out, err := json.Marshal(&e)
-	assert.NoError(t, err)
-	assert.Equal(t, `{"timestamp":"1970-01-01T00:02:03Z"}`, string(out))
 
-	e.TransactionID = "xyz"
-	out, err = json.Marshal(&e)
-	assert.NoError(t, err)
-	assert.Equal(t, `{"timestamp":"1970-01-01T00:02:03Z","transaction":{"id":"xyz"}}`, string(out))
+	var w fastjson.Writer
+	e.MarshalFastJSON(&w)
+	assert.Equal(t, `{"timestamp":"1970-01-01T00:02:03Z"}`, string(w.Bytes()))
+
+	e.Transaction.ID = "xyz"
+	w.Reset()
+	e.MarshalFastJSON(&w)
+	assert.Equal(t, `{"timestamp":"1970-01-01T00:02:03Z","transaction":{"id":"xyz"}}`, string(w.Bytes()))
+}
+
+func TestMarshalCookies(t *testing.T) {
+	cookies := model.Cookies{
+		{Name: "foo", Value: "!"}, // eclipsed
+		{Name: "baz", Value: "qux"},
+		{Name: "foo", Value: "bar"},
+	}
+	var w fastjson.Writer
+	cookies.MarshalFastJSON(&w)
+	assert.Equal(t, `{"foo":"bar","baz":"qux"}`, string(w.Bytes()))
+}
+
+func TestMarshalRequestBody(t *testing.T) {
+	body := model.RequestBody{
+		Raw: "rawr",
+	}
+	var w fastjson.Writer
+	body.MarshalFastJSON(&w)
+	assert.Equal(t, `"rawr"`, string(w.Bytes()))
+
+	body.Form = url.Values{
+		"first":    []string{"jackie"},
+		"last":     []string{"brown"},
+		"keywords": []string{"rum", "punch"},
+	}
+	w.Reset()
+	body.MarshalFastJSON(&w)
+
+	var in map[string]interface{}
+	if err := json.Unmarshal(w.Bytes(), &in); err != nil {
+		t.Fatalf("unmarshalling result failed: %v", err)
+	}
+	expect := map[string]interface{}{
+		"first":    "jackie",
+		"last":     "brown",
+		"keywords": []interface{}{"rum", "punch"},
+	}
+	assert.Equal(t, expect, in)
+}
+
+func TestMarshalLog(t *testing.T) {
+	log := model.Log{
+		Message:      "foo",
+		Level:        "bar",
+		LoggerName:   "baz",
+		ParamMessage: "%s",
+	}
+	var w fastjson.Writer
+	log.MarshalFastJSON(&w)
+
+	assert.Equal(t, `{"message":"foo","level":"bar","logger_name":"baz","param_message":"%s"}`, string(w.Bytes()))
+
+	log = model.Log{
+		Message:    "foo",
+		LoggerName: "bar",
+	}
+	w.Reset()
+	log.MarshalFastJSON(&w)
+	assert.Equal(t, `{"message":"foo","logger_name":"bar"}`, string(w.Bytes()))
+}
+
+func TestMarshalException(t *testing.T) {
+	x := model.Exception{
+		Message: "foo",
+		Type:    "bar",
+		Module:  "baz",
+		Attributes: map[string]interface{}{
+			"qux": map[string]interface{}{
+				"quux": "corge",
+			},
+		},
+		Handled: true,
+	}
+	var w fastjson.Writer
+	x.MarshalFastJSON(&w)
+
+	assert.Equal(t,
+		`{"handled":true,"message":"foo","attributes":{"qux":{"quux":"corge"}},"module":"baz","type":"bar"}`,
+		string(w.Bytes()),
+	)
+}
+
+func TestMarshalExceptionCode(t *testing.T) {
+	code := model.ExceptionCode{
+		String: "boom",
+		Number: 123,
+	}
+	var w fastjson.Writer
+	code.MarshalFastJSON(&w)
+	assert.Equal(t, `"boom"`, string(w.Bytes()))
+
+	w.Reset()
+	code.String = ""
+	code.MarshalFastJSON(&w)
+	assert.Equal(t, `123`, string(w.Bytes()))
+}
+
+func TestMarshalUser(t *testing.T) {
+	user := model.User{
+		Email:    "foo@example.com",
+		ID:       123,
+		Username: "bar",
+	}
+	var w fastjson.Writer
+	user.MarshalFastJSON(&w)
+	assert.Equal(t, `{"email":"foo@example.com","id":123,"username":"bar"}`, string(w.Bytes()))
+}
+
+func TestMarshalStacktraceFrame(t *testing.T) {
+	f := model.StacktraceFrame{
+		File:         "file.go",
+		Line:         123,
+		AbsolutePath: "fabulous",
+		Function:     "wonderment",
+	}
+	var w fastjson.Writer
+	f.MarshalFastJSON(&w)
+
+	assert.Equal(t,
+		`{"filename":"file.go","lineno":123,"abs_path":"fabulous","function":"wonderment"}`,
+		string(w.Bytes()),
+	)
+
+	f = model.StacktraceFrame{
+		File:         "file.go",
+		Line:         123,
+		LibraryFrame: true,
+		ContextLine:  "0",
+		PreContext:   []string{"-2", "-1"},
+		PostContext:  []string{"+1", "+2"},
+		Vars: map[string]interface{}{
+			"foo": []string{"bar", "baz"},
+		},
+	}
+	w.Reset()
+	f.MarshalFastJSON(&w)
+	assert.Equal(t,
+		`{"filename":"file.go","lineno":123,"context_line":"0","library_frame":true,"post_context":["+1","+2"],"pre_context":["-2","-1"],"vars":{"foo":["bar","baz"]}}`,
+		string(w.Bytes()),
+	)
+}
+
+func TestMarshalContextCustomErrors(t *testing.T) {
+	context := model.Context{
+		Custom: map[string]interface{}{
+			"panic_value": marshalFunc(func() ([]byte, error) {
+				panic("aiee")
+			}),
+		},
+	}
+	var w fastjson.Writer
+	context.MarshalFastJSON(&w)
+	assert.Equal(t,
+		`{"custom":{"panic_value":{"__PANIC__":"panic calling MarshalJSON for type model_test.marshalFunc: aiee"}}}`,
+		string(w.Bytes()),
+	)
+
+	context.Custom = map[string]interface{}{
+		"error_value": marshalFunc(func() ([]byte, error) {
+			return nil, errors.New("nope")
+		}),
+	}
+	w.Reset()
+	context.MarshalFastJSON(&w)
+	assert.Equal(t,
+		`{"custom":{"error_value":{"__ERROR__":"json: error calling MarshalJSON for type model_test.marshalFunc: nope"}}}`,
+		string(w.Bytes()),
+	)
+}
+
+type marshalFunc func() ([]byte, error)
+
+func (f marshalFunc) MarshalJSON() ([]byte, error) {
+	return f()
+}
+
+func TestMarshalResponse(t *testing.T) {
+	finished := true
+	headersSent := true
+	response := model.Response{
+		Finished: &finished,
+		Headers: &model.ResponseHeaders{
+			ContentType: "text/plain",
+		},
+		HeadersSent: &headersSent,
+		StatusCode:  200,
+	}
+	var w fastjson.Writer
+	response.MarshalFastJSON(&w)
+	assert.Equal(t,
+		`{"finished":true,"headers":{"content-type":"text/plain"},"headers_sent":true,"status_code":200}`,
+		string(w.Bytes()),
+	)
 }
 
 func fakeTransaction() *model.Transaction {
@@ -145,9 +407,9 @@ func fakeTransaction() *model.Transaction {
 					Raw: "ahoj",
 				},
 				HTTPVersion: "1.1",
-				Cookies: map[string]string{
-					"monster": "yumyum",
-					"random":  "junk",
+				Cookies: []*http.Cookie{
+					{Name: "monster", Value: "yumyum"},
+					{Name: "random", Value: "junk"},
 				},
 				Socket: &model.RequestSocket{
 					Encrypted:     true,
@@ -164,7 +426,7 @@ func fakeTransaction() *model.Transaction {
 				Username: "wanda",
 			},
 			Custom: map[string]interface{}{
-				"custom.foo": map[string]interface{}{
+				"foo": map[string]interface{}{
 					"bar": "baz",
 					"qux": 123,
 				},
