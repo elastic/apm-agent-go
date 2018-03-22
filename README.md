@@ -112,6 +112,26 @@ func main() {
 The apmgin middleware will recover panics and send them to Elastic APM,
 so you do not need to install the gin.Recovery middleware.
 
+### Echo
+
+Package `contrib/apmecho` provides middleware for [Echo](https://github.com/labstack/echo):
+
+```go
+import (
+	"github.com/labstack/echo"
+	"github.com/elastic/apm-agent-go/contrib/apmecho"
+)
+
+func main() {
+	e := echo.New()
+	e.Use(apmecho.Middleware(nil)) // nil for default tracer
+	...
+}
+```
+
+The apmecho middleware will recover panics and send them to Elastic APM,
+so you do not need to install the echo/middleware.Recover middleware.
+
 ### AWS Lambda
 
 Package `contrib/apmlambda` intercepts and reports transactions for [AWS Lambda Go](https://github.com/aws/aws-lambda-go)
