@@ -1,16 +1,18 @@
 package model_test
 
 import (
-	"encoding/json"
 	"testing"
+
+	"github.com/elastic/apm-agent-go/internal/fastjson"
 )
 
-func BenchmarkMarshalTransactionStdlib(b *testing.B) {
-	t := fakeTransaction()
+func BenchmarkMarshalTransactionPayloadStdlib(b *testing.B) {
+	p := fakeTransactionsPayload(1000)
+	b.ResetTimer()
+
+	var w fastjson.Writer
 	for i := 0; i < b.N; i++ {
-		if _, err := json.Marshal(t); err != nil {
-			b.Fatalf("encoding/json.Marshal failed: %v", err)
-			return
-		}
+		p.MarshalFastJSON(&w)
+		w.Reset()
 	}
 }

@@ -566,7 +566,7 @@ func (s *sender) sendErrors(ctx context.Context, errors []*Error) bool {
 	for i, e := range errors {
 		if e.Transaction != nil {
 			e.Transaction.setID()
-			e.TransactionID = e.Transaction.ID
+			e.Error.Transaction.ID = e.Transaction.ID
 		}
 		if s.processor != nil {
 			s.processor.ProcessError(&e.Error)

@@ -2,7 +2,6 @@ package apmhttp
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/elastic/apm-agent-go"
@@ -52,7 +51,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 				h.Recovery(rw, req, tx, v)
 			}
 		}
-		tx.Result = strconv.Itoa(rw.statusCode)
+		tx.Result = StatusCodeString(rw.statusCode)
 		if tx.Sampled() {
 			tx.Context = RequestContext(req)
 			tx.Context.Response = &model.Response{

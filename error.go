@@ -73,6 +73,7 @@ func (t *Tracer) NewError() *Error {
 type Error struct {
 	model.Error
 	Transaction *Transaction
+	Timestamp   time.Time
 	tracer      *Tracer
 }
 
@@ -85,6 +86,7 @@ func (e *Error) reset() {
 // Send enqueues the error for sending to the Elastic APM server.
 // The Error must not be used after this.
 func (e *Error) Send() {
+	e.Error.Timestamp = model.FormatTime(e.Timestamp)
 	select {
 	case e.tracer.errors <- e:
 	default:
@@ -177,7 +179,7 @@ func initException(e *model.Exception, err error) {
 		setAttr("syscall", err.Syscall)
 	case syscall.Errno:
 		e.Module, e.Type = "syscall", "Errno"
-		e.Code = uintptr(err)
+		e.Code.Number = float64(uintptr(err))
 	default:
 		t := reflect.TypeOf(err)
 		if t.Name() == "" && t.Kind() == reflect.Ptr {

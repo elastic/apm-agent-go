@@ -1,111 +1,102 @@
 package model
 
 import (
-	"encoding/json"
-	"errors"
+	"time"
+
+	"github.com/elastic/apm-agent-go/internal/fastjson"
 )
+
+//go:generate go run ../internal/fastjson/generate.go -f -o marshal_fastjson.go .
 
 const (
 	// YYYY-MM-DDTHH:mm:ss.sssZ
 	dateTimeFormat = "2006-01-02T15:04:05.999Z"
 )
 
-// MarshalJSON returns the JSON encoding of t.
-func (t *Transaction) MarshalJSON() ([]byte, error) {
-	// Wrap the Transaction type so we can format the timestamp and
-	// duration fields according to the JSON Schema.
-	type TransactionInternal Transaction
-	var ti = struct {
-		*TransactionInternal
-		Timestamp string  `json:"timestamp"`
-		Duration  float64 `json:"duration"`
-	}{
-		(*TransactionInternal)(t),
-		t.Timestamp.UTC().Format(dateTimeFormat),
-		t.Duration.Seconds() * 1000,
-	}
-	return json.Marshal(ti)
+// FormatTime formats the time.Time, in UTC, in the format expected
+// for Transaction.Timestamp.
+func FormatTime(t time.Time) string {
+	return t.UTC().Format(dateTimeFormat)
 }
 
-// MarshalJSON returns the JSON encoding of s.
-func (s *Span) MarshalJSON() ([]byte, error) {
-	// Wrap the Span type so we can format the start and
-	// duration fields according to the JSON Schema.
-	type SpanInternal Span
-	var si = struct {
-		*SpanInternal
-		Start    float64 `json:"start"`
-		Duration float64 `json:"duration"`
-	}{
-		(*SpanInternal)(s),
-		s.Start.Seconds() * 1000,
-		s.Duration.Seconds() * 1000,
-	}
-	return json.Marshal(si)
+func (c Cookies) isZero() bool {
+	return len(c) == 0
 }
 
-// MarshalJSON returns the JSON encoding of r.
-func (r *Request) MarshalJSON() ([]byte, error) {
-	var cookies map[string]interface{}
-	if len(r.Cookies) != 0 {
-		cookies = make(map[string]interface{}, len(r.Cookies))
-		for _, c := range r.Cookies {
-			cookies[c.Name] = c.Value
-		}
-	}
-
-	// Wrap the Request type so we can format the URL
-	// and cookies fields according to the JSON Schema.
-	type RequestInternal Request
-	var ri = struct {
-		*RequestInternal
-		Cookies map[string]interface{} `json:"cookies,omitempty"`
-	}{
-		(*RequestInternal)(r), cookies,
-	}
-	return json.Marshal(ri)
-}
-
-// MarshalJSON returns the JSON encoding of b.
-func (b *RequestBody) MarshalJSON() ([]byte, error) {
-	if b.Form != nil {
-		if b.Raw != "" {
-			return nil, errors.New("only one of Form and Raw may be set in Request.Body")
-		}
-		out := make(map[string]interface{})
-		for k, v := range b.Form {
-			if len(v) == 1 {
-				// Just one item, add the item directly.
-				out[k] = v[0]
-			} else {
-				// Zero or multiple items, include them all.
-				out[k] = v
+func (c Cookies) MarshalFastJSON(w *fastjson.Writer) {
+	w.RawByte('{')
+	first := true
+outer:
+	for i := len(c) - 1; i >= 0; i-- {
+		for j := i + 1; j < len(c); j++ {
+			if c[i].Name == c[j].Name {
+				continue outer
 			}
 		}
+		if first {
+			first = false
+		} else {
+			w.RawByte(',')
+		}
+		w.String(c[i].Name)
+		w.RawByte(':')
+		w.String(c[i].Value)
 	}
-	return json.Marshal(b.Raw)
+	w.RawByte('}')
 }
 
-// MarshalJSON returns the JSON encoding of e.
-func (e *Error) MarshalJSON() ([]byte, error) {
-	// Wrap the Error type so we can format the timestamp and
-	// duration fields according to the JSON Schema.
-	type ErrorInternal Error
-	type TransactionInternal struct {
-		ID string `json:"id"`
+// isZero is used by fastjson to implement omitempty.
+func (t *ErrorTransaction) isZero() bool {
+	return t.ID == ""
+}
+
+// MarshalFastJSON writes the JSON representation of c to w.
+func (c *ExceptionCode) MarshalFastJSON(w *fastjson.Writer) {
+	if c.String != "" {
+		w.String(c.String)
+		return
 	}
-	var transaction *TransactionInternal
-	if e.TransactionID != "" {
-		transaction = &TransactionInternal{ID: e.TransactionID}
+	w.Float64(c.Number)
+}
+
+// isZero is used by fastjson to implement omitempty.
+func (c *ExceptionCode) isZero() bool {
+	return c.String == "" && c.Number == 0
+}
+
+// MarshalFastJSON writes the JSON representation of b to w.
+func (b *RequestBody) MarshalFastJSON(w *fastjson.Writer) {
+	if b.Form != nil {
+		w.RawByte('{')
+		first := true
+		for k, v := range b.Form {
+			if first {
+				first = false
+			} else {
+				w.RawByte(',')
+			}
+			w.String(k)
+			w.RawByte(':')
+			if len(v) == 1 {
+				// Just one item, add the item directly.
+				w.String(v[0])
+			} else {
+				// Zero or multiple items, include them all.
+				w.RawByte('[')
+				first := true
+				for _, v := range v {
+					if first {
+						first = false
+					} else {
+						w.RawByte(',')
+					}
+					w.String(v)
+				}
+				w.RawByte(']')
+			}
+		}
+		w.RawByte('}')
+	} else {
+		w.String(b.Raw)
 	}
-	var ei = struct {
-		*ErrorInternal
-		Timestamp   string               `json:"timestamp"`
-		Transaction *TransactionInternal `json:"transaction,omitempty"`
-	}{
-		(*ErrorInternal)(e),
-		e.Timestamp.UTC().Format(dateTimeFormat),
-		transaction,
-	}
-	return json.Marshal(ei)
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"sync"
 
+	"github.com/elastic/apm-agent-go/internal/fastjson"
 	"github.com/elastic/apm-agent-go/model"
 )
 
@@ -37,12 +38,10 @@ func (r *RecorderTransport) Payloads() []map[string]interface{} {
 }
 
 func (r *RecorderTransport) record(payload interface{}) error {
-	data, err := json.Marshal(payload)
-	if err != nil {
-		panic(err)
-	}
+	var w fastjson.Writer
+	fastjson.Marshal(&w, payload)
 	var m map[string]interface{}
-	if err := json.Unmarshal(data, &m); err != nil {
+	if err := json.Unmarshal(w.Bytes(), &m); err != nil {
 		panic(err)
 	}
 	r.mu.Lock()

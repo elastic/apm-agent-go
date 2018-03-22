@@ -3,7 +3,6 @@ package model
 import (
 	"net/http"
 	"net/url"
-	"time"
 )
 
 // Service represents the service handling transactions being traced.
@@ -112,10 +111,12 @@ type Transaction struct {
 	Type string `json:"type"`
 
 	// Timestamp holds the time at which the transaction started.
-	Timestamp time.Time `json:"-"`
+	// This should be in the format "YYYY-MM-DDTHH:mm:ss.sssZ".
+	Timestamp string `json:"timestamp"`
 
-	// Duration records how long the transaction took to complete.
-	Duration time.Duration `json:"-"`
+	// Duration records how long the transaction took to complete,
+	// in milliseconds.
+	Duration float64 `json:"duration"`
 
 	// Result holds the result of the transaction, e.g. the status code
 	// for HTTP requests.
@@ -157,12 +158,12 @@ type Span struct {
 	// Name holds the name of the span.
 	Name string `json:"name"`
 
-	// Start is the start time of the span, as a duration relative to the
-	// containing transaction's timestamp.
-	Start time.Duration `json:"-"`
+	// Start is the start time of the span, in milliseconds relative to
+	// the containing transaction's timestamp.
+	Start float64 `json:"start"`
 
-	// Duration holds the duration of the span.
-	Duration time.Duration `json:"-"`
+	// Duration holds the duration of the span, in milliseconds.
+	Duration float64 `json:"duration"`
 
 	// Type identifies the service-domain specific type of the span,
 	// e.g. "db.postgresql.query".
@@ -244,14 +245,15 @@ type User struct {
 // Error represents an error occurring in the service.
 type Error struct {
 	// Timestamp holds the time at which the error occurred.
-	Timestamp time.Time `json:"timestamp"`
+	// This should be in the format "YYYY-MM-DDTHH:mm:ss.sssZ".
+	Timestamp string `json:"timestamp"`
 
 	// ID holds a hex-formatted UUID for the error.
 	ID string `json:"id,omitempty"`
 
 	// TransactionID holds the UUID of the transaction to which
 	// this error relates, if any.
-	TransactionID string `json:"-"`
+	Transaction ErrorTransaction `json:"transaction,omitempty"`
 
 	// Culprit holds the name of the function which
 	// produced the error.
@@ -268,13 +270,19 @@ type Error struct {
 	Log *Log `json:"log,omitempty"`
 }
 
+// ErrorTransaction identifies the transaction within which the error occurred.
+type ErrorTransaction struct {
+	// ID is the UUID of the transaction.
+	ID string `json:"id"`
+}
+
 // Exception represents an exception: an error or panic.
 type Exception struct {
 	// Message holds the error message.
 	Message string `json:"message"`
 
 	// Code holds the error code. This may be a number or a string.
-	Code interface{} `json:"code,omitempty"`
+	Code ExceptionCode `json:"code,omitempty"`
 
 	// Type holds the type of the exception.
 	Type string `json:"type,omitempty"`
@@ -292,11 +300,17 @@ type Exception struct {
 	Handled bool `json:"handled"`
 }
 
+// ExceptionCode represents an exception code as either a number or a string.
+type ExceptionCode struct {
+	String string
+	Number float64
+}
+
 // StacktraceFrame describes a stack frame.
 type StacktraceFrame struct {
 	// AbsolutePath holds the absolute path of the source file for the
 	// stack frame.
-	AbsolutePath string `json:"abs_path,omitemmpty"`
+	AbsolutePath string `json:"abs_path,omitempty"`
 
 	// File holds the base filename of the source file for the stack frame.
 	File string `json:"filename"`
@@ -372,15 +386,18 @@ type Request struct {
 	HTTPVersion string `json:"http_version,omitempty"`
 
 	// Cookies holds the parsed cookies.
-	Cookies []*http.Cookie `json:"-"`
+	Cookies Cookies `json:"cookies,omitempty"`
 
 	// Env holds environment information passed from the
 	// web framework to the request handler.
-	Env map[string]interface{} `json:"env,omitempty"`
+	Env map[string]string `json:"env,omitempty"`
 
 	// Socket holds transport-level information.
 	Socket *RequestSocket `json:"socket,omitempty"`
 }
+
+// Cookies holds a collection of HTTP cookies.
+type Cookies []*http.Cookie
 
 // RequestBody holds a request body.
 //
