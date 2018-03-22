@@ -21,6 +21,11 @@ type Handler struct {
 	// nil, panics will not be recovered.
 	Recovery RecoveryFunc
 
+	// RequestName, if non-nil, will be called by ServeHTTP to obtain
+	// the transaction name for the request. If this is nil, the
+	// package-level RequestName function will be used.
+	RequestName func(*http.Request) string
+
 	// Tracer is an optional elasticapm.Tracer for tracing transactions.
 	// If this is nil, elasticapm.DefaultTracer will be used instead.
 	Tracer *elasticapm.Tracer
@@ -34,7 +39,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		t = elasticapm.DefaultTracer
 	}
 
-	tx := t.StartTransaction(RequestName(req), "request")
+	var name string
+	if h.RequestName != nil {
+		name = h.RequestName(req)
+	} else {
+		name = RequestName(req)
+	}
+	tx := t.StartTransaction(name, "request")
 	ctx := elasticapm.ContextWithTransaction(req.Context(), tx)
 	req = req.WithContext(ctx)
 
