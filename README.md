@@ -112,6 +112,54 @@ func main() {
 The apmgin middleware will recover panics and send them to Elastic APM,
 so you do not need to install the gin.Recovery middleware.
 
+### gorilla/mux
+
+Package `contrib/apmgorilla` provides middleware for [gorilla/mux](https://github.com/gorilla/mux):
+
+```go
+import (
+	"github.com/gorilla/mux"
+
+	"github.com/elastic/apm-agent-go/contrib/apmgorilla"
+)
+
+func main() {
+	router := mux.NewRouter()
+	router.Use(apmgorilla.Middleware(nil)) // nil for default tracer
+	...
+}
+```
+
+The apmgorilla middleware will recover panics and send them to Elastic APM,
+so you do not need to install any other recovery middleware.
+
+### httprouter
+
+Package `contrib/apmhttprouter` provides a handler wrapper for [httprouter](https://github.com/julienschmidt/httprouter):
+
+```go
+import (
+	"github.com/julienschmidt/httprouter"
+
+	"github.com/elastic/apm-agent-go"
+	"github.com/elastic/apm-agent-go/contrib/apmhttp"
+	"github.com/elastic/apm-agent-go/contrib/apmhttprouter"
+)
+
+func main() {
+	router := httprouter.New()
+
+	const route = "/my/route"
+	tracer := elasticapm.DefaultTracer
+	recovery := apmhttp.NewTraceRecovery(tracer) // optional panic recovery
+	router.GET(route, apmhttprouter.WrapHandle(h, tracer, route, recovery))
+	...
+}
+```
+
+httprouter [does not provide a means of obtaining the matched route](https://github.com/julienschmidt/httprouter/pull/139),
+hence the route must be passed into the wrapper.
+
 ### Echo
 
 Package `contrib/apmecho` provides middleware for [Echo](https://github.com/labstack/echo):
