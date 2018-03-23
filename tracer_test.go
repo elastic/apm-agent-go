@@ -186,10 +186,10 @@ func TestTracerMaxSpans(t *testing.T) {
 	tracer.Flush(nil)
 	payloads := r.Payloads()
 	assert.Len(t, payloads, 1)
-	transactions := payloads[0]["transactions"].([]interface{})
+	transactions := payloads[0].Transactions()
 	assert.Len(t, transactions, 1)
-	transaction := transactions[0].(map[string]interface{})
-	assert.Len(t, transaction["spans"], 2)
+	transaction := transactions[0]
+	assert.Len(t, transaction.Spans, 2)
 }
 
 func TestTracerErrors(t *testing.T) {
@@ -208,18 +208,15 @@ func TestTracerErrors(t *testing.T) {
 
 	payloads := r.Payloads()
 	assert.Len(t, payloads, 1)
-	errors := payloads[0]["errors"].([]interface{})
-	assert.Len(t, errors, 1)
-	exception := errors[0].(map[string]interface{})["exception"].(map[string]interface{})
-	assert.Equal(t, "zing", exception["message"])
-	assert.Equal(t, "github.com/elastic/apm-agent-go_test", exception["module"])
-	assert.Equal(t, "testError", exception["type"])
-	stacktrace := exception["stacktrace"].([]interface{})
+	errors := payloads[0].Errors()
+	exception := errors[0].Exception
+	stacktrace := exception.Stacktrace
+	assert.Equal(t, "zing", exception.Message)
+	assert.Equal(t, "github.com/elastic/apm-agent-go_test", exception.Module)
+	assert.Equal(t, "testError", exception.Type)
 	assert.Len(t, stacktrace, 2)
-	frame0 := stacktrace[0].(map[string]interface{})
-	frame1 := stacktrace[1].(map[string]interface{})
-	assert.Equal(t, "newErrorsStackTrace", frame0["function"])
-	assert.Equal(t, "TestTracerErrors", frame1["function"])
+	assert.Equal(t, "newErrorsStackTrace", stacktrace[0].Function)
+	assert.Equal(t, "TestTracerErrors", stacktrace[1].Function)
 }
 
 func TestTracerErrorsBuffered(t *testing.T) {
@@ -321,21 +318,10 @@ func TestTracerRecover(t *testing.T) {
 
 	payloads := r.Payloads()
 	assert.Len(t, payloads, 2)
-
-	assert.Contains(t, payloads[0], "errors")
-	errors := payloads[0]["errors"].([]interface{})
-	assert.Len(t, errors, 1)
-	error0 := errors[0].(map[string]interface{})
-	exception := error0["exception"].(map[string]interface{})
-	assert.Equal(t, "blam", exception["message"])
-
-	assert.Contains(t, payloads[1], "transactions")
-	transactions := payloads[1]["transactions"].([]interface{})
-	assert.Len(t, transactions, 1)
-	transaction0 := transactions[0].(map[string]interface{})
-
-	errorTransaction := error0["transaction"].(map[string]interface{})
-	assert.Equal(t, transaction0["id"], errorTransaction["id"])
+	error0 := payloads[0].Errors()[0]
+	transaction := payloads[1].Transactions()[0]
+	assert.Equal(t, "blam", error0.Exception.Message)
+	assert.Equal(t, transaction.ID, error0.Transaction.ID)
 }
 
 func capturePanic(tracer *elasticapm.Tracer, v interface{}) {

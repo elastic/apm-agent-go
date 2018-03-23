@@ -9,9 +9,11 @@ import (
 	"github.com/labstack/echo"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/apm-agent-go"
 	"github.com/elastic/apm-agent-go/contrib/apmecho"
+	"github.com/elastic/apm-agent-go/model"
 	"github.com/elastic/apm-agent-go/transport/transporttest"
 )
 
@@ -28,42 +30,38 @@ func TestEchoMiddleware(t *testing.T) {
 	tracer.Flush(nil)
 
 	payloads := transport.Payloads()
-	assert.Len(t, payloads, 1)
-	assert.Contains(t, payloads[0], "transactions")
+	transaction := payloads[0].Transactions()[0]
 
-	transactions := payloads[0]["transactions"].([]interface{})
-	assert.Len(t, transactions, 1)
-	transaction := transactions[0].(map[string]interface{})
-	assert.Equal(t, "GET /hello/:name", transaction["name"])
-	assert.Equal(t, "request", transaction["type"])
-	assert.Equal(t, "200", transaction["result"])
+	assert.Equal(t, "GET /hello/:name", transaction.Name)
+	assert.Equal(t, "request", transaction.Type)
+	assert.Equal(t, "200", transaction.Result)
 
-	context := transaction["context"].(map[string]interface{})
-	assert.Equal(t, map[string]interface{}{
-		"request": map[string]interface{}{
-			"socket": map[string]interface{}{
-				"remote_address": "client.testing",
+	true_ := true
+	assert.Equal(t, &model.Context{
+		Request: &model.Request{
+			Socket: &model.RequestSocket{
+				RemoteAddress: "client.testing",
 			},
-			"url": map[string]interface{}{
-				"full":     "http://server.testing/hello/foo",
-				"protocol": "http",
-				"hostname": "server.testing",
-				"pathname": "/hello/foo",
+			URL: model.URL{
+				Full:     "http://server.testing/hello/foo",
+				Protocol: "http",
+				Hostname: "server.testing",
+				Path:     "/hello/foo",
 			},
-			"method": "GET",
-			"headers": map[string]interface{}{
-				"user-agent": "apmecho_test",
-			},
-			"http_version": "1.1",
-		},
-		"response": map[string]interface{}{
-			"status_code":  float64(200),
-			"headers_sent": true,
-			"headers": map[string]interface{}{
-				"content-type": "text/plain; charset=UTF-8",
+			Method:      "GET",
+			HTTPVersion: "1.1",
+			Headers: &model.RequestHeaders{
+				UserAgent: "apmecho_test",
 			},
 		},
-	}, context)
+		Response: &model.Response{
+			StatusCode:  200,
+			HeadersSent: &true_,
+			Headers: &model.ResponseHeaders{
+				ContentType: "text/plain; charset=UTF-8",
+			},
+		},
+	}, transaction.Context)
 }
 
 func TestEchoMiddlewarePanic(t *testing.T) {
@@ -94,19 +92,15 @@ func TestEchoMiddlewareError(t *testing.T) {
 	assertError(t, transport.Payloads(), "handleError", "wot", true)
 }
 
-func assertError(t *testing.T, payloads []map[string]interface{}, culprit, message string, handled bool) {
-	assert.Contains(t, payloads[0], "errors")
-	errors := payloads[0]["errors"].([]interface{})
-	error0 := errors[0].(map[string]interface{})
+func assertError(t *testing.T, payloads transporttest.Payloads, culprit, message string, handled bool) {
+	error0 := payloads[0].Errors()[0]
 
-	assert.Contains(t, error0, "context")
-	assert.Contains(t, error0, "transaction")
-	assert.Contains(t, error0, "exception")
-	assert.Equal(t, culprit, error0["culprit"])
-	exception := error0["exception"].(map[string]interface{})
-	assert.Equal(t, message, exception["message"])
-	assert.Contains(t, exception, "stacktrace")
-	assert.Equal(t, handled, exception["handled"])
+	require.NotNil(t, error0.Context)
+	require.NotNil(t, error0.Exception)
+	assert.NotEmpty(t, error0.Transaction.ID)
+	assert.Equal(t, culprit, error0.Culprit)
+	assert.Equal(t, message, error0.Exception.Message)
+	assert.Equal(t, handled, error0.Exception.Handled)
 }
 
 func handleHello(c echo.Context) error {

@@ -1,9 +1,13 @@
 package model
 
 import (
+	"encoding/json"
+	"net/http"
+	"sort"
 	"time"
 
 	"github.com/elastic/apm-agent-go/internal/fastjson"
+	"github.com/pkg/errors"
 )
 
 //go:generate go run ../internal/fastjson/generate.go -f -o marshal_fastjson.go .
@@ -45,6 +49,25 @@ outer:
 	w.RawByte('}')
 }
 
+// UnmarshalJSON unmarshals the JSON data into c.
+func (c *Cookies) UnmarshalJSON(data []byte) error {
+	m := make(map[string]string)
+	if err := json.Unmarshal(data, &m); err != nil {
+		return err
+	}
+	*c = make([]*http.Cookie, 0, len(m))
+	for k, v := range m {
+		*c = append(*c, &http.Cookie{
+			Name:  k,
+			Value: v,
+		})
+	}
+	sort.Slice(*c, func(i, j int) bool {
+		return (*c)[i].Name < (*c)[j].Name
+	})
+	return nil
+}
+
 // isZero is used by fastjson to implement omitempty.
 func (t *ErrorTransaction) isZero() bool {
 	return t.ID == ""
@@ -57,6 +80,23 @@ func (c *ExceptionCode) MarshalFastJSON(w *fastjson.Writer) {
 		return
 	}
 	w.Float64(c.Number)
+}
+
+// UnmarshalJSON unmarshals the JSON data into c.
+func (c *ExceptionCode) UnmarshalJSON(data []byte) error {
+	var v interface{}
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	switch v := v.(type) {
+	case string:
+		c.String = v
+	case float64:
+		c.Number = v
+	default:
+		return errors.Errorf("expected string or number, got %T", v)
+	}
+	return nil
 }
 
 // isZero is used by fastjson to implement omitempty.
@@ -99,4 +139,38 @@ func (b *RequestBody) MarshalFastJSON(w *fastjson.Writer) {
 	} else {
 		w.String(b.Raw)
 	}
+}
+
+// UnmarshalJSON unmarshals the JSON data into b.
+func (b *RequestBody) UnmarshalJSON(data []byte) error {
+	var v interface{}
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	switch v := v.(type) {
+	case string:
+		b.Raw = v
+		return nil
+	case map[string]interface{}:
+		for k, v := range v {
+			switch v := v.(type) {
+			case string:
+				b.Form.Set(k, v)
+			case []interface{}:
+				for _, v := range v {
+					switch v := v.(type) {
+					case string:
+						b.Form.Add(k, v)
+					default:
+						return errors.Errorf("expected string, got %T", v)
+					}
+				}
+			default:
+				return errors.Errorf("expected string or []string, got %T", v)
+			}
+		}
+	default:
+		return errors.Errorf("expected string or map, got %T", v)
+	}
+	return nil
 }
