@@ -14,38 +14,54 @@ import (
 // retrieved using the Payloads method.
 type RecorderTransport struct {
 	mu       sync.Mutex
-	payloads []map[string]interface{}
+	payloads Payloads
 }
 
 // SendTransactions records the transactions payload such that it can later be
 // obtained via Payloads.
 func (r *RecorderTransport) SendTransactions(ctx context.Context, payload *model.TransactionsPayload) error {
-	return r.record(payload)
+	return r.record(payload, &model.TransactionsPayload{})
 }
 
 // SendErrors records the errors payload such that it can later be obtained via
 // Payloads.
 func (r *RecorderTransport) SendErrors(ctx context.Context, payload *model.ErrorsPayload) error {
-	return r.record(payload)
+	return r.record(payload, &model.ErrorsPayload{})
 }
 
 // Payloads returns the payloads recorded by SendTransactions and SendErrors.
-func (r *RecorderTransport) Payloads() []map[string]interface{} {
+// Each element of Payloads is a deep copy of the *model.TransactionsPayload
+// or *model.ErrorsPayload, produced by encoding/decoding the payload to/from
+// JSON.
+func (r *RecorderTransport) Payloads() Payloads {
 	r.mu.Lock()
 	payloads := r.payloads[:]
 	r.mu.Unlock()
 	return payloads
 }
 
-func (r *RecorderTransport) record(payload interface{}) error {
+func (r *RecorderTransport) record(payload, zeroPayload interface{}) error {
 	var w fastjson.Writer
 	fastjson.Marshal(&w, payload)
-	var m map[string]interface{}
-	if err := json.Unmarshal(w.Bytes(), &m); err != nil {
+	if err := json.Unmarshal(w.Bytes(), zeroPayload); err != nil {
 		panic(err)
 	}
 	r.mu.Lock()
-	r.payloads = append(r.payloads, m)
+	r.payloads = append(r.payloads, Payload{zeroPayload})
 	r.mu.Unlock()
 	return nil
+}
+
+type Payloads []Payload
+
+type Payload struct {
+	Value interface{}
+}
+
+func (p Payload) Transactions() []*model.Transaction {
+	return p.Value.(*model.TransactionsPayload).Transactions
+}
+
+func (p Payload) Errors() []*model.Error {
+	return p.Value.(*model.ErrorsPayload).Errors
 }

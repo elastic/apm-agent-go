@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/apm-agent-go/internal/fastjson"
 	"github.com/elastic/apm-agent-go/model"
@@ -24,10 +25,6 @@ func TestMarshalTransaction(t *testing.T) {
 	if err := json.Unmarshal(w.Bytes(), &in); err != nil {
 		t.Fatalf("unmarshalling result failed: %v", err)
 	}
-
-	// NOTE(axw) best practice would be to do a round-trip,
-	// marshal/unmarshal into the same struct type, but we
-	// do not implement unmarshalling in this package.
 
 	expect := map[string]interface{}{
 		"id":        "d51ae41d-93da-4984-bba3-ae15e9b2247f",
@@ -380,6 +377,17 @@ func TestMarshalResponse(t *testing.T) {
 	)
 }
 
+func TestUnmarshalJSON(t *testing.T) {
+	tp := fakeTransactionsPayload(1)
+	var w fastjson.Writer
+	tp.MarshalFastJSON(&w)
+
+	var out model.TransactionsPayload
+	err := json.Unmarshal(w.Bytes(), &out)
+	require.NoError(t, err)
+	assert.Equal(t, &tp, &out)
+}
+
 func fakeTransaction() *model.Transaction {
 	return &model.Transaction{
 		ID:        "d51ae41d-93da-4984-bba3-ae15e9b2247f",
@@ -428,7 +436,7 @@ func fakeTransaction() *model.Transaction {
 			Custom: map[string]interface{}{
 				"foo": map[string]interface{}{
 					"bar": "baz",
-					"qux": 123,
+					"qux": float64(123),
 				},
 			},
 			Tags: map[string]string{

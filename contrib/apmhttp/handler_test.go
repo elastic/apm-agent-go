@@ -14,6 +14,7 @@ import (
 
 	"github.com/elastic/apm-agent-go"
 	"github.com/elastic/apm-agent-go/contrib/apmhttp"
+	"github.com/elastic/apm-agent-go/model"
 	"github.com/elastic/apm-agent-go/transport/transporttest"
 )
 
@@ -40,40 +41,35 @@ func TestHandler(t *testing.T) {
 	tracer.Flush(nil)
 
 	payloads := transport.Payloads()
-	assert.Len(t, payloads, 1)
-	assert.Contains(t, payloads[0], "transactions")
+	transactions := payloads[0].Transactions()
+	transaction := transactions[0]
+	assert.Equal(t, "GET /foo", transaction.Name)
+	assert.Equal(t, "request", transaction.Type)
+	assert.Equal(t, "418", transaction.Result)
 
-	transactions := payloads[0]["transactions"].([]interface{})
-	assert.Len(t, transactions, 1)
-	transaction := transactions[0].(map[string]interface{})
-	assert.Equal(t, "GET /foo", transaction["name"])
-	assert.Equal(t, "request", transaction["type"])
-	assert.Equal(t, "418", transaction["result"])
-
-	context := transaction["context"].(map[string]interface{})
-	assert.Equal(t, map[string]interface{}{
-		"request": map[string]interface{}{
-			"socket": map[string]interface{}{
-				"remote_address": "client.testing",
+	true_ := true
+	assert.Equal(t, &model.Context{
+		Request: &model.Request{
+			Socket: &model.RequestSocket{
+				RemoteAddress: "client.testing",
 			},
-			"url": map[string]interface{}{
-				"full":     "http://server.testing/foo",
-				"protocol": "http",
-				"hostname": "server.testing",
-				"pathname": "/foo",
+			URL: model.URL{
+				Full:     "http://server.testing/foo",
+				Protocol: "http",
+				Hostname: "server.testing",
+				Path:     "/foo",
 			},
-			"method": "GET",
-			"headers": map[string]interface{}{
-				"user-agent": "apmhttp_test",
+			Method: "GET",
+			Headers: &model.RequestHeaders{
+				UserAgent: "apmhttp_test",
 			},
-			"http_version": "1.1",
+			HTTPVersion: "1.1",
 		},
-		"response": map[string]interface{}{
-			"status_code":  float64(418),
-			"headers_sent": true,
-			"finished":     true,
+		Response: &model.Response{
+			StatusCode: 418,
+			Finished:   &true_,
 		},
-	}, context)
+	}, transaction.Context)
 }
 
 func TestHandlerHTTP2(t *testing.T) {
@@ -111,37 +107,33 @@ func TestHandlerHTTP2(t *testing.T) {
 	tracer.Flush(nil)
 
 	payloads := transport.Payloads()
-	assert.Len(t, payloads, 1)
-	assert.Contains(t, payloads[0], "transactions")
-	transactions := payloads[0]["transactions"].([]interface{})
-	assert.Len(t, transactions, 1)
-	transaction := transactions[0].(map[string]interface{})
-	context := transaction["context"].(map[string]interface{})
-	assert.Equal(t, map[string]interface{}{
-		"request": map[string]interface{}{
-			"socket": map[string]interface{}{
-				"encrypted":      true,
-				"remote_address": "client.testing",
+	transaction := payloads[0].Transactions()[0]
+
+	true_ := true
+	assert.Equal(t, &model.Context{
+		Request: &model.Request{
+			Socket: &model.RequestSocket{
+				Encrypted:     true,
+				RemoteAddress: "client.testing",
 			},
-			"url": map[string]interface{}{
-				"full":     srv.URL + "/foo",
-				"protocol": "https",
-				"hostname": srvAddr.IP.String(),
-				"port":     strconv.Itoa(srvAddr.Port),
-				"pathname": "/foo",
+			URL: model.URL{
+				Full:     srv.URL + "/foo",
+				Protocol: "https",
+				Hostname: srvAddr.IP.String(),
+				Port:     strconv.Itoa(srvAddr.Port),
+				Path:     "/foo",
 			},
-			"method": "GET",
-			"headers": map[string]interface{}{
-				"user-agent": "Go-http-client/2.0",
+			Method: "GET",
+			Headers: &model.RequestHeaders{
+				UserAgent: "Go-http-client/2.0",
 			},
-			"http_version": "2.0",
+			HTTPVersion: "2.0",
 		},
-		"response": map[string]interface{}{
-			"status_code":  float64(418),
-			"headers_sent": true,
-			"finished":     true,
+		Response: &model.Response{
+			StatusCode: 418,
+			Finished:   &true_,
 		},
-	}, context)
+	}, transaction.Context)
 }
 
 func TestHandlerRecovery(t *testing.T) {
@@ -160,24 +152,17 @@ func TestHandlerRecovery(t *testing.T) {
 	tracer.Flush(nil)
 
 	payloads := transport.Payloads()
-	assert.Len(t, payloads, 2)
-	assert.Contains(t, payloads[0], "errors")
-	assert.Contains(t, payloads[1], "transactions")
+	error0 := payloads[0].Errors()[0]
+	transaction := payloads[1].Transactions()[0]
 
-	errors := payloads[0]["errors"].([]interface{})
-	error0 := errors[0].(map[string]interface{})
-	assert.Equal(t, "panicHandler", error0["culprit"])
-	exception := error0["exception"].(map[string]interface{})
-	assert.Equal(t, "foo", exception["message"])
+	assert.Equal(t, "panicHandler", error0.Culprit)
+	assert.Equal(t, "foo", error0.Exception.Message)
 
-	transactions := payloads[1]["transactions"].([]interface{})
-	transaction := transactions[0].(map[string]interface{})
-	context := transaction["context"].(map[string]interface{})
-	assert.Equal(t, map[string]interface{}{
-		"headers_sent": true,
-		"finished":     false,
-		"status_code":  float64(418),
-	}, context["response"])
+	true_ := true
+	assert.Equal(t, &model.Response{
+		Finished:   &true_,
+		StatusCode: 418,
+	}, transaction.Context.Response)
 }
 
 func panicHandler(w http.ResponseWriter, req *http.Request) {

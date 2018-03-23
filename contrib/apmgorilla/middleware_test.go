@@ -8,10 +8,10 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/apm-agent-go"
 	"github.com/elastic/apm-agent-go/contrib/apmgorilla"
+	"github.com/elastic/apm-agent-go/model"
 	"github.com/elastic/apm-agent-go/transport/transporttest"
 )
 
@@ -29,42 +29,38 @@ func TestMuxMiddleware(t *testing.T) {
 	tracer.Flush(nil)
 
 	payloads := transport.Payloads()
-	require.Len(t, payloads, 1)
-	assert.Contains(t, payloads[0], "transactions")
+	transaction := payloads[0].Transactions()[0]
 
-	transactions := payloads[0]["transactions"].([]interface{})
-	require.Len(t, transactions, 1)
-	transaction := transactions[0].(map[string]interface{})
-	assert.Equal(t, "GET /prefix/articles/{category}/{id}", transaction["name"])
-	assert.Equal(t, "request", transaction["type"])
-	assert.Equal(t, "200", transaction["result"])
+	assert.Equal(t, "GET /prefix/articles/{category}/{id}", transaction.Name)
+	assert.Equal(t, "request", transaction.Type)
+	assert.Equal(t, "200", transaction.Result)
 
-	context := transaction["context"].(map[string]interface{})
-	assert.Equal(t, map[string]interface{}{
-		"request": map[string]interface{}{
-			"socket": map[string]interface{}{
-				"remote_address": "client.testing",
+	true_ := true
+	assert.Equal(t, &model.Context{
+		Request: &model.Request{
+			Socket: &model.RequestSocket{
+				RemoteAddress: "client.testing",
 			},
-			"url": map[string]interface{}{
-				"full":     "http://server.testing/prefix/articles/fiction/123?foo=123",
-				"protocol": "http",
-				"hostname": "server.testing",
-				"pathname": "/prefix/articles/fiction/123",
-				"search":   "foo=123",
+			URL: model.URL{
+				Full:     "http://server.testing/prefix/articles/fiction/123?foo=123",
+				Protocol: "http",
+				Hostname: "server.testing",
+				Path:     "/prefix/articles/fiction/123",
+				Search:   "foo=123",
 			},
-			"headers":      map[string]interface{}{},
-			"method":       "GET",
-			"http_version": "1.1",
+			Method:      "GET",
+			Headers:     &model.RequestHeaders{},
+			HTTPVersion: "1.1",
 		},
-		"response": map[string]interface{}{
-			"status_code":  float64(200),
-			"finished":     true,
-			"headers_sent": true,
-			"headers": map[string]interface{}{
-				"content-type": "text/plain; charset=utf-8",
+		Response: &model.Response{
+			StatusCode:  200,
+			Finished:    &true_,
+			HeadersSent: &true_,
+			Headers: &model.ResponseHeaders{
+				ContentType: "text/plain; charset=utf-8",
 			},
 		},
-	}, context)
+	}, transaction.Context)
 }
 
 func articleHandler(w http.ResponseWriter, req *http.Request) {
