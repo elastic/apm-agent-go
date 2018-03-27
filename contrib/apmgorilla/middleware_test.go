@@ -9,14 +9,13 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/elastic/apm-agent-go"
 	"github.com/elastic/apm-agent-go/contrib/apmgorilla"
 	"github.com/elastic/apm-agent-go/model"
 	"github.com/elastic/apm-agent-go/transport/transporttest"
 )
 
 func TestMuxMiddleware(t *testing.T) {
-	tracer, transport := newRecordingTracer()
+	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
 	r := mux.NewRouter()
@@ -66,16 +65,6 @@ func TestMuxMiddleware(t *testing.T) {
 func articleHandler(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	w.Write([]byte(fmt.Sprintf("%s:%s", vars["category"], vars["id"])))
-}
-
-func newRecordingTracer() (*elasticapm.Tracer, *transporttest.RecorderTransport) {
-	var transport transporttest.RecorderTransport
-	tracer, err := elasticapm.NewTracer("apmgorilla_test", "0.1")
-	if err != nil {
-		panic(err)
-	}
-	tracer.Transport = &transport
-	return tracer, &transport
 }
 
 func doRequest(h http.Handler, method, url string) *httptest.ResponseRecorder {

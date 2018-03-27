@@ -11,14 +11,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/apm-agent-go"
 	"github.com/elastic/apm-agent-go/contrib/apmecho"
 	"github.com/elastic/apm-agent-go/model"
 	"github.com/elastic/apm-agent-go/transport/transporttest"
 )
 
 func TestEchoMiddleware(t *testing.T) {
-	tracer, transport := newRecordingTracer()
+	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
 	e := echo.New()
@@ -65,7 +64,7 @@ func TestEchoMiddleware(t *testing.T) {
 }
 
 func TestEchoMiddlewarePanic(t *testing.T) {
-	tracer, transport := newRecordingTracer()
+	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
 	e := echo.New()
@@ -79,7 +78,7 @@ func TestEchoMiddlewarePanic(t *testing.T) {
 }
 
 func TestEchoMiddlewareError(t *testing.T) {
-	tracer, transport := newRecordingTracer()
+	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
 	e := echo.New()
@@ -113,16 +112,6 @@ func handlePanic(c echo.Context) error {
 
 func handleError(c echo.Context) error {
 	return errors.New("wot")
-}
-
-func newRecordingTracer() (*elasticapm.Tracer, *transporttest.RecorderTransport) {
-	var transport transporttest.RecorderTransport
-	tracer, err := elasticapm.NewTracer("apmecho_test", "0.1")
-	if err != nil {
-		panic(err)
-	}
-	tracer.Transport = &transport
-	return tracer, &transport
 }
 
 func doRequest(e *echo.Echo, method, url string) *httptest.ResponseRecorder {

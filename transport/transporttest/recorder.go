@@ -5,9 +5,22 @@ import (
 	"encoding/json"
 	"sync"
 
+	"github.com/elastic/apm-agent-go"
 	"github.com/elastic/apm-agent-go/internal/fastjson"
 	"github.com/elastic/apm-agent-go/model"
 )
+
+// NewRecorderTransport returns a new elasticapm.Tracer and
+// RecorderTransport, which is set as the tracer's transport.
+func NewRecorderTracer() (*elasticapm.Tracer, *RecorderTransport) {
+	var transport RecorderTransport
+	tracer, err := elasticapm.NewTracer("transporttest", "")
+	if err != nil {
+		panic(err)
+	}
+	tracer.Transport = &transport
+	return tracer, &transport
+}
 
 // RecorderTransport implements transport.Transport,
 // recording the payloads sent. The payloads can be
