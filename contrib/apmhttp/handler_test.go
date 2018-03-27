@@ -12,14 +12,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/http2"
 
-	"github.com/elastic/apm-agent-go"
 	"github.com/elastic/apm-agent-go/contrib/apmhttp"
 	"github.com/elastic/apm-agent-go/model"
 	"github.com/elastic/apm-agent-go/transport/transporttest"
 )
 
 func TestHandler(t *testing.T) {
-	tracer, transport := newRecordingTracer()
+	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
 	mux := http.NewServeMux()
@@ -73,7 +72,7 @@ func TestHandler(t *testing.T) {
 }
 
 func TestHandlerHTTP2(t *testing.T) {
-	tracer, transport := newRecordingTracer()
+	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
 	mux := http.NewServeMux()
@@ -137,7 +136,7 @@ func TestHandlerHTTP2(t *testing.T) {
 }
 
 func TestHandlerRecovery(t *testing.T) {
-	tracer, transport := newRecordingTracer()
+	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
 	h := &apmhttp.Handler{
@@ -168,14 +167,4 @@ func TestHandlerRecovery(t *testing.T) {
 func panicHandler(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusTeapot)
 	panic("foo")
-}
-
-func newRecordingTracer() (*elasticapm.Tracer, *transporttest.RecorderTransport) {
-	var transport transporttest.RecorderTransport
-	tracer, err := elasticapm.NewTracer("apmhttp_test", "0.1")
-	if err != nil {
-		panic(err)
-	}
-	tracer.Transport = &transport
-	return tracer, &transport
 }

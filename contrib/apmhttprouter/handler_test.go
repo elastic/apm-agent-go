@@ -9,7 +9,6 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/elastic/apm-agent-go"
 	"github.com/elastic/apm-agent-go/contrib/apmhttp"
 	"github.com/elastic/apm-agent-go/contrib/apmhttprouter"
 	"github.com/elastic/apm-agent-go/model"
@@ -17,7 +16,7 @@ import (
 )
 
 func TestWrapHandle(t *testing.T) {
-	tracer, transport := newRecordingTracer()
+	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
 	router := httprouter.New()
@@ -73,7 +72,7 @@ func TestWrapHandle(t *testing.T) {
 }
 
 func TestRecovery(t *testing.T) {
-	tracer, transport := newRecordingTracer()
+	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
 	router := httprouter.New()
@@ -107,14 +106,4 @@ func TestRecovery(t *testing.T) {
 func panicHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	w.WriteHeader(http.StatusTeapot)
 	panic("foo")
-}
-
-func newRecordingTracer() (*elasticapm.Tracer, *transporttest.RecorderTransport) {
-	var transport transporttest.RecorderTransport
-	tracer, err := elasticapm.NewTracer("apmhttp_test", "0.1")
-	if err != nil {
-		panic(err)
-	}
-	tracer.Transport = &transport
-	return tracer, &transport
 }
