@@ -221,6 +221,43 @@ func main() {
 Spans will be created for queries and other statement executions if the context
 methods are used, and the context includes a transaction.
 
+### gRPC
+
+Package `contrib/apmgrpc` provides unary interceptors for [gprc-go](https://github.com/grpc/grpc-go),
+for tracing incoming server requests as transactions, and outgoing client
+requests as spans:
+
+```go
+import (
+	"github.com/elastic/apm-agent-go/contrib/apmgrpc"
+)
+
+func main() {
+	server := grpc.NewServer(grpc.UnaryInterceptor(apmgrpc.NewUnaryServerInterceptor()))
+	...
+	conn, err := grpc.Dial(addr, grpc.WithUnaryInterceptor(apmgrpc.NewUnaryClientInterceptor()))
+	...
+}
+```
+
+The server interceptor can optionally be made to recover panics, in the
+same way as [grpc\_recovery](https://github.com/grpc-ecosystem/go-grpc-middleware/tree/master/recovery).
+The apmgrpc server interceptor will always send panics it observes as
+errors to the Elastic APM server. If you want to recover panics but also
+want to continue using grpc\_recovery, then you should ensure that it
+comes before the apmgrpc interceptor in the interceptor chain, or panics
+will not be captured by apmgrpc.
+
+```go
+server := grpc.NewServer(grpc.UnaryInterceptor(
+	apmgrpc.NewUnaryServerInterceptor(apmgrpc.WithRecovery()),
+))
+...
+```
+
+There is currently no support for intercepting at the stream level. Please
+file an issue and/or send a pull request if this is something you need.
+
 ### Custom instrumentation
 
 For custom instrumentation, [elasticapm.Tracer](https://godoc.org/github.com/elastic/apm-agent-go#Tracer)
