@@ -13,11 +13,6 @@ import (
 	"github.com/elastic/apm-agent-go/transport"
 )
 
-func init() {
-	// Make gin be quiet.
-	gin.SetMode(gin.ReleaseMode)
-}
-
 var benchmarkPaths = []string{"/hello/world", "/sleep/1ms"}
 
 func BenchmarkWithoutMiddleware(b *testing.B) {
@@ -59,7 +54,6 @@ func newTracer() *elasticapm.Tracer {
 		panic(err)
 	}
 	tracer.Service.Framework = &apmgin.Framework
-	tracer.SetProcessor(apmgin.Processor{})
 
 	httpTransport, err := transport.NewHTTPTransport("http://testing.invalid:8200", "")
 	if err != nil {

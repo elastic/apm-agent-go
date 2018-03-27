@@ -3,13 +3,13 @@ package apmgin
 import (
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/elastic/apm-agent-go"
 	"github.com/elastic/apm-agent-go/contrib/apmhttp"
 	"github.com/elastic/apm-agent-go/model"
+	"github.com/elastic/apm-agent-go/stacktrace"
 )
 
 // Framework is a model.Framework initialized with values
@@ -20,6 +20,10 @@ var Framework = model.Framework{
 }
 
 func init() {
+	stacktrace.RegisterLibraryPackage(
+		"github.com/gin-gonic",
+		"github.com/gin-contrib",
+	)
 	if elasticapm.DefaultTracer.Service.Framework == nil {
 		// TODO(axw) this is not ideal, as there could be multiple
 		// frameworks in use within a program. The intake API should
@@ -75,9 +79,9 @@ func (m *middleware) handle(c *gin.Context) {
 	tx := m.tracer.StartTransaction(requestName, "request")
 	ctx := elasticapm.ContextWithTransaction(c.Request.Context(), tx)
 	c.Request = c.Request.WithContext(ctx)
+	defer tx.Done(-1)
 
 	defer func() {
-		duration := time.Since(tx.Timestamp)
 		if v := recover(); v != nil {
 			c.AbortWithStatus(http.StatusInternalServerError)
 			e := m.tracer.Recovered(v, tx)
@@ -109,7 +113,6 @@ func (m *middleware) handle(c *gin.Context) {
 		if tx.Sampled() {
 			tx.Context = txContext
 		}
-		tx.Done(duration)
 
 		// Report errors handled.
 		for _, err := range c.Errors {
