@@ -8,7 +8,7 @@ import (
 	"github.com/elastic/apm-agent-go/model"
 )
 
-//go:generate /bin/bash generate_library.bash std ../...
+//go:generate /bin/bash generate_library.bash std ..
 
 // TODO(axw) add a function for marking frames as library
 // frames, based on configuration. Possibly use
