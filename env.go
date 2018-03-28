@@ -16,6 +16,7 @@ import (
 
 const (
 	envFlushInterval         = "ELASTIC_APM_FLUSH_INTERVAL"
+	envMetricsInterval       = "ELASTIC_APM_METRICS_INTERVAL"
 	envMaxQueueSize          = "ELASTIC_APM_MAX_QUEUE_SIZE"
 	envMaxSpans              = "ELASTIC_APM_TRANSACTION_MAX_SPANS"
 	envTransactionSampleRate = "ELASTIC_APM_TRANSACTION_SAMPLE_RATE"
@@ -28,6 +29,7 @@ const (
 	envActive                = "ELASTIC_APM_ACTIVE"
 
 	defaultFlushInterval           = 10 * time.Second
+	defaultMetricsInterval         = 0 // disabled by default
 	defaultMaxTransactionQueueSize = 500
 	defaultMaxSpans                = 500
 	defaultCaptureBody             = CaptureBodyOff
@@ -49,25 +51,11 @@ var (
 )
 
 func initialFlushInterval() (time.Duration, error) {
-	value := os.Getenv(envFlushInterval)
-	if value == "" {
-		return defaultFlushInterval, nil
-	}
-	d, err := time.ParseDuration(value)
-	if err != nil {
-		// We allow the value to have no suffix, in which case
-		// we assume seconds, to be compatible with configuration
-		// for other Elastic APM agents.
-		var err2 error
-		d, err2 = time.ParseDuration(value + "s")
-		if err2 == nil {
-			err = nil
-		}
-	}
-	if err != nil {
-		return 0, errors.Wrapf(err, "failed to parse %s", envFlushInterval)
-	}
-	return d, nil
+	return parseEnvDuration(envFlushInterval, "s", defaultFlushInterval)
+}
+
+func initialMetricsInterval() (time.Duration, error) {
+	return parseEnvDuration(envMetricsInterval, "s", defaultMetricsInterval)
 }
 
 func initialMaxTransactionQueueSize() (int, error) {
@@ -160,15 +148,7 @@ func initialService() (name, version, environment string) {
 }
 
 func initialSpanFramesMinDuration() (time.Duration, error) {
-	value := os.Getenv(envSpanFramesMinDuration)
-	if value == "" {
-		return defaultSpanFramesMinDuration, nil
-	}
-	d, err := time.ParseDuration(value)
-	if err != nil {
-		return 0, errors.Wrapf(err, "failed to parse %s", envSpanFramesMinDuration)
-	}
-	return d, nil
+	return parseEnvDuration(envSpanFramesMinDuration, "", defaultSpanFramesMinDuration)
 }
 
 func initialActive() (bool, error) {
@@ -181,4 +161,26 @@ func initialActive() (bool, error) {
 		return false, errors.Wrapf(err, "failed to parse %s", envActive)
 	}
 	return active, nil
+}
+
+func parseEnvDuration(envKey, defaultSuffix string, defaultDuration time.Duration) (time.Duration, error) {
+	value := os.Getenv(envKey)
+	if value == "" {
+		return defaultDuration, nil
+	}
+	d, err := time.ParseDuration(value)
+	if err != nil && defaultSuffix != "" {
+		// We allow the value to have no suffix, in which case we append
+		// defaultSuffix ("s" for flush interval) for compatibility with
+		// configuration for other Elastic APM agents.
+		var err2 error
+		d, err2 = time.ParseDuration(value + defaultSuffix)
+		if err2 == nil {
+			err = nil
+		}
+	}
+	if err != nil {
+		return 0, errors.Wrapf(err, "failed to parse %s", envKey)
+	}
+	return d, nil
 }
