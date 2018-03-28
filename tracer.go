@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/elastic/apm-agent-go/model"
 	"github.com/elastic/apm-agent-go/stacktrace"
 	"github.com/elastic/apm-agent-go/transport"
@@ -25,6 +27,9 @@ const (
 	// errors will start being dropped (when the channel is
 	// also full).
 	defaultMaxErrorQueueSize = 1000
+
+	// TODO(axw) make this configurable
+	metricsInterval = 5 * time.Second
 )
 
 var (
@@ -169,6 +174,8 @@ type Tracer struct {
 	closing                    chan struct{}
 	closed                     chan struct{}
 	forceFlush                 chan chan<- struct{}
+	sendMetrics                chan chan<- struct{}
+	addMetricsGatherer         chan MetricsGatherer
 	setFlushInterval           chan time.Duration
 	setMaxTransactionQueueSize chan int
 	setMaxErrorQueueSize       chan int
@@ -234,6 +241,8 @@ func newTracer(opts options) *Tracer {
 		closing:                    make(chan struct{}),
 		closed:                     make(chan struct{}),
 		forceFlush:                 make(chan chan<- struct{}),
+		sendMetrics:                make(chan chan<- struct{}),
+		addMetricsGatherer:         make(chan MetricsGatherer),
 		setFlushInterval:           make(chan time.Duration),
 		setMaxTransactionQueueSize: make(chan int),
 		setMaxErrorQueueSize:       make(chan int),
@@ -442,6 +451,33 @@ func (t *Tracer) SetCaptureBody(mode CaptureBodyMode) {
 	t.captureBodyMu.Unlock()
 }
 
+// AddMetricsGatherer schedules g to gather metrics periodically.
+//
+// TODO(axw) return a function that can be used to remove the gatherer.
+func (t *Tracer) AddMetricsGatherer(g MetricsGatherer) {
+	select {
+	case t.addMetricsGatherer <- g:
+	case <-t.closing:
+	case <-t.closed:
+	}
+}
+
+// SendMetrics forces the tracer to gather and send metrics immediately,
+// blocking until the metrics have been sent or the abort channel is
+// signalled.
+func (t *Tracer) SendMetrics(abort <-chan struct{}) {
+	sent := make(chan struct{}, 1)
+	select {
+	case t.sendMetrics <- sent:
+		select {
+		case <-abort:
+		case <-sent:
+		case <-t.closed:
+		}
+	case <-t.closed:
+	}
+}
+
 // Stats returns the current TracerStats. This will return the most
 // recent values even after the tracer has been closed.
 func (t *Tracer) Stats() TracerStats {
@@ -463,11 +499,15 @@ func (t *Tracer) loop() {
 		}
 	}()
 
+	var metrics Metrics
+	var metricsGatherers []metricsGatherer
 	var flushInterval time.Duration
 	var flushed chan<- struct{}
+	var sentMetrics chan<- struct{}
 	var maxTransactionQueueSize int
 	var maxErrorQueueSize int
 	var flushC <-chan time.Time
+	var sendMetricsC <-chan time.Time
 	var transactions []*Transaction
 	var errors []*Error
 	var statsUpdates TracerStats
@@ -478,24 +518,36 @@ func (t *Tracer) loop() {
 
 	errorsC := t.errors
 	forceFlush := t.forceFlush
+	forceSendMetrics := t.sendMetrics
 	flushTimer := time.NewTimer(0)
 	if !flushTimer.Stop() {
 		<-flushTimer.C
 	}
-	startTimer := func() {
-		if flushC != nil {
+	metricsTimer := time.NewTimer(0)
+	if !metricsTimer.Stop() {
+		<-metricsTimer.C
+	}
+	startTimer := func(ch *<-chan time.Time, timer *time.Timer, interval time.Duration) {
+		if *ch != nil {
 			// Timer already started.
 			return
 		}
-		if !flushTimer.Stop() {
+		if !timer.Stop() {
 			select {
-			case <-flushTimer.C:
+			case <-timer.C:
 			default:
 			}
 		}
-		flushTimer.Reset(flushInterval)
-		flushC = flushTimer.C
+		timer.Reset(interval)
+		*ch = timer.C
 	}
+	startFlushTimer := func() {
+		startTimer(&flushC, flushTimer, flushInterval)
+	}
+	startMetricsTimer := func() {
+		startTimer(&sendMetricsC, metricsTimer, metricsInterval)
+	}
+
 	receivedTransaction := func(tx *Transaction, stats *TracerStats) {
 		if maxTransactionQueueSize > 0 && len(transactions) >= maxTransactionQueueSize {
 			// The queue is full, so pop the oldest item.
@@ -513,12 +565,22 @@ func (t *Tracer) loop() {
 	}
 
 	for {
+		var sendMetrics bool
 		var sendTransactions bool
 		statsUpdates = TracerStats{}
 
 		select {
 		case <-t.closing:
 			return
+		case g := <-t.addMetricsGatherer:
+			metricsGatherers = append(metricsGatherers, metricsGatherer{
+				MetricsGatherer: g,
+			})
+			if len(metricsGatherers) == 1 {
+				// First metrics gatherer added, start timer.
+				startMetricsTimer()
+			}
+			continue
 		case flushInterval = <-t.setFlushInterval:
 			continue
 		case maxTransactionQueueSize = <-t.setMaxTransactionQueueSize:
@@ -556,7 +618,7 @@ func (t *Tracer) loop() {
 				continue
 			}
 			if maxTransactionQueueSize <= 0 || len(transactions) < maxTransactionQueueSize {
-				startTimer()
+				startFlushTimer()
 				continue
 			}
 			sendTransactions = true
@@ -576,6 +638,16 @@ func (t *Tracer) loop() {
 			forceFlush = nil
 			flushC = nil
 			sendTransactions = true
+		case <-sendMetricsC:
+			sendMetricsC = nil
+			sendMetrics = true
+		case sentMetrics = <-forceSendMetrics:
+			// sentMetrics will be signaled, and forceSendMetrics
+			// set back to t.sendMetrics, when metrics have been
+			// gathered and an attempt to send them has been made.
+			forceSendMetrics = nil
+			sendMetricsC = nil
+			sendMetrics = true
 		}
 
 		if remainder := maxErrorQueueSize - len(errors); remainder > 0 {
@@ -604,17 +676,44 @@ func (t *Tracer) loop() {
 				transactions = transactions[:0]
 			}
 		}
-
 		if !statsUpdates.isZero() {
 			t.statsMu.Lock()
 			t.stats.accumulate(statsUpdates)
 			t.statsMu.Unlock()
+		}
 
-			if statsUpdates.Errors.SendTransactions != 0 || statsUpdates.Errors.SendErrors != 0 {
-				// Sending transactions or errors failed, start a new timer to resend.
-				startTimer()
-				continue
+		if sendMetrics {
+			// TODO(axw) always report tracer stats or introduce
+			// a gatherer for gathering the tracer stats?
+			//
+			// TODO(axw) gather metrics in parallel with sending
+			// transactions and errors. Kick off all goroutines,
+			// have the last one to complete signal a channel
+			// which will tell the tracer it's time to send.
+			for _, g := range metricsGatherers {
+				if err := g.gather(ctx, &metrics); err != nil {
+					if sender.logger != nil {
+						sender.logger.Debugf("gathering metrics failed: %s", err)
+					}
+				}
 			}
+			timestamp := model.Time(time.Now())
+			for _, s := range metrics.metrics {
+				s.Timestamp = timestamp
+			}
+			sender.sendMetrics(ctx, &metrics)
+			metrics.reset()
+			if sentMetrics != nil {
+				sentMetrics <- struct{}{}
+				sentMetrics = nil
+			}
+			startMetricsTimer()
+		}
+
+		if statsUpdates.Errors.SendTransactions != 0 || statsUpdates.Errors.SendErrors != 0 {
+			// Sending transactions or errors failed, start a new timer to resend.
+			startFlushTimer()
+			continue
 		}
 		if sendTransactions && flushed != nil {
 			forceFlush = t.forceFlush
@@ -737,4 +836,56 @@ func (s *sender) sendErrors(ctx context.Context, errors []*Error) bool {
 	}
 	s.stats.ErrorsSent += uint64(len(errors))
 	return true
+}
+
+// sendMetrics attempts to send metrics to the APM server.
+func (s *sender) sendMetrics(ctx context.Context, m *Metrics) {
+	if len(m.metrics) == 0 {
+		return
+	}
+	service := makeService(s.tracer.Service.Name, s.tracer.Service.Version, s.tracer.Service.Environment)
+	payload := model.MetricsPayload{
+		Service: &service,
+		Process: s.tracer.process,
+		System:  s.tracer.system,
+		Metrics: m.metrics,
+	}
+	// TODO(axw) record tracer stats for metrics-sending?
+	if err := s.tracer.Transport.SendMetrics(ctx, &payload); err != nil {
+		if s.logger != nil {
+			s.logger.Debugf("sending metrics failed: %s", err)
+		}
+	}
+}
+
+type metricsGatherer struct {
+	MetricsGatherer
+}
+
+func (g *metricsGatherer) gather(ctx context.Context, m *Metrics) error {
+	result := make(chan error, 1)
+	go func() {
+		defer close(result)
+		defer func() {
+			if r := recover(); r != nil {
+				var err error
+				if r, ok := r.(error); ok {
+					err = r
+				} else {
+					err = errors.Errorf("%s", r)
+				}
+				result <- errors.Wrapf(err, "%T.GatherMetrics panicked", g)
+			}
+		}()
+		result <- g.GatherMetrics(ctx, m)
+	}()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case err, ok := <-result:
+		if !ok {
+			return errors.New("metrics channel closed unexpectedly")
+		}
+		return err
+	}
 }
