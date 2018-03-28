@@ -745,6 +745,117 @@ func (v *ResponseHeaders) MarshalFastJSON(w *fastjson.Writer) {
 	w.RawByte('}')
 }
 
+func (v *Metrics) MarshalFastJSON(w *fastjson.Writer) {
+	w.RawByte('{')
+	w.RawString("\"samples\":")
+	if v.Samples == nil {
+		w.RawString("null")
+	} else {
+		w.RawByte('{')
+		{
+			first := true
+			for k, v := range v.Samples {
+				if first {
+					first = false
+				} else {
+					w.RawByte(',')
+				}
+				w.String(k)
+				w.RawByte(':')
+				v.MarshalFastJSON(w)
+			}
+		}
+		w.RawByte('}')
+	}
+	w.RawString(",\"timestamp\":")
+	v.Timestamp.MarshalFastJSON(w)
+	if !v.Labels.isZero() {
+		w.RawString(",\"labels\":")
+		v.Labels.MarshalFastJSON(w)
+	}
+	w.RawByte('}')
+}
+
+func (v *Metric) MarshalFastJSON(w *fastjson.Writer) {
+	w.RawByte('{')
+	first := true
+	if v.Count != nil {
+		const prefix = ",\"count\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.Float64(*v.Count)
+	}
+	if v.Max != nil {
+		const prefix = ",\"max\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.Float64(*v.Max)
+	}
+	if v.Min != nil {
+		const prefix = ",\"min\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.Float64(*v.Min)
+	}
+	if v.Percentiles != nil {
+		const prefix = ",\"percentile\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.RawByte('{')
+		{
+			first := true
+			for k, v := range v.Percentiles {
+				if first {
+					first = false
+				} else {
+					w.RawByte(',')
+				}
+				w.Float64(k)
+				w.RawByte(':')
+				w.Float64(v)
+			}
+		}
+		w.RawByte('}')
+	}
+	if v.Sum != nil {
+		const prefix = ",\"sum\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.Float64(*v.Sum)
+	}
+	if v.Value != nil {
+		const prefix = ",\"value\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.Float64(*v.Value)
+	}
+	w.RawByte('}')
+}
+
 func (v *TransactionsPayload) MarshalFastJSON(w *fastjson.Writer) {
 	w.RawByte('{')
 	w.RawString("\"service\":")
@@ -801,6 +912,36 @@ func (v *ErrorsPayload) MarshalFastJSON(w *fastjson.Writer) {
 	if v.Process != nil {
 		w.RawString(",\"process\":")
 		v.Process.MarshalFastJSON(w)
+	}
+	if v.System != nil {
+		w.RawString(",\"system\":")
+		v.System.MarshalFastJSON(w)
+	}
+	w.RawByte('}')
+}
+
+func (v *MetricsPayload) MarshalFastJSON(w *fastjson.Writer) {
+	w.RawByte('{')
+	w.RawString("\"metrics\":")
+	if v.Metrics == nil {
+		w.RawString("null")
+	} else {
+		w.RawByte('[')
+		for i, v := range v.Metrics {
+			if i != 0 {
+				w.RawByte(',')
+			}
+			v.MarshalFastJSON(w)
+		}
+		w.RawByte(']')
+	}
+	if v.Process != nil {
+		w.RawString(",\"process\":")
+		v.Process.MarshalFastJSON(w)
+	}
+	if v.Service != nil {
+		w.RawString(",\"service\":")
+		v.Service.MarshalFastJSON(w)
 	}
 	if v.System != nil {
 		w.RawString(",\"system\":")
