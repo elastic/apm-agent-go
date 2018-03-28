@@ -491,3 +491,32 @@ type Time time.Time
 
 // UUID holds a 128-bit UUID.
 type UUID [16]byte
+
+// Metrics holds a set of metric samples, with an optional set of labels.
+type Metrics struct {
+	// Timestamp holds the time at which the metric samples were taken.
+	Timestamp Time `json:"timestamp"`
+
+	// Labels holds a set of labels associated with the metrics.
+	// The labels apply uniformly to all metric samples in the set.
+	Labels StringMap `json:"labels,omitempty"`
+
+	// Samples holds a map of metric samples, keyed by metric name.
+	Samples map[string]Metric `json:"samples"`
+}
+
+// Metric holds metric values.
+type Metric struct {
+	// Type is the metric type: "counter", or "gauge".
+	Type string `json:"type"`
+
+	// Unit holds the metric unit, e.g. "byte", or "sec".
+	Unit string `json:"unit,omitempty"`
+
+	// Count holds the value for a counter metric
+	// (non-negative, monotonically increasing).
+	Count *float64 `json:"count,omitempty"`
+
+	// Value holds the value for a gauge metric.
+	Value *float64 `json:"value,omitempty"`
+}
