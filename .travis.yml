@@ -6,6 +6,14 @@ go:
   - "1.9.x"
   - "1.10.x"
 
+matrix:
+  fast_finish: true
+  allow_failures:
+    - os: osx
+  include:
+    - go: "1.x"
+      os: osx
+
 before_install:
   - go get -v golang.org/x/tools/cmd/goimports
 
