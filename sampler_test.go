@@ -5,8 +5,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/elastic/apm-agent-go"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/elastic/apm-agent-go"
 )
 
 func TestRatioSampler(t *testing.T) {

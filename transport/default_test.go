@@ -5,9 +5,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/elastic/apm-agent-go/model"
 	"github.com/elastic/apm-agent-go/transport"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestInitDefault(t *testing.T) {

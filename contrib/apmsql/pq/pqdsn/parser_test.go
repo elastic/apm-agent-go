@@ -4,8 +4,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/elastic/apm-agent-go/contrib/apmsql/pq/pqdsn"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/elastic/apm-agent-go/contrib/apmsql/pq/pqdsn"
 )
 
 func TestParseDSNURL(t *testing.T) {
