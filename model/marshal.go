@@ -6,8 +6,9 @@ import (
 	"sort"
 	"time"
 
-	"github.com/elastic/apm-agent-go/internal/fastjson"
 	"github.com/pkg/errors"
+
+	"github.com/elastic/apm-agent-go/internal/fastjson"
 )
 
 //go:generate go run ../internal/fastjson/generate.go -f -o marshal_fastjson.go .
