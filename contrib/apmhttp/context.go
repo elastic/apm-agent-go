@@ -46,16 +46,17 @@ func RequestContext(req *http.Request) *model.Context {
 		httpVersion = fmt.Sprintf("%d.%d", req.ProtoMajor, req.ProtoMinor)
 	}
 
+	forwarded := maybeParseForwarded(req)
 	ctx := model.Context{
 		Request: &model.Request{
-			URL:         RequestURL(req),
+			URL:         requestURL(req, forwarded),
 			Method:      req.Method,
 			Headers:     RequestHeaders(req),
 			HTTPVersion: httpVersion,
 			Cookies:     req.Cookies(),
 			Socket: &model.RequestSocket{
 				Encrypted:     req.TLS != nil,
-				RemoteAddress: RequestRemoteAddress(req),
+				RemoteAddress: requestRemoteAddress(req, forwarded),
 			},
 		},
 	}
@@ -68,53 +69,87 @@ func RequestContext(req *http.Request) *model.Context {
 }
 
 // RequestURL returns a model.URL for the given HTTP request.
+// This function may be used for either clients or servers.
+// For server-side requests, various proxy forwarding headers
+// are taken into account.
 //
 // If the URL contains user info, it will be removed and
 // excluded from the URL's "full" field.
 func RequestURL(req *http.Request) model.URL {
-	fullHost := req.Host
-	if fullHost == "" {
-		fullHost = req.URL.Host
-	}
-	host, port, err := net.SplitHostPort(fullHost)
-	if err != nil {
-		host = fullHost
-		port = ""
-	}
+	forwarded := maybeParseForwarded(req)
+	return requestURL(req, forwarded)
+}
+
+func requestURL(req *http.Request, forwarded *forwardedHeader) model.URL {
 	out := model.URL{
-		Hostname: host,
-		Port:     port,
-		Path:     req.URL.Path,
-		Search:   req.URL.RawQuery,
-		Hash:     req.URL.Fragment,
+		Path:   req.URL.Path,
+		Search: req.URL.RawQuery,
+		Hash:   req.URL.Fragment,
 	}
-	if req.URL.Scheme != "" {
+	if req.URL.Host != "" {
+		// Absolute URI: client-side or proxy request, so ignore the
+		// headers.
+		out.Hostname, out.Port = splitHost(req.URL.Host)
+		out.Protocol = req.URL.Scheme
+
 		// If the URL contains user info, remove it before formatting
 		// so it doesn't make its way into the "full" URL, to avoid
-		// leaking PII or secrets.
+		// leaking PII or secrets. This is only necessary for clients.
 		user := req.URL.User
 		req.URL.User = nil
 		out.Full = req.URL.String()
-		out.Protocol = req.URL.Scheme
 		req.URL.User = user
-	} else {
-		// Server-side, req.URL contains the
-		// URI only. We synthesize the URL
-		// by adding in req.Host, and the
-		// scheme determined by the presence
-		// of TLS configuration.
-		scheme := "http"
-		if req.TLS != nil {
-			scheme = "https"
-		}
-		u := *req.URL
-		u.Scheme = scheme
-		u.User = nil
-		u.Host = fullHost
-		out.Full = u.String()
-		out.Protocol = scheme
+		return out
 	}
+
+	// This is a server-side request URI, which contains only the path.
+	// We synthesize the full URL by extracting the host and protocol
+	// from headers, or inferring from other properties.
+	var fullHost string
+	if forwarded != nil && forwarded.Host != "" {
+		fullHost = forwarded.Host
+		out.Protocol = forwarded.Proto
+	} else if xfh := req.Header.Get("X-Forwarded-Host"); xfh != "" {
+		fullHost = xfh
+	} else {
+		fullHost = req.Host
+	}
+	out.Hostname, out.Port = splitHost(fullHost)
+
+	// Protocol might be extracted from the Forwarded header. If it's not,
+	// look for various other headers.
+	if out.Protocol == "" {
+		if proto := req.Header.Get("X-Forwarded-Proto"); proto != "" {
+			out.Protocol = proto
+		} else if proto := req.Header.Get("X-Forwarded-Protocol"); proto != "" {
+			out.Protocol = proto
+		} else if proto := req.Header.Get("X-Url-Scheme"); proto != "" {
+			out.Protocol = proto
+		} else if req.Header.Get("Front-End-Https") == "on" {
+			out.Protocol = "https"
+		} else if req.Header.Get("X-Forwarded-Ssl") == "on" {
+			out.Protocol = "https"
+		} else if req.TLS != nil {
+			out.Protocol = "https"
+		} else {
+			// Assume http otherwise.
+			out.Protocol = "http"
+		}
+	}
+
+	u := *req.URL
+	u.Scheme = out.Protocol
+	u.Host = fullHost
+	out.Full = u.String()
 	return out
+}
+
+func splitHost(in string) (host, port string) {
+	host, port, err := net.SplitHostPort(in)
+	if err != nil {
+		return in, ""
+	}
+	return host, port
 }
 
 // RequestHeaders returns the headers for the HTTP request relevant to tracing.
@@ -129,11 +164,28 @@ func RequestHeaders(req *http.Request) *model.RequestHeaders {
 // RequestRemoteAddress returns the remote address for the HTTP request.
 //
 // In order:
+//  - if the Forwarded header is set, then the first item in the
+//    list's "for" field is used, if it exists. The "for" value
+//    is returned even if it is an obfuscated identifier.
 //  - if the X-Real-IP header is set, then its value is returned.
 //  - if the X-Forwarded-For header is set, then the first value
 //    in the comma-separated list is returned.
 //  - otherwise, the host portion of req.RemoteAddr is returned.
 func RequestRemoteAddress(req *http.Request) string {
+	forwarded := maybeParseForwarded(req)
+	return requestRemoteAddress(req, forwarded)
+}
+
+func requestRemoteAddress(req *http.Request, forwarded *forwardedHeader) string {
+	if forwarded != nil {
+		if forwarded.For != "" {
+			remoteAddr, _, err := net.SplitHostPort(forwarded.For)
+			if err != nil {
+				remoteAddr = forwarded.For
+			}
+			return remoteAddr
+		}
+	}
 	if realIP := req.Header.Get("X-Real-IP"); realIP != "" {
 		return realIP
 	}
@@ -290,4 +342,61 @@ func StatusCodeString(statusCode int) string {
 		return "511"
 	}
 	return strconv.Itoa(statusCode)
+}
+
+type forwardedHeader struct {
+	For   string
+	Host  string
+	Proto string
+}
+
+func maybeParseForwarded(req *http.Request) *forwardedHeader {
+	if fwd := req.Header.Get("Forwarded"); fwd != "" {
+		parsed := parseForwarded(fwd)
+		return &parsed
+	}
+	return nil
+}
+
+func parseForwarded(f string) forwardedHeader {
+	// We only consider the first value in the sequence,
+	// if there are multiple. Disregard everything after
+	// the first comma.
+	if comma := strings.IndexRune(f, ','); comma != -1 {
+		f = f[:comma]
+	}
+	var result forwardedHeader
+	for f != "" {
+		field := f
+		if semi := strings.IndexRune(f, ';'); semi != -1 {
+			field = f[:semi]
+			f = f[semi+1:]
+		} else {
+			f = ""
+		}
+		eq := strings.IndexRune(field, '=')
+		if eq == -1 {
+			// Malformed field, ignore.
+			continue
+		}
+		key := strings.TrimSpace(field[:eq])
+		value := strings.TrimSpace(field[eq+1:])
+		if len(value) > 0 && value[0] == '"' {
+			var err error
+			value, err = strconv.Unquote(value)
+			if err != nil {
+				// Malformed, ignore
+				continue
+			}
+		}
+		switch strings.ToLower(key) {
+		case "for":
+			result.For = value
+		case "host":
+			result.Host = value
+		case "proto":
+			result.Proto = strings.ToLower(value)
+		}
+	}
+	return result
 }

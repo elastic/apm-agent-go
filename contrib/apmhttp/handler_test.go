@@ -17,6 +17,19 @@ import (
 	"github.com/elastic/apm-agent-go/transport/transporttest"
 )
 
+func TestWrap(t *testing.T) {
+	mux := http.DefaultServeMux
+	h := apmhttp.Wrap(mux)
+	r := apmhttp.NewTraceRecovery(nil)
+	h2 := h.WithRecovery(r)
+
+	assert.Equal(t, &apmhttp.Handler{Handler: mux}, h)
+	assert.NotEqual(t, h, h2)
+	assert.NotNil(t, h2.Recovery)
+	h2.Recovery = nil
+	assert.Equal(t, h, h2)
+}
+
 func TestHandler(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()

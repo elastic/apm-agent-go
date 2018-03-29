@@ -7,6 +7,12 @@ import (
 	"github.com/elastic/apm-agent-go/model"
 )
 
+// Wrap returns a Handler wrapping h. This is a convenience function:
+// `apmhttp.Wrap(h)` is equivalent to `&apmhttp.Handler{Handler: h}`.
+func Wrap(h http.Handler) *Handler {
+	return &Handler{Handler: h}
+}
+
 // Handler wraps an http.Handler, reporting a new transaction for each request.
 //
 // The http.Request's context will be updated with the transaction.
@@ -28,6 +34,13 @@ type Handler struct {
 	// Tracer is an optional elasticapm.Tracer for tracing transactions.
 	// If this is nil, elasticapm.DefaultTracer will be used instead.
 	Tracer *elasticapm.Tracer
+}
+
+// WithRecovery returns a copy of h with Recovery set to r.
+func (h *Handler) WithRecovery(r RecoveryFunc) *Handler {
+	hcopy := *h
+	hcopy.Recovery = r
+	return &hcopy
 }
 
 // ServeHTTP delegates to h.Handler, tracing the transaction with
