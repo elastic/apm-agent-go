@@ -10,7 +10,7 @@ import (
 	"github.com/elastic/apm-agent-go/model"
 )
 
-// NewRecorderTransport returns a new elasticapm.Tracer and
+// NewRecorderTracer returns a new elasticapm.Tracer and
 // RecorderTransport, which is set as the tracer's transport.
 func NewRecorderTracer() (*elasticapm.Tracer, *RecorderTransport) {
 	var transport RecorderTransport
@@ -65,16 +65,23 @@ func (r *RecorderTransport) record(payload, zeroPayload interface{}) error {
 	return nil
 }
 
+// Payloads is a slice of Payload.
 type Payloads []Payload
 
+// Payload wraps an untyped payload value. Use the methods to obtain the
+// appropriate payload type fields.
 type Payload struct {
 	Value interface{}
 }
 
+// Transactions returns the transactions within the payload. If the payload
+// is not a transactions payload, this will panic.
 func (p Payload) Transactions() []*model.Transaction {
 	return p.Value.(*model.TransactionsPayload).Transactions
 }
 
+// Errors returns the errors within the payload. If the payload
+// is not an errors payload, this will panic.
 func (p Payload) Errors() []*model.Error {
 	return p.Value.(*model.ErrorsPayload).Errors
 }

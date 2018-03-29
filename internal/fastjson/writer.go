@@ -5,6 +5,7 @@ import (
 	"unicode/utf8"
 )
 
+// Writer is a JSON writer.
 type Writer struct {
 	buf []byte
 }
@@ -15,38 +16,47 @@ func (w *Writer) Bytes() []byte {
 	return w.buf
 }
 
+// Reset resets the internal []byte buffer to empty.
 func (w *Writer) Reset() {
 	w.buf = w.buf[:0]
 }
 
+// RawByte appends c to the buffer.
 func (w *Writer) RawByte(c byte) {
 	w.buf = append(w.buf, c)
 }
 
+// RawBytes appends data, unmodified, to the buffer.
 func (w *Writer) RawBytes(data []byte) {
 	w.buf = append(w.buf, data...)
 }
 
+// RawString appends s to the buffer.
 func (w *Writer) RawString(s string) {
 	w.buf = append(w.buf, s...)
 }
 
+// Uint64 appends n to the buffer.
 func (w *Writer) Uint64(n uint64) {
 	w.buf = strconv.AppendUint(w.buf, uint64(n), 10)
 }
 
+// Int64 appends n to the buffer.
 func (w *Writer) Int64(n int64) {
 	w.buf = strconv.AppendInt(w.buf, int64(n), 10)
 }
 
+// Float32 appends n to the buffer.
 func (w *Writer) Float32(n float32) {
 	w.buf = strconv.AppendFloat(w.buf, float64(n), 'g', -1, 32)
 }
 
+// Float64 appends n to the buffer.
 func (w *Writer) Float64(n float64) {
 	w.buf = strconv.AppendFloat(w.buf, float64(n), 'g', -1, 64)
 }
 
+// Bool appends v to the buffer.
 func (w *Writer) Bool(v bool) {
 	w.buf = strconv.AppendBool(w.buf, v)
 }
@@ -58,11 +68,11 @@ func isNotEscapedSingleChar(c byte, escapeHTML bool) bool {
 	// it benchmarks the same.
 	if escapeHTML {
 		return c != '<' && c != '>' && c != '&' && c != '\\' && c != '"' && c >= 0x20 && c < utf8.RuneSelf
-	} else {
-		return c != '\\' && c != '"' && c >= 0x20 && c < utf8.RuneSelf
 	}
+	return c != '\\' && c != '"' && c >= 0x20 && c < utf8.RuneSelf
 }
 
+// String appends s, quoted and escaped, to the buffer.
 func (w *Writer) String(s string) {
 	w.RawByte('"')
 

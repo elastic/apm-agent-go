@@ -70,7 +70,7 @@ func testServerTransactionHappy(t *testing.T, p testParams) {
 		Name: "birita",
 	})
 	require.NoError(t, err)
-	assert.Equal(t, resp, &pb.HelloReply{"hello, birita"})
+	assert.Equal(t, resp, &pb.HelloReply{Message: "hello, birita"})
 
 	p.tracer.Flush(nil)
 	tx := p.transport.Payloads()[0].Transactions()[0]
@@ -210,5 +210,5 @@ func (s *helloworldServer) SayHello(ctx context.Context, req *pb.HelloRequest) (
 	if s.err != nil {
 		return nil, s.err
 	}
-	return &pb.HelloReply{"hello, " + req.Name}, nil
+	return &pb.HelloReply{Message: "hello, " + req.Name}, nil
 }

@@ -59,15 +59,19 @@ func init() {
 	}
 }
 
+// Function is type exposed via net/rpc, to match the signature implemented
+// by the aws-lambda-go package.
 type Function struct {
 	client *rpc.Client
 	tracer *elasticapm.Tracer
 }
 
+// Ping pings the function implementation.
 func (f *Function) Ping(req *messages.PingRequest, response *messages.PingResponse) error {
 	return f.client.Call("Function.Ping", req, response)
 }
 
+// Invoke invokes the Lambda function. This is our main trace point.
 func (f *Function) Invoke(req *messages.InvokeRequest, response *messages.InvokeResponse) error {
 	tx := f.tracer.StartTransaction(lambdacontext.FunctionName, "function")
 	defer f.tracer.Flush(nonBlocking)

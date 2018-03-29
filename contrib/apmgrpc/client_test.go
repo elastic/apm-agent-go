@@ -23,7 +23,7 @@ func TestClientSpan(t *testing.T) {
 	defer conn.Close()
 	resp, err := client.SayHello(context.Background(), &pb.HelloRequest{Name: "birita"})
 	require.NoError(t, err)
-	assert.Equal(t, resp, &pb.HelloReply{"hello, birita"})
+	assert.Equal(t, resp, &pb.HelloReply{Message: "hello, birita"})
 
 	// The client interceptor starts no transactions, only spans.
 	tracer.Flush(nil)
@@ -33,7 +33,7 @@ func TestClientSpan(t *testing.T) {
 	ctx := elasticapm.ContextWithTransaction(context.Background(), tx)
 	resp, err = client.SayHello(ctx, &pb.HelloRequest{Name: "birita"})
 	require.NoError(t, err)
-	assert.Equal(t, resp, &pb.HelloReply{"hello, birita"})
+	assert.Equal(t, resp, &pb.HelloReply{Message: "hello, birita"})
 	tx.Done(-1)
 
 	tracer.Flush(nil)
