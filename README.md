@@ -1,5 +1,6 @@
 [![GoDoc](https://godoc.org/github.com/elastic/apm-agent-go?status.svg)](http://godoc.org/github.com/elastic/apm-agent-go)
 [![Travis-CI](https://travis-ci.org/elastic/apm-agent-go.svg)](https://travis-ci.org/elastic/apm-agent-go)
+[![AppVeyor](https://ci.appveyor.com/api/projects/status/28fhswvqqc7p90f7?svg=true)](https://ci.appveyor.com/project/AndrewWilkins/apm-agent-go)
 [![Go Report Card](https://goreportcard.com/badge/github.com/elastic/apm-agent-go)](https://goreportcard.com/report/github.com/elastic/apm-agent-go)
 [![codecov.io](https://codecov.io/github/elastic/apm-agent-go/coverage.svg?branch=master)](https://codecov.io/github/elastic/apm-agent-go?branch=master)
 
