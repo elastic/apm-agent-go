@@ -5,10 +5,14 @@ import (
 	"fmt"
 )
 
+// Marshaler defines an interface that types can implement to provide
+// fast JSON marshaling.
 type Marshaler interface {
+	// MarshalFastJSON writes a JSON representation of the type to w.
 	MarshalFastJSON(w *Writer)
 }
 
+// Marshal marshals v as JSON to w.
 func Marshal(w *Writer, v interface{}) {
 	switch v := v.(type) {
 	case nil:

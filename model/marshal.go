@@ -28,6 +28,7 @@ func (c Cookies) isZero() bool {
 	return len(c) == 0
 }
 
+// MarshalFastJSON writes the JSON representation of c to w.
 func (c Cookies) MarshalFastJSON(w *fastjson.Writer) {
 	w.RawByte('{')
 	first := true
