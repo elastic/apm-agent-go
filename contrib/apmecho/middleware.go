@@ -2,6 +2,7 @@ package apmecho
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/labstack/echo"
 
@@ -61,13 +62,10 @@ func (m *middleware) handle(c echo.Context) error {
 	defer func() {
 		if v := recover(); v != nil {
 			e := m.tracer.Recovered(v, tx)
-			if e.Exception.Stacktrace == nil {
-				e.SetExceptionStacktrace(1)
-			}
 			e.Context = apmhttp.RequestContext(req)
 			err, ok := v.(error)
 			if !ok {
-				err = errors.New(e.Exception.Message)
+				err = errors.New(fmt.Sprint(v))
 			}
 			e.Send()
 			c.Error(err)
@@ -93,11 +91,10 @@ func (m *middleware) handle(c echo.Context) error {
 		tx.Context = txContext
 	}
 	if handlerErr != nil {
-		e := m.tracer.NewError()
+		e := m.tracer.NewError(handlerErr)
 		e.Transaction = tx
 		e.Context = txContext
-		e.SetException(handlerErr)
-		e.Exception.Handled = true
+		e.Handled = true
 		e.Send()
 		return handlerErr
 	}

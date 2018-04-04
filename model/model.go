@@ -264,10 +264,10 @@ type Error struct {
 
 	// Exception holds details of the exception (error or panic)
 	// to which this error relates.
-	Exception *Exception `json:"exception,omitempty"`
+	Exception Exception `json:"exception,omitempty"`
 
 	// Log holds additional information added when logging the error.
-	Log *Log `json:"log,omitempty"`
+	Log Log `json:"log,omitempty"`
 }
 
 // ErrorTransaction identifies the transaction within which the error occurred.

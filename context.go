@@ -47,7 +47,8 @@ func StartSpan(ctx context.Context, name, spanType string) (*Span, context.Conte
 
 // CaptureError returns a new Error related to the sampled transaction
 // present in the context, if any, and calls its SetException method
-// with the given error. The Exception.Handled field will be set to true.
+// with the given error. The Error.Handled field will be set to true,
+// and a stacktrace set.
 //
 // If there is no transaction in the context, or it is not being sampled,
 // CaptureError returns nil. As a convenience, if the provided error is
@@ -60,9 +61,8 @@ func CaptureError(ctx context.Context, err error) *Error {
 	if tx == nil || !tx.Sampled() {
 		return nil
 	}
-	e := tx.tracer.NewError()
-	e.SetException(err)
-	e.Exception.Handled = true
+	e := tx.tracer.NewError(err)
+	e.Handled = true
 	e.Transaction = tx
 	return e
 }
