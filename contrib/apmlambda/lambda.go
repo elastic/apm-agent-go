@@ -77,7 +77,9 @@ func (f *Function) Invoke(req *messages.InvokeRequest, response *messages.Invoke
 	defer f.tracer.Flush(nonBlocking)
 	defer tx.Done(-1)
 	defer f.tracer.Recover(tx)
-	tx.Context = &txContext
+	if tx.Sampled() {
+		tx.Context = &txContext
+	}
 
 	lambdaContext.RequestID = req.RequestId
 	lambdaContext.XAmznTraceID = req.XAmznTraceId
@@ -86,9 +88,9 @@ func (f *Function) Invoke(req *messages.InvokeRequest, response *messages.Invoke
 
 	err := f.client.Call("Function.Invoke", req, response)
 	if err != nil {
-		e := f.tracer.NewError()
+		e := f.tracer.NewError(err)
+		e.Context = &txContext
 		e.Transaction = tx
-		e.SetException(err)
 		e.Send()
 		return err
 	}
@@ -96,25 +98,38 @@ func (f *Function) Invoke(req *messages.InvokeRequest, response *messages.Invoke
 	if response.Payload != nil {
 		lambdaContext.Response = formatPayload(response.Payload)
 	}
-
 	if response.Error != nil {
-		e := f.tracer.NewError()
+		e := f.tracer.NewError(invokeResponseError{response.Error})
+		e.Context = &txContext
 		e.Transaction = tx
-		e.Exception = &model.Exception{
-			Message: response.Error.Message,
-			Type:    response.Error.Type,
-		}
-		frames := make([]model.StacktraceFrame, len(response.Error.StackTrace))
-		for i, f := range response.Error.StackTrace {
-			packagePath, functionName := stacktrace.SplitFunctionName(f.Label)
-			frames[i].File = filepath.Base(f.Path)
-			frames[i].Line = int(f.Line)
-			frames[i].Module = packagePath
-			frames[i].Function = functionName
-			frames[i].LibraryFrame = stacktrace.IsLibraryPackage(packagePath)
-		}
+		e.Send()
 	}
 	return nil
+}
+
+type invokeResponseError struct {
+	err *messages.InvokeResponse_Error
+}
+
+func (e invokeResponseError) Error() string {
+	return e.err.Message
+}
+
+func (e invokeResponseError) Type() string {
+	return e.err.Type
+}
+
+func (e invokeResponseError) StackTrace() []model.StacktraceFrame {
+	frames := make([]model.StacktraceFrame, len(e.err.StackTrace))
+	for i, f := range e.err.StackTrace {
+		packagePath, functionName := stacktrace.SplitFunctionName(f.Label)
+		frames[i].File = filepath.Base(f.Path)
+		frames[i].Line = int(f.Line)
+		frames[i].Module = packagePath
+		frames[i].Function = functionName
+		frames[i].LibraryFrame = stacktrace.IsLibraryPackage(packagePath)
+	}
+	return frames
 }
 
 func formatPayload(payload []byte) string {

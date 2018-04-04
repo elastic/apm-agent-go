@@ -62,10 +62,7 @@ func NewUnaryServerInterceptor(o ...ServerOption) grpc.UnaryServerInterceptor {
 			r := recover()
 			if r != nil {
 				e := opts.tracer.Recovered(r, tx)
-				if e.Exception.Stacktrace == nil {
-					e.SetExceptionStacktrace(1)
-				}
-				e.Exception.Handled = opts.recover
+				e.Handled = opts.recover
 				e.Send()
 				if opts.recover {
 					err = status.Errorf(codes.Internal, "%s", r)

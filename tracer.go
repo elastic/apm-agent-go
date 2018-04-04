@@ -566,13 +566,23 @@ func (s *sender) sendErrors(ctx context.Context, errors []*Error) bool {
 	for i, e := range errors {
 		if e.Transaction != nil {
 			e.Transaction.setID()
-			e.Error.Transaction.ID = e.Transaction.ID
-		}
-		if s.processor != nil {
-			s.processor.ProcessError(&e.Error)
+			e.model.Transaction.ID = e.Transaction.ID
 		}
 		e.setCulprit()
-		payload.Errors[i] = &e.Error
+		if e.model.Log.Message != "" {
+			e.model.Log.Stacktrace = e.stacktrace
+		}
+		if e.model.Exception.Message != "" {
+			e.model.Exception.Handled = e.Handled
+			e.model.Exception.Stacktrace = e.stacktrace
+		}
+		e.model.Context = e.Context
+		e.model.ID = e.ID
+		e.model.Timestamp = model.FormatTime(e.Timestamp)
+		if s.processor != nil {
+			s.processor.ProcessError(&e.model)
+		}
+		payload.Errors[i] = &e.model
 	}
 	if err := s.tracer.Transport.SendErrors(ctx, &payload); err != nil {
 		if s.logger != nil {

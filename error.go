@@ -14,53 +14,105 @@ import (
 	"github.com/elastic/apm-agent-go/stacktrace"
 )
 
-// Recover recovers panics, enqueuing exception errors.
-// Recover is expected to be used in a deferred call.
+// Recover recovers panics, sending them as errors to
+// the Elastic APM server. Recover is expected to be
+// used in a deferred call.
 //
-// If the error implements
-//   type stackTracer interface{
-//       StackTrace() github.com/pkg/errors.StackTrace
-//   }
-// then that will be used to set the exception stacktrace.
-// Otherwise, Recover will take a stacktrace, skipping
-// this Recover call's frame.
+// Recover simply calls t.Recovered(v, tx),
+// where v is the recovered value, and then calls the
+// resulting Error's Send method.
 func (t *Tracer) Recover(tx *Transaction) {
 	v := recover()
 	if v == nil {
 		return
 	}
-	e := t.Recovered(v, tx)
-	if e.Exception.Stacktrace == nil {
-		e.SetExceptionStacktrace(1)
-	}
-	e.Send()
+	t.Recovered(v, tx).Send()
 }
 
-// Recovered creates and returns an Error with its Exception
-// initialized from the recovered value v, which is expected
-// to have come from a panic.
+// Recovered creates an Error with t.NewError(err), where
+// err is either v (if v implements error), or otherwise
+// fmt.Errorf("%v", v). The value v is expected to have
+// come from a panic.
 //
-// If v is an error, the Exception will be initialized using
-// Error.SetException, and its stacktrace may be set. Otherwise,
-// Exception will be initialized with the message set to
-// fmt.Sprint(v), and its stacktrace will be nil.
+// The resulting error's Transaction will be set to tx,
 func (t *Tracer) Recovered(v interface{}, tx *Transaction) *Error {
-	e := t.NewError()
-	e.Transaction = tx
-	e.ID, _ = NewUUID() // ignore error result
+	var e *Error
 	switch v := v.(type) {
 	case error:
-		e.SetException(v)
+		e = t.NewError(v)
 	default:
-		e.Exception = &model.Exception{
-			Message: fmt.Sprint(v),
-		}
+		e = t.NewError(fmt.Errorf("%v", v))
+	}
+	e.Transaction = tx
+	return e
+}
+
+// NewError returns a new Error with details taken from err.
+// NewError will panic if called with a nil error.
+//
+// The exception message will be set to err.Error().
+// The exception module and type will be set to the package
+// and type name of the cause of the error, respectively,
+// where the cause has the same definition as given by
+// github.com/pkg/errors.
+//
+// If err implements
+//   type interface {
+//       StackTrace() github.com/pkg/errors.StackTrace
+//   }
+// or
+//   type interface {
+//       StackTrace() []stacktrace.Frame
+//   }
+// then one of those will be used to set the error
+// stacktrace. Otherwise, NewError will take a stacktrace.
+//
+// If err implements
+//   type interface {Type() string}
+// then that will be used to set the error type.
+//
+// If err implements
+//   type interface {Code() string}
+// or
+//   type interface {Code() float64}
+// then one of those will be used to set the error code.
+func (t *Tracer) NewError(err error) *Error {
+	if err == nil {
+		panic("NewError must be called with a non-nil error")
+	}
+	e := t.newError()
+	e.ID, _ = NewUUID() // ignore error result
+	e.model.Exception.Message = err.Error()
+	initException(&e.model.Exception, errors.Cause(err))
+	initStacktrace(e, err)
+	if e.stacktrace == nil {
+		e.SetStacktrace(1)
 	}
 	return e
 }
 
-// NewError returns a new Error associated with the Tracer.
-func (t *Tracer) NewError() *Error {
+// NewErrorLog returns a new Error for the given ErrorLogRecord.
+//
+// The resulting Error's stacktrace will not be set. Call the
+// SetStacktrace method to set it, if desired.
+//
+// If r.Message is empty, NewErrorLog will panic.
+func (t *Tracer) NewErrorLog(r ErrorLogRecord) *Error {
+	if r.Message == "" {
+		panic("r.Message must not be empty")
+	}
+	e := t.newError()
+	e.model.Log = model.Log{
+		Message:      r.Message,
+		Level:        r.Level,
+		LoggerName:   r.LoggerName,
+		ParamMessage: r.MessageFormat,
+	}
+	return e
+}
+
+// newError returns a new Error associated with the Tracer.
+func (t *Tracer) newError() *Error {
 	e, _ := t.errorPool.Get().(*Error)
 	if e == nil {
 		e = &Error{tracer: t}
@@ -71,10 +123,42 @@ func (t *Tracer) NewError() *Error {
 
 // Error describes an error occurring in the monitored service.
 type Error struct {
-	model.Error
+	model  model.Error
+	tracer *Tracer
+
+	// ID is the unique ID of the error. This is set by NewError,
+	// and can be used for correlating errors and logs records.
+	ID string
+
+	// Culprit is the name of the function that caused the error.
+	//
+	// This is initially unset; if it remains unset by the time
+	// Send is invoked, and the error has a stacktrace, the first
+	// non-library frame in the stacktrace will be considered the
+	// culprit.
+	Culprit string
+
+	// Transaction is the transaction to which the error
+	// correspoonds, if any.
 	Transaction *Transaction
-	Timestamp   time.Time
-	tracer      *Tracer
+
+	// Timestamp records the time at which the error occurred.
+	// This is set when the Error object is created, but may
+	// be overridden any time before the Send method is called.
+	Timestamp time.Time
+
+	// Handled records whether or not the error was handled. This
+	// only applies to "exception" errors (errors created with
+	// NewError, or Recovered), and is ignored by "log" errors.
+	Handled bool
+
+	// Context holds the context for this error.
+	//
+	// TODO(axw) make a public/stable context API.
+	Context *model.Context
+
+	// TODO(axw) create stable type in stacktrace package and expose?
+	stacktrace []model.StacktraceFrame
 }
 
 func (e *Error) reset() {
@@ -86,7 +170,6 @@ func (e *Error) reset() {
 // Send enqueues the error for sending to the Elastic APM server.
 // The Error must not be used after this.
 func (e *Error) Send() {
-	e.Error.Timestamp = model.FormatTime(e.Timestamp)
 	select {
 	case e.tracer.errors <- e:
 	default:
@@ -100,24 +183,16 @@ func (e *Error) Send() {
 }
 
 func (e *Error) setCulprit() {
-	if e.Culprit == "" && e.Exception != nil {
-		e.Culprit = stacktraceCulprit(e.Exception.Stacktrace)
-	}
-	if e.Culprit == "" && e.Log != nil {
-		e.Culprit = stacktraceCulprit(e.Log.Stacktrace)
+	if e.Culprit != "" {
+		e.model.Culprit = e.Culprit
+	} else if e.stacktrace != nil {
+		e.model.Culprit = stacktraceCulprit(e.stacktrace)
 	}
 }
 
 func (e *Error) setContext(setter stacktrace.ContextSetter, pre, post int) error {
-	if e.Exception != nil {
-		if err := stacktrace.SetContext(setter, e.Exception.Stacktrace, pre, post); err != nil {
-			return err
-		}
-	}
-	if e.Log != nil {
-		if err := stacktrace.SetContext(setter, e.Log.Stacktrace, pre, post); err != nil {
-			return err
-		}
+	if err := stacktrace.SetContext(setter, e.stacktrace, pre, post); err != nil {
+		return err
 	}
 	return nil
 }
@@ -131,22 +206,6 @@ func stacktraceCulprit(frames []model.StacktraceFrame) string {
 		}
 	}
 	return ""
-}
-
-// SetException sets the Error's Exception field, based on the given error.
-//
-// Message will be set to err.Error(). The Module and Type fields will be set
-// to the package and type name of the cause of the error, where the cause has
-// the same definition as given by github.com/pkg/errors.
-func (e *Error) SetException(err error) {
-	if err == nil {
-		panic("SetError must be called with a non-nil error")
-	}
-	e.Exception = &model.Exception{
-		Message: err.Error(),
-	}
-	initException(e.Exception, errors.Cause(err))
-	initErrorsStacktrace(e.Exception, err)
 }
 
 func initException(e *model.Exception, err error) {
@@ -186,6 +245,28 @@ func initException(e *model.Exception, err error) {
 			t = t.Elem()
 		}
 		e.Module, e.Type = t.PkgPath(), t.Name()
+
+		// If the error implements Type, use that to
+		// override the type name determined through
+		// reflection.
+		if err, ok := err.(interface {
+			Type() string
+		}); ok {
+			e.Type = err.Type()
+		}
+
+		// If the error implements a Code method, use
+		// that to set the exception code.
+		switch err := err.(type) {
+		case interface {
+			Code() string
+		}:
+			e.Code.String = err.Code()
+		case interface {
+			Code() float64
+		}:
+			e.Code.Number = err.Code()
+		}
 	}
 	if errTemporary(err) {
 		setAttr("temporary", true)
@@ -195,39 +276,35 @@ func initException(e *model.Exception, err error) {
 	}
 }
 
-func initErrorsStacktrace(e *model.Exception, err error) {
-	type stackTracer interface {
+func initStacktrace(e *Error, err error) {
+	type internalStackTracer interface {
+		StackTrace() []model.StacktraceFrame
+	}
+	type errorsStackTracer interface {
 		StackTrace() errors.StackTrace
 	}
-	if stackTracer, ok := err.(stackTracer); ok {
+	switch stackTracer := err.(type) {
+	case internalStackTracer:
+		// TODO(axw) introduce public/stable
+		// stacktrace.Frame type, test for
+		// that in the signature, and convert
+		// to model.StacktraceFrame here.
+		e.stacktrace = stackTracer.StackTrace()
+	case errorsStackTracer:
 		stackTrace := stackTracer.StackTrace()
 		pc := make([]uintptr, len(stackTrace))
 		for i, frame := range stackTrace {
 			pc[i] = uintptr(frame)
 		}
-		e.Stacktrace = stacktrace.Callers(pc)
+		e.stacktrace = stacktrace.Callers(pc)
 	}
 }
 
-// SetLog initialises the Error.Log field with the given message.
-// The other Log fields will be empty.
-func (e *Error) SetLog(message string) {
-	// TODO(axw) pool logs
-	e.Log = &model.Log{Message: message}
-}
-
-// SetExceptionStacktrace sets the stacktrace for the error,
-// skipping the first skip number of frames, excluding the
-// SetExceptionStacktrace function.
-func (e *Error) SetExceptionStacktrace(skip int) {
-	e.Exception.Stacktrace = stacktrace.Stacktrace(skip+1, -1)
-}
-
-// SetLogStacktrace sets the stacktrace for the error, skipping
-// the first skip number of frames, excluding the SetLogStacktrace
-// function.
-func (e *Error) SetLogStacktrace(skip int) {
-	e.Log.Stacktrace = stacktrace.Stacktrace(skip+1, -1)
+// SetStacktrace sets the stacktrace for the error,
+// skipping the first skip number of frames, excluding
+// the SetStacktrace function.
+func (e *Error) SetStacktrace(skip int) {
+	e.stacktrace = stacktrace.Stacktrace(skip+1, -1)
 }
 
 func errTemporary(err error) bool {
@@ -244,4 +321,29 @@ func errTimeout(err error) bool {
 	}
 	terr, ok := err.(timeoutError)
 	return ok && terr.Timeout()
+}
+
+// ErrorLogRecord holds details of an error log record.
+type ErrorLogRecord struct {
+	// Message holds the message for the log record,
+	// e.g. "failed to connect to %s".
+	//
+	// This is required.
+	Message string
+
+	// MessageFormat holds the non-interpolated format
+	// of the log record, e.g. "failed to connect to %s".
+	//
+	// This is optional.
+	MessageFormat string
+
+	// Level holds the severity level of the log record.
+	//
+	// This is optional.
+	Level string
+
+	// LoggerName holds the name of the logger used.
+	//
+	// This is optional.
+	LoggerName string
 }

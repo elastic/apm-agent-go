@@ -24,6 +24,14 @@ func FormatTime(t time.Time) string {
 	return t.UTC().Format(dateTimeFormat)
 }
 
+func (l *Log) isZero() bool {
+	return l.Message == ""
+}
+
+func (e *Exception) isZero() bool {
+	return e.Message == ""
+}
+
 func (c Cookies) isZero() bool {
 	return len(c) == 0
 }

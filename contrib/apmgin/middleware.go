@@ -85,9 +85,6 @@ func (m *middleware) handle(c *gin.Context) {
 		if v := recover(); v != nil {
 			c.AbortWithStatus(http.StatusInternalServerError)
 			e := m.tracer.Recovered(v, tx)
-			if e.Exception.Stacktrace == nil {
-				e.SetExceptionStacktrace(1)
-			}
 			e.Context = apmhttp.RequestContext(c.Request)
 			e.Send()
 		}
@@ -116,11 +113,10 @@ func (m *middleware) handle(c *gin.Context) {
 
 		// Report errors handled.
 		for _, err := range c.Errors {
-			e := m.tracer.NewError()
+			e := m.tracer.NewError(err.Err)
 			e.Transaction = tx
 			e.Context = txContext
-			e.SetException(err.Err)
-			e.Exception.Handled = true
+			e.Handled = true
 			e.Send()
 		}
 	}()

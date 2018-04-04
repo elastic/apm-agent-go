@@ -416,7 +416,7 @@ func (v *Error) MarshalFastJSON(w *fastjson.Writer) {
 		w.RawString(",\"culprit\":")
 		w.String(v.Culprit)
 	}
-	if v.Exception != nil {
+	if !v.Exception.isZero() {
 		w.RawString(",\"exception\":")
 		v.Exception.MarshalFastJSON(w)
 	}
@@ -424,7 +424,7 @@ func (v *Error) MarshalFastJSON(w *fastjson.Writer) {
 		w.RawString(",\"id\":")
 		w.String(v.ID)
 	}
-	if v.Log != nil {
+	if !v.Log.isZero() {
 		w.RawString(",\"log\":")
 		v.Log.MarshalFastJSON(w)
 	}

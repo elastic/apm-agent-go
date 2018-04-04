@@ -20,9 +20,6 @@ func NewTraceRecovery(t *elasticapm.Tracer) RecoveryFunc {
 	}
 	return func(w http.ResponseWriter, req *http.Request, tx *elasticapm.Transaction, recovered interface{}) {
 		e := t.Recovered(recovered, tx)
-		if e.Exception.Stacktrace == nil {
-			e.SetExceptionStacktrace(1)
-		}
 		e.Context = RequestContext(req)
 		e.Send()
 	}

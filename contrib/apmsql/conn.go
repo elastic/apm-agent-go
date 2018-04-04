@@ -67,9 +67,6 @@ func (c *conn) finishSpan(ctx context.Context, span *elasticapm.Span, query stri
 	}
 	span.Done(-1)
 	if e := elasticapm.CaptureError(ctx, resultError); e != nil {
-		if e.Exception.Stacktrace == nil {
-			e.SetExceptionStacktrace(2)
-		}
 		e.Send()
 	}
 }

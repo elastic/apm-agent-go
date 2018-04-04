@@ -8,6 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/apm-agent-go"
 	"github.com/elastic/apm-agent-go/model"
@@ -199,8 +200,7 @@ func TestTracerErrors(t *testing.T) {
 	defer tracer.Close()
 	tracer.Transport = &r
 
-	error_ := tracer.NewError()
-	error_.SetException(&testError{
+	error_ := tracer.NewError(&testError{
 		"zing", newErrorsStackTrace(0, 2),
 	})
 	error_.Send()
@@ -228,8 +228,7 @@ func TestTracerErrorsBuffered(t *testing.T) {
 
 	tracer.SetMaxErrorQueueSize(10)
 	sendError := func(msg string) {
-		e := tracer.NewError()
-		e.SetException(fmt.Errorf("%s", msg))
+		e := tracer.NewError(fmt.Errorf("%s", msg))
 		e.Send()
 	}
 
@@ -278,14 +277,18 @@ func TestTracerProcessor(t *testing.T) {
 	defer tracer.Close()
 	tracer.Transport = transporttest.Discard
 
-	e_ := tracer.NewError()
+	e_ := tracer.NewError(errors.New("oy vey"))
 	tx_ := tracer.StartTransaction("name", "type")
 
 	var processedError bool
 	var processedTransaction bool
 	processError := func(e *model.Error) {
 		processedError = true
-		assert.Equal(t, &e_.Error, e)
+		require.NotNil(t, e)
+		assert.Equal(t, e_.ID, e.ID)
+		assert.NotEmpty(t, e.Exception.Stacktrace)
+		assert.Equal(t, "TestTracerProcessor", e.Culprit)
+		assert.Equal(t, "oy vey", e.Exception.Message)
 	}
 	processTransaction := func(tx *model.Transaction) {
 		processedTransaction = true
