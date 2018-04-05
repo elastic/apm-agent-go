@@ -9,31 +9,24 @@ import (
 )
 
 func TestStacktrace(t *testing.T) {
-	type frameInfo struct {
-		Module   string
-		Function string
-	}
-	expect := []frameInfo{
-		{"github.com/elastic/apm-agent-go/stacktrace_test", "TestStacktrace.func1"},
-		{"runtime", "call32"},
-		{"runtime", "gopanic"},
-		{"github.com/elastic/apm-agent-go/stacktrace_test", "(*panicker).panic"},
-		{"github.com/elastic/apm-agent-go/stacktrace_test", "TestStacktrace"},
+	expect := []string{
+		"github.com/elastic/apm-agent-go/stacktrace_test.TestStacktrace.func1",
+		"runtime.call32",
+		"runtime.gopanic",
+		"github.com/elastic/apm-agent-go/stacktrace_test.(*panicker).panic",
+		"github.com/elastic/apm-agent-go/stacktrace_test.TestStacktrace",
 	}
 	defer func() {
 		err := recover()
 		if err == nil {
 			t.FailNow()
 		}
-		allFrames := stacktrace.Stacktrace(1, 5)
-		var info []frameInfo
-		for _, frame := range allFrames {
-			info = append(info, frameInfo{
-				Module:   frame.Module,
-				Function: frame.Function,
-			})
+		allFrames := stacktrace.AppendStacktrace(nil, 1, 5)
+		functions := make([]string, len(allFrames))
+		for i, frame := range allFrames {
+			functions[i] = frame.Function
 		}
-		if diff := cmp.Diff(info, expect); diff != "" {
+		if diff := cmp.Diff(functions, expect); diff != "" {
 			t.Fatalf("%s", diff)
 		}
 	}()

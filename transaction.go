@@ -238,8 +238,9 @@ type Span struct {
 	model.Span
 	Start time.Time
 
-	tx      *Transaction
-	dropped bool
+	stacktrace []stacktrace.Frame
+	tx         *Transaction
+	dropped    bool
 
 	mu        sync.Mutex
 	done      bool
@@ -247,9 +248,11 @@ type Span struct {
 }
 
 func (s *Span) reset() {
-	stacktrace := s.Span.Stacktrace[:0]
-	*s = Span{}
-	s.Span.Stacktrace = stacktrace
+	modelStacktrace := s.Span.Stacktrace
+	*s = Span{
+		stacktrace: s.stacktrace[:0],
+	}
+	s.Span.Stacktrace = modelStacktrace[:0]
 }
 
 // SetStacktrace sets the stacktrace for the span,
@@ -261,10 +264,8 @@ func (s *Span) SetStacktrace(skip int) {
 	if s.Dropped() {
 		return
 	}
-	// TODO(axw) consider using an LRU cache for
-	// the stacktrace frames. We can key on the
-	// top of the stack.
-	s.Stacktrace = stacktrace.Stacktrace(skip+1, -1)
+	s.stacktrace = stacktrace.AppendStacktrace(s.stacktrace[:0], skip+1, -1)
+	s.Span.Stacktrace = appendModelStacktraceFrames(s.Span.Stacktrace[:0], s.stacktrace)
 }
 
 // Dropped indicates whether or not the span is dropped, meaning it
