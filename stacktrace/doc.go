@@ -1,3 +1,3 @@
-// Package stacktrace provides functions for obtaining and formatting
-// stack frames according to the Elastic APM model.
+// Package stacktrace provides a simplified stack frame type,
+// functions for obtaining stack frames, and related utilities.
 package stacktrace

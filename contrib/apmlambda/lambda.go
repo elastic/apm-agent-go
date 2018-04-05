@@ -5,7 +5,6 @@ import (
 	"net"
 	"net/rpc"
 	"os"
-	"path/filepath"
 	"strings"
 	"unicode/utf8"
 
@@ -119,15 +118,14 @@ func (e invokeResponseError) Type() string {
 	return e.err.Type
 }
 
-func (e invokeResponseError) StackTrace() []model.StacktraceFrame {
-	frames := make([]model.StacktraceFrame, len(e.err.StackTrace))
+func (e invokeResponseError) StackTrace() []stacktrace.Frame {
+	frames := make([]stacktrace.Frame, len(e.err.StackTrace))
 	for i, f := range e.err.StackTrace {
-		packagePath, functionName := stacktrace.SplitFunctionName(f.Label)
-		frames[i].File = filepath.Base(f.Path)
-		frames[i].Line = int(f.Line)
-		frames[i].Module = packagePath
-		frames[i].Function = functionName
-		frames[i].LibraryFrame = stacktrace.IsLibraryPackage(packagePath)
+		frames[i] = stacktrace.Frame{
+			Function: f.Label,
+			File:     f.Path,
+			Line:     int(f.Line),
+		}
 	}
 	return frames
 }

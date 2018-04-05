@@ -1,12 +1,11 @@
 package elasticapm_test
 
 import (
+	"errors"
 	"fmt"
-	"runtime"
 	"testing"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -200,9 +199,7 @@ func TestTracerErrors(t *testing.T) {
 	defer tracer.Close()
 	tracer.Transport = &r
 
-	error_ := tracer.NewError(&testError{
-		"zing", newErrorsStackTrace(0, 2),
-	})
+	error_ := tracer.NewError(errors.New("zing"))
 	error_.Send()
 	tracer.Flush(nil)
 
@@ -212,11 +209,10 @@ func TestTracerErrors(t *testing.T) {
 	exception := errors[0].Exception
 	stacktrace := exception.Stacktrace
 	assert.Equal(t, "zing", exception.Message)
-	assert.Equal(t, "github.com/elastic/apm-agent-go_test", exception.Module)
-	assert.Equal(t, "testError", exception.Type)
-	assert.Len(t, stacktrace, 2)
-	assert.Equal(t, "newErrorsStackTrace", stacktrace[0].Function)
-	assert.Equal(t, "TestTracerErrors", stacktrace[1].Function)
+	assert.Equal(t, "errors", exception.Module)
+	assert.Equal(t, "errorString", exception.Type)
+	assert.NotEmpty(t, stacktrace)
+	assert.Equal(t, "TestTracerErrors", stacktrace[0].Function)
 }
 
 func TestTracerErrorsBuffered(t *testing.T) {
@@ -344,27 +340,4 @@ func (l testLogger) Debugf(format string, args ...interface{}) {
 
 func (l testLogger) Errorf(format string, args ...interface{}) {
 	l.t.Logf("[ERROR] "+format, args...)
-}
-
-type testError struct {
-	message    string
-	stackTrace errors.StackTrace
-}
-
-func (e *testError) Error() string {
-	return e.message
-}
-
-func (e *testError) StackTrace() errors.StackTrace {
-	return e.stackTrace
-}
-
-func newErrorsStackTrace(skip, n int) errors.StackTrace {
-	callers := make([]uintptr, 2)
-	callers = callers[:runtime.Callers(1, callers)]
-	frames := make([]errors.Frame, len(callers))
-	for i, pc := range callers {
-		frames[i] = errors.Frame(pc)
-	}
-	return errors.StackTrace(frames)
 }

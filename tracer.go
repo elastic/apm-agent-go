@@ -568,17 +568,12 @@ func (s *sender) sendErrors(ctx context.Context, errors []*Error) bool {
 			e.Transaction.setID()
 			e.model.Transaction.ID = e.Transaction.ID
 		}
+		e.setStacktrace()
 		e.setCulprit()
-		if e.model.Log.Message != "" {
-			e.model.Log.Stacktrace = e.stacktrace
-		}
-		if e.model.Exception.Message != "" {
-			e.model.Exception.Handled = e.Handled
-			e.model.Exception.Stacktrace = e.stacktrace
-		}
-		e.model.Context = e.Context
 		e.model.ID = e.ID
 		e.model.Timestamp = model.FormatTime(e.Timestamp)
+		e.model.Context = e.Context
+		e.model.Exception.Handled = e.Handled
 		if s.processor != nil {
 			s.processor.ProcessError(&e.model)
 		}

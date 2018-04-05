@@ -1,11 +1,8 @@
 package stacktrace
 
 import (
-	"path/filepath"
 	"runtime"
 	"strings"
-
-	"github.com/elastic/apm-agent-go/model"
 )
 
 //go:generate /bin/bash generate_library.bash std ..
@@ -14,16 +11,15 @@ import (
 // frames, based on configuration. Possibly use
 // in-the-same-repo as a heuristic?
 
-// Stacktrace returns a slice of StacktraceFrame
-// of at most n frames, skipping skip frames starting
-// with Stacktrace. If n is negative, then all stack
-// frames will be returned.
+// AppendStacktrace appends at most n entries to frames,
+// skipping skip frames starting with AppendStacktrace,
+// and returns the extended slice. If n is negative, then
+// all stack frames will be appended.
 //
-// See RuntimeStacktraceFrame for information on what
-// details are included.
-func Stacktrace(skip, n int) []model.StacktraceFrame {
+// See RuntimeFrame for information on what details are included.
+func AppendStacktrace(frames []Frame, skip, n int) []Frame {
 	if n == 0 {
-		return nil
+		return frames
 	}
 	var pc []uintptr
 	if n > 0 {
@@ -42,58 +38,40 @@ func Stacktrace(skip, n int) []model.StacktraceFrame {
 			pc = append(pc, 0)
 		}
 	}
-	return Callers(pc)
+	return AppendCallerFrames(frames, pc)
 }
 
-// Callers returns a slice of StacktraceFrame
-// for the given callers (program counter values).
+// AppendCallerFrames appends to frames for the PCs in callers,
+// and returns the extended slice.
 //
-// See RuntimeStacktraceFrame for information on what
-// details are included.
-func Callers(callers []uintptr) []model.StacktraceFrame {
+// See RuntimeFrame for information on what details are included.
+func AppendCallerFrames(frames []Frame, callers []uintptr) []Frame {
 	if len(callers) == 0 {
-		return nil
+		return frames
 	}
-	frames := runtime.CallersFrames(callers)
-	out := make([]model.StacktraceFrame, 0, len(callers))
+	runtimeFrames := runtime.CallersFrames(callers)
 	for {
-		frame, more := frames.Next()
-		out = append(out, RuntimeStacktraceFrame(&frame))
+		runtimeFrame, more := runtimeFrames.Next()
+		frames = append(frames, RuntimeFrame(runtimeFrame))
 		if !more {
 			break
 		}
 	}
-	return out
+	return frames
 }
 
-// RuntimeStacktraceFrame returns a StacktraceFrame
-// based on the given runtime.Frame.
+// RuntimeFrame returns a Frame based on the given runtime.Frame.
 //
-// The resulting StacktraceFrame will have the file,
-// function, module (package path), and function
-// information set. Context (source code) and vars
-// can be filled in separately if desired.
-//
-// Only stack frames pertaining to code in the standard
-// library will be marked as "library" frames. Logic
-// for classifying non-standard library packages may
-// be applied on the results.
-func RuntimeStacktraceFrame(in *runtime.Frame) model.StacktraceFrame {
-	var abspath string
-	file := in.File
-	if filepath.IsAbs(file) {
-		abspath = file
-		file = filepath.Base(file)
-	}
-
-	packagePath, function := SplitFunctionName(in.Function)
-	return model.StacktraceFrame{
-		AbsolutePath: abspath,
-		File:         file,
-		Line:         in.Line,
-		Function:     function,
-		Module:       packagePath,
-		LibraryFrame: IsLibraryPackage(packagePath),
+// The resulting Frame will have the file path, package-qualified
+// function name, and line number set. The function name can be
+// split using SplitFunctionName, and the absolute path of the
+// file and its base name can be determined using standard filepath
+// functions.
+func RuntimeFrame(in runtime.Frame) Frame {
+	return Frame{
+		File:     in.File,
+		Function: in.Function,
+		Line:     in.Line,
 	}
 }
 

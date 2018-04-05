@@ -86,7 +86,7 @@ func (t *Tracer) NewError(err error) *Error {
 	initException(&e.model.Exception, errors.Cause(err))
 	initStacktrace(e, err)
 	if e.stacktrace == nil {
-		e.SetStacktrace(1)
+		e.SetStacktrace(2)
 	}
 	return e
 }
@@ -123,8 +123,10 @@ func (t *Tracer) newError() *Error {
 
 // Error describes an error occurring in the monitored service.
 type Error struct {
-	model  model.Error
-	tracer *Tracer
+	model           model.Error
+	tracer          *Tracer
+	stacktrace      []stacktrace.Frame
+	modelStacktrace []model.StacktraceFrame
 
 	// ID is the unique ID of the error. This is set by NewError,
 	// and can be used for correlating errors and logs records.
@@ -156,15 +158,14 @@ type Error struct {
 	//
 	// TODO(axw) make a public/stable context API.
 	Context *model.Context
-
-	// TODO(axw) create stable type in stacktrace package and expose?
-	stacktrace []model.StacktraceFrame
 }
 
 func (e *Error) reset() {
-	tracer := e.tracer
-	*e = Error{}
-	e.tracer = tracer
+	*e = Error{
+		tracer:          e.tracer,
+		stacktrace:      e.stacktrace[:0],
+		modelStacktrace: e.modelStacktrace[:0],
+	}
 }
 
 // Send enqueues the error for sending to the Elastic APM server.
@@ -182,16 +183,25 @@ func (e *Error) Send() {
 	}
 }
 
+func (e *Error) setStacktrace() {
+	if len(e.stacktrace) == 0 {
+		return
+	}
+	e.modelStacktrace = appendModelStacktraceFrames(e.modelStacktrace, e.stacktrace)
+	e.model.Log.Stacktrace = e.modelStacktrace
+	e.model.Exception.Stacktrace = e.modelStacktrace
+}
+
 func (e *Error) setCulprit() {
 	if e.Culprit != "" {
 		e.model.Culprit = e.Culprit
-	} else if e.stacktrace != nil {
-		e.model.Culprit = stacktraceCulprit(e.stacktrace)
+	} else if e.modelStacktrace != nil {
+		e.model.Culprit = stacktraceCulprit(e.modelStacktrace)
 	}
 }
 
 func (e *Error) setContext(setter stacktrace.ContextSetter, pre, post int) error {
-	if err := stacktrace.SetContext(setter, e.stacktrace, pre, post); err != nil {
+	if err := stacktrace.SetContext(setter, e.modelStacktrace, pre, post); err != nil {
 		return err
 	}
 	return nil
@@ -278,25 +288,21 @@ func initException(e *model.Exception, err error) {
 
 func initStacktrace(e *Error, err error) {
 	type internalStackTracer interface {
-		StackTrace() []model.StacktraceFrame
+		StackTrace() []stacktrace.Frame
 	}
 	type errorsStackTracer interface {
 		StackTrace() errors.StackTrace
 	}
 	switch stackTracer := err.(type) {
 	case internalStackTracer:
-		// TODO(axw) introduce public/stable
-		// stacktrace.Frame type, test for
-		// that in the signature, and convert
-		// to model.StacktraceFrame here.
-		e.stacktrace = stackTracer.StackTrace()
+		e.stacktrace = append(e.stacktrace[:0], stackTracer.StackTrace()...)
 	case errorsStackTracer:
 		stackTrace := stackTracer.StackTrace()
 		pc := make([]uintptr, len(stackTrace))
 		for i, frame := range stackTrace {
 			pc[i] = uintptr(frame)
 		}
-		e.stacktrace = stacktrace.Callers(pc)
+		e.stacktrace = stacktrace.AppendCallerFrames(e.stacktrace[:0], pc)
 	}
 }
 
@@ -304,7 +310,7 @@ func initStacktrace(e *Error, err error) {
 // skipping the first skip number of frames, excluding
 // the SetStacktrace function.
 func (e *Error) SetStacktrace(skip int) {
-	e.stacktrace = stacktrace.Stacktrace(skip+1, -1)
+	e.stacktrace = stacktrace.AppendStacktrace(e.stacktrace[:0], skip+1, -1)
 }
 
 func errTemporary(err error) bool {
