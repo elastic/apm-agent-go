@@ -121,28 +121,36 @@ func SetTransactionContext(tx *elasticapm.Transaction, w http.ResponseWriter, re
 // The returned http.ResponseWriter implements http.Pusher and http.Hijacker
 // if and only if the provided http.ResponseWriter does.
 func WrapResponseWriter(w http.ResponseWriter) (http.ResponseWriter, *Response) {
-	rw := newResponseWriter(w)
+	rw := responseWriter{
+		ResponseWriter: w,
+		resp: Response{
+			StatusCode: http.StatusOK,
+		},
+	}
 	h, _ := w.(http.Hijacker)
 	p, _ := w.(http.Pusher)
 	switch {
 	case h != nil && p != nil:
-		return responseWriterHijackerPusher{
+		rwhp := &responseWriterHijackerPusher{
 			responseWriter: rw,
 			Hijacker:       h,
 			Pusher:         p,
-		}, &rw.resp
+		}
+		return rwhp, &rwhp.resp
 	case h != nil:
-		return responseWriterHijacker{
+		rwh := &responseWriterHijacker{
 			responseWriter: rw,
 			Hijacker:       h,
-		}, &rw.resp
+		}
+		return rwh, &rwh.resp
 	case p != nil:
-		return responseWriterPusher{
+		rwp := &responseWriterPusher{
 			responseWriter: rw,
 			Pusher:         p,
-		}, &rw.resp
+		}
+		return rwp, &rwp.resp
 	}
-	return rw, &rw.resp
+	return &rw, &rw.resp
 }
 
 // Response records details of the HTTP response.
@@ -157,20 +165,6 @@ type Response struct {
 type responseWriter struct {
 	http.ResponseWriter
 	resp Response
-
-	closeNotify func() <-chan bool
-	flush       func()
-}
-
-func newResponseWriter(in http.ResponseWriter) *responseWriter {
-	out := &responseWriter{ResponseWriter: in, resp: Response{StatusCode: http.StatusOK}}
-	if in, ok := in.(http.CloseNotifier); ok {
-		out.closeNotify = in.CloseNotify
-	}
-	if in, ok := in.(http.Flusher); ok {
-		out.flush = in.Flush
-	}
-	return out
 }
 
 // WriteHeader sets w.resp.StatusCode, and w.resp.HeadersWritten if there
@@ -193,8 +187,8 @@ func (w *responseWriter) Write(data []byte) (int, error) {
 // CloseNotify returns w.closeNotify() if w.closeNotify is non-nil,
 // otherwise it returns nil.
 func (w *responseWriter) CloseNotify() <-chan bool {
-	if w.closeNotify != nil {
-		return w.closeNotify()
+	if closeNotifier, ok := w.ResponseWriter.(http.CloseNotifier); ok {
+		return closeNotifier.CloseNotify()
 	}
 	return nil
 }
@@ -202,23 +196,23 @@ func (w *responseWriter) CloseNotify() <-chan bool {
 // Flush calls w.flush() if w.flush is non-nil, otherwise
 // it does nothing.
 func (w *responseWriter) Flush() {
-	if w.flush != nil {
-		w.flush()
+	if flusher, ok := w.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
 	}
 }
 
 type responseWriterHijacker struct {
-	*responseWriter
+	responseWriter
 	http.Hijacker
 }
 
 type responseWriterPusher struct {
-	*responseWriter
+	responseWriter
 	http.Pusher
 }
 
 type responseWriterHijackerPusher struct {
-	*responseWriter
+	responseWriter
 	http.Hijacker
 	http.Pusher
 }

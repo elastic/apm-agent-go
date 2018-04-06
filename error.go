@@ -140,8 +140,9 @@ type Error struct {
 	// culprit.
 	Culprit string
 
-	// Transaction is the transaction to which the error
-	// correspoonds, if any.
+	// Transaction is the transaction to which the error correspoonds,
+	// if any. If this is set, the error's Send method must be called
+	// before the transaction's Done method.
 	Transaction *Transaction
 
 	// Timestamp records the time at which the error occurred.

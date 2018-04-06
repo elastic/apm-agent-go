@@ -2,6 +2,7 @@ package fastjson
 
 import (
 	"strconv"
+	"time"
 	"unicode/utf8"
 )
 
@@ -14,6 +15,17 @@ type Writer struct {
 // is invalidated when Reset is called.
 func (w *Writer) Bytes() []byte {
 	return w.buf
+}
+
+// Size returns the current size of the buffer.
+func (w *Writer) Size() int {
+	return len(w.buf)
+}
+
+// Rewind rewinds the buffer such that it has size bytes,
+// dropping everything proceeding.
+func (w *Writer) Rewind(size int) {
+	w.buf = w.buf[:size]
 }
 
 // Reset resets the internal []byte buffer to empty.
@@ -61,6 +73,11 @@ func (w *Writer) Bool(v bool) {
 	w.buf = strconv.AppendBool(w.buf, v)
 }
 
+// Time appends t to the buffer, formatted according to layout.
+func (w *Writer) Time(t time.Time, layout string) {
+	w.buf = t.AppendFormat(w.buf, layout)
+}
+
 const chars = "0123456789abcdef"
 
 func isNotEscapedSingleChar(c byte, escapeHTML bool) bool {
@@ -75,7 +92,12 @@ func isNotEscapedSingleChar(c byte, escapeHTML bool) bool {
 // String appends s, quoted and escaped, to the buffer.
 func (w *Writer) String(s string) {
 	w.RawByte('"')
+	w.StringContents(s)
+	w.RawByte('"')
+}
 
+// StringContents is the same as String, but without the surrounding quotes.
+func (w *Writer) StringContents(s string) {
 	// Portions of the string that contain no escapes are appended as
 	// byte slices.
 
@@ -135,5 +157,4 @@ func (w *Writer) String(s string) {
 		i += runeWidth
 	}
 	w.RawString(s[p:])
-	w.RawByte('"')
 }

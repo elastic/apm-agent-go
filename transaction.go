@@ -61,10 +61,9 @@ type Transaction struct {
 	sampled  bool
 	maxSpans int
 
-	mu           sync.Mutex
-	tags         []tag
-	spans        []*Span
-	spansDropped int
+	mu    sync.Mutex
+	tags  []tag
+	spans []*Span
 }
 
 type tag struct {
@@ -143,7 +142,7 @@ func (tx *Transaction) Done(d time.Duration) {
 		d = time.Since(tx.Timestamp)
 	}
 	tx.Duration = d.Seconds() * 1000
-	tx.Transaction.Timestamp = model.FormatTime(tx.Timestamp)
+	tx.Transaction.Timestamp = model.Time(tx.Timestamp.UTC())
 
 	tx.mu.Lock()
 	spans := tx.spans[:len(tx.spans)]
@@ -154,13 +153,6 @@ func (tx *Transaction) Done(d time.Duration) {
 		for i, s := range spans {
 			s.truncate(d)
 			tx.Spans[i] = &s.Span
-		}
-	}
-	if tx.spansDropped > 0 {
-		tx.SpanCount = &model.SpanCount{
-			Dropped: &model.SpanCountDropped{
-				Total: tx.spansDropped,
-			},
 		}
 	}
 	if len(tags) > 0 {
@@ -220,7 +212,7 @@ func (tx *Transaction) StartSpan(name, transactionType string, parent *Span) *Sp
 	tx.mu.Lock()
 	if tx.maxSpans > 0 && len(tx.spans) >= tx.maxSpans {
 		span.dropped = true
-		tx.spansDropped++
+		tx.SpanCount.Dropped.Total++
 	} else {
 		if parent != nil {
 			span.Parent = parent.ID

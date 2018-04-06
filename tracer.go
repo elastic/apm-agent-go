@@ -571,7 +571,7 @@ func (s *sender) sendErrors(ctx context.Context, errors []*Error) bool {
 		e.setStacktrace()
 		e.setCulprit()
 		e.model.ID = e.ID
-		e.model.Timestamp = model.FormatTime(e.Timestamp)
+		e.model.Timestamp = model.Time(e.Timestamp.UTC())
 		e.model.Context = e.Context
 		e.model.Exception.Handled = e.Handled
 		if s.processor != nil {
