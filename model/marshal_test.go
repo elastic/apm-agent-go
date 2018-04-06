@@ -171,7 +171,9 @@ func TestMarshalPayloads(t *testing.T) {
 
 func TestMarshalError(t *testing.T) {
 	var e model.Error
-	e.Timestamp = "1970-01-01T00:02:03Z"
+	time, err := time.Parse("2006-01-02T15:04:05.999Z", "1970-01-01T00:02:03Z")
+	assert.NoError(t, err)
+	e.Timestamp = model.Time(time)
 
 	var w fastjson.Writer
 	e.MarshalFastJSON(&w)
@@ -393,7 +395,7 @@ func fakeTransaction() *model.Transaction {
 		ID:        "d51ae41d-93da-4984-bba3-ae15e9b2247f",
 		Name:      "GET /foo/bar",
 		Type:      "request",
-		Timestamp: model.FormatTime(time.Unix(123, 0)),
+		Timestamp: model.Time(time.Unix(123, 0).UTC()),
 		Duration:  123.456,
 		Result:    "418",
 		Context: &model.Context{
@@ -443,8 +445,8 @@ func fakeTransaction() *model.Transaction {
 				"tag": "urit",
 			},
 		},
-		SpanCount: &model.SpanCount{
-			Dropped: &model.SpanCountDropped{
+		SpanCount: model.SpanCount{
+			Dropped: model.SpanCountDropped{
 				Total: 4,
 			},
 		},

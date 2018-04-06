@@ -3,6 +3,7 @@ package model
 import (
 	"net/http"
 	"net/url"
+	"time"
 )
 
 // Service represents the service handling transactions being traced.
@@ -111,8 +112,7 @@ type Transaction struct {
 	Type string `json:"type"`
 
 	// Timestamp holds the time at which the transaction started.
-	// This should be in the format "YYYY-MM-DDTHH:mm:ss.sssZ".
-	Timestamp string `json:"timestamp"`
+	Timestamp Time `json:"timestamp"`
 
 	// Duration records how long the transaction took to complete,
 	// in milliseconds.
@@ -134,7 +134,7 @@ type Transaction struct {
 	Sampled *bool `json:"sampled,omitempty"`
 
 	// SpanCount holds statistics on spans within a transaction.
-	SpanCount *SpanCount `json:"span_count,omitempty"`
+	SpanCount SpanCount `json:"span_count,omitempty"`
 
 	// Spans holds the transaction's spans.
 	Spans []*Span `json:"spans,omitempty"`
@@ -143,7 +143,7 @@ type Transaction struct {
 // SpanCount holds statistics on spans within a transaction.
 type SpanCount struct {
 	// Dropped holds statistics on dropped spans within a transaction.
-	Dropped *SpanCountDropped `json:"dropped,omitempty"`
+	Dropped SpanCountDropped `json:"dropped,omitempty"`
 }
 
 // SpanCountDropped holds statistics on dropped spans.
@@ -245,8 +245,7 @@ type User struct {
 // Error represents an error occurring in the service.
 type Error struct {
 	// Timestamp holds the time at which the error occurred.
-	// This should be in the format "YYYY-MM-DDTHH:mm:ss.sssZ".
-	Timestamp string `json:"timestamp"`
+	Timestamp Time `json:"timestamp"`
 
 	// ID holds a hex-formatted UUID for the error.
 	ID string `json:"id,omitempty"`
@@ -480,3 +479,6 @@ type ResponseHeaders struct {
 	// ContentType holds the content-type header.
 	ContentType string `json:"content-type,omitempty"`
 }
+
+// Timestamp is a timestamp, which is formatted as "YYYY-MM-DDTHH:mm:ss.sssZ".
+type Time time.Time

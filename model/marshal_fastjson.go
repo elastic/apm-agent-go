@@ -144,7 +144,7 @@ func (v *Transaction) MarshalFastJSON(w *fastjson.Writer) {
 	w.RawString(",\"name\":")
 	w.String(v.Name)
 	w.RawString(",\"timestamp\":")
-	w.String(v.Timestamp)
+	v.Timestamp.MarshalFastJSON(w)
 	w.RawString(",\"type\":")
 	w.String(v.Type)
 	if v.Context != nil {
@@ -159,7 +159,7 @@ func (v *Transaction) MarshalFastJSON(w *fastjson.Writer) {
 		w.RawString(",\"sampled\":")
 		w.Bool(*v.Sampled)
 	}
-	if v.SpanCount != nil {
+	if !v.SpanCount.isZero() {
 		w.RawString(",\"span_count\":")
 		v.SpanCount.MarshalFastJSON(w)
 	}
@@ -179,7 +179,7 @@ func (v *Transaction) MarshalFastJSON(w *fastjson.Writer) {
 
 func (v *SpanCount) MarshalFastJSON(w *fastjson.Writer) {
 	w.RawByte('{')
-	if v.Dropped != nil {
+	if !v.Dropped.isZero() {
 		w.RawString("\"dropped\":")
 		v.Dropped.MarshalFastJSON(w)
 	}
@@ -407,7 +407,7 @@ func (v *User) MarshalFastJSON(w *fastjson.Writer) {
 func (v *Error) MarshalFastJSON(w *fastjson.Writer) {
 	w.RawByte('{')
 	w.RawString("\"timestamp\":")
-	w.String(v.Timestamp)
+	v.Timestamp.MarshalFastJSON(w)
 	if v.Context != nil {
 		w.RawString(",\"context\":")
 		v.Context.MarshalFastJSON(w)
@@ -700,82 +700,6 @@ func (v *RequestSocket) MarshalFastJSON(w *fastjson.Writer) {
 			w.RawString(prefix)
 		}
 		w.String(v.RemoteAddress)
-	}
-	w.RawByte('}')
-}
-
-func (v *URL) MarshalFastJSON(w *fastjson.Writer) {
-	w.RawByte('{')
-	first := true
-	if v.Full != "" {
-		const prefix = ",\"full\":"
-		if first {
-			first = false
-			w.RawString(prefix[1:])
-		} else {
-			w.RawString(prefix)
-		}
-		w.String(v.Full)
-	}
-	if v.Hash != "" {
-		const prefix = ",\"hash\":"
-		if first {
-			first = false
-			w.RawString(prefix[1:])
-		} else {
-			w.RawString(prefix)
-		}
-		w.String(v.Hash)
-	}
-	if v.Hostname != "" {
-		const prefix = ",\"hostname\":"
-		if first {
-			first = false
-			w.RawString(prefix[1:])
-		} else {
-			w.RawString(prefix)
-		}
-		w.String(v.Hostname)
-	}
-	if v.Path != "" {
-		const prefix = ",\"pathname\":"
-		if first {
-			first = false
-			w.RawString(prefix[1:])
-		} else {
-			w.RawString(prefix)
-		}
-		w.String(v.Path)
-	}
-	if v.Port != "" {
-		const prefix = ",\"port\":"
-		if first {
-			first = false
-			w.RawString(prefix[1:])
-		} else {
-			w.RawString(prefix)
-		}
-		w.String(v.Port)
-	}
-	if v.Protocol != "" {
-		const prefix = ",\"protocol\":"
-		if first {
-			first = false
-			w.RawString(prefix[1:])
-		} else {
-			w.RawString(prefix)
-		}
-		w.String(v.Protocol)
-	}
-	if v.Search != "" {
-		const prefix = ",\"search\":"
-		if first {
-			first = false
-			w.RawString(prefix[1:])
-		} else {
-			w.RawString(prefix)
-		}
-		w.String(v.Search)
 	}
 	w.RawByte('}')
 }

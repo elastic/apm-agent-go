@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -18,10 +19,174 @@ const (
 	dateTimeFormat = "2006-01-02T15:04:05.999Z"
 )
 
-// FormatTime formats the time.Time, in UTC, in the format expected
-// for Transaction.Timestamp.
-func FormatTime(t time.Time) string {
-	return t.UTC().Format(dateTimeFormat)
+// MarshalFastJSON writes the JSON representation of t to w.
+func (t Time) MarshalFastJSON(w *fastjson.Writer) {
+	w.RawByte('"')
+	w.Time(time.Time(t), dateTimeFormat)
+	w.RawByte('"')
+}
+
+// UnmarshalJSON unmarshals the JSON data into t.
+func (t *Time) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	time, err := time.Parse(dateTimeFormat, s)
+	if err != nil {
+		return err
+	}
+	*t = Time(time)
+	return nil
+}
+
+// MarshalFastJSON writes the JSON representation of v to w.
+func (v *URL) MarshalFastJSON(w *fastjson.Writer) {
+	w.RawByte('{')
+	first := true
+	if v.Hash != "" {
+		const prefix = ",\"hash\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.String(v.Hash)
+	}
+	if v.Hostname != "" {
+		const prefix = ",\"hostname\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.String(v.Hostname)
+	}
+	if v.Path != "" {
+		const prefix = ",\"pathname\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.String(v.Path)
+	}
+	if v.Port != "" {
+		const prefix = ",\"port\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.String(v.Port)
+	}
+	schemeBegin := -1
+	schemeEnd := -1
+	if v.Protocol != "" {
+		before := w.Size()
+		const prefix = ",\"protocol\":\""
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		schemeBegin = w.Size()
+		if marshalScheme(w, v.Protocol) {
+			schemeEnd = w.Size()
+			w.RawByte('"')
+		} else {
+			w.Rewind(before)
+		}
+	}
+	if v.Search != "" {
+		const prefix = ",\"search\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.String(v.Search)
+	}
+	if schemeEnd != -1 && v.Hostname != "" && v.Path != "" {
+		before := w.Size()
+		w.RawString(",\"full\":")
+		if !v.marshalFullURL(w, schemeBegin, schemeEnd) {
+			w.Rewind(before)
+		}
+	}
+	w.RawByte('}')
+}
+
+func marshalScheme(w *fastjson.Writer, scheme string) bool {
+	// Canonicalize the scheme to lowercase. Don't use
+	// strings.ToLower, as it's too general and requires
+	// additional memory allocations.
+	//
+	// The scheme should start with a letter, and may
+	// then be followed by letters, digits, '+', '-',
+	// and '.'. We don't validate the scheme here, we
+	// just use those restrictions as a basis for
+	// optimization; anything not in that set will
+	// mean the full URL is omitted.
+	for i := 0; i < len(scheme); i++ {
+		c := scheme[i]
+		switch {
+		case c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '+' || c == '-' || c == '.':
+			w.RawByte(c)
+		case c >= 'A' && c <= 'Z':
+			w.RawByte(c + 'a' - 'A')
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func (v *URL) marshalFullURL(w *fastjson.Writer, schemeBegin, schemeEnd int) bool {
+	w.RawByte('"')
+	before := w.Size()
+	w.RawBytes(w.Bytes()[schemeBegin:schemeEnd])
+	w.RawString("://")
+	if strings.IndexByte(v.Hostname, ':') == -1 {
+		w.StringContents(v.Hostname)
+	} else {
+		w.RawByte('[')
+		w.StringContents(v.Hostname)
+		w.RawByte(']')
+	}
+	if v.Port != "" {
+		w.RawByte(':')
+		w.StringContents(v.Port)
+	}
+	w.StringContents(v.Path)
+	if v.Search != "" {
+		w.RawByte('?')
+		w.StringContents(v.Search)
+	}
+	if v.Hash != "" {
+		w.RawByte('#')
+		w.StringContents(v.Hash)
+	}
+	if n := w.Size() - before; n > 1024 {
+		// Truncate the full URL to 1024 bytes.
+		w.Rewind(w.Size() - n - 1024)
+	}
+	w.RawByte('"')
+	return true
+}
+
+func (c *SpanCount) isZero() bool {
+	return *c == SpanCount{}
+}
+
+func (d *SpanCountDropped) isZero() bool {
+	return *d == SpanCountDropped{}
 }
 
 func (l *Log) isZero() bool {
