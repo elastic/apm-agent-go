@@ -46,12 +46,10 @@ func benchmark(b *testing.B, path string, wrapHandler func(http.Handler) http.Ha
 	if wrapHandler != nil {
 		h = wrapHandler(h)
 	}
-
+	req, _ := http.NewRequest("GET", path, nil)
 	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
-		b.StopTimer()
-		req, _ := http.NewRequest("GET", path, nil)
-		b.StartTimer()
 		h.ServeHTTP(w, req)
 	}
 }
