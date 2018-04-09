@@ -7,19 +7,12 @@ import (
 
 	"github.com/elastic/apm-agent-go"
 	apmsqldsn "github.com/elastic/apm-agent-go/contrib/apmsql/dsn"
-	"github.com/elastic/apm-agent-go/model"
 )
 
 func newConn(in driver.Conn, d *tracingDriver, dsn string) driver.Conn {
 	conn := &conn{Conn: in, driver: d}
-	var dsnInfo apmsqldsn.Info
 	if d.dsnParser != nil {
-		dsnInfo = d.dsnParser(dsn)
-	}
-	conn.spanContextBase.Database = &model.DatabaseSpanContext{
-		Type:     "sql",
-		Instance: dsnInfo.Database,
-		User:     dsnInfo.User,
+		conn.dsnInfo = d.dsnParser(dsn)
 	}
 	conn.pinger, _ = in.(driver.Pinger)
 	conn.queryer, _ = in.(driver.Queryer)
@@ -38,8 +31,8 @@ func newConn(in driver.Conn, d *tracingDriver, dsn string) driver.Conn {
 type conn struct {
 	driver.Conn
 	connGo110
-	driver          *tracingDriver
-	spanContextBase model.SpanContext
+	driver  *tracingDriver
+	dsnInfo apmsqldsn.Info
 
 	pinger             driver.Pinger
 	queryer            driver.Queryer
@@ -50,7 +43,24 @@ type conn struct {
 	connBeginTx        driver.ConnBeginTx
 }
 
-func (c *conn) finishSpan(ctx context.Context, span *elasticapm.Span, query string, resultError error) {
+func (c *conn) startStmtSpan(ctx context.Context, stmt, spanType string) (*elasticapm.Span, context.Context) {
+	return c.startSpan(ctx, c.driver.querySignature(stmt), spanType, stmt)
+}
+
+func (c *conn) startSpan(ctx context.Context, name, spanType, stmt string) (*elasticapm.Span, context.Context) {
+	span, ctx := elasticapm.StartSpan(ctx, name, spanType)
+	if span != nil {
+		span.Context.SetDatabase(elasticapm.DatabaseSpanContext{
+			Instance:  c.dsnInfo.Database,
+			Statement: stmt,
+			Type:      "sql",
+			User:      c.dsnInfo.User,
+		})
+	}
+	return span, ctx
+}
+
+func (c *conn) finishSpan(ctx context.Context, span *elasticapm.Span, resultError error) {
 	if resultError == driver.ErrSkip {
 		// TODO(axw) mark span as abandoned,
 		// so it's not sent and not counted
@@ -59,31 +69,19 @@ func (c *conn) finishSpan(ctx context.Context, span *elasticapm.Span, query stri
 		// in check.
 		return
 	}
-	if span.Name == "" {
-		span.Name = c.driver.querySignature(query)
-	}
-	if span.Context == nil {
-		span.Context = c.spanContext(query)
-	}
 	span.Done(-1)
 	if e := elasticapm.CaptureError(ctx, resultError); e != nil {
 		e.Send()
 	}
 }
 
-func (c *conn) spanContext(statement string) *model.SpanContext {
-	spanContext := c.spanContextBase
-	spanContext.Database.Statement = statement
-	return &spanContext
-}
-
 func (c *conn) Ping(ctx context.Context) (resultError error) {
 	if c.pinger == nil {
 		return nil
 	}
-	span, ctx := elasticapm.StartSpan(ctx, "ping", c.driver.pingSpanType)
+	span, ctx := c.startSpan(ctx, "ping", c.driver.pingSpanType, "")
 	if span != nil {
-		defer c.finishSpan(ctx, span, "", resultError)
+		defer c.finishSpan(ctx, span, resultError)
 	}
 	return c.pinger.Ping(ctx)
 }
@@ -92,9 +90,9 @@ func (c *conn) QueryContext(ctx context.Context, query string, args []driver.Nam
 	if c.queryerContext == nil && c.queryer == nil {
 		return nil, driver.ErrSkip
 	}
-	span, ctx := elasticapm.StartSpan(ctx, "", c.driver.querySpanType)
+	span, ctx := c.startStmtSpan(ctx, query, c.driver.querySpanType)
 	if span != nil {
-		defer c.finishSpan(ctx, span, query, resultError)
+		defer c.finishSpan(ctx, span, resultError)
 	}
 
 	if c.queryerContext != nil {
@@ -117,9 +115,9 @@ func (*conn) Query(query string, args []driver.Value) (driver.Rows, error) {
 }
 
 func (c *conn) PrepareContext(ctx context.Context, query string) (_ driver.Stmt, resultError error) {
-	span, ctx := elasticapm.StartSpan(ctx, "", c.driver.prepareSpanType)
+	span, ctx := c.startStmtSpan(ctx, query, c.driver.prepareSpanType)
 	if span != nil {
-		defer c.finishSpan(ctx, span, query, resultError)
+		defer c.finishSpan(ctx, span, resultError)
 	}
 	var stmt driver.Stmt
 	var err error
@@ -146,9 +144,9 @@ func (c *conn) ExecContext(ctx context.Context, query string, args []driver.Name
 	if c.execerContext == nil && c.execer == nil {
 		return nil, driver.ErrSkip
 	}
-	span, ctx := elasticapm.StartSpan(ctx, "", c.driver.execSpanType)
+	span, ctx := c.startStmtSpan(ctx, query, c.driver.execSpanType)
 	if span != nil {
-		defer c.finishSpan(ctx, span, query, resultError)
+		defer c.finishSpan(ctx, span, resultError)
 	}
 
 	if c.execerContext != nil {

@@ -135,7 +135,7 @@ func (tx *Transaction) Done(d time.Duration) {
 		tx.model.Spans = make([]*model.Span, len(spans))
 		for i, s := range spans {
 			s.truncate(d)
-			tx.model.Spans[i] = &s.Span
+			tx.model.Spans[i] = &s.model
 		}
 	}
 
@@ -177,8 +177,8 @@ func (tx *Transaction) StartSpan(name, transactionType string, parent *Span) *Sp
 		span = &Span{}
 	}
 	span.tx = tx
-	span.Name = name
-	span.Type = transactionType
+	span.model.Name = name
+	span.model.Type = transactionType
 	span.Start = start
 
 	tx.mu.Lock()
@@ -187,10 +187,10 @@ func (tx *Transaction) StartSpan(name, transactionType string, parent *Span) *Sp
 		tx.model.SpanCount.Dropped.Total++
 	} else {
 		if parent != nil {
-			span.Parent = parent.ID
+			span.model.Parent = parent.model.ID
 		}
 		spanID := int64(len(tx.spans))
-		span.ID = &spanID
+		span.model.ID = &spanID
 		tx.spans = append(tx.spans, span)
 	}
 	tx.mu.Unlock()
@@ -199,8 +199,9 @@ func (tx *Transaction) StartSpan(name, transactionType string, parent *Span) *Sp
 
 // Span describes an operation within a transaction.
 type Span struct {
-	model.Span
-	Start time.Time
+	model   model.Span
+	Start   time.Time
+	Context SpanContext
 
 	stacktrace []stacktrace.Frame
 	tx         *Transaction
@@ -212,11 +213,14 @@ type Span struct {
 }
 
 func (s *Span) reset() {
-	modelStacktrace := s.Span.Stacktrace
 	*s = Span{
+		model: model.Span{
+			Stacktrace: s.model.Stacktrace[:0],
+		},
+		Context:    s.Context,
 		stacktrace: s.stacktrace[:0],
 	}
-	s.Span.Stacktrace = modelStacktrace[:0]
+	s.Context.reset()
 }
 
 // SetStacktrace sets the stacktrace for the span,
@@ -229,7 +233,7 @@ func (s *Span) SetStacktrace(skip int) {
 		return
 	}
 	s.stacktrace = stacktrace.AppendStacktrace(s.stacktrace[:0], skip+1, -1)
-	s.Span.Stacktrace = appendModelStacktraceFrames(s.Span.Stacktrace[:0], s.stacktrace)
+	s.model.Stacktrace = appendModelStacktraceFrames(s.model.Stacktrace[:0], s.stacktrace)
 }
 
 // Dropped indicates whether or not the span is dropped, meaning it
@@ -254,10 +258,11 @@ func (s *Span) Done(d time.Duration) {
 		d = time.Since(s.Start)
 	}
 	s.mu.Lock()
-	s.Span.Start = s.Start.Sub(s.tx.Timestamp).Seconds() * 1000
+	s.model.Start = s.Start.Sub(s.tx.Timestamp).Seconds() * 1000
+	s.model.Context = s.Context.build()
 	if !s.truncated {
 		s.done = true
-		s.Duration = d.Seconds() * 1000
+		s.model.Duration = d.Seconds() * 1000
 	}
 	s.mu.Unlock()
 }
@@ -266,8 +271,8 @@ func (s *Span) truncate(d time.Duration) {
 	s.mu.Lock()
 	if !s.done {
 		s.truncated = true
-		s.Type += ".truncated"
-		s.Duration = d.Seconds() * 1000
+		s.model.Type += ".truncated"
+		s.model.Duration = d.Seconds() * 1000
 	}
 	s.mu.Unlock()
 }
