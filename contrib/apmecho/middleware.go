@@ -62,7 +62,7 @@ func (m *middleware) handle(c echo.Context) error {
 	defer func() {
 		if v := recover(); v != nil {
 			e := m.tracer.Recovered(v, tx)
-			e.Context = apmhttp.RequestContext(req)
+			e.Context.SetHTTPRequest(req)
 			err, ok := v.(error)
 			if !ok {
 				err = errors.New(fmt.Sprint(v))
@@ -72,28 +72,20 @@ func (m *middleware) handle(c echo.Context) error {
 		}
 	}()
 
-	var txContext *model.Context
 	resp := c.Response()
 	tx.Result = apmhttp.StatusCodeString(resp.Status)
 	handlerErr := m.handler(c)
-	if tx.Sampled() || handlerErr != nil {
-		// TODO(axw) optimize allocations below.
-		// TODO(axw) capture request body.
-		committed := resp.Committed
-		txContext = apmhttp.RequestContext(req)
-		txContext.Response = &model.Response{
-			StatusCode:  resp.Status,
-			Headers:     apmhttp.ResponseHeaders(resp),
-			HeadersSent: &committed,
-		}
-	}
 	if tx.Sampled() {
-		tx.Context = txContext
+		// TODO(axw) capture request body.
+		tx.Context.SetHTTPRequest(req)
+		tx.Context.SetHTTPStatusCode(resp.Status)
+		tx.Context.SetHTTPResponseHeaders(resp.Header())
+		tx.Context.SetHTTPResponseHeadersSent(resp.Committed)
 	}
 	if handlerErr != nil {
 		e := m.tracer.NewError(handlerErr)
+		e.Context.SetHTTPRequest(req)
 		e.Transaction = tx
-		e.Context = txContext
 		e.Handled = true
 		e.Send()
 		return handlerErr

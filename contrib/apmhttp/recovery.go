@@ -20,7 +20,7 @@ func NewTraceRecovery(t *elasticapm.Tracer) RecoveryFunc {
 	}
 	return func(w http.ResponseWriter, req *http.Request, tx *elasticapm.Transaction, recovered interface{}) {
 		e := t.Recovered(recovered, tx)
-		e.Context = RequestContext(req)
+		e.Context.SetHTTPRequest(req)
 		e.Send()
 	}
 }

@@ -23,8 +23,8 @@ func (t *Tracer) newTransaction(name, transactionType string) *Transaction {
 	if tx == nil {
 		tx = &Transaction{tracer: t}
 	}
-	tx.Name = name
-	tx.Type = transactionType
+	tx.model.Name = name
+	tx.model.Type = transactionType
 
 	// Take a snapshot of the max spans config to ensure
 	// that once the maximum is reached, all future span
@@ -39,7 +39,7 @@ func (t *Tracer) newTransaction(name, transactionType string) *Transaction {
 	tx.sampled = true
 	if sampler != nil && !sampler.Sample(tx) {
 		tx.sampled = false
-		tx.Transaction.Sampled = &tx.sampled
+		tx.model.Sampled = &tx.sampled
 	}
 	return tx
 }
@@ -54,24 +54,21 @@ func (t *Tracer) newTransaction(name, transactionType string) *Transaction {
 // Multiple goroutines should not attempt to update the Transaction
 // fields concurrently, but may concurrently invoke any methods.
 type Transaction struct {
-	model.Transaction
+	model     model.Transaction
 	Timestamp time.Time
+	Context   Context
+	Result    string
 
 	tracer   *Tracer
 	sampled  bool
 	maxSpans int
 
 	mu    sync.Mutex
-	tags  []tag
 	spans []*Span
 }
 
-type tag struct {
-	key, value string
-}
-
 func (tx *Transaction) setID() {
-	if tx.Transaction.ID != "" {
+	if tx.model.ID != "" {
 		return
 	}
 	transactionID, err := NewUUID()
@@ -82,11 +79,11 @@ func (tx *Transaction) setID() {
 		// want to panic inside the user's application.
 		return
 	}
-	tx.Transaction.ID = transactionID
+	tx.model.ID = transactionID
 }
 
 func (tx *Transaction) setContext(setter stacktrace.ContextSetter, pre, post int) error {
-	for _, s := range tx.Spans {
+	for _, s := range tx.model.Spans {
 		if err := stacktrace.SetContext(setter, s.Stacktrace, pre, post); err != nil {
 			return err
 		}
@@ -101,34 +98,20 @@ func (tx *Transaction) reset() {
 		s.reset()
 		tx.tracer.spanPool.Put(s)
 	}
-	tags := tx.tags[:0]
-	spans := tx.spans[:0]
-	modelSpans := tx.Spans[:0]
-	tracer := tx.tracer
-	*tx = Transaction{}
-	tx.tags = tags
-	tx.tracer = tracer
-	tx.spans = spans
-	tx.Spans = modelSpans
+	*tx = Transaction{
+		model: model.Transaction{
+			Spans: tx.model.Spans[:0],
+		},
+		tracer:  tx.tracer,
+		spans:   tx.spans[:0],
+		Context: tx.Context,
+	}
+	tx.Context.reset()
 }
 
 // Sampled reports whether or not the transaction is sampled.
 func (tx *Transaction) Sampled() bool {
 	return tx.sampled
-}
-
-// SetTag sets a tag on the transaction, returning true if
-// the tag is added to the transaction, false otherwise.
-// The tag will not be added to a non-sampled transaction,
-// or if the tag key is invalid (contains '.', '*', or '"').
-func (tx *Transaction) SetTag(key, value string) bool {
-	if !tx.Sampled() || !validTagKey(key) {
-		return false
-	}
-	tx.mu.Lock()
-	tx.tags = append(tx.tags, tag{key, value})
-	tx.mu.Unlock()
-	return true
 }
 
 // Done sets the transaction's duration to the specified value, and
@@ -141,29 +124,18 @@ func (tx *Transaction) Done(d time.Duration) {
 	if d < 0 {
 		d = time.Since(tx.Timestamp)
 	}
-	tx.Duration = d.Seconds() * 1000
-	tx.Transaction.Timestamp = model.Time(tx.Timestamp.UTC())
+	tx.model.Duration = d.Seconds() * 1000
+	tx.model.Timestamp = model.Time(tx.Timestamp.UTC())
+	tx.model.Result = tx.Result
 
 	tx.mu.Lock()
 	spans := tx.spans[:len(tx.spans)]
-	tags := tx.tags[:len(tx.tags)]
 	tx.mu.Unlock()
 	if len(spans) != 0 {
-		tx.Spans = make([]*model.Span, len(spans))
+		tx.model.Spans = make([]*model.Span, len(spans))
 		for i, s := range spans {
 			s.truncate(d)
-			tx.Spans[i] = &s.Span
-		}
-	}
-	if len(tags) > 0 {
-		if tx.Context == nil {
-			tx.Context = &model.Context{}
-		}
-		if tx.Context.Tags == nil {
-			tx.Context.Tags = make(map[string]string)
-		}
-		for _, tag := range tags {
-			tx.Context.Tags[tag.key] = tag.value
+			tx.model.Spans[i] = &s.Span
 		}
 	}
 
@@ -212,7 +184,7 @@ func (tx *Transaction) StartSpan(name, transactionType string, parent *Span) *Sp
 	tx.mu.Lock()
 	if tx.maxSpans > 0 && len(tx.spans) >= tx.maxSpans {
 		span.dropped = true
-		tx.SpanCount.Dropped.Total++
+		tx.model.SpanCount.Dropped.Total++
 	} else {
 		if parent != nil {
 			span.Parent = parent.ID

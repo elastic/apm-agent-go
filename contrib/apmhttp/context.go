@@ -1,94 +1,9 @@
 package apmhttp
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
-
-	"github.com/elastic/apm-agent-go/internal/apmhttputil"
-	"github.com/elastic/apm-agent-go/model"
 )
-
-// RequestContext returns the context to use in model.Transaction.Context
-// for HTTP requests.
-//
-// Context.Request.Body will be nil. The caller is responsible for setting
-// this, taking care to copy and replace the request body as necessary.
-//
-// Context.Response will be nil. When the request has been handled, this can
-// be set using ResponseContext.
-//
-// Context.User will be initialised with the HTTP Basic Authentication username
-// if specified, or else the username in the URL if specified. Otherwise, the
-// Context.User field will be nil. In either case, application's may wish to
-// override the user values.
-//
-// TODO(axw) move this out of apmhttp, into the elasticapm package, or a
-// sub-package specifically for context creation.
-func RequestContext(req *http.Request) *model.Context {
-	username, _, ok := req.BasicAuth()
-	if !ok && req.URL.User != nil {
-		username = req.URL.User.Username()
-	}
-
-	// Special cases to avoid calling into fmt.Sprintf in most cases.
-	var httpVersion string
-	switch {
-	case req.ProtoMajor == 1 && req.ProtoMinor == 1:
-		httpVersion = "1.1"
-	case req.ProtoMajor == 2 && req.ProtoMinor == 0:
-		httpVersion = "2.0"
-	default:
-		httpVersion = fmt.Sprintf("%d.%d", req.ProtoMajor, req.ProtoMinor)
-	}
-
-	var forwarded *apmhttputil.ForwardedHeader
-	if fwd := req.Header.Get("Forwarded"); fwd != "" {
-		parsed := apmhttputil.ParseForwarded(fwd)
-		forwarded = &parsed
-	}
-
-	ctx := model.Context{
-		Request: &model.Request{
-			URL:         apmhttputil.RequestURL(req, forwarded),
-			Method:      req.Method,
-			Headers:     RequestHeaders(req),
-			HTTPVersion: httpVersion,
-			Cookies:     req.Cookies(),
-			Socket: &model.RequestSocket{
-				Encrypted:     req.TLS != nil,
-				RemoteAddress: apmhttputil.RemoteAddr(req, forwarded),
-			},
-		},
-	}
-	if username != "" {
-		ctx.User = &model.User{
-			Username: username,
-		}
-	}
-	return &ctx
-}
-
-// RequestHeaders returns the headers for the HTTP request relevant to tracing.
-func RequestHeaders(req *http.Request) *model.RequestHeaders {
-	return &model.RequestHeaders{
-		ContentType: req.Header.Get("Content-Type"),
-		Cookie:      strings.Join(req.Header["Cookie"], ";"),
-		UserAgent:   req.UserAgent(),
-	}
-}
-
-// ResponseHeaders returns the headers for the HTTP response relevant to tracing.
-func ResponseHeaders(w http.ResponseWriter) *model.ResponseHeaders {
-	contentType := w.Header().Get("Content-Type")
-	if contentType == "" {
-		return nil
-	}
-	return &model.ResponseHeaders{
-		ContentType: contentType,
-	}
-}
 
 // StatusCodeString returns the stringified status code. Prefer this to
 // strconv.Itoa to avoid allocating memory for well known status codes.

@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/model"
 )
 
 // Wrap returns a Handler wrapping h. This is a convenience function:
@@ -92,24 +91,23 @@ func SetTransactionContext(tx *elasticapm.Transaction, w http.ResponseWriter, re
 	if !tx.Sampled() {
 		return
 	}
-	tx.Context = RequestContext(req)
-	tx.Context.Response = &model.Response{
-		StatusCode: resp.StatusCode,
-		Headers:    ResponseHeaders(w),
-	}
+	tx.Context.SetHTTPRequest(req)
+	tx.Context.SetHTTPStatusCode(resp.StatusCode)
+	tx.Context.SetHTTPResponseHeaders(w.Header())
+
 	if finished {
 		// Responses are always "finished" unless the handler panics
 		// and it is not recovered. Since we can't tell whether a panic
 		// will be recovered up the stack (but before reaching the
 		// net/http server code), we omit the Finished context if we
 		// don't know for sure it finished.
-		tx.Context.Response.Finished = &finished
+		tx.Context.SetHTTPResponseFinished(finished)
 	}
 	if resp.HeadersWritten || len(w.Header()) != 0 {
 		// We only set headers_sent if we know for sure
 		// that headers have been sent. Otherwise we
 		// leave it to indicate that we don't know.
-		tx.Context.Response.HeadersSent = &resp.HeadersWritten
+		tx.Context.SetHTTPResponseHeadersSent(resp.HeadersWritten)
 	}
 }
 

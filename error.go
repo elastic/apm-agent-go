@@ -156,9 +156,7 @@ type Error struct {
 	Handled bool
 
 	// Context holds the context for this error.
-	//
-	// TODO(axw) make a public/stable context API.
-	Context *model.Context
+	Context Context
 }
 
 func (e *Error) reset() {
@@ -166,7 +164,9 @@ func (e *Error) reset() {
 		tracer:          e.tracer,
 		stacktrace:      e.stacktrace[:0],
 		modelStacktrace: e.modelStacktrace[:0],
+		Context:         e.Context,
 	}
+	e.Context.reset()
 }
 
 // Send enqueues the error for sending to the Elastic APM server.

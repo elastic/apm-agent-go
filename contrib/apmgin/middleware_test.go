@@ -42,11 +42,11 @@ func TestMiddleware(t *testing.T) {
 
 	true_ := true
 	assert.Equal(t, &model.Context{
-		Custom: map[string]interface{}{
-			"gin": map[string]interface{}{
+		Custom: model.IfaceMap{{
+			"gin", map[string]interface{}{
 				"handler": "github.com/elastic/apm-agent-go/contrib/apmgin_test.handleHello",
 			},
-		},
+		}},
 		Request: &model.Request{
 			Socket: &model.RequestSocket{
 				RemoteAddress: "client.testing",

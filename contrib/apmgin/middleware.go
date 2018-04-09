@@ -81,44 +81,37 @@ func (m *middleware) handle(c *gin.Context) {
 	c.Request = c.Request.WithContext(ctx)
 	defer tx.Done(-1)
 
+	ginContext := ginContext{Handler: handlerName}
 	defer func() {
 		if v := recover(); v != nil {
 			c.AbortWithStatus(http.StatusInternalServerError)
 			e := m.tracer.Recovered(v, tx)
-			e.Context = apmhttp.RequestContext(c.Request)
+			e.Context.SetHTTPRequest(c.Request)
 			e.Send()
 		}
 		tx.Result = apmhttp.StatusCodeString(c.Writer.Status())
-		var txContext *model.Context
-		if tx.Sampled() || len(c.Errors) > 0 {
-			// TODO(axw) optimize allocations below.
-			finished := !c.IsAborted()
-			written := c.Writer.Written()
-			txContext = apmhttp.RequestContext(c.Request)
-			txContext.Response = &model.Response{
-				StatusCode:  c.Writer.Status(),
-				Headers:     apmhttp.ResponseHeaders(c.Writer),
-				HeadersSent: &written,
-				Finished:    &finished,
-			}
-			txContext.Custom = map[string]interface{}{
-				"gin": map[string]interface{}{
-					"handler": handlerName,
-				},
-			}
-		}
+
 		if tx.Sampled() {
-			tx.Context = txContext
+			tx.Context.SetHTTPRequest(c.Request)
+			tx.Context.SetHTTPStatusCode(c.Writer.Status())
+			tx.Context.SetHTTPResponseHeaders(c.Writer.Header())
+			tx.Context.SetHTTPResponseHeadersSent(c.Writer.Written())
+			tx.Context.SetHTTPResponseFinished(!c.IsAborted())
+			tx.Context.SetCustom("gin", ginContext)
 		}
 
-		// Report errors handled.
 		for _, err := range c.Errors {
 			e := m.tracer.NewError(err.Err)
+			e.Context.SetHTTPRequest(c.Request)
+			e.Context.SetCustom("gin", ginContext)
 			e.Transaction = tx
-			e.Context = txContext
 			e.Handled = true
 			e.Send()
 		}
 	}()
 	c.Next()
+}
+
+type ginContext struct {
+	Handler string `json:"handler"`
 }

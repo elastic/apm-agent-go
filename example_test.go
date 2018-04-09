@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/model"
 	"github.com/elastic/apm-agent-go/transport"
 )
 
@@ -110,11 +109,7 @@ func (api *api) handleOrder(ctx context.Context, product string) {
 	defer tx.Done(-1)
 	ctx = elasticapm.ContextWithTransaction(ctx, tx)
 
-	tx.Context = &model.Context{
-		Custom: map[string]interface{}{
-			"product": product,
-		},
-	}
+	tx.Context.SetCustom("product", product)
 
 	time.Sleep(10 * time.Millisecond)
 	storeOrder(ctx, product)

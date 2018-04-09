@@ -287,8 +287,9 @@ func TestTracerProcessor(t *testing.T) {
 		assert.Equal(t, "oy vey", e.Exception.Message)
 	}
 	processTransaction := func(tx *model.Transaction) {
+		assert.Equal(t, "name", tx.Name)
+		assert.Equal(t, "type", tx.Type)
 		processedTransaction = true
-		assert.Equal(t, &tx_.Transaction, tx)
 	}
 	tracer.SetProcessor(struct {
 		elasticapm.ErrorProcessor
