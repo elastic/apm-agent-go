@@ -521,10 +521,13 @@ func (s *sender) sendTransactions(ctx context.Context, transactions []*Transacti
 	}
 	for i, tx := range transactions {
 		tx.setID()
-		if s.processor != nil {
-			s.processor.ProcessTransaction(&tx.Transaction)
+		if tx.Sampled() {
+			tx.model.Context = tx.Context.build()
 		}
-		payload.Transactions[i] = &tx.Transaction
+		if s.processor != nil {
+			s.processor.ProcessTransaction(&tx.model)
+		}
+		payload.Transactions[i] = &tx.model
 	}
 	if err := s.tracer.Transport.SendTransactions(ctx, &payload); err != nil {
 		if s.logger != nil {
@@ -566,13 +569,13 @@ func (s *sender) sendErrors(ctx context.Context, errors []*Error) bool {
 	for i, e := range errors {
 		if e.Transaction != nil {
 			e.Transaction.setID()
-			e.model.Transaction.ID = e.Transaction.ID
+			e.model.Transaction.ID = e.Transaction.model.ID
 		}
 		e.setStacktrace()
 		e.setCulprit()
 		e.model.ID = e.ID
 		e.model.Timestamp = model.Time(e.Timestamp.UTC())
-		e.model.Context = e.Context
+		e.model.Context = e.Context.build()
 		e.model.Exception.Handled = e.Handled
 		if s.processor != nil {
 			s.processor.ProcessError(&e.model)

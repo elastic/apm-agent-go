@@ -27,7 +27,6 @@ var (
 
 	// Globals below used during tracing, to avoid reallocating for each
 	// invocation. Only one invocation will happen at a time.
-	txContext     model.Context
 	lambdaContext struct {
 		RequestID       string `json:"request_id,omitempty"`
 		Region          string `json:"region,omitempty"`
@@ -41,9 +40,6 @@ var (
 
 func init() {
 	close(nonBlocking)
-	txContext.Custom = map[string]interface{}{
-		"lambda": &lambdaContext,
-	}
 	lambdaContext.FunctionVersion = lambdacontext.FunctionVersion
 	lambdaContext.MemoryLimit = lambdacontext.MemoryLimitInMB
 	lambdaContext.Region = os.Getenv("AWS_REGION")
@@ -77,7 +73,7 @@ func (f *Function) Invoke(req *messages.InvokeRequest, response *messages.Invoke
 	defer tx.Done(-1)
 	defer f.tracer.Recover(tx)
 	if tx.Sampled() {
-		tx.Context = &txContext
+		tx.Context.SetCustom("lambda", &lambdaContext)
 	}
 
 	lambdaContext.RequestID = req.RequestId
@@ -88,7 +84,7 @@ func (f *Function) Invoke(req *messages.InvokeRequest, response *messages.Invoke
 	err := f.client.Call("Function.Invoke", req, response)
 	if err != nil {
 		e := f.tracer.NewError(err)
-		e.Context = &txContext
+		e.Context.SetCustom("lambda", &lambdaContext)
 		e.Transaction = tx
 		e.Send()
 		return err
@@ -99,7 +95,7 @@ func (f *Function) Invoke(req *messages.InvokeRequest, response *messages.Invoke
 	}
 	if response.Error != nil {
 		e := f.tracer.NewError(invokeResponseError{response.Error})
-		e.Context = &txContext
+		e.Context.SetCustom("lambda", &lambdaContext)
 		e.Transaction = tx
 		e.Send()
 	}

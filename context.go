@@ -1,71 +1,165 @@
 package elasticapm
 
-import "context"
+import (
+	"fmt"
+	"net/http"
+	"strings"
 
-// ContextWithSpan returns a copy of parent in which the given span
-// is stored, associated with the key ContextSpanKey.
-func ContextWithSpan(parent context.Context, s *Span) context.Context {
-	return context.WithValue(parent, contextSpanKey{}, s)
+	"github.com/elastic/apm-agent-go/internal/apmhttputil"
+	"github.com/elastic/apm-agent-go/model"
+)
+
+// Context provides methods for setting transaction and error context.
+type Context struct {
+	model           model.Context
+	request         model.Request
+	requestHeaders  model.RequestHeaders
+	requestSocket   model.RequestSocket
+	response        model.Response
+	responseHeaders model.ResponseHeaders
+	user            model.User
 }
 
-// ContextWithTransaction returns a copy of parent in which the given
-// transaction is stored, associated with the key ContextTransactionKey.
-func ContextWithTransaction(parent context.Context, t *Transaction) context.Context {
-	return context.WithValue(parent, contextTransactionKey{}, t)
-}
-
-// SpanFromContext returns the current Span in context, if any. The span must
-// have been added to the context previously using either ContextWithSpan
-// or SetSpanInContext.
-func SpanFromContext(ctx context.Context) *Span {
-	span, _ := ctx.Value(contextSpanKey{}).(*Span)
-	return span
-}
-
-// TransactionFromContext returns the current Transaction in context, if any.
-// The transaction must have been added to the context previously using either
-// ContextWithTransaction or SetTransactionInContext.
-func TransactionFromContext(ctx context.Context) *Transaction {
-	tx, _ := ctx.Value(contextTransactionKey{}).(*Transaction)
-	return tx
-}
-
-// StartSpan starts and returns a new Span within the sampled transaction
-// and parent span in the context, if any, and returns the span along with
-// a new context containing the span.
-//
-// If there is no transaction in the context, or it is not being sampled,
-// StartSpan returns nil.
-func StartSpan(ctx context.Context, name, spanType string) (*Span, context.Context) {
-	tx := TransactionFromContext(ctx)
-	if tx == nil || !tx.Sampled() {
-		return nil, ctx
-	}
-	span := tx.StartSpan(name, spanType, SpanFromContext(ctx))
-	return span, context.WithValue(ctx, contextSpanKey{}, span)
-}
-
-// CaptureError returns a new Error related to the sampled transaction
-// present in the context, if any, and calls its SetException method
-// with the given error. The Error.Handled field will be set to true,
-// and a stacktrace set.
-//
-// If there is no transaction in the context, or it is not being sampled,
-// CaptureError returns nil. As a convenience, if the provided error is
-// nil, then CaptureError will also return nil.
-func CaptureError(ctx context.Context, err error) *Error {
-	if err == nil {
+func (b *Context) build() *model.Context {
+	switch {
+	case b.model.Request != nil:
+	case b.model.Response != nil:
+	case b.model.User != nil:
+	case len(b.model.Custom) != 0:
+	case len(b.model.Tags) != 0:
+	default:
 		return nil
 	}
-	tx := TransactionFromContext(ctx)
-	if tx == nil || !tx.Sampled() {
-		return nil
-	}
-	e := tx.tracer.NewError(err)
-	e.Handled = true
-	e.Transaction = tx
-	return e
+	return &b.model
 }
 
-type contextSpanKey struct{}
-type contextTransactionKey struct{}
+func (b *Context) reset() {
+	modelContext := model.Context{
+		// TODO(axw) reuse space for tags
+		Custom: b.model.Custom[:0],
+	}
+	*b = Context{
+		model: modelContext,
+	}
+}
+
+// SetCustom sets a custom context key/value pair. If the key is invalid
+// (contains '.', '*', or '"'), the call is a no-op. The value must be
+// JSON-encodable.
+//
+// If value implements interface{AppendJSON([]byte) []byte}, that will be
+// used to encode the value. Otherwise, value will be encoded using
+// json.Marshal. As a special case, values of type map[string]interface{}
+// will be traversed and values encoded according to the same rules.
+func (b *Context) SetCustom(key string, value interface{}) {
+	if !validTagKey(key) {
+		return
+	}
+	b.model.Custom.Set(key, value)
+}
+
+// SetTag sets a tag in the context. If the key is invalid
+// (contains '.', '*', or '"'), the call is a no-op.
+func (b *Context) SetTag(key, value string) {
+	if !validTagKey(key) {
+		return
+	}
+	if b.model.Tags == nil {
+		b.model.Tags = map[string]string{key: value}
+	} else {
+		b.model.Tags[key] = value
+	}
+}
+
+// SetHTTPRequest sets details of the HTTP request in the context.
+//
+// This function may be used for either clients or servers. For
+// server-side requests, various proxy forwarding headers are taken
+// into account to reconstruct the URL, and determining the client
+// address.
+//
+// If the request URL contains user info, it will be removed and
+// excluded from the URL's "full" field.
+//
+// If the request contains HTTP Basic Authentication, the username
+// from that will be recorded in the context. Otherwise, if the
+// request contains user info in the URL (i.e. a client-side URL),
+// that will be used.
+func (b *Context) SetHTTPRequest(req *http.Request) {
+	// Special cases to avoid calling into fmt.Sprintf in most cases.
+	var httpVersion string
+	switch {
+	case req.ProtoMajor == 1 && req.ProtoMinor == 1:
+		httpVersion = "1.1"
+	case req.ProtoMajor == 2 && req.ProtoMinor == 0:
+		httpVersion = "2.0"
+	default:
+		httpVersion = fmt.Sprintf("%d.%d", req.ProtoMajor, req.ProtoMinor)
+	}
+
+	var forwarded *apmhttputil.ForwardedHeader
+	if fwd := req.Header.Get("Forwarded"); fwd != "" {
+		parsed := apmhttputil.ParseForwarded(fwd)
+		forwarded = &parsed
+	}
+	b.request = model.Request{
+		URL:         apmhttputil.RequestURL(req, forwarded),
+		Method:      req.Method,
+		HTTPVersion: httpVersion,
+		Cookies:     req.Cookies(),
+	}
+	b.model.Request = &b.request
+
+	b.requestHeaders = model.RequestHeaders{
+		ContentType: req.Header.Get("Content-Type"),
+		Cookie:      strings.Join(req.Header["Cookie"], ";"),
+		UserAgent:   req.UserAgent(),
+	}
+	if b.requestHeaders != (model.RequestHeaders{}) {
+		b.request.Headers = &b.requestHeaders
+	}
+
+	b.requestSocket = model.RequestSocket{
+		Encrypted:     req.TLS != nil,
+		RemoteAddress: apmhttputil.RemoteAddr(req, forwarded),
+	}
+	if b.requestSocket != (model.RequestSocket{}) {
+		b.request.Socket = &b.requestSocket
+	}
+
+	username, _, ok := req.BasicAuth()
+	if !ok && req.URL.User != nil {
+		username = req.URL.User.Username()
+	}
+	b.user.Username = username
+	if b.user.Username != "" {
+		b.model.User = &b.user
+	}
+}
+
+// SetHTTPResponse sets the HTTP response headers in the context.
+func (b *Context) SetHTTPResponseHeaders(h http.Header) {
+	b.responseHeaders.ContentType = h.Get("Content-Type")
+	if b.responseHeaders.ContentType != "" {
+		b.response.Headers = &b.responseHeaders
+		b.model.Response = &b.response
+	}
+}
+
+// SetResponseResponseHeadersSent records whether or not response were sent.
+func (b *Context) SetHTTPResponseHeadersSent(headersSent bool) {
+	b.response.HeadersSent = &headersSent
+	b.model.Response = &b.response
+}
+
+// SetHTTPResponseFinished records whether or not the response was finished.
+func (b *Context) SetHTTPResponseFinished(finished bool) {
+	b.response.Finished = &finished
+	b.model.Response = &b.response
+}
+
+// SetHTTPStatusCode records the HTTP response status code.
+func (b *Context) SetHTTPStatusCode(statusCode int) {
+	b.response.StatusCode = statusCode
+	b.model.Response = &b.response
+}

@@ -8,7 +8,6 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/model"
 )
 
 // NewUnaryServerInterceptor returns a grpc.UnaryServerInterceptor that
@@ -45,16 +44,12 @@ func NewUnaryServerInterceptor(o ...ServerOption) grpc.UnaryServerInterceptor {
 				grpcContext := map[string]interface{}{
 					"peer.address": p.Addr.String(),
 				}
-				tx.Context = &model.Context{
-					Custom: map[string]interface{}{
-						"grpc": grpcContext,
-					},
-				}
 				if p.AuthInfo != nil {
 					grpcContext["auth"] = map[string]interface{}{
 						"type": p.AuthInfo.AuthType(),
 					}
 				}
+				tx.Context.SetCustom("grpc", grpcContext)
 			}
 		}
 

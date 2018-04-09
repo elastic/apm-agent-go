@@ -223,7 +223,7 @@ type Context struct {
 	User *User `json:"user,omitempty"`
 
 	// Custom holds arbitrary additional metadata.
-	Custom map[string]interface{} `json:"custom,omitempty"`
+	Custom IfaceMap `json:"custom,omitempty"`
 
 	// Tags holds user-defined key/value pairs.
 	Tags map[string]string `json:"tags,omitempty"`

@@ -48,7 +48,6 @@ func TestMuxMiddleware(t *testing.T) {
 				Search:   "foo=123",
 			},
 			Method:      "GET",
-			Headers:     &model.RequestHeaders{},
 			HTTPVersion: "1.1",
 		},
 		Response: &model.Response{

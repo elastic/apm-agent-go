@@ -78,14 +78,16 @@ func testServerTransactionHappy(t *testing.T, p testParams) {
 	assert.Equal(t, "grpc", tx.Type)
 	assert.Equal(t, "OK", tx.Result)
 
-	assert.Contains(t, tx.Context.Custom, "grpc")
-	grpcContext := tx.Context.Custom["grpc"].(map[string]interface{})
+	require.Len(t, tx.Context.Custom, 1)
+	assert.Equal(t, "grpc", tx.Context.Custom[0].Key)
+	grpcContext := tx.Context.Custom[0].Value.(map[string]interface{})
 	assert.Contains(t, grpcContext, "peer.address")
 	delete(grpcContext, "peer.address")
 	assert.Equal(t, &model.Context{
-		Custom: map[string]interface{}{
-			"grpc": map[string]interface{}{},
-		},
+		Custom: model.IfaceMap{{
+			Key:   "grpc",
+			Value: map[string]interface{}{},
+		}},
 	}, tx.Context)
 }
 

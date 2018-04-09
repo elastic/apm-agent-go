@@ -287,7 +287,7 @@ func (v *DatabaseSpanContext) MarshalFastJSON(w *fastjson.Writer) {
 func (v *Context) MarshalFastJSON(w *fastjson.Writer) {
 	w.RawByte('{')
 	first := true
-	if v.Custom != nil {
+	if !v.Custom.isZero() {
 		const prefix = ",\"custom\":"
 		if first {
 			first = false
@@ -295,21 +295,7 @@ func (v *Context) MarshalFastJSON(w *fastjson.Writer) {
 		} else {
 			w.RawString(prefix)
 		}
-		w.RawByte('{')
-		{
-			first := true
-			for k, v := range v.Custom {
-				if first {
-					first = false
-				} else {
-					w.RawByte(',')
-				}
-				w.String(k)
-				w.RawByte(':')
-				fastjson.Marshal(w, v)
-			}
-		}
-		w.RawByte('}')
+		v.Custom.MarshalFastJSON(w)
 	}
 	if v.Request != nil {
 		const prefix = ",\"request\":"

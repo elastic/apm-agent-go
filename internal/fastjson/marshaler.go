@@ -12,6 +12,15 @@ type Marshaler interface {
 	MarshalFastJSON(w *Writer)
 }
 
+// Appender defines an interface that types can implement to append
+// their JSON representation to a buffer. If the value is not a valid
+// JSON token, it will be rejected.
+type Appender interface {
+	// AppendJSON appends the JSON representation of the value to the
+	// buffer, and returns the extended buffer.
+	AppendJSON([]byte) []byte
+}
+
 // Marshal marshals v as JSON to w.
 func Marshal(w *Writer, v interface{}) {
 	switch v := v.(type) {
@@ -65,6 +74,8 @@ func Marshal(w *Writer, v interface{}) {
 		w.RawByte('}')
 	case Marshaler:
 		v.MarshalFastJSON(w)
+	case Appender:
+		w.buf = v.AppendJSON(w.buf)
 	default:
 		marshalReflect(w, v)
 	}
