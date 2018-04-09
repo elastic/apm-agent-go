@@ -328,11 +328,12 @@ func TestMarshalStacktraceFrame(t *testing.T) {
 
 func TestMarshalContextCustomErrors(t *testing.T) {
 	context := model.Context{
-		Custom: map[string]interface{}{
-			"panic_value": marshalFunc(func() ([]byte, error) {
+		Custom: model.IfaceMap{{
+			Key: "panic_value",
+			Value: marshalFunc(func() ([]byte, error) {
 				panic("aiee")
 			}),
-		},
+		}},
 	}
 	var w fastjson.Writer
 	context.MarshalFastJSON(&w)
@@ -341,11 +342,12 @@ func TestMarshalContextCustomErrors(t *testing.T) {
 		string(w.Bytes()),
 	)
 
-	context.Custom = map[string]interface{}{
-		"error_value": marshalFunc(func() ([]byte, error) {
+	context.Custom = model.IfaceMap{{
+		Key: "error_value",
+		Value: marshalFunc(func() ([]byte, error) {
 			return nil, errors.New("nope")
 		}),
-	}
+	}}
 	w.Reset()
 	context.MarshalFastJSON(&w)
 	assert.Equal(t,
@@ -358,6 +360,31 @@ type marshalFunc func() ([]byte, error)
 
 func (f marshalFunc) MarshalJSON() ([]byte, error) {
 	return f()
+}
+
+func TestMarshalCustomInvalidJSON(t *testing.T) {
+	context := model.Context{
+		Custom: model.IfaceMap{{
+			Key: "k1",
+			Value: appenderFunc(func(in []byte) []byte {
+				return append(in, "123"...)
+			}),
+		}, {
+			Key: "k2",
+			Value: appenderFunc(func(in []byte) []byte {
+				return append(in, `"value"`...)
+			}),
+		}},
+	}
+	var w fastjson.Writer
+	context.MarshalFastJSON(&w)
+	assert.Equal(t, `{"custom":{"k1":123,"k2":"value"}}`, string(w.Bytes()))
+}
+
+type appenderFunc func([]byte) []byte
+
+func (f appenderFunc) AppendJSON(in []byte) []byte {
+	return f(in)
 }
 
 func TestMarshalResponse(t *testing.T) {
@@ -435,12 +462,13 @@ func fakeTransaction() *model.Transaction {
 			User: &model.User{
 				Username: "wanda",
 			},
-			Custom: map[string]interface{}{
-				"foo": map[string]interface{}{
+			Custom: model.IfaceMap{{
+				Key: "foo",
+				Value: map[string]interface{}{
 					"bar": "baz",
 					"qux": float64(123),
 				},
-			},
+			}},
 			Tags: map[string]string{
 				"tag": "urit",
 			},
