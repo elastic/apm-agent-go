@@ -20,15 +20,14 @@ func TestPingContext(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
+	db.Ping() // connect
 	tx := withTransaction(t, func(ctx context.Context) {
 		err := db.PingContext(ctx)
 		assert.NoError(t, err)
 	})
-	require.Len(t, tx.Spans, 2)
-	assert.Equal(t, "connect", tx.Spans[0].Name)
-	assert.Equal(t, "db.sqlite3.connect", tx.Spans[0].Type)
-	assert.Equal(t, "ping", tx.Spans[1].Name)
-	assert.Equal(t, "db.sqlite3.ping", tx.Spans[1].Type)
+	require.Len(t, tx.Spans, 1)
+	assert.Equal(t, "ping", tx.Spans[0].Name)
+	assert.Equal(t, "db.sqlite3.ping", tx.Spans[0].Type)
 }
 
 func TestExecContext(t *testing.T) {
@@ -36,13 +35,14 @@ func TestExecContext(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
+	db.Ping() // connect
 	tx := withTransaction(t, func(ctx context.Context) {
 		_, err := db.ExecContext(ctx, "CREATE TABLE foo (bar INT)")
 		require.NoError(t, err)
 	})
-	require.Len(t, tx.Spans, 2)
-	assert.Equal(t, "CREATE", tx.Spans[1].Name)
-	assert.Equal(t, "db.sqlite3.exec", tx.Spans[1].Type)
+	require.Len(t, tx.Spans, 1)
+	assert.Equal(t, "CREATE", tx.Spans[0].Name)
+	assert.Equal(t, "db.sqlite3.exec", tx.Spans[0].Type)
 }
 
 func TestQueryContext(t *testing.T) {
@@ -77,6 +77,7 @@ func TestPrepareContext(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
+	db.Ping() // connect
 	tx := withTransaction(t, func(ctx context.Context) {
 		stmt, err := db.PrepareContext(ctx, "CREATE TABLE foo (bar INT)")
 		require.NoError(t, err)
@@ -84,9 +85,9 @@ func TestPrepareContext(t *testing.T) {
 		_, err = stmt.Exec()
 		require.NoError(t, err)
 	})
-	require.Len(t, tx.Spans, 2)
-	assert.Equal(t, "CREATE", tx.Spans[1].Name)
-	assert.Equal(t, "db.sqlite3.prepare", tx.Spans[1].Type)
+	require.Len(t, tx.Spans, 1)
+	assert.Equal(t, "CREATE", tx.Spans[0].Name)
+	assert.Equal(t, "db.sqlite3.prepare", tx.Spans[0].Type)
 }
 
 func TestStmtExecContext(t *testing.T) {

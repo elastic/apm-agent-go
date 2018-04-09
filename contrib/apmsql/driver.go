@@ -3,7 +3,6 @@ package apmsql
 import (
 	"database/sql"
 	"database/sql/driver"
-	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -111,7 +110,11 @@ func (d *tracingDriver) querySignature(query string) string {
 }
 
 func (d *tracingDriver) Open(name string) (driver.Conn, error) {
-	return nil, errors.New("Open should not be called")
+	conn, err := d.Driver.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	return newConn(conn, d, name), nil
 }
 
 func driverName(d driver.Driver) string {
