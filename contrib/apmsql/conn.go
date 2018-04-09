@@ -81,7 +81,7 @@ func (c *conn) Ping(ctx context.Context) (resultError error) {
 	if c.pinger == nil {
 		return nil
 	}
-	span, ctx := elasticapm.StartSpan(ctx, "ping", c.driver.spanType("ping"))
+	span, ctx := elasticapm.StartSpan(ctx, "ping", c.driver.pingSpanType)
 	if span != nil {
 		defer c.finishSpan(ctx, span, "", resultError)
 	}
@@ -92,7 +92,7 @@ func (c *conn) QueryContext(ctx context.Context, query string, args []driver.Nam
 	if c.queryerContext == nil && c.queryer == nil {
 		return nil, driver.ErrSkip
 	}
-	span, ctx := elasticapm.StartSpan(ctx, "", c.driver.spanType("query"))
+	span, ctx := elasticapm.StartSpan(ctx, "", c.driver.querySpanType)
 	if span != nil {
 		defer c.finishSpan(ctx, span, query, resultError)
 	}
@@ -117,7 +117,7 @@ func (*conn) Query(query string, args []driver.Value) (driver.Rows, error) {
 }
 
 func (c *conn) PrepareContext(ctx context.Context, query string) (_ driver.Stmt, resultError error) {
-	span, ctx := elasticapm.StartSpan(ctx, "", c.driver.spanType("prepare"))
+	span, ctx := elasticapm.StartSpan(ctx, "", c.driver.prepareSpanType)
 	if span != nil {
 		defer c.finishSpan(ctx, span, query, resultError)
 	}
@@ -146,7 +146,7 @@ func (c *conn) ExecContext(ctx context.Context, query string, args []driver.Name
 	if c.execerContext == nil && c.execer == nil {
 		return nil, driver.ErrSkip
 	}
-	span, ctx := elasticapm.StartSpan(ctx, "", c.driver.spanType("exec"))
+	span, ctx := elasticapm.StartSpan(ctx, "", c.driver.execSpanType)
 	if span != nil {
 		defer c.finishSpan(ctx, span, query, resultError)
 	}

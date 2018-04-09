@@ -47,7 +47,7 @@ func (s *stmt) ColumnConverter(idx int) driver.ValueConverter {
 }
 
 func (s *stmt) ExecContext(ctx context.Context, args []driver.NamedValue) (_ driver.Result, resultError error) {
-	span, ctx := elasticapm.StartSpan(ctx, s.signature, s.conn.driver.spanType("exec"))
+	span, ctx := elasticapm.StartSpan(ctx, s.signature, s.conn.driver.execSpanType)
 	if span != nil {
 		defer s.finishSpan(ctx, span, resultError)
 	}
@@ -67,7 +67,7 @@ func (s *stmt) ExecContext(ctx context.Context, args []driver.NamedValue) (_ dri
 }
 
 func (s *stmt) QueryContext(ctx context.Context, args []driver.NamedValue) (_ driver.Rows, resultError error) {
-	span, ctx := elasticapm.StartSpan(ctx, s.signature, s.conn.driver.spanType("query"))
+	span, ctx := elasticapm.StartSpan(ctx, s.signature, s.conn.driver.querySpanType)
 	if span != nil {
 		defer s.finishSpan(ctx, span, resultError)
 	}
