@@ -5,15 +5,14 @@ import (
 	"database/sql/driver"
 
 	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/model"
 )
 
 func newStmt(in driver.Stmt, conn *conn, query string) driver.Stmt {
 	stmt := &stmt{
-		Stmt:        in,
-		conn:        conn,
-		signature:   conn.driver.querySignature(query),
-		spanContext: conn.spanContext(query),
+		Stmt:      in,
+		conn:      conn,
+		signature: conn.driver.querySignature(query),
+		query:     query,
 	}
 	stmt.columnConverter, _ = in.(driver.ColumnConverter)
 	stmt.stmtExecContext, _ = in.(driver.StmtExecContext)
@@ -25,18 +24,17 @@ func newStmt(in driver.Stmt, conn *conn, query string) driver.Stmt {
 type stmt struct {
 	driver.Stmt
 	stmtGo19
-	conn        *conn
-	signature   string
-	spanContext *model.SpanContext
+	conn      *conn
+	signature string
+	query     string
 
 	columnConverter  driver.ColumnConverter
 	stmtExecContext  driver.StmtExecContext
 	stmtQueryContext driver.StmtQueryContext
 }
 
-func (s *stmt) finishSpan(ctx context.Context, span *elasticapm.Span, resultError error) {
-	span.Context = s.spanContext
-	s.conn.finishSpan(ctx, span, "", resultError)
+func (s *stmt) startSpan(ctx context.Context, spanType string) (*elasticapm.Span, context.Context) {
+	return s.conn.startSpan(ctx, s.signature, spanType, s.query)
 }
 
 func (s *stmt) ColumnConverter(idx int) driver.ValueConverter {
@@ -47,9 +45,9 @@ func (s *stmt) ColumnConverter(idx int) driver.ValueConverter {
 }
 
 func (s *stmt) ExecContext(ctx context.Context, args []driver.NamedValue) (_ driver.Result, resultError error) {
-	span, ctx := elasticapm.StartSpan(ctx, s.signature, s.conn.driver.spanType("exec"))
+	span, ctx := s.startSpan(ctx, s.conn.driver.execSpanType)
 	if span != nil {
-		defer s.finishSpan(ctx, span, resultError)
+		defer s.conn.finishSpan(ctx, span, resultError)
 	}
 	if s.stmtExecContext != nil {
 		return s.stmtExecContext.ExecContext(ctx, args)
@@ -67,9 +65,9 @@ func (s *stmt) ExecContext(ctx context.Context, args []driver.NamedValue) (_ dri
 }
 
 func (s *stmt) QueryContext(ctx context.Context, args []driver.NamedValue) (_ driver.Rows, resultError error) {
-	span, ctx := elasticapm.StartSpan(ctx, s.signature, s.conn.driver.spanType("query"))
+	span, ctx := s.startSpan(ctx, s.conn.driver.querySpanType)
 	if span != nil {
-		defer s.finishSpan(ctx, span, resultError)
+		defer s.conn.finishSpan(ctx, span, resultError)
 	}
 	if s.stmtQueryContext != nil {
 		return s.stmtQueryContext.QueryContext(ctx, args)

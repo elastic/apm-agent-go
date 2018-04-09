@@ -30,7 +30,7 @@ type driverConnector struct {
 }
 
 func (d *driverConnector) Connect(ctx context.Context) (driver.Conn, error) {
-	span, ctx := elasticapm.StartSpan(ctx, "connect", d.driver.spanType("connect"))
+	span, ctx := elasticapm.StartSpan(ctx, "connect", d.driver.connectSpanType)
 	if span != nil {
 		defer span.Done(-1)
 	}

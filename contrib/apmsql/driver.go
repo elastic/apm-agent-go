@@ -3,7 +3,6 @@ package apmsql
 import (
 	"database/sql"
 	"database/sql/driver"
-	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -49,6 +48,12 @@ func Wrap(driver driver.Driver, opts ...WrapOption) driver.Driver {
 	if d.dsnParser == nil {
 		d.dsnParser = dsnParser(d.driverName)
 	}
+	// store span types to avoid repeat allocations
+	d.connectSpanType = d.formatSpanType("connect")
+	d.pingSpanType = d.formatSpanType("ping")
+	d.prepareSpanType = d.formatSpanType("prepare")
+	d.querySpanType = d.formatSpanType("query")
+	d.execSpanType = d.formatSpanType("exec")
 	return d
 }
 
@@ -79,9 +84,15 @@ type tracingDriver struct {
 	driver.Driver
 	driverName string
 	dsnParser  dsn.ParserFunc
+
+	connectSpanType string
+	execSpanType    string
+	pingSpanType    string
+	prepareSpanType string
+	querySpanType   string
 }
 
-func (d *tracingDriver) spanType(suffix string) string {
+func (d *tracingDriver) formatSpanType(suffix string) string {
 	return fmt.Sprintf("db.%s.%s", d.driverName, suffix)
 }
 
@@ -99,7 +110,11 @@ func (d *tracingDriver) querySignature(query string) string {
 }
 
 func (d *tracingDriver) Open(name string) (driver.Conn, error) {
-	return nil, errors.New("Open should not be called")
+	conn, err := d.Driver.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	return newConn(conn, d, name), nil
 }
 
 func driverName(d driver.Driver) string {
