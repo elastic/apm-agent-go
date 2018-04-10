@@ -53,28 +53,34 @@ type middleware struct {
 	tracer *elasticapm.Tracer
 
 	setRouteMapOnce sync.Once
-	routeMap        map[string]map[string]string
+	routeMap        map[string]map[string]routeInfo
+}
+
+type routeInfo struct {
+	transactionName string // e.g. "GET /foo"
 }
 
 func (m *middleware) handle(c *gin.Context) {
 	m.setRouteMapOnce.Do(func() {
 		routes := m.engine.Routes()
-		rm := make(map[string]map[string]string)
+		rm := make(map[string]map[string]routeInfo)
 		for _, r := range routes {
 			mm := rm[r.Method]
 			if mm == nil {
-				mm = make(map[string]string)
+				mm = make(map[string]routeInfo)
 				rm[r.Method] = mm
 			}
-			mm[r.Handler] = r.Path
+			mm[r.Handler] = routeInfo{
+				transactionName: r.Method + " " + r.Path,
+			}
 		}
 		m.routeMap = rm
 	})
 
 	requestName := c.Request.Method
 	handlerName := c.HandlerName()
-	if routePath, ok := m.routeMap[c.Request.Method][handlerName]; ok {
-		requestName += " " + routePath
+	if routeInfo, ok := m.routeMap[c.Request.Method][handlerName]; ok {
+		requestName = routeInfo.transactionName
 	}
 	tx := m.tracer.StartTransaction(requestName, "request")
 	ctx := elasticapm.ContextWithTransaction(c.Request.Context(), tx)
