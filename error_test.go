@@ -61,7 +61,7 @@ func TestInternalStackTrace(t *testing.T) {
 
 func sendError(t *testing.T, err error, f ...func(*elasticapm.Error)) *model.Error {
 	var r transporttest.RecorderTransport
-	tracer, newTracerErr := elasticapm.NewTracer("tracer.testing", "")
+	tracer, newTracerErr := elasticapm.NewTracer("tracer_testing", "")
 	assert.NoError(t, newTracerErr)
 	defer tracer.Close()
 

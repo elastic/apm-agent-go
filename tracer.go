@@ -6,8 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/apm-agent-go/model"
 	"github.com/elastic/apm-agent-go/stacktrace"
 	"github.com/elastic/apm-agent-go/transport"
@@ -144,17 +142,15 @@ type Tracer struct {
 // or taking the service name and version from the environment
 // if unspecified.
 //
-// If service is nil, then the service will be defined using the
-// ELASTIC_APM_* environment variables.
+// If serviceName is empty, then the service name will be defined
+// using the ELASTIC_APM_SERVER_NAME environment variable.
 func NewTracer(serviceName, serviceVersion string) (*Tracer, error) {
 	service := &envService
 	if serviceName != "" {
+		if err := validateServiceName(serviceName); err != nil {
+			return nil, err
+		}
 		service = newService(serviceName, serviceVersion)
-	} else if service == nil {
-		return nil, errors.Errorf(
-			"no service name specified, and %s not specified",
-			envServiceName,
-		)
 	}
 	var opts options
 	if err := opts.init(false); err != nil {
