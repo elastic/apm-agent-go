@@ -71,6 +71,9 @@ func getEnvironmentService() model.Service {
 	name := os.Getenv(envServiceName)
 	if name == "" {
 		name = filepath.Base(os.Args[0])
+		if runtime.GOOS == "windows" {
+			name = strings.TrimSuffix(name, filepath.Ext(name))
+		}
 	}
 	svc := newService(sanitizeServiceName(name), "")
 	return *svc
