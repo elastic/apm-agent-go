@@ -1,7 +1,9 @@
 package elasticapm_test
 
 import (
+	"context"
 	"os"
+	"os/exec"
 	"testing"
 	"time"
 
@@ -9,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/apm-agent-go"
+	"github.com/elastic/apm-agent-go/model"
 	"github.com/elastic/apm-agent-go/transport/transporttest"
 )
 
@@ -25,7 +28,7 @@ func TestTracerFlushIntervalEnvInvalid(t *testing.T) {
 	os.Setenv("ELASTIC_APM_FLUSH_INTERVAL", "aeon")
 	defer os.Unsetenv("ELASTIC_APM_FLUSH_INTERVAL")
 
-	_, err := elasticapm.NewTracer("tracer.testing", "")
+	_, err := elasticapm.NewTracer("tracer_testing", "")
 	assert.EqualError(t, err, "failed to parse ELASTIC_APM_FLUSH_INTERVAL: time: invalid duration aeon")
 }
 
@@ -33,7 +36,7 @@ func testTracerFlushIntervalEnv(t *testing.T, envValue string, expectedInterval 
 	os.Setenv("ELASTIC_APM_FLUSH_INTERVAL", envValue)
 	defer os.Unsetenv("ELASTIC_APM_FLUSH_INTERVAL")
 
-	tracer, err := elasticapm.NewTracer("tracer.testing", "")
+	tracer, err := elasticapm.NewTracer("tracer_testing", "")
 	require.NoError(t, err)
 	defer tracer.Close()
 	tracer.Transport = transporttest.Discard
@@ -63,7 +66,7 @@ func TestTracerTransactionRateEnvInvalid(t *testing.T) {
 	os.Setenv("ELASTIC_APM_TRANSACTION_SAMPLE_RATE", "2.0")
 	defer os.Unsetenv("ELASTIC_APM_TRANSACTION_SAMPLE_RATE")
 
-	_, err := elasticapm.NewTracer("tracer.testing", "")
+	_, err := elasticapm.NewTracer("tracer_testing", "")
 	assert.EqualError(t, err, "invalid ELASTIC_APM_TRANSACTION_SAMPLE_RATE value 2.0: out of range [0,1.0]")
 }
 
@@ -71,7 +74,7 @@ func testTracerTransactionRateEnv(t *testing.T, envValue string, ratio float64) 
 	os.Setenv("ELASTIC_APM_TRANSACTION_SAMPLE_RATE", envValue)
 	defer os.Unsetenv("ELASTIC_APM_TRANSACTION_SAMPLE_RATE")
 
-	tracer, err := elasticapm.NewTracer("tracer.testing", "")
+	tracer, err := elasticapm.NewTracer("tracer_testing", "")
 	require.NoError(t, err)
 	defer tracer.Close()
 	tracer.Transport = transporttest.Discard
@@ -86,4 +89,47 @@ func testTracerTransactionRateEnv(t *testing.T, envValue string, ratio float64) 
 		tx.Done(-1)
 	}
 	assert.InDelta(t, N*ratio, sampled, N*0.02) // allow 2% error
+}
+
+func TestTracerServiceNameEnvSanitizationSpecified(t *testing.T) {
+	testTracerServiceNameSanitization(
+		t, "TestTracerServiceNameEnvSanitizationSpecified",
+		"foo_bar", "ELASTIC_APM_SERVICE_NAME=foo!bar",
+	)
+}
+
+func TestTracerServiceNameEnvSanitizationExecutableName(t *testing.T) {
+	testTracerServiceNameSanitization(
+		t, "TestTracerServiceNameEnvSanitizationExecutableName",
+		"apm-agent-go_test", // .test -> _test
+	)
+}
+
+func testTracerServiceNameSanitization(t *testing.T, testName, sanitizedServiceName string, env ...string) {
+	if os.Getenv("_INSIDE_TEST") != "1" {
+		cmd := exec.Command(os.Args[0], "-test.run=^"+testName+"$")
+		cmd.Env = append(cmd.Env, "_INSIDE_TEST=1")
+		cmd.Env = append(cmd.Env, env...)
+		err := cmd.Run()
+		assert.NoError(t, err)
+		return
+	}
+
+	tracer, err := elasticapm.NewTracer("", "")
+	require.NoError(t, err)
+	defer tracer.Close()
+
+	var called bool
+	tracer.Transport = transporttest.CallbackTransport{
+		Transactions: func(_ context.Context, payload *model.TransactionsPayload) error {
+			assert.Equal(t, sanitizedServiceName, payload.Service.Name)
+			called = true
+			return nil
+		},
+	}
+
+	tx := tracer.StartTransaction("name", "type")
+	tx.Done(-1)
+	tracer.Flush(nil)
+	assert.True(t, called)
 }

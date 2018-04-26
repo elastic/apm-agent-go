@@ -15,7 +15,7 @@ import (
 )
 
 func TestTracerStats(t *testing.T) {
-	tracer, err := elasticapm.NewTracer("tracer.testing", "")
+	tracer, err := elasticapm.NewTracer("tracer_testing", "")
 	assert.NoError(t, err)
 	defer tracer.Close()
 	tracer.Transport = transporttest.Discard
@@ -30,7 +30,7 @@ func TestTracerStats(t *testing.T) {
 }
 
 func TestTracerClosedSendNonblocking(t *testing.T) {
-	tracer, err := elasticapm.NewTracer("tracer.testing", "")
+	tracer, err := elasticapm.NewTracer("tracer_testing", "")
 	assert.NoError(t, err)
 	tracer.Close()
 
@@ -41,7 +41,7 @@ func TestTracerClosedSendNonblocking(t *testing.T) {
 }
 
 func TestTracerFlushInterval(t *testing.T) {
-	tracer, err := elasticapm.NewTracer("tracer.testing", "")
+	tracer, err := elasticapm.NewTracer("tracer_testing", "")
 	assert.NoError(t, err)
 	defer tracer.Close()
 	tracer.Transport = transporttest.Discard
@@ -59,7 +59,7 @@ func TestTracerFlushInterval(t *testing.T) {
 }
 
 func TestTracerMaxQueueSize(t *testing.T) {
-	tracer, err := elasticapm.NewTracer("tracer.testing", "")
+	tracer, err := elasticapm.NewTracer("tracer_testing", "")
 	assert.NoError(t, err)
 	defer tracer.Close()
 
@@ -84,7 +84,7 @@ func TestTracerMaxQueueSize(t *testing.T) {
 }
 
 func TestTracerRetryTimer(t *testing.T) {
-	tracer, err := elasticapm.NewTracer("tracer.testing", "")
+	tracer, err := elasticapm.NewTracer("tracer_testing", "")
 	assert.NoError(t, err)
 	defer tracer.Close()
 
@@ -123,7 +123,7 @@ func TestTracerRetryTimer(t *testing.T) {
 }
 
 func TestTracerRetryTimerFlush(t *testing.T) {
-	tracer, err := elasticapm.NewTracer("tracer.testing", "")
+	tracer, err := elasticapm.NewTracer("tracer_testing", "")
 	assert.NoError(t, err)
 	defer tracer.Close()
 	interval := time.Second
@@ -163,7 +163,7 @@ func TestTracerRetryTimerFlush(t *testing.T) {
 
 func TestTracerMaxSpans(t *testing.T) {
 	var r transporttest.RecorderTransport
-	tracer, err := elasticapm.NewTracer("tracer.testing", "")
+	tracer, err := elasticapm.NewTracer("tracer_testing", "")
 	assert.NoError(t, err)
 	defer tracer.Close()
 	tracer.Transport = &r
@@ -194,7 +194,7 @@ func TestTracerMaxSpans(t *testing.T) {
 
 func TestTracerErrors(t *testing.T) {
 	var r transporttest.RecorderTransport
-	tracer, err := elasticapm.NewTracer("tracer.testing", "")
+	tracer, err := elasticapm.NewTracer("tracer_testing", "")
 	assert.NoError(t, err)
 	defer tracer.Close()
 	tracer.Transport = &r
@@ -216,7 +216,7 @@ func TestTracerErrors(t *testing.T) {
 }
 
 func TestTracerErrorsBuffered(t *testing.T) {
-	tracer, err := elasticapm.NewTracer("tracer.testing", "")
+	tracer, err := elasticapm.NewTracer("tracer_testing", "")
 	assert.NoError(t, err)
 	defer tracer.Close()
 	errors := make(chan transporttest.SendErrorsRequest)
@@ -268,7 +268,7 @@ func TestTracerErrorsBuffered(t *testing.T) {
 }
 
 func TestTracerProcessor(t *testing.T) {
-	tracer, err := elasticapm.NewTracer("tracer.testing", "")
+	tracer, err := elasticapm.NewTracer("tracer_testing", "")
 	assert.NoError(t, err)
 	defer tracer.Close()
 	tracer.Transport = transporttest.Discard
@@ -308,7 +308,7 @@ func TestTracerProcessor(t *testing.T) {
 
 func TestTracerRecover(t *testing.T) {
 	var r transporttest.RecorderTransport
-	tracer, err := elasticapm.NewTracer("tracer.testing", "")
+	tracer, err := elasticapm.NewTracer("tracer_testing", "")
 	assert.NoError(t, err)
 	defer tracer.Close()
 	tracer.Transport = &r
@@ -331,14 +331,7 @@ func capturePanic(tracer *elasticapm.Tracer, v interface{}) {
 	panic(v)
 }
 
-type testLogger struct {
-	t *testing.T
-}
-
-func (l testLogger) Debugf(format string, args ...interface{}) {
-	l.t.Logf("[DEBUG] "+format, args...)
-}
-
-func (l testLogger) Errorf(format string, args ...interface{}) {
-	l.t.Logf("[ERROR] "+format, args...)
+func TestTracerServiceNameValidation(t *testing.T) {
+	_, err := elasticapm.NewTracer("wot!", "")
+	assert.EqualError(t, err, `invalid service name "wot!": character '!' is not in the allowed set (a-zA-Z0-9 _-)`)
 }

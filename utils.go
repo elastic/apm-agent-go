@@ -3,8 +3,11 @@ package elasticapm
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
+
+	"github.com/pkg/errors"
 
 	"github.com/elastic/apm-agent-go/model"
 )
@@ -17,6 +20,8 @@ var (
 	goLanguage     = model.Language{Name: "go", Version: runtime.Version()}
 	goRuntime      = model.Runtime{Name: runtime.Compiler, Version: runtime.Version()}
 	localSystem    model.System
+
+	serviceNameInvalidRegexp = regexp.MustCompile("[^" + serviceNameValidClass + "]")
 )
 
 const (
@@ -26,6 +31,8 @@ const (
 	envHostname         = "ELASTIC_APM_HOSTNAME"
 	envServiceName      = "ELASTIC_APM_SERVICE_NAME"
 	envServiceVersion   = "ELASTIC_APM_SERVICE_VERSION"
+
+	serviceNameValidClass = "a-zA-Z0-9 _-"
 )
 
 func init() {
@@ -65,7 +72,7 @@ func getEnvironmentService() model.Service {
 	if name == "" {
 		name = filepath.Base(os.Args[0])
 	}
-	svc := newService(name, "")
+	svc := newService(sanitizeServiceName(name), "")
 	return *svc
 }
 
@@ -100,4 +107,19 @@ func getLocalSystem() model.System {
 
 func validTagKey(k string) bool {
 	return !strings.ContainsAny(k, `.*"`)
+}
+
+func validateServiceName(name string) error {
+	idx := serviceNameInvalidRegexp.FindStringIndex(name)
+	if idx == nil {
+		return nil
+	}
+	return errors.Errorf(
+		"invalid service name %q: character %q is not in the allowed set (%s)",
+		name, name[idx[0]], serviceNameValidClass,
+	)
+}
+
+func sanitizeServiceName(name string) string {
+	return serviceNameInvalidRegexp.ReplaceAllString(name, "_")
 }
