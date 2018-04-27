@@ -2,7 +2,10 @@ package elasticapm
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -46,6 +49,7 @@ type options struct {
 	maxTransactionQueueSize int
 	maxSpans                int
 	sampler                 Sampler
+	sanitizedFieldNames     *regexp.Regexp
 }
 
 func (opts *options) init(continueOnError bool) error {
@@ -70,6 +74,11 @@ func (opts *options) init(continueOnError bool) error {
 		sampler = nil
 		errs = append(errs, err)
 	}
+	sanitizedFieldNames, err := initialSanitizedFieldNamesRegexp()
+	if err != nil {
+		sanitizedFieldNames = defaultSanitizedFieldNames
+		errs = append(errs, err)
+	}
 	if len(errs) != 0 && !continueOnError {
 		return errs[0]
 	}
@@ -80,6 +89,7 @@ func (opts *options) init(continueOnError bool) error {
 	opts.maxTransactionQueueSize = maxTransactionQueueSize
 	opts.maxSpans = maxSpans
 	opts.sampler = sampler
+	opts.sanitizedFieldNames = sanitizedFieldNames
 	return nil
 }
 
@@ -120,6 +130,7 @@ type Tracer struct {
 	setContextSetter           chan stacktrace.ContextSetter
 	setLogger                  chan Logger
 	setProcessor               chan Processor
+	setSanitizedFieldNames     chan *regexp.Regexp
 	transactions               chan *Transaction
 	errors                     chan *Error
 
@@ -176,6 +187,7 @@ func newTracer(service *model.Service, opts options) *Tracer {
 		setContextSetter:           make(chan stacktrace.ContextSetter),
 		setLogger:                  make(chan Logger),
 		setProcessor:               make(chan Processor),
+		setSanitizedFieldNames:     make(chan *regexp.Regexp),
 		transactions:               make(chan *Transaction, transactionsChannelCap),
 		errors:                     make(chan *Error, errorsChannelCap),
 		maxSpans:                   opts.maxSpans,
@@ -184,6 +196,7 @@ func newTracer(service *model.Service, opts options) *Tracer {
 	go t.loop()
 	t.setFlushInterval <- opts.flushInterval
 	t.setMaxTransactionQueueSize <- opts.maxTransactionQueueSize
+	t.setSanitizedFieldNames <- opts.sanitizedFieldNames
 	t.setMaxErrorQueueSize <- defaultMaxErrorQueueSize
 	t.setPreContext <- defaultPreContext
 	t.setPostContext <- defaultPostContext
@@ -281,6 +294,28 @@ func (t *Tracer) SetProcessor(p ...Processor) {
 	case <-t.closing:
 	case <-t.closed:
 	}
+}
+
+// SetSanitizedFieldNames sets the patterns that will be used to match
+// cookie and form field names for sanitization. Fields matching any
+// of the the supplied patterns will have their values redacted. If
+// SetSanitizedFieldNames is called with no arguments, then no fields
+// will be redacted.
+func (t *Tracer) SetSanitizedFieldNames(patterns ...string) error {
+	var re *regexp.Regexp
+	if len(patterns) != 0 {
+		var err error
+		re, err = regexp.Compile(fmt.Sprintf("(?i:%s)", strings.Join(patterns, "|")))
+		if err != nil {
+			return err
+		}
+	}
+	select {
+	case t.setSanitizedFieldNames <- re:
+	case <-t.closing:
+	case <-t.closed:
+	}
+	return nil
 }
 
 // SetSampler sets the sampler the tracer. It is valid to pass nil,
@@ -398,6 +433,8 @@ func (t *Tracer) loop() {
 			continue
 		case sender.processor = <-t.setProcessor:
 			continue
+		case sender.sanitizedFieldNames = <-t.setSanitizedFieldNames:
+			continue
 		case e := <-errorsC:
 			errors = append(errors, e)
 		case tx := <-t.transactions:
@@ -487,6 +524,7 @@ type sender struct {
 	contextSetter           stacktrace.ContextSetter
 	preContext, postContext int
 	stats                   *TracerStats
+	sanitizedFieldNames     *regexp.Regexp
 }
 
 // sendTransactions attempts to send enqueued transactions to the APM server,
@@ -519,6 +557,9 @@ func (s *sender) sendTransactions(ctx context.Context, transactions []*Transacti
 		tx.setID()
 		if tx.Sampled() {
 			tx.model.Context = tx.Context.build()
+			if s.sanitizedFieldNames != nil && tx.model.Context != nil && tx.model.Context.Request != nil {
+				sanitizeRequest(tx.model.Context.Request, s.sanitizedFieldNames)
+			}
 		}
 		if s.processor != nil {
 			s.processor.ProcessTransaction(&tx.model)
