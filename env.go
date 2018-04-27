@@ -1,9 +1,12 @@
 package elasticapm
 
 import (
+	"fmt"
 	"math/rand"
 	"os"
+	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -14,10 +17,25 @@ const (
 	envMaxQueueSize          = "ELASTIC_APM_MAX_QUEUE_SIZE"
 	envMaxSpans              = "ELASTIC_APM_TRANSACTION_MAX_SPANS"
 	envTransactionSampleRate = "ELASTIC_APM_TRANSACTION_SAMPLE_RATE"
+	envSanitizeFieldNames    = "ELASTIC_APM_SANITIZE_FIELD_NAMES"
 
 	defaultFlushInterval           = 10 * time.Second
 	defaultMaxTransactionQueueSize = 500
 	defaultMaxSpans                = 500
+)
+
+var (
+	defaultSanitizedFieldNames = regexp.MustCompile(fmt.Sprintf("(?i:%s)", strings.Join([]string{
+		"password",
+		"passwd",
+		"pwd",
+		"secret",
+		".*key",
+		".*token",
+		".*session.*",
+		".*credit.*",
+		".*card.*",
+	}, "|")))
 )
 
 func initialFlushInterval() (time.Duration, error) {
@@ -84,4 +102,17 @@ func initialSampler() (Sampler, error) {
 	}
 	source := rand.NewSource(time.Now().Unix())
 	return NewRatioSampler(ratio, source), nil
+}
+
+func initialSanitizedFieldNamesRegexp() (*regexp.Regexp, error) {
+	value := os.Getenv(envSanitizeFieldNames)
+	if value == "" {
+		return defaultSanitizedFieldNames, nil
+	}
+	re, err := regexp.Compile(fmt.Sprintf("(?i:%s)", value))
+	if err != nil {
+		_, err = regexp.Compile(value)
+		return nil, errors.Wrapf(err, "invalid %s value", envSanitizeFieldNames)
+	}
+	return re, nil
 }

@@ -2,6 +2,8 @@ package elasticapm_test
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"testing"
@@ -11,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/apm-agent-go"
+	"github.com/elastic/apm-agent-go/contrib/apmhttp"
 	"github.com/elastic/apm-agent-go/model"
 	"github.com/elastic/apm-agent-go/transport/transporttest"
 )
@@ -89,6 +92,39 @@ func testTracerTransactionRateEnv(t *testing.T, envValue string, ratio float64) 
 		tx.Done(-1)
 	}
 	assert.InDelta(t, N*ratio, sampled, N*0.02) // allow 2% error
+}
+
+func TestTracerSanitizeFieldNamesEnvInvalid(t *testing.T) {
+	os.Setenv("ELASTIC_APM_SANITIZE_FIELD_NAMES", "oy(")
+	defer os.Unsetenv("ELASTIC_APM_SANITIZE_FIELD_NAMES")
+
+	_, err := elasticapm.NewTracer("tracer_testing", "")
+	assert.EqualError(t, err, "invalid ELASTIC_APM_SANITIZE_FIELD_NAMES value: error parsing regexp: missing closing ): `oy(`")
+}
+
+func TestTracerSanitizeFieldNamesEnv(t *testing.T) {
+	testTracerSanitizeFieldNamesEnv(t, "secRet", "[REDACTED]")
+	testTracerSanitizeFieldNamesEnv(t, "nada", "top")
+}
+
+func testTracerSanitizeFieldNamesEnv(t *testing.T, envValue, expect string) {
+	os.Setenv("ELASTIC_APM_SANITIZE_FIELD_NAMES", envValue)
+	defer os.Unsetenv("ELASTIC_APM_SANITIZE_FIELD_NAMES")
+
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "http://server.testing/", nil)
+	req.AddCookie(&http.Cookie{Name: "secret", Value: "top"})
+	h := &apmhttp.Handler{Handler: http.NotFoundHandler(), Tracer: tracer}
+	h.ServeHTTP(w, req)
+	tracer.Flush(nil)
+
+	tx := transport.Payloads()[0].Transactions()[0]
+	assert.Equal(t, tx.Context.Request.Cookies, model.Cookies{
+		{Name: "secret", Value: expect},
+	})
 }
 
 func TestTracerServiceNameEnvSanitizationSpecified(t *testing.T) {
