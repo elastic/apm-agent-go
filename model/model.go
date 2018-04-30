@@ -480,5 +480,5 @@ type ResponseHeaders struct {
 	ContentType string `json:"content-type,omitempty"`
 }
 
-// Timestamp is a timestamp, which is formatted as "YYYY-MM-DDTHH:mm:ss.sssZ".
+// Time is a timestamp, formatted as "YYYY-MM-DDTHH:mm:ss.sssZ".
 type Time time.Time

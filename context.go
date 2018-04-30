@@ -137,7 +137,7 @@ func (b *Context) SetHTTPRequest(req *http.Request) {
 	}
 }
 
-// SetHTTPResponse sets the HTTP response headers in the context.
+// SetHTTPResponseHeaders sets the HTTP response headers in the context.
 func (b *Context) SetHTTPResponseHeaders(h http.Header) {
 	b.responseHeaders.ContentType = h.Get("Content-Type")
 	if b.responseHeaders.ContentType != "" {
@@ -146,7 +146,7 @@ func (b *Context) SetHTTPResponseHeaders(h http.Header) {
 	}
 }
 
-// SetResponseResponseHeadersSent records whether or not response were sent.
+// SetHTTPResponseHeadersSent records whether or not response were sent.
 func (b *Context) SetHTTPResponseHeadersSent(headersSent bool) {
 	b.response.HeadersSent = &headersSent
 	b.model.Response = &b.response
