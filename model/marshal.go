@@ -3,6 +3,7 @@ package model
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 	"time"
@@ -327,15 +328,16 @@ func (b *RequestBody) UnmarshalJSON(data []byte) error {
 		b.Raw = v
 		return nil
 	case map[string]interface{}:
+		form := make(url.Values, len(v))
 		for k, v := range v {
 			switch v := v.(type) {
 			case string:
-				b.Form.Set(k, v)
+				form.Set(k, v)
 			case []interface{}:
 				for _, v := range v {
 					switch v := v.(type) {
 					case string:
-						b.Form.Add(k, v)
+						form.Add(k, v)
 					default:
 						return errors.Errorf("expected string, got %T", v)
 					}
@@ -344,6 +346,7 @@ func (b *RequestBody) UnmarshalJSON(data []byte) error {
 				return errors.Errorf("expected string or []string, got %T", v)
 			}
 		}
+		b.Form = form
 	default:
 		return errors.Errorf("expected string or map, got %T", v)
 	}

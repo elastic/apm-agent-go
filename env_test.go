@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/exec"
+	"strings"
 	"testing"
 	"time"
 
@@ -129,21 +130,19 @@ func testTracerSanitizeFieldNamesEnv(t *testing.T, envValue, expect string) {
 
 func TestTracerServiceNameEnvSanitizationSpecified(t *testing.T) {
 	testTracerServiceNameSanitization(
-		t, "TestTracerServiceNameEnvSanitizationSpecified",
-		"foo_bar", "ELASTIC_APM_SERVICE_NAME=foo!bar",
+		t, "foo_bar", "ELASTIC_APM_SERVICE_NAME=foo!bar",
 	)
 }
 
 func TestTracerServiceNameEnvSanitizationExecutableName(t *testing.T) {
 	testTracerServiceNameSanitization(
-		t, "TestTracerServiceNameEnvSanitizationExecutableName",
-		"apm-agent-go_test", // .test -> _test
+		t, "apm-agent-go_test", // .test -> _test
 	)
 }
 
-func testTracerServiceNameSanitization(t *testing.T, testName, sanitizedServiceName string, env ...string) {
+func testTracerServiceNameSanitization(t *testing.T, sanitizedServiceName string, env ...string) {
 	if os.Getenv("_INSIDE_TEST") != "1" {
-		cmd := exec.Command(os.Args[0], "-test.run=^"+testName+"$")
+		cmd := exec.Command(os.Args[0], "-test.run=^"+t.Name()+"$")
 		cmd.Env = append(cmd.Env, "_INSIDE_TEST=1")
 		cmd.Env = append(cmd.Env, env...)
 		err := cmd.Run()
@@ -168,4 +167,55 @@ func testTracerServiceNameSanitization(t *testing.T, testName, sanitizedServiceN
 	tx.Done(-1)
 	tracer.Flush(nil)
 	assert.True(t, called)
+}
+
+func TestTracerCaptureBodyEnv(t *testing.T) {
+	test := func(t *testing.T, envValue string) {
+		testTracerCaptureBodyEnv(t, envValue, true)
+	}
+	t.Run("all", func(t *testing.T) { test(t, "all") })
+	t.Run("transactions", func(t *testing.T) { test(t, "transactions") })
+}
+
+func TestTracerCaptureBodyEnvOff(t *testing.T) {
+	test := func(t *testing.T, envValue string) {
+		testTracerCaptureBodyEnv(t, envValue, false)
+	}
+	t.Run("unset", func(t *testing.T) { test(t, "") })
+	t.Run("off", func(t *testing.T) { test(t, "off") })
+	t.Run("invalid", func(t *testing.T) { test(t, "invalid") })
+}
+
+func testTracerCaptureBodyEnv(t *testing.T, envValue string, expectBody bool) {
+	if os.Getenv("_INSIDE_TEST") != "1" {
+		cmd := exec.Command(os.Args[0], "-test.run=^"+t.Name()+"$")
+		cmd.Env = append(cmd.Env, "_INSIDE_TEST=1")
+		cmd.Env = append(cmd.Env, "ELASTIC_APM_CAPTURE_BODY="+envValue)
+		if expectBody {
+			cmd.Env = append(cmd.Env, "_EXPECT_BODY=1")
+		}
+		err := cmd.Run()
+		assert.NoError(t, err)
+		return
+	}
+
+	var transport transporttest.RecorderTransport
+	tracer := elasticapm.DefaultTracer
+	tracer.Transport = &transport
+
+	req, _ := http.NewRequest("GET", "/", strings.NewReader("foo_bar"))
+	body := tracer.CaptureHTTPRequestBody(req)
+	tx := tracer.StartTransaction("name", "type")
+	tx.Context.SetHTTPRequest(req)
+	tx.Context.SetHTTPRequestBody(body)
+	tx.Done(-1)
+	tracer.Flush(nil)
+
+	out := transport.Payloads()[0].Transactions()[0]
+	if os.Getenv("_EXPECT_BODY") == "1" {
+		assert.NotNil(t, out.Context.Request.Body)
+		assert.Equal(t, "foo_bar", out.Context.Request.Body.Raw)
+	} else {
+		assert.Nil(t, out.Context.Request.Body)
+	}
 }

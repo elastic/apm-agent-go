@@ -61,19 +61,19 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	req = req.WithContext(ctx)
 	defer tx.Done(-1)
 
-	// TODO(axw) optionally request capture body
 	// TODO(axw) optimise allocations
 
 	finished := false
+	body := t.CaptureHTTPRequestBody(req)
 	w, resp := WrapResponseWriter(w)
 	defer func() {
 		if h.Recovery != nil {
 			if v := recover(); v != nil {
-				h.Recovery(w, req, tx, v)
+				h.Recovery(w, req, body, tx, v)
 				finished = true
 			}
 		}
-		SetTransactionContext(tx, w, req, resp, finished)
+		SetTransactionContext(tx, w, req, resp, body, finished)
 	}()
 	h.Handler.ServeHTTP(w, req)
 	finished = true
@@ -86,12 +86,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 // The finished property indicates that the response was not completely
 // written, e.g. because the handler panicked and we did not recover the
 // panic.
-func SetTransactionContext(tx *elasticapm.Transaction, w http.ResponseWriter, req *http.Request, resp *Response, finished bool) {
+func SetTransactionContext(tx *elasticapm.Transaction, w http.ResponseWriter, req *http.Request, resp *Response, body *elasticapm.BodyCapturer, finished bool) {
 	tx.Result = StatusCodeString(resp.StatusCode)
 	if !tx.Sampled() {
 		return
 	}
 	tx.Context.SetHTTPRequest(req)
+	tx.Context.SetHTTPRequestBody(body)
 	tx.Context.SetHTTPStatusCode(resp.StatusCode)
 	tx.Context.SetHTTPResponseHeaders(w.Header())
 

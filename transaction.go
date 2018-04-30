@@ -21,7 +21,12 @@ func (t *Tracer) StartTransaction(name, transactionType string) *Transaction {
 func (t *Tracer) newTransaction(name, transactionType string) *Transaction {
 	tx, _ := t.transactionPool.Get().(*Transaction)
 	if tx == nil {
-		tx = &Transaction{tracer: t}
+		tx = &Transaction{
+			tracer: t,
+			Context: Context{
+				captureBodyMask: CaptureBodyTransactions,
+			},
+		}
 	}
 	tx.model.Name = name
 	tx.model.Type = transactionType

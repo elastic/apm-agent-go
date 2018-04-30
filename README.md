@@ -60,6 +60,7 @@ ELASTIC\_APM\_SERVICE\_NAME             |           | Service name, e.g. "my-ser
 ELASTIC\_APM\_SERVICE\_VERSION          |           | Service version, e.g. "1.0".
 ELASTIC\_APM\_HOSTNAME                  |           | Override for the hostname.
 ELASTIC\_APM\_SANITIZE\_FIELD\_NAMES    |[(1)](#(1))| A pattern to match names of cookies and form fields that should be redacted.
+ELASTIC\_APM\_CAPTURE\_BODY             | off       | Capture HTTP request bodies. Possible values: errors, transactions, all, off.
 
 <a name="(1)">(1)</a> ELASTIC\_APM\_SANITIZE\_FIELD\_NAMES
 

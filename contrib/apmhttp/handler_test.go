@@ -2,16 +2,20 @@ package apmhttp_test
 
 import (
 	"crypto/tls"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/http2"
 
+	"github.com/elastic/apm-agent-go"
 	"github.com/elastic/apm-agent-go/contrib/apmhttp"
 	"github.com/elastic/apm-agent-go/model"
 	"github.com/elastic/apm-agent-go/transport/transporttest"
@@ -146,6 +150,86 @@ func TestHandlerHTTP2(t *testing.T) {
 			Finished:   &true_,
 		},
 	}, transaction.Context)
+}
+
+func TestHandlerCaptureBodyRaw(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	tracer.SetCaptureBody(elasticapm.CaptureBodyTransactions)
+	h := &apmhttp.Handler{
+		Handler: http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}),
+		Tracer:  tracer,
+	}
+	tx := testPostTransaction(h, transport, strings.NewReader("foo"))
+	assert.Equal(t, &model.RequestBody{Raw: "foo"}, tx.Context.Request.Body)
+}
+
+func TestHandlerCaptureBodyForm(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	tracer.SetCaptureBody(elasticapm.CaptureBodyTransactions)
+	h := &apmhttp.Handler{
+		Handler: http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
+			if err := req.ParseForm(); err != nil {
+				panic(err)
+			}
+		}),
+		Tracer: tracer,
+	}
+	tx := testPostTransaction(h, transport, strings.NewReader("foo=bar&foo=baz"))
+	assert.Equal(t, &model.RequestBody{
+		Form: url.Values{
+			"foo": []string{"bar", "baz"},
+		},
+	}, tx.Context.Request.Body)
+}
+
+func TestHandlerCaptureBodyError(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	tracer.SetCaptureBody(elasticapm.CaptureBodyAll)
+	h := &apmhttp.Handler{
+		Handler:  http.HandlerFunc(panicHandler),
+		Recovery: apmhttp.NewTraceRecovery(tracer),
+		Tracer:   tracer,
+	}
+	e := testPostError(h, transport, strings.NewReader("foo"))
+	assert.Equal(t, &model.RequestBody{Raw: "foo"}, e.Context.Request.Body)
+}
+
+func TestHandlerCaptureBodyErrorIgnored(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	tracer.SetCaptureBody(elasticapm.CaptureBodyTransactions)
+	h := &apmhttp.Handler{
+		Handler:  http.HandlerFunc(panicHandler),
+		Recovery: apmhttp.NewTraceRecovery(tracer),
+		Tracer:   tracer,
+	}
+	e := testPostError(h, transport, strings.NewReader("foo"))
+	assert.Nil(t, e.Context.Request.Body) // only capturing for transactions
+}
+
+func testPostTransaction(h *apmhttp.Handler, transport *transporttest.RecorderTransport, body io.Reader) *model.Transaction {
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("POST", "http://server.testing/foo", body)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	h.ServeHTTP(w, req)
+	h.Tracer.Flush(nil)
+	return transport.Payloads()[0].Transactions()[0]
+}
+
+func testPostError(h *apmhttp.Handler, transport *transporttest.RecorderTransport, body io.Reader) *model.Error {
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("POST", "http://server.testing/foo", body)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	h.ServeHTTP(w, req)
+	h.Tracer.Flush(nil)
+	return transport.Payloads()[0].Errors()[0]
 }
 
 func TestHandlerRecovery(t *testing.T) {

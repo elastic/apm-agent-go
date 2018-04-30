@@ -18,10 +18,12 @@ const (
 	envMaxSpans              = "ELASTIC_APM_TRANSACTION_MAX_SPANS"
 	envTransactionSampleRate = "ELASTIC_APM_TRANSACTION_SAMPLE_RATE"
 	envSanitizeFieldNames    = "ELASTIC_APM_SANITIZE_FIELD_NAMES"
+	envCaptureBody           = "ELASTIC_APM_CAPTURE_BODY"
 
 	defaultFlushInterval           = 10 * time.Second
 	defaultMaxTransactionQueueSize = 500
 	defaultMaxSpans                = 500
+	defaultCaptureBody             = CaptureBodyOff
 )
 
 var (
@@ -115,4 +117,22 @@ func initialSanitizedFieldNamesRegexp() (*regexp.Regexp, error) {
 		return nil, errors.Wrapf(err, "invalid %s value", envSanitizeFieldNames)
 	}
 	return re, nil
+}
+
+func initialCaptureBody() (CaptureBodyMode, error) {
+	value := os.Getenv(envCaptureBody)
+	if value == "" {
+		return defaultCaptureBody, nil
+	}
+	switch strings.TrimSpace(strings.ToLower(value)) {
+	case "all":
+		return CaptureBodyAll, nil
+	case "errors":
+		return CaptureBodyErrors, nil
+	case "transactions":
+		return CaptureBodyTransactions, nil
+	case "off":
+		return CaptureBodyOff, nil
+	}
+	return -1, errors.Errorf("invalid %s value %q", envCaptureBody, value)
 }

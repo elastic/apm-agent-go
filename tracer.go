@@ -50,6 +50,7 @@ type options struct {
 	maxSpans                int
 	sampler                 Sampler
 	sanitizedFieldNames     *regexp.Regexp
+	captureBody             CaptureBodyMode
 }
 
 func (opts *options) init(continueOnError bool) error {
@@ -59,37 +60,50 @@ func (opts *options) init(continueOnError bool) error {
 		flushInterval = defaultFlushInterval
 		errs = append(errs, err)
 	}
+
 	maxTransactionQueueSize, err := initialMaxTransactionQueueSize()
 	if err != nil {
 		maxTransactionQueueSize = defaultMaxTransactionQueueSize
 		errs = append(errs, err)
 	}
+
 	maxSpans, err := initialMaxSpans()
 	if err != nil {
 		maxSpans = defaultMaxSpans
 		errs = append(errs, err)
 	}
+
 	sampler, err := initialSampler()
 	if err != nil {
 		sampler = nil
 		errs = append(errs, err)
 	}
+
 	sanitizedFieldNames, err := initialSanitizedFieldNamesRegexp()
 	if err != nil {
 		sanitizedFieldNames = defaultSanitizedFieldNames
 		errs = append(errs, err)
 	}
+
+	captureBody, err := initialCaptureBody()
+	if err != nil {
+		captureBody = CaptureBodyOff
+		errs = append(errs, err)
+	}
+
 	if len(errs) != 0 && !continueOnError {
 		return errs[0]
 	}
 	for _, err := range errs {
 		log.Printf("[elasticapm]: %s", err)
 	}
+
 	opts.flushInterval = flushInterval
 	opts.maxTransactionQueueSize = maxTransactionQueueSize
 	opts.maxSpans = maxSpans
 	opts.sampler = sampler
 	opts.sanitizedFieldNames = sanitizedFieldNames
+	opts.captureBody = captureBody
 	return nil
 }
 
@@ -143,6 +157,9 @@ type Tracer struct {
 	samplerMu sync.RWMutex
 	sampler   Sampler
 
+	captureBodyMu sync.RWMutex
+	captureBody   CaptureBodyMode
+
 	errorPool       sync.Pool
 	spanPool        sync.Pool
 	transactionPool sync.Pool
@@ -192,6 +209,7 @@ func newTracer(service *model.Service, opts options) *Tracer {
 		errors:                     make(chan *Error, errorsChannelCap),
 		maxSpans:                   opts.maxSpans,
 		sampler:                    opts.sampler,
+		captureBody:                opts.captureBody,
 	}
 	go t.loop()
 	t.setFlushInterval <- opts.flushInterval
@@ -333,6 +351,13 @@ func (t *Tracer) SetMaxSpans(n int) {
 	t.maxSpansMu.Lock()
 	t.maxSpans = n
 	t.maxSpansMu.Unlock()
+}
+
+// SetCaptureBody sets the HTTP request body capture mode.
+func (t *Tracer) SetCaptureBody(mode CaptureBodyMode) {
+	t.captureBodyMu.Lock()
+	t.captureBody = mode
+	t.captureBodyMu.Unlock()
 }
 
 // Stats returns the current TracerStats. This will return the most
