@@ -57,11 +57,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		name = RequestName(req)
 	}
 	tx := t.StartTransaction(name, "request")
+	if tx.Ignored() {
+		tx.Discard()
+		h.Handler.ServeHTTP(w, req)
+		return
+	}
 	ctx := elasticapm.ContextWithTransaction(req.Context(), tx)
 	req = req.WithContext(ctx)
 	defer tx.Done(-1)
-
-	// TODO(axw) optimise allocations
 
 	finished := false
 	body := t.CaptureHTTPRequestBody(req)

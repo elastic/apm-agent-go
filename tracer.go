@@ -51,6 +51,7 @@ type options struct {
 	sampler                 Sampler
 	sanitizedFieldNames     *regexp.Regexp
 	captureBody             CaptureBodyMode
+	transactionIgnoreNames  *regexp.Regexp
 }
 
 func (opts *options) init(continueOnError bool) error {
@@ -91,6 +92,12 @@ func (opts *options) init(continueOnError bool) error {
 		errs = append(errs, err)
 	}
 
+	transactionIgnoreNames, err := initialTransactionIgnoreNamesRegexp()
+	if err != nil {
+		transactionIgnoreNames = nil
+		errs = append(errs, err)
+	}
+
 	if len(errs) != 0 && !continueOnError {
 		return errs[0]
 	}
@@ -104,6 +111,7 @@ func (opts *options) init(continueOnError bool) error {
 	opts.sampler = sampler
 	opts.sanitizedFieldNames = sanitizedFieldNames
 	opts.captureBody = captureBody
+	opts.transactionIgnoreNames = transactionIgnoreNames
 	return nil
 }
 
@@ -150,6 +158,9 @@ type Tracer struct {
 
 	statsMu sync.Mutex
 	stats   TracerStats
+
+	transactionIgnoreNamesMu sync.RWMutex
+	transactionIgnoreNames   *regexp.Regexp
 
 	maxSpansMu sync.RWMutex
 	maxSpans   int
@@ -210,6 +221,7 @@ func newTracer(service *model.Service, opts options) *Tracer {
 		maxSpans:                   opts.maxSpans,
 		sampler:                    opts.sampler,
 		captureBody:                opts.captureBody,
+		transactionIgnoreNames:     opts.transactionIgnoreNames,
 	}
 	go t.loop()
 	t.setFlushInterval <- opts.flushInterval
@@ -333,6 +345,24 @@ func (t *Tracer) SetSanitizedFieldNames(patterns ...string) error {
 	case <-t.closing:
 	case <-t.closed:
 	}
+	return nil
+}
+
+// SetTransactionIgnoreNames sets the patterns that will be used to match
+// transaction names that should be ignored. If SetTransactionIgnoreNames
+// is called with no arguments, then no transactions will be ignored.
+func (t *Tracer) SetTransactionIgnoreNames(patterns ...string) error {
+	var re *regexp.Regexp
+	if len(patterns) != 0 {
+		var err error
+		re, err = regexp.Compile(fmt.Sprintf("(?i:%s)", strings.Join(patterns, "|")))
+		if err != nil {
+			return err
+		}
+	}
+	t.transactionIgnoreNamesMu.Lock()
+	t.transactionIgnoreNames = re
+	t.transactionIgnoreNamesMu.Unlock()
 	return nil
 }
 
