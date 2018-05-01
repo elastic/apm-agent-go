@@ -33,7 +33,7 @@ func TestEchoMiddleware(t *testing.T) {
 
 	assert.Equal(t, "GET /hello/:name", transaction.Name)
 	assert.Equal(t, "request", transaction.Type)
-	assert.Equal(t, "200", transaction.Result)
+	assert.Equal(t, "418", transaction.Result)
 
 	true_ := true
 	assert.Equal(t, &model.Context{
@@ -54,7 +54,7 @@ func TestEchoMiddleware(t *testing.T) {
 			},
 		},
 		Response: &model.Response{
-			StatusCode:  200,
+			StatusCode:  418,
 			HeadersSent: &true_,
 			Headers: &model.ResponseHeaders{
 				ContentType: "text/plain; charset=UTF-8",
@@ -103,7 +103,7 @@ func assertError(t *testing.T, payloads transporttest.Payloads, culprit, message
 }
 
 func handleHello(c echo.Context) error {
-	return c.String(http.StatusOK, fmt.Sprintf("Hello, %s!", c.Param("name")))
+	return c.String(http.StatusTeapot, fmt.Sprintf("Hello, %s!", c.Param("name")))
 }
 
 func handlePanic(c echo.Context) error {

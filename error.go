@@ -115,7 +115,12 @@ func (t *Tracer) NewErrorLog(r ErrorLogRecord) *Error {
 func (t *Tracer) newError() *Error {
 	e, _ := t.errorPool.Get().(*Error)
 	if e == nil {
-		e = &Error{tracer: t}
+		e = &Error{
+			tracer: t,
+			Context: Context{
+				captureBodyMask: CaptureBodyErrors,
+			},
+		}
 	}
 	e.Timestamp = time.Now()
 	return e

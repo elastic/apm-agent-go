@@ -58,11 +58,13 @@ func (m *middleware) handle(c echo.Context) error {
 	req = req.WithContext(ctx)
 	c.SetRequest(req)
 	defer tx.Done(-1)
+	body := m.tracer.CaptureHTTPRequestBody(req)
 
 	defer func() {
 		if v := recover(); v != nil {
 			e := m.tracer.Recovered(v, tx)
 			e.Context.SetHTTPRequest(req)
+			e.Context.SetHTTPRequestBody(body)
 			err, ok := v.(error)
 			if !ok {
 				err = errors.New(fmt.Sprint(v))
@@ -73,11 +75,11 @@ func (m *middleware) handle(c echo.Context) error {
 	}()
 
 	resp := c.Response()
-	tx.Result = apmhttp.StatusCodeString(resp.Status)
 	handlerErr := m.handler(c)
+	tx.Result = apmhttp.StatusCodeString(resp.Status)
 	if tx.Sampled() {
-		// TODO(axw) capture request body.
 		tx.Context.SetHTTPRequest(req)
+		tx.Context.SetHTTPRequestBody(body)
 		tx.Context.SetHTTPStatusCode(resp.Status)
 		tx.Context.SetHTTPResponseHeaders(resp.Header())
 		tx.Context.SetHTTPResponseHeadersSent(resp.Committed)
@@ -85,6 +87,7 @@ func (m *middleware) handle(c echo.Context) error {
 	if handlerErr != nil {
 		e := m.tracer.NewError(handlerErr)
 		e.Context.SetHTTPRequest(req)
+		e.Context.SetHTTPRequestBody(body)
 		e.Transaction = tx
 		e.Handled = true
 		e.Send()

@@ -33,15 +33,16 @@ func WrapHandle(
 		defer tx.Done(-1)
 
 		finished := false
+		body := t.CaptureHTTPRequestBody(req)
 		w, resp := apmhttp.WrapResponseWriter(w)
 		defer func() {
 			if recovery != nil {
 				if v := recover(); v != nil {
-					recovery(w, req, tx, v)
+					recovery(w, req, body, tx, v)
 					finished = true
 				}
 			}
-			apmhttp.SetTransactionContext(tx, w, req, resp, finished)
+			apmhttp.SetTransactionContext(tx, w, req, resp, body, finished)
 		}()
 		h(w, req, p)
 		finished = true

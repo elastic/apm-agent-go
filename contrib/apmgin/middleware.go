@@ -87,18 +87,21 @@ func (m *middleware) handle(c *gin.Context) {
 	c.Request = c.Request.WithContext(ctx)
 	defer tx.Done(-1)
 
+	body := m.tracer.CaptureHTTPRequestBody(c.Request)
 	ginContext := ginContext{Handler: handlerName}
 	defer func() {
 		if v := recover(); v != nil {
 			c.AbortWithStatus(http.StatusInternalServerError)
 			e := m.tracer.Recovered(v, tx)
 			e.Context.SetHTTPRequest(c.Request)
+			e.Context.SetHTTPRequestBody(body)
 			e.Send()
 		}
 		tx.Result = apmhttp.StatusCodeString(c.Writer.Status())
 
 		if tx.Sampled() {
 			tx.Context.SetHTTPRequest(c.Request)
+			tx.Context.SetHTTPRequestBody(body)
 			tx.Context.SetHTTPStatusCode(c.Writer.Status())
 			tx.Context.SetHTTPResponseHeaders(c.Writer.Header())
 			tx.Context.SetHTTPResponseHeadersSent(c.Writer.Written())
@@ -109,6 +112,7 @@ func (m *middleware) handle(c *gin.Context) {
 		for _, err := range c.Errors {
 			e := m.tracer.NewError(err.Err)
 			e.Context.SetHTTPRequest(c.Request)
+			e.Context.SetHTTPRequestBody(body)
 			e.Context.SetCustom("gin", ginContext)
 			e.Transaction = tx
 			e.Handled = true
