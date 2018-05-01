@@ -335,3 +335,19 @@ func TestTracerServiceNameValidation(t *testing.T) {
 	_, err := elasticapm.NewTracer("wot!", "")
 	assert.EqualError(t, err, `invalid service name "wot!": character '!' is not in the allowed set (a-zA-Z0-9 _-)`)
 }
+
+func TestTracerTransactionIgnoreNames(t *testing.T) {
+	tracer, _ := elasticapm.NewTracer("tracer_testing", "")
+	defer tracer.Close()
+
+	tracer.SetTransactionIgnoreNames("\\bignored")
+
+	tx := tracer.StartTransaction("iGnoReD", "type") // case-insensitive
+	assert.True(t, tx.Ignored())
+	assert.False(t, tx.Sampled()) // ignored => !sampled
+	tx.Discard()
+
+	tx = tracer.StartTransaction("not_ignored", "type")
+	assert.False(t, tx.Ignored())
+	tx.Discard()
+}

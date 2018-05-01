@@ -28,6 +28,12 @@ func WrapHandle(
 	}
 	return func(w http.ResponseWriter, req *http.Request, p httprouter.Params) {
 		tx := t.StartTransaction(req.Method+" "+route, "request")
+		if tx.Ignored() {
+			tx.Discard()
+			h(w, req, p)
+			return
+		}
+
 		ctx := elasticapm.ContextWithTransaction(req.Context(), tx)
 		req = req.WithContext(ctx)
 		defer tx.Done(-1)

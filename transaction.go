@@ -31,6 +31,14 @@ func (t *Tracer) newTransaction(name, transactionType string) *Transaction {
 	tx.model.Name = name
 	tx.model.Type = transactionType
 
+	t.transactionIgnoreNamesMu.RLock()
+	transactionIgnoreNames := t.transactionIgnoreNames
+	t.transactionIgnoreNamesMu.RUnlock()
+	if transactionIgnoreNames != nil && transactionIgnoreNames.MatchString(name) {
+		tx.ignored = true
+		return tx
+	}
+
 	// Take a snapshot of the max spans config to ensure
 	// that once the maximum is reached, all future span
 	// creations are dropped.
@@ -65,6 +73,7 @@ type Transaction struct {
 	Result    string
 
 	tracer   *Tracer
+	ignored  bool
 	sampled  bool
 	maxSpans int
 
@@ -114,6 +123,22 @@ func (tx *Transaction) reset() {
 	tx.Context.reset()
 }
 
+// Discard discards a previously started transaction. The Transaction
+// must not be used after this.
+func (tx *Transaction) Discard() {
+	tx.reset()
+	tx.tracer.transactionPool.Put(tx)
+}
+
+// Ignored reports whether or not the transaction is ignored.
+//
+// Transactions may be ignored based on the configuration of
+// the tracer. Ignored also implies that the transaction is not
+// sampled.
+func (tx *Transaction) Ignored() bool {
+	return tx.ignored
+}
+
 // Sampled reports whether or not the transaction is sampled.
 func (tx *Transaction) Sampled() bool {
 	return tx.sampled
@@ -126,6 +151,10 @@ func (tx *Transaction) Sampled() bool {
 // If the duration specified is negative, then Done will set the
 // duration to "time.Since(tx.Timestamp)" instead.
 func (tx *Transaction) Done(d time.Duration) {
+	if tx.ignored {
+		tx.Discard()
+		return
+	}
 	if d < 0 {
 		d = time.Since(tx.Timestamp)
 	}
