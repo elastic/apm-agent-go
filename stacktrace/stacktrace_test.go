@@ -60,6 +60,11 @@ func TestSplitFunctionNameUnescape(t *testing.T) {
 	module, function := stacktrace.SplitFunctionName("github.com/elastic/apm-agent%2ego.funcName")
 	assertModule(t, module, "github.com/elastic/apm-agent.go")
 	assertFunction(t, function, "funcName")
+
+	// malformed escape sequences are left alone
+	module, function = stacktrace.SplitFunctionName("github.com/elastic/apm-agent%.funcName")
+	assertModule(t, module, "github.com/elastic/apm-agent%")
+	assertFunction(t, function, "funcName")
 }
 
 func assertModule(t *testing.T, got, expect string) {

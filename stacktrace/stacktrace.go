@@ -122,7 +122,7 @@ func unescape(s string) string {
 	bytes := make([]byte, 0, len(s)-2*n)
 	for i := 0; i < len(s); i++ {
 		b := s[i]
-		if b == '%' {
+		if b == '%' && i+2 < len(s) {
 			b = fromhex(s[i+1])<<4 | fromhex(s[i+2])
 			i += 2
 		}
