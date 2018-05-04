@@ -176,7 +176,7 @@ func (v *URL) marshalFullURL(w *fastjson.Writer, schemeBegin, schemeEnd int) boo
 	}
 	if n := w.Size() - before; n > 1024 {
 		// Truncate the full URL to 1024 bytes.
-		w.Rewind(w.Size() - n - 1024)
+		w.Rewind(w.Size() - n + 1024)
 	}
 	w.RawByte('"')
 	return true
@@ -278,6 +278,37 @@ func (c *ExceptionCode) UnmarshalJSON(data []byte) error {
 // isZero is used by fastjson to implement omitempty.
 func (c *ExceptionCode) isZero() bool {
 	return c.String == "" && c.Number == 0
+}
+
+// MarshalFastJSON writes the JSON representation of c to w.
+func (u *UserID) MarshalFastJSON(w *fastjson.Writer) {
+	if u.String != "" {
+		w.String(u.String)
+		return
+	}
+	w.Float64(u.Number)
+}
+
+// UnmarshalJSON unmarshals the JSON data into c.
+func (u *UserID) UnmarshalJSON(data []byte) error {
+	var v interface{}
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	switch v := v.(type) {
+	case string:
+		u.String = v
+	case float64:
+		u.Number = v
+	default:
+		return errors.Errorf("expected string or number, got %T", v)
+	}
+	return nil
+}
+
+// isZero is used by fastjson to implement omitempty.
+func (u *UserID) isZero() bool {
+	return u.String == "" && u.Number == 0
 }
 
 // MarshalFastJSON writes the JSON representation of b to w.

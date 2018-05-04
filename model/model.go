@@ -236,10 +236,16 @@ type User struct {
 
 	// ID identifies the user, e.g. a primary key. This may be
 	// a string or number.
-	ID interface{} `json:"id,omitempty"`
+	ID UserID `json:"id,omitempty"`
 
 	// Email holds the email address of the user.
 	Email string `json:"email,omitempty"`
+}
+
+// UserID represents a user ID as either a number or a string.
+type UserID struct {
+	String string
+	Number float64
 }
 
 // Error represents an error occurring in the service.
