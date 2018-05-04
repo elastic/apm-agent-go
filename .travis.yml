@@ -17,6 +17,7 @@ matrix:
 before_install:
   - go get -v golang.org/x/tools/cmd/goimports
   - go get -v golang.org/x/lint/golint
+  - go get -d github.com/elastic/apm-server || true
 
 script:
   - make install precheck coverage.txt

@@ -1,22 +1,22 @@
 package elasticapm_test
 
 import (
+	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
+	"go/build"
 	"net/http"
+	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/santhosh-tekuri/jsonschema"
 	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/apm-agent-go"
 	"github.com/elastic/apm-agent-go/internal/fastjson"
 	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-server/processor"
-	error_processor "github.com/elastic/apm-server/processor/error"
-	transaction_processor "github.com/elastic/apm-server/processor/transaction"
 )
 
 func TestValidateServiceName(t *testing.T) {
@@ -213,46 +213,61 @@ func validatePayloadMetadata(t *testing.T, f func(tracer *elasticapm.Tracer)) {
 	})
 }
 
+var (
+	serverPkg         *build.Package
+	serverPkgErr      error
+	transactionSchema *jsonschema.Schema
+	errorSchema       *jsonschema.Schema
+)
+
 func validatePayloads(t *testing.T, f func(tracer *elasticapm.Tracer)) {
+	if serverPkg == nil && serverPkgErr == nil {
+		serverPkg, serverPkgErr = build.Default.Import("github.com/elastic/apm-server", "", build.FindOnly)
+	}
+	if serverPkgErr != nil {
+		t.Logf("couldn't find github.com/elastic/apm-server: %s", serverPkgErr)
+		t.SkipNow()
+	} else if transactionSchema == nil {
+		var err error
+		compiler := jsonschema.NewCompiler()
+		specDir := path.Join(filepath.ToSlash(serverPkg.Dir), "docs/spec")
+		transactionSchema, err = compiler.Compile("file://" + path.Join(specDir, "transactions/payload.json"))
+		require.NoError(t, err)
+		errorSchema, err = compiler.Compile("file://" + path.Join(specDir, "errors/payload.json"))
+		require.NoError(t, err)
+	}
 	tracer, _ := elasticapm.NewTracer("tracer_testing", "")
 	defer tracer.Close()
 	tracer.Service.Name = "x"
 	tracer.Service.Version = "x"
 	tracer.Service.Environment = "x"
 	tracer.Transport = &validatingTransport{
-		t:  t,
-		tp: transaction_processor.NewProcessor(),
-		ep: error_processor.NewProcessor(),
+		t: t,
 	}
 	f(tracer)
 	tracer.Flush(nil)
 }
 
 type validatingTransport struct {
-	t  *testing.T
-	tp processor.Processor
-	ep processor.Processor
-	w  fastjson.Writer
+	t *testing.T
+	w fastjson.Writer
 }
 
 func (t *validatingTransport) SendTransactions(ctx context.Context, p *model.TransactionsPayload) error {
-	t.validate(p, t.tp)
+	t.validate(p, transactionSchema)
 	return nil
 }
 
 func (t *validatingTransport) SendErrors(ctx context.Context, p *model.ErrorsPayload) error {
-	t.validate(p, t.ep)
+	t.validate(p, errorSchema)
 	return nil
 }
 
-func (t *validatingTransport) validate(payload fastjson.Marshaler, processor processor.Processor) {
+func (t *validatingTransport) validate(payload fastjson.Marshaler, schema *jsonschema.Schema) {
 	t.w.Reset()
 	payload.MarshalFastJSON(&t.w)
-	raw := make(map[string]interface{})
-	err := json.Unmarshal(t.w.Bytes(), &raw)
+	err := schema.Validate(bytes.NewReader(t.w.Bytes()))
 	require.NoError(t.t, err)
-	err = processor.Validate(raw)
-	assert.NoError(t.t, err)
 }
 
 type testError struct {
