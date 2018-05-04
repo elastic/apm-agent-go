@@ -5,11 +5,9 @@ import (
 	"net"
 	"net/rpc"
 	"os"
-	"strings"
 	"unicode/utf8"
 
 	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/model"
 	"github.com/elastic/apm-agent-go/stacktrace"
 
 	"github.com/aws/aws-lambda-go/lambda/messages"
@@ -43,15 +41,6 @@ func init() {
 	lambdaContext.FunctionVersion = lambdacontext.FunctionVersion
 	lambdaContext.MemoryLimit = lambdacontext.MemoryLimitInMB
 	lambdaContext.Region = os.Getenv("AWS_REGION")
-
-	if elasticapm.DefaultTracer.Service.Framework == nil {
-		executionEnv := os.Getenv("AWS_EXECUTION_ENV")
-		version := strings.TrimPrefix(executionEnv, "AWS_Lambda_")
-		elasticapm.DefaultTracer.Service.Framework = &model.Framework{
-			Name:    "AWS Lambda",
-			Version: version,
-		}
-	}
 }
 
 // Function is type exposed via net/rpc, to match the signature implemented

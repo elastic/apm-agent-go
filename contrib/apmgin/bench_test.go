@@ -51,7 +51,6 @@ func newTracer() *elasticapm.Tracer {
 	if err != nil {
 		panic(err)
 	}
-	tracer.Service.Framework = &apmgin.Framework
 
 	httpTransport, err := transport.NewHTTPTransport("http://testing.invalid:8200", "")
 	if err != nil {
