@@ -33,7 +33,7 @@ func TestEchoMiddleware(t *testing.T) {
 
 	assert.Equal(t, "GET /hello/:name", transaction.Name)
 	assert.Equal(t, "request", transaction.Type)
-	assert.Equal(t, "418", transaction.Result)
+	assert.Equal(t, "HTTP 4xx", transaction.Result)
 
 	true_ := true
 	assert.Equal(t, &model.Context{

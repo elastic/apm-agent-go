@@ -90,7 +90,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 // written, e.g. because the handler panicked and we did not recover the
 // panic.
 func SetTransactionContext(tx *elasticapm.Transaction, w http.ResponseWriter, req *http.Request, resp *Response, body *elasticapm.BodyCapturer, finished bool) {
-	tx.Result = StatusCodeString(resp.StatusCode)
+	tx.Result = StatusCodeResult(resp.StatusCode)
 	if !tx.Sampled() {
 		return
 	}

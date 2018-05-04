@@ -62,7 +62,7 @@ func (m *middleware) handle(c echo.Context) error {
 
 	resp := c.Response()
 	handlerErr := m.handler(c)
-	tx.Result = apmhttp.StatusCodeString(resp.Status)
+	tx.Result = apmhttp.StatusCodeResult(resp.Status)
 	if tx.Sampled() {
 		tx.Context.SetHTTPRequest(req)
 		tx.Context.SetHTTPRequestBody(body)
