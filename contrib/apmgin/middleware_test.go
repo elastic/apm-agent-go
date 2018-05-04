@@ -38,7 +38,7 @@ func TestMiddleware(t *testing.T) {
 	transaction := transactions[0]
 	assert.Equal(t, "GET /hello/:name", transaction.Name)
 	assert.Equal(t, "request", transaction.Type)
-	assert.Equal(t, "200", transaction.Result)
+	assert.Equal(t, "HTTP 2xx", transaction.Result)
 
 	true_ := true
 	assert.Equal(t, &model.Context{

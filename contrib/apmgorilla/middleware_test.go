@@ -32,7 +32,7 @@ func TestMuxMiddleware(t *testing.T) {
 
 	assert.Equal(t, "GET /prefix/articles/{category}/{id}", transaction.Name)
 	assert.Equal(t, "request", transaction.Type)
-	assert.Equal(t, "200", transaction.Result)
+	assert.Equal(t, "HTTP 2xx", transaction.Result)
 
 	true_ := true
 	assert.Equal(t, &model.Context{

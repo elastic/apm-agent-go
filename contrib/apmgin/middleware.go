@@ -87,7 +87,7 @@ func (m *middleware) handle(c *gin.Context) {
 			e.Context.SetHTTPRequestBody(body)
 			e.Send()
 		}
-		tx.Result = apmhttp.StatusCodeString(c.Writer.Status())
+		tx.Result = apmhttp.StatusCodeResult(c.Writer.Status())
 
 		if tx.Sampled() {
 			tx.Context.SetHTTPRequest(c.Request)
