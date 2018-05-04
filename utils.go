@@ -2,7 +2,6 @@ package elasticapm
 
 import (
 	"os"
-	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -14,8 +13,6 @@ import (
 
 var (
 	currentProcess model.Process
-	envFramework   *model.Framework
-	envService     model.Service
 	goAgent        = model.Agent{Name: "go", Version: AgentVersion}
 	goLanguage     = model.Language{Name: "go", Version: runtime.Version()}
 	goRuntime      = model.Runtime{Name: runtime.Compiler, Version: runtime.Version()}
@@ -25,20 +22,13 @@ var (
 )
 
 const (
-	envEnvironment      = "ELASTIC_APM_ENVIRONMENT"
-	envFrameworkName    = "ELASTIC_APM_FRAMEWORK_NAME"
-	envFrameworkVersion = "ELASTIC_APM_FRAMEWORK_VERSION"
-	envHostname         = "ELASTIC_APM_HOSTNAME"
-	envServiceName      = "ELASTIC_APM_SERVICE_NAME"
-	envServiceVersion   = "ELASTIC_APM_SERVICE_VERSION"
+	envHostname = "ELASTIC_APM_HOSTNAME"
 
 	serviceNameValidClass = "a-zA-Z0-9 _-"
 )
 
 func init() {
 	currentProcess = getCurrentProcess()
-	envFramework = getEnvironmentFramework()
-	envService = getEnvironmentService()
 	localSystem = getLocalSystem()
 }
 
@@ -56,39 +46,12 @@ func getCurrentProcess() model.Process {
 	}
 }
 
-func getEnvironmentFramework() *model.Framework {
-	name := os.Getenv(envFrameworkName)
-	if name == "" {
-		return nil
-	}
-	return &model.Framework{
-		Name:    name,
-		Version: os.Getenv(envFrameworkVersion),
-	}
-}
-
-func getEnvironmentService() model.Service {
-	name := os.Getenv(envServiceName)
-	if name == "" {
-		name = filepath.Base(os.Args[0])
-		if runtime.GOOS == "windows" {
-			name = strings.TrimSuffix(name, filepath.Ext(name))
-		}
-	}
-	svc := newService(sanitizeServiceName(name), "")
-	return *svc
-}
-
-func newService(name, version string) *model.Service {
-	if version == "" {
-		version = os.Getenv(envServiceVersion)
-	}
-	return &model.Service{
+func makeService(name, version, environment string) model.Service {
+	return model.Service{
 		Name:        name,
 		Version:     version,
-		Environment: os.Getenv(envEnvironment),
+		Environment: environment,
 		Agent:       goAgent,
-		Framework:   envFramework,
 		Language:    &goLanguage,
 		Runtime:     &goRuntime,
 	}

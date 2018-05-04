@@ -41,7 +41,7 @@ var (
 func init() {
 	var opts options
 	opts.init(true)
-	DefaultTracer = newTracer(&envService, opts)
+	DefaultTracer = newTracer(opts)
 }
 
 type options struct {
@@ -52,6 +52,9 @@ type options struct {
 	sanitizedFieldNames     *regexp.Regexp
 	captureBody             CaptureBodyMode
 	transactionIgnoreNames  *regexp.Regexp
+	serviceName             string
+	serviceVersion          string
+	serviceEnvironment      string
 }
 
 func (opts *options) init(continueOnError bool) error {
@@ -112,6 +115,7 @@ func (opts *options) init(continueOnError bool) error {
 	opts.sanitizedFieldNames = sanitizedFieldNames
 	opts.captureBody = captureBody
 	opts.transactionIgnoreNames = transactionIgnoreNames
+	opts.serviceName, opts.serviceVersion, opts.serviceEnvironment = initialService()
 	return nil
 }
 
@@ -136,7 +140,11 @@ func (opts *options) init(continueOnError bool) error {
 // any Tracer methods have been invoked.
 type Tracer struct {
 	Transport transport.Transport
-	Service   *model.Service
+	Service   struct {
+		Name        string
+		Version     string
+		Environment string
+	}
 
 	process *model.Process
 	system  *model.System
@@ -184,24 +192,23 @@ type Tracer struct {
 // If serviceName is empty, then the service name will be defined
 // using the ELASTIC_APM_SERVER_NAME environment variable.
 func NewTracer(serviceName, serviceVersion string) (*Tracer, error) {
-	service := &envService
-	if serviceName != "" {
-		if err := validateServiceName(serviceName); err != nil {
-			return nil, err
-		}
-		service = newService(serviceName, serviceVersion)
-	}
 	var opts options
 	if err := opts.init(false); err != nil {
 		return nil, err
 	}
-	return newTracer(service, opts), nil
+	if serviceName != "" {
+		if err := validateServiceName(serviceName); err != nil {
+			return nil, err
+		}
+		opts.serviceName = serviceName
+		opts.serviceVersion = serviceVersion
+	}
+	return newTracer(opts), nil
 }
 
-func newTracer(service *model.Service, opts options) *Tracer {
+func newTracer(opts options) *Tracer {
 	t := &Tracer{
 		Transport:                  transport.Default,
-		Service:                    service,
 		process:                    &currentProcess,
 		system:                     &localSystem,
 		closing:                    make(chan struct{}),
@@ -223,6 +230,10 @@ func newTracer(service *model.Service, opts options) *Tracer {
 		captureBody:                opts.captureBody,
 		transactionIgnoreNames:     opts.transactionIgnoreNames,
 	}
+	t.Service.Name = opts.serviceName
+	t.Service.Version = opts.serviceVersion
+	t.Service.Environment = opts.serviceEnvironment
+
 	go t.loop()
 	t.setFlushInterval <- opts.flushInterval
 	t.setMaxTransactionQueueSize <- opts.maxTransactionQueueSize
@@ -602,8 +613,9 @@ func (s *sender) sendTransactions(ctx context.Context, transactions []*Transacti
 			s.stats.Errors.SetContext++
 		}
 	}
+	service := makeService(s.tracer.Service.Name, s.tracer.Service.Version, s.tracer.Service.Environment)
 	payload := model.TransactionsPayload{
-		Service:      s.tracer.Service,
+		Service:      &service,
 		Process:      s.tracer.process,
 		System:       s.tracer.system,
 		Transactions: make([]*model.Transaction, len(transactions)),
@@ -652,8 +664,9 @@ func (s *sender) sendErrors(ctx context.Context, errors []*Error) bool {
 			s.stats.Errors.SetContext++
 		}
 	}
+	service := makeService(s.tracer.Service.Name, s.tracer.Service.Version, s.tracer.Service.Environment)
 	payload := model.ErrorsPayload{
-		Service: s.tracer.Service,
+		Service: &service,
 		Process: s.tracer.process,
 		System:  s.tracer.system,
 		Errors:  make([]*model.Error, len(errors)),

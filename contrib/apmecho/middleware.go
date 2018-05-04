@@ -8,26 +8,7 @@ import (
 
 	"github.com/elastic/apm-agent-go"
 	"github.com/elastic/apm-agent-go/contrib/apmhttp"
-	"github.com/elastic/apm-agent-go/model"
 )
-
-// Framework is a model.Framework initialized with values
-// describing the gin framework name and version.
-var Framework = model.Framework{
-	Name:    "echo",
-	Version: echo.Version,
-}
-
-func init() {
-	if elasticapm.DefaultTracer.Service.Framework == nil {
-		// TODO(axw) this is not ideal, as there could be multiple
-		// frameworks in use within a program. The intake API should
-		// be extended to support specifying a framework on a
-		// transaction, or perhaps specifying multiple frameworks
-		// in the payload and referencing one from the transaction.
-		elasticapm.DefaultTracer.Service.Framework = &Framework
-	}
-}
 
 // Middleware returns a new Echo middleware handler for tracing
 // requests and reporting errors, using the given tracer, or

@@ -54,8 +54,6 @@ ELASTIC\_APM\_MAX\_QUEUE\_SIZE           | 500       | Maximum number of transac
 ELASTIC\_APM\_TRANSACTION\_MAX\_SPANS    | 500       | Maximum number of spans to capture per transaction. After this is reached, new spans will not be created, and a dropped count will be incremented.
 ELASTIC\_APM\_TRANSACTION\_SAMPLE\_RATE  | 1.0       | Number in the range 0.0-1.0 inclusive, controlling how many transactions should be sampled (i.e. include full detail.)
 ELASTIC\_APM\_ENVIRONMENT                |           | Environment name, e.g. "production".
-ELASTIC\_APM\_FRAMEWORK\_NAME            |           | Framework name, e.g. "gin".
-ELASTIC\_APM\_FRAMEWORK\_VERSION         |           | Framework version, e.g. "1.0".
 ELASTIC\_APM\_SERVICE\_NAME              |           | Service name, e.g. "my-service". If this is unspecified, the agent will report the program binary name as the service name.
 ELASTIC\_APM\_SERVICE\_VERSION           |           | Service version, e.g. "1.0".
 ELASTIC\_APM\_HOSTNAME                   |           | Override for the hostname.

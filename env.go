@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -20,6 +22,9 @@ const (
 	envTransactionIgnoreNames = "ELASTIC_APM_TRANSACTION_IGNORE_NAMES"
 	envSanitizeFieldNames     = "ELASTIC_APM_SANITIZE_FIELD_NAMES"
 	envCaptureBody            = "ELASTIC_APM_CAPTURE_BODY"
+	envServiceName            = "ELASTIC_APM_SERVICE_NAME"
+	envServiceVersion         = "ELASTIC_APM_SERVICE_VERSION"
+	envEnvironment            = "ELASTIC_APM_ENVIRONMENT"
 
 	defaultFlushInterval           = 10 * time.Second
 	defaultMaxTransactionQueueSize = 500
@@ -149,4 +154,18 @@ func initialCaptureBody() (CaptureBodyMode, error) {
 		return CaptureBodyOff, nil
 	}
 	return -1, errors.Errorf("invalid %s value %q", envCaptureBody, value)
+}
+
+func initialService() (name, version, environment string) {
+	name = os.Getenv(envServiceName)
+	version = os.Getenv(envServiceVersion)
+	environment = os.Getenv(envEnvironment)
+	if name == "" {
+		name = filepath.Base(os.Args[0])
+		if runtime.GOOS == "windows" {
+			name = strings.TrimSuffix(name, filepath.Ext(name))
+		}
+	}
+	name = sanitizeServiceName(name)
+	return name, version, environment
 }
