@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -284,7 +285,7 @@ func TestMarshalExceptionCode(t *testing.T) {
 func TestMarshalUser(t *testing.T) {
 	user := model.User{
 		Email:    "foo@example.com",
-		ID:       123,
+		ID:       model.UserID{Number: 123},
 		Username: "bar",
 	}
 	var w fastjson.Writer
@@ -404,6 +405,30 @@ func TestMarshalResponse(t *testing.T) {
 		`{"finished":true,"headers":{"content-type":"text/plain"},"headers_sent":true,"status_code":200}`,
 		string(w.Bytes()),
 	)
+}
+
+func TestMarshalURL(t *testing.T) {
+	in := model.URL{
+		Path:     "/",
+		Search:   "abc=def",
+		Hash:     strings.Repeat("x", 1000), // exceed "full" URL length
+		Hostname: "testing.invalid",
+		Port:     "999",
+		Protocol: "http",
+	}
+
+	var w fastjson.Writer
+	in.MarshalFastJSON(&w)
+
+	var out model.URL
+	err := json.Unmarshal(w.Bytes(), &out)
+	require.NoError(t, err)
+
+	// The full URL should have been truncated to avoid a validation error.
+	assert.Equal(t, "http://testing.invalid:999/?abc=def#"+strings.Repeat("x", 988), out.Full)
+	out.Full = ""
+
+	assert.Equal(t, in, out)
 }
 
 func TestUnmarshalJSON(t *testing.T) {

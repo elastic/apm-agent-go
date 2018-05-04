@@ -83,6 +83,9 @@ func (t *Tracer) NewError(err error) *Error {
 	e := t.newError()
 	e.ID, _ = NewUUID() // ignore error result
 	e.model.Exception.Message = err.Error()
+	if e.model.Exception.Message == "" {
+		e.model.Exception.Message = "[EMPTY]"
+	}
 	initException(&e.model.Exception, errors.Cause(err))
 	initStacktrace(e, err)
 	if e.stacktrace == nil {
@@ -96,17 +99,17 @@ func (t *Tracer) NewError(err error) *Error {
 // The resulting Error's stacktrace will not be set. Call the
 // SetStacktrace method to set it, if desired.
 //
-// If r.Message is empty, NewErrorLog will panic.
+// If r.Message is empty, "[EMPTY]" will be used.
 func (t *Tracer) NewErrorLog(r ErrorLogRecord) *Error {
-	if r.Message == "" {
-		panic("r.Message must not be empty")
-	}
 	e := t.newError()
 	e.model.Log = model.Log{
 		Message:      r.Message,
-		Level:        r.Level,
-		LoggerName:   r.LoggerName,
-		ParamMessage: r.MessageFormat,
+		Level:        truncateString(r.Level),
+		LoggerName:   truncateString(r.LoggerName),
+		ParamMessage: truncateString(r.MessageFormat),
+	}
+	if e.model.Log.Message == "" {
+		e.model.Log.Message = "[EMPTY]"
 	}
 	return e
 }
@@ -290,6 +293,8 @@ func initException(e *model.Exception, err error) {
 	if errTimeout(err) {
 		setAttr("timeout", true)
 	}
+	e.Code.String = truncateString(e.Code.String)
+	e.Type = truncateString(e.Type)
 }
 
 func initStacktrace(e *Error, err error) {
@@ -340,7 +345,7 @@ type ErrorLogRecord struct {
 	// Message holds the message for the log record,
 	// e.g. "failed to connect to %s".
 	//
-	// This is required.
+	// If this is empty, "[EMPTY]" will be used.
 	Message string
 
 	// MessageFormat holds the non-interpolated format

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/elastic/apm-agent-go/internal/apmstrings"
 	"github.com/elastic/apm-agent-go/model"
 )
 
@@ -17,15 +18,17 @@ import (
 // attributes.
 func RequestURL(req *http.Request, forwarded *ForwardedHeader) model.URL {
 	out := model.URL{
-		Path:   req.URL.Path,
-		Search: req.URL.RawQuery,
-		Hash:   req.URL.Fragment,
+		Path:   truncateString(req.URL.Path),
+		Search: truncateString(req.URL.RawQuery),
+		Hash:   truncateString(req.URL.Fragment),
 	}
 	if req.URL.Host != "" {
 		// Absolute URI: client-side or proxy request, so ignore the
 		// headers.
-		out.Hostname, out.Port = splitHost(req.URL.Host)
-		out.Protocol = req.URL.Scheme
+		hostname, port := splitHost(req.URL.Host)
+		out.Hostname = truncateString(hostname)
+		out.Port = truncateString(port)
+		out.Protocol = truncateString(req.URL.Scheme)
 		return out
 	}
 
@@ -35,23 +38,25 @@ func RequestURL(req *http.Request, forwarded *ForwardedHeader) model.URL {
 	var fullHost string
 	if forwarded != nil && forwarded.Host != "" {
 		fullHost = forwarded.Host
-		out.Protocol = forwarded.Proto
+		out.Protocol = truncateString(forwarded.Proto)
 	} else if xfh := req.Header.Get("X-Forwarded-Host"); xfh != "" {
 		fullHost = xfh
 	} else {
 		fullHost = req.Host
 	}
-	out.Hostname, out.Port = splitHost(fullHost)
+	hostname, port := splitHost(fullHost)
+	out.Hostname = truncateString(hostname)
+	out.Port = truncateString(port)
 
 	// Protocol might be extracted from the Forwarded header. If it's not,
 	// look for various other headers.
 	if out.Protocol == "" {
 		if proto := req.Header.Get("X-Forwarded-Proto"); proto != "" {
-			out.Protocol = proto
+			out.Protocol = truncateString(proto)
 		} else if proto := req.Header.Get("X-Forwarded-Protocol"); proto != "" {
-			out.Protocol = proto
+			out.Protocol = truncateString(proto)
 		} else if proto := req.Header.Get("X-Url-Scheme"); proto != "" {
-			out.Protocol = proto
+			out.Protocol = truncateString(proto)
 		} else if req.Header.Get("Front-End-Https") == "on" {
 			out.Protocol = "https"
 		} else if req.Header.Get("X-Forwarded-Ssl") == "on" {
@@ -78,4 +83,9 @@ func splitHost(in string) (host, port string) {
 		return in, ""
 	}
 	return host, port
+}
+
+func truncateString(s string) string {
+	// At the time of writing, all length limits are 1024.
+	return apmstrings.Truncate(s, 1024)
 }

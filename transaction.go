@@ -28,8 +28,8 @@ func (t *Tracer) newTransaction(name, transactionType string) *Transaction {
 			},
 		}
 	}
-	tx.model.Name = name
-	tx.model.Type = transactionType
+	tx.model.Name = truncateString(name)
+	tx.model.Type = truncateString(transactionType)
 
 	t.transactionIgnoreNamesMu.RLock()
 	transactionIgnoreNames := t.transactionIgnoreNames
@@ -58,14 +58,6 @@ func (t *Tracer) newTransaction(name, transactionType string) *Transaction {
 }
 
 // Transaction describes an event occurring in the monitored service.
-//
-// The ID, Spans, and SpanCount fields should not be modified
-// directly. ID will be set by the Tracer when the transaction is
-// flushed; the Span and SpanCount fields will be updated by the
-// StartSpan method.
-//
-// Multiple goroutines should not attempt to update the Transaction
-// fields concurrently, but may concurrently invoke any methods.
 type Transaction struct {
 	model     model.Transaction
 	Timestamp time.Time
@@ -160,7 +152,7 @@ func (tx *Transaction) Done(d time.Duration) {
 	}
 	tx.model.Duration = d.Seconds() * 1000
 	tx.model.Timestamp = model.Time(tx.Timestamp.UTC())
-	tx.model.Result = tx.Result
+	tx.model.Result = truncateString(tx.Result)
 
 	tx.mu.Lock()
 	spans := tx.spans[:len(tx.spans)]
@@ -200,7 +192,7 @@ func (tx *Transaction) enqueue() {
 // If the transaction is sampled, then the span's ID will be set,
 // and its stacktrace will be set if the tracer is configured
 // accordingly.
-func (tx *Transaction) StartSpan(name, transactionType string, parent *Span) *Span {
+func (tx *Transaction) StartSpan(name, spanType string, parent *Span) *Span {
 	if !tx.Sampled() {
 		return nil
 	}
@@ -211,8 +203,8 @@ func (tx *Transaction) StartSpan(name, transactionType string, parent *Span) *Sp
 		span = &Span{}
 	}
 	span.tx = tx
-	span.model.Name = name
-	span.model.Type = transactionType
+	span.model.Name = truncateString(name)
+	span.model.Type = truncateString(spanType)
 	span.Start = start
 
 	tx.mu.Lock()

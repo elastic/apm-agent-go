@@ -8,6 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/elastic/apm-agent-go/internal/apmstrings"
 	"github.com/elastic/apm-agent-go/model"
 )
 
@@ -41,16 +42,16 @@ func getCurrentProcess() model.Process {
 	return model.Process{
 		Pid:   os.Getpid(),
 		Ppid:  &ppid,
-		Title: title,
+		Title: truncateString(title),
 		Argv:  os.Args,
 	}
 }
 
 func makeService(name, version, environment string) model.Service {
 	return model.Service{
-		Name:        name,
-		Version:     version,
-		Environment: environment,
+		Name:        truncateString(name),
+		Version:     truncateString(version),
+		Environment: truncateString(environment),
 		Agent:       goAgent,
 		Language:    &goLanguage,
 		Runtime:     &goRuntime,
@@ -68,6 +69,7 @@ func getLocalSystem() model.System {
 			system.Hostname = hostname
 		}
 	}
+	system.Hostname = truncateString(system.Hostname)
 	return system
 }
 
@@ -88,4 +90,9 @@ func validateServiceName(name string) error {
 
 func sanitizeServiceName(name string) string {
 	return serviceNameInvalidRegexp.ReplaceAllString(name, "_")
+}
+
+func truncateString(s string) string {
+	// At the time of writing, all length limits are 1024.
+	return apmstrings.Truncate(s, 1024)
 }
