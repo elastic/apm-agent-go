@@ -44,22 +44,23 @@ The two most critical configuration attributes are the server URL and
 the secret token. All other attributes have default values, and are not
 required to enable tracing.
 
-Environment variable                     | Default   | Description
------------------------------------------|-----------|------------------------------------------
-ELASTIC\_APM\_SERVER\_URL                |           | Base URL of the Elastic APM server. If unspecified, no tracing will take place.
-ELASTIC\_APM\_SECRET\_TOKEN              |           | The secret token for Elastic APM server.
-ELASTIC\_APM\_VERIFY\_SERVER\_CERT       | true      | Verify certificates when using https.
-ELASTIC\_APM\_FLUSH\_INTERVAL            | 10s       | Time to wait before sending transactions to the Elastic APM server. Transactions will be batched up and sent periodically.
-ELASTIC\_APM\_MAX\_QUEUE\_SIZE           | 500       | Maximum number of transactions to queue before sending to the Elastic APM server. Once this number is reached, any new transactions will replace old ones until the queue is flushed.
-ELASTIC\_APM\_TRANSACTION\_MAX\_SPANS    | 500       | Maximum number of spans to capture per transaction. After this is reached, new spans will not be created, and a dropped count will be incremented.
-ELASTIC\_APM\_TRANSACTION\_SAMPLE\_RATE  | 1.0       | Number in the range 0.0-1.0 inclusive, controlling how many transactions should be sampled (i.e. include full detail.)
-ELASTIC\_APM\_ENVIRONMENT                |           | Environment name, e.g. "production".
-ELASTIC\_APM\_SERVICE\_NAME              |           | Service name, e.g. "my-service". If this is unspecified, the agent will report the program binary name as the service name.
-ELASTIC\_APM\_SERVICE\_VERSION           |           | Service version, e.g. "1.0".
-ELASTIC\_APM\_HOSTNAME                   |           | Override for the hostname.
-ELASTIC\_APM\_SANITIZE\_FIELD\_NAMES     |[(1)](#(1))| A pattern to match names of cookies and form fields that should be redacted.
-ELASTIC\_APM\_TRANSACTION\_IGNORE\_NAMES |[(2)](#(2))| A pattern to match names of transactions that should be ignored.
-ELASTIC\_APM\_CAPTURE\_BODY              | off       | Capture HTTP request bodies. Possible values: errors, transactions, all, off.
+Environment variable                      | Default   | Description
+------------------------------------------|-----------|------------------------------------------
+ELASTIC\_APM\_SERVER\_URL                 |           | Base URL of the Elastic APM server. If unspecified, no tracing will take place.
+ELASTIC\_APM\_SECRET\_TOKEN               |           | The secret token for Elastic APM server.
+ELASTIC\_APM\_VERIFY\_SERVER\_CERT        | true      | Verify certificates when using https.
+ELASTIC\_APM\_FLUSH\_INTERVAL             | 10s       | Time to wait before sending transactions to the Elastic APM server. Transactions will be batched up and sent periodically.
+ELASTIC\_APM\_MAX\_QUEUE\_SIZE            | 500       | Maximum number of transactions to queue before sending to the Elastic APM server. Once this number is reached, any new transactions will replace old ones until the queue is flushed.
+ELASTIC\_APM\_TRANSACTION\_MAX\_SPANS     | 500       | Maximum number of spans to capture per transaction. After this is reached, new spans will not be created, and a dropped count will be incremented.
+ELASTIC\_APM\_TRANSACTION\_SAMPLE\_RATE   | 1.0       | Number in the range 0.0-1.0 inclusive, controlling how many transactions should be sampled (i.e. include full detail.)
+ELASTIC\_APM\_ENVIRONMENT                 |           | Environment name, e.g. "production".
+ELASTIC\_APM\_SERVICE\_NAME               |           | Service name, e.g. "my-service". If this is unspecified, the agent will report the program binary name as the service name.
+ELASTIC\_APM\_SERVICE\_VERSION            |           | Service version, e.g. "1.0".
+ELASTIC\_APM\_HOSTNAME                    |           | Override for the hostname.
+ELASTIC\_APM\_SANITIZE\_FIELD\_NAMES      |[(1)](#(1))| A pattern to match names of cookies and form fields that should be redacted.
+ELASTIC\_APM\_TRANSACTION\_IGNORE\_NAMES  |[(2)](#(2))| A pattern to match names of transactions that should be ignored.
+ELASTIC\_APM\_CAPTURE\_BODY               | off       | Capture HTTP request bodies. Possible values: errors, transactions, all, off.
+ELASTIC\_APM\_SPAN\_FRAMES\_MIN\_DURATION | 5ms       | Minimum duration of spans for which stacktraces will be captured.
 
 <a name="(1)">(1)</a> ELASTIC\_APM\_SANITIZE\_FIELD\_NAMES
 

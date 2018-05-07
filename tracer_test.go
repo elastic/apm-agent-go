@@ -162,11 +162,8 @@ func TestTracerRetryTimerFlush(t *testing.T) {
 }
 
 func TestTracerMaxSpans(t *testing.T) {
-	var r transporttest.RecorderTransport
-	tracer, err := elasticapm.NewTracer("tracer_testing", "")
-	assert.NoError(t, err)
+	tracer, r := transporttest.NewRecorderTracer()
 	defer tracer.Close()
-	tracer.Transport = &r
 
 	tracer.SetMaxSpans(2)
 	tx := tracer.StartTransaction("name", "type")
@@ -193,11 +190,8 @@ func TestTracerMaxSpans(t *testing.T) {
 }
 
 func TestTracerErrors(t *testing.T) {
-	var r transporttest.RecorderTransport
-	tracer, err := elasticapm.NewTracer("tracer_testing", "")
-	assert.NoError(t, err)
+	tracer, r := transporttest.NewRecorderTracer()
 	defer tracer.Close()
-	tracer.Transport = &r
 
 	error_ := tracer.NewError(errors.New("zing"))
 	error_.Send()
@@ -307,11 +301,8 @@ func TestTracerProcessor(t *testing.T) {
 }
 
 func TestTracerRecover(t *testing.T) {
-	var r transporttest.RecorderTransport
-	tracer, err := elasticapm.NewTracer("tracer_testing", "")
-	assert.NoError(t, err)
+	tracer, r := transporttest.NewRecorderTracer()
 	defer tracer.Close()
-	tracer.Transport = &r
 
 	capturePanic(tracer, "blam")
 	tracer.Flush(nil)
@@ -350,4 +341,37 @@ func TestTracerTransactionIgnoreNames(t *testing.T) {
 	tx = tracer.StartTransaction("not_ignored", "type")
 	assert.False(t, tx.Ignored())
 	tx.Discard()
+}
+
+func TestSpanStackTrace(t *testing.T) {
+	tracer, r := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+	tracer.SetSpanFramesMinDuration(10 * time.Millisecond)
+
+	tx := tracer.StartTransaction("name", "type")
+	tx.StartSpan("name", "type", nil).Done(9 * time.Millisecond)
+	tx.StartSpan("name", "type", nil).Done(10 * time.Millisecond)
+	s := tx.StartSpan("name", "type", nil)
+	s.SetStacktrace(1)
+	s.Done(11 * time.Millisecond)
+	tx.Done(-1)
+	tracer.Flush(nil)
+
+	transaction := r.Payloads()[0].Transactions()[0]
+	assert.Len(t, transaction.Spans, 3)
+
+	// Span 0 took only 9ms, so we don't set its stacktrace.
+	span0 := transaction.Spans[0]
+	assert.Nil(t, span0.Stacktrace)
+
+	// Span 1 took the required 10ms, so we set its stacktrace.
+	span1 := transaction.Spans[1]
+	assert.NotNil(t, span1.Stacktrace)
+	assert.NotEqual(t, span1.Stacktrace[0].Function, "TestSpanStackTrace")
+
+	// Span 2 took more than the required 10ms, but its stacktrace
+	// was already set; we don't replace it.
+	span2 := transaction.Spans[2]
+	assert.NotNil(t, span2.Stacktrace)
+	assert.Equal(t, span2.Stacktrace[0].Function, "TestSpanStackTrace")
 }

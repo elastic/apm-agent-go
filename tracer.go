@@ -52,6 +52,7 @@ type options struct {
 	sanitizedFieldNames     *regexp.Regexp
 	captureBody             CaptureBodyMode
 	transactionIgnoreNames  *regexp.Regexp
+	spanFramesMinDuration   time.Duration
 	serviceName             string
 	serviceVersion          string
 	serviceEnvironment      string
@@ -101,6 +102,12 @@ func (opts *options) init(continueOnError bool) error {
 		errs = append(errs, err)
 	}
 
+	spanFramesMinDuration, err := initialSpanFramesMinDuration()
+	if err != nil {
+		spanFramesMinDuration = defaultSpanFramesMinDuration
+		errs = append(errs, err)
+	}
+
 	if len(errs) != 0 && !continueOnError {
 		return errs[0]
 	}
@@ -115,6 +122,7 @@ func (opts *options) init(continueOnError bool) error {
 	opts.sanitizedFieldNames = sanitizedFieldNames
 	opts.captureBody = captureBody
 	opts.transactionIgnoreNames = transactionIgnoreNames
+	opts.spanFramesMinDuration = spanFramesMinDuration
 	opts.serviceName, opts.serviceVersion, opts.serviceEnvironment = initialService()
 	return nil
 }
@@ -173,6 +181,9 @@ type Tracer struct {
 	maxSpansMu sync.RWMutex
 	maxSpans   int
 
+	spanFramesMinDurationMu sync.RWMutex
+	spanFramesMinDuration   time.Duration
+
 	samplerMu sync.RWMutex
 	sampler   Sampler
 
@@ -229,6 +240,7 @@ func newTracer(opts options) *Tracer {
 		sampler:                    opts.sampler,
 		captureBody:                opts.captureBody,
 		transactionIgnoreNames:     opts.transactionIgnoreNames,
+		spanFramesMinDuration:      opts.spanFramesMinDuration,
 	}
 	t.Service.Name = opts.serviceName
 	t.Service.Version = opts.serviceVersion
@@ -392,6 +404,14 @@ func (t *Tracer) SetMaxSpans(n int) {
 	t.maxSpansMu.Lock()
 	t.maxSpans = n
 	t.maxSpansMu.Unlock()
+}
+
+// SetSpanFramesMinDuration sets the minimum duration for a span after which
+// we will capture its stack frames.
+func (t *Tracer) SetSpanFramesMinDuration(d time.Duration) {
+	t.spanFramesMinDurationMu.Lock()
+	t.spanFramesMinDuration = d
+	t.spanFramesMinDurationMu.Unlock()
 }
 
 // SetCaptureBody sets the HTTP request body capture mode.

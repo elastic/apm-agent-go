@@ -251,3 +251,36 @@ func TestTracerTransactionIgnoreNamesEnv(t *testing.T) {
 		})
 	}
 }
+
+func TestTracerSpanFramesMinDurationEnv(t *testing.T) {
+	os.Setenv("ELASTIC_APM_SPAN_FRAMES_MIN_DURATION", "10ms")
+	defer os.Unsetenv("ELASTIC_APM_SPAN_FRAMES_MIN_DURATION")
+
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	tx := tracer.StartTransaction("name", "type")
+	tx.StartSpan("name", "type", nil).Done(9 * time.Millisecond)
+	tx.StartSpan("name", "type", nil).Done(10 * time.Millisecond)
+	tx.Done(-1)
+	tracer.Flush(nil)
+
+	transaction := transport.Payloads()[0].Transactions()[0]
+	assert.Len(t, transaction.Spans, 2)
+
+	// Span 0 took only 9ms, so we don't set its stacktrace.
+	span0 := transaction.Spans[0]
+	assert.Nil(t, span0.Stacktrace)
+
+	// Span 1 took the required 10ms, so we set its stacktrace.
+	span1 := transaction.Spans[1]
+	assert.NotNil(t, span1.Stacktrace)
+}
+
+func TestTracerSpanFramesMinDurationEnvInvalid(t *testing.T) {
+	os.Setenv("ELASTIC_APM_SPAN_FRAMES_MIN_DURATION", "aeon")
+	defer os.Unsetenv("ELASTIC_APM_SPAN_FRAMES_MIN_DURATION")
+
+	_, err := elasticapm.NewTracer("tracer_testing", "")
+	assert.EqualError(t, err, "failed to parse ELASTIC_APM_SPAN_FRAMES_MIN_DURATION: time: invalid duration aeon")
+}

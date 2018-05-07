@@ -46,6 +46,10 @@ func (t *Tracer) newTransaction(name, transactionType string) *Transaction {
 	tx.maxSpans = t.maxSpans
 	t.maxSpansMu.RUnlock()
 
+	t.spanFramesMinDurationMu.RLock()
+	tx.spanFramesMinDuration = t.spanFramesMinDuration
+	t.spanFramesMinDurationMu.RUnlock()
+
 	t.samplerMu.RLock()
 	sampler := t.sampler
 	t.samplerMu.RUnlock()
@@ -64,10 +68,11 @@ type Transaction struct {
 	Context   Context
 	Result    string
 
-	tracer   *Tracer
-	ignored  bool
-	sampled  bool
-	maxSpans int
+	tracer                *Tracer
+	ignored               bool
+	sampled               bool
+	maxSpans              int
+	spanFramesMinDuration time.Duration
 
 	mu    sync.Mutex
 	spans []*Span
@@ -286,6 +291,9 @@ func (s *Span) Done(d time.Duration) {
 	s.mu.Lock()
 	s.model.Start = s.Start.Sub(s.tx.Timestamp).Seconds() * 1000
 	s.model.Context = s.Context.build()
+	if s.model.Stacktrace == nil && d >= s.tx.spanFramesMinDuration {
+		s.SetStacktrace(1)
+	}
 	if !s.truncated {
 		s.done = true
 		s.model.Duration = d.Seconds() * 1000
