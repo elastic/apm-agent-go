@@ -7,5 +7,5 @@ import (
 )
 
 func init() {
-	apmsql.Register("postgres", &pq.Driver{})
+	apmsql.Register("postgres", &pq.Driver{}, apmsql.WithDSNParser(ParseDSN))
 }

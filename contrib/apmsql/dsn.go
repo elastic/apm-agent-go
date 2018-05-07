@@ -1,22 +1,19 @@
 package apmsql
 
-import (
-	"github.com/elastic/apm-agent-go/contrib/apmsql/dsn"
-	"github.com/elastic/apm-agent-go/contrib/apmsql/pq/pqdsn"
-	"github.com/elastic/apm-agent-go/contrib/apmsql/sqlite3/sqlite3dsn"
-)
+// DSNInfo contains information from a database-specific data source name.
+type DSNInfo struct {
+	// Database is the name of the specific database identified by the DSN.
+	Database string
 
-func dsnParser(driverName string) dsn.ParserFunc {
-	switch driverName {
-	case "postgresql":
-		return pqdsn.ParseDSN
-	case "sqlite3":
-		return sqlite3dsn.ParseDSN
-	default:
-		return genericDSNParser
-	}
+	// User is the username that the DSN specifies for authenticating the
+	// database connection.
+	User string
 }
 
-func genericDSNParser(string) dsn.Info {
-	return dsn.Info{}
+// DSNParserFunc is the type of a function that can be used for parsing a
+// data source name, and returning the corresponding Info.
+type DSNParserFunc func(dsn string) DSNInfo
+
+func genericDSNParser(string) DSNInfo {
+	return DSNInfo{}
 }

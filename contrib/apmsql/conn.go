@@ -6,7 +6,6 @@ import (
 	"errors"
 
 	"github.com/elastic/apm-agent-go"
-	apmsqldsn "github.com/elastic/apm-agent-go/contrib/apmsql/dsn"
 )
 
 func newConn(in driver.Conn, d *tracingDriver, dsn string) driver.Conn {
@@ -32,7 +31,7 @@ type conn struct {
 	driver.Conn
 	connGo110
 	driver  *tracingDriver
-	dsnInfo apmsqldsn.Info
+	dsnInfo DSNInfo
 
 	pinger             driver.Pinger
 	queryer            driver.Queryer
