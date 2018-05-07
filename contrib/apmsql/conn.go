@@ -6,14 +6,11 @@ import (
 	"errors"
 
 	"github.com/elastic/apm-agent-go"
-	apmsqldsn "github.com/elastic/apm-agent-go/contrib/apmsql/dsn"
 )
 
-func newConn(in driver.Conn, d *tracingDriver, dsn string) driver.Conn {
+func newConn(in driver.Conn, d *tracingDriver, dsnInfo DSNInfo) driver.Conn {
 	conn := &conn{Conn: in, driver: d}
-	if d.dsnParser != nil {
-		conn.dsnInfo = d.dsnParser(dsn)
-	}
+	conn.dsnInfo = dsnInfo
 	conn.pinger, _ = in.(driver.Pinger)
 	conn.queryer, _ = in.(driver.Queryer)
 	conn.queryerContext, _ = in.(driver.QueryerContext)
@@ -32,7 +29,7 @@ type conn struct {
 	driver.Conn
 	connGo110
 	driver  *tracingDriver
-	dsnInfo apmsqldsn.Info
+	dsnInfo DSNInfo
 
 	pinger             driver.Pinger
 	queryer            driver.Queryer

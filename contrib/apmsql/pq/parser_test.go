@@ -1,4 +1,4 @@
-package pqdsn_test
+package apmpq_test
 
 import (
 	"os"
@@ -6,17 +6,17 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/elastic/apm-agent-go/contrib/apmsql/pq/pqdsn"
+	"github.com/elastic/apm-agent-go/contrib/apmsql/pq"
 )
 
 func TestParseDSNURL(t *testing.T) {
-	info := pqdsn.ParseDSN("postgresql://user:pass@localhost/dbinst")
+	info := apmpq.ParseDSN("postgresql://user:pass@localhost/dbinst")
 	assert.Equal(t, "dbinst", info.Database)
 	assert.Equal(t, "user", info.User)
 }
 
 func TestParseDSNConnectionString(t *testing.T) {
-	info := pqdsn.ParseDSN("dbname=foo\\ bar user='baz'")
+	info := apmpq.ParseDSN("dbname=foo\\ bar user='baz'")
 	assert.Equal(t, "foo bar", info.Database)
 	assert.Equal(t, "baz", info.User)
 }
@@ -27,7 +27,7 @@ func TestParseDSNEnv(t *testing.T) {
 	defer os.Unsetenv("PGDATABASE")
 	defer os.Unsetenv("PGUSER")
 
-	info := pqdsn.ParseDSN("postgres://")
+	info := apmpq.ParseDSN("postgres://")
 	assert.Equal(t, "dbinst", info.Database)
 	assert.Equal(t, "bob", info.User)
 }

@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
-
-	"github.com/elastic/apm-agent-go/contrib/apmsql/dsn"
 )
 
 // DriverPrefix should be used as a driver name prefix when
@@ -46,7 +44,7 @@ func Wrap(driver driver.Driver, opts ...WrapOption) driver.Driver {
 		d.driverName = driverName(driver)
 	}
 	if d.dsnParser == nil {
-		d.dsnParser = dsnParser(d.driverName)
+		d.dsnParser = genericDSNParser
 	}
 	// store span types to avoid repeat allocations
 	d.connectSpanType = d.formatSpanType("connect")
@@ -74,7 +72,7 @@ func WithDriverName(name string) WrapOption {
 // use for parsing the data source name. If WithDSNParser is not
 // supplied to Wrap, the function to use will be inferred from
 // the driver name.
-func WithDSNParser(f dsn.ParserFunc) WrapOption {
+func WithDSNParser(f DSNParserFunc) WrapOption {
 	return func(d *tracingDriver) {
 		d.dsnParser = f
 	}
@@ -83,7 +81,7 @@ func WithDSNParser(f dsn.ParserFunc) WrapOption {
 type tracingDriver struct {
 	driver.Driver
 	driverName string
-	dsnParser  dsn.ParserFunc
+	dsnParser  DSNParserFunc
 
 	connectSpanType string
 	execSpanType    string
@@ -114,7 +112,7 @@ func (d *tracingDriver) Open(name string) (driver.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newConn(conn, d, name), nil
+	return newConn(conn, d, d.dsnParser(name)), nil
 }
 
 func driverName(d driver.Driver) string {

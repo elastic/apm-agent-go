@@ -1,4 +1,4 @@
-package pqdsn
+package apmpq
 
 import (
 	"fmt"
@@ -9,12 +9,12 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/elastic/apm-agent-go/contrib/apmsql/dsn"
+	"github.com/elastic/apm-agent-go/contrib/apmsql"
 )
 
 // ParseDSN parses the given lib/pq datasource name, which may
 // be either a URL or connection string.
-func ParseDSN(name string) dsn.Info {
+func ParseDSN(name string) apmsql.DSNInfo {
 	if connStr, err := parseURL(name); err == nil {
 		name = connStr
 	}
@@ -22,9 +22,9 @@ func ParseDSN(name string) dsn.Info {
 	if err := parseOpts(name, opts); err != nil {
 		// pq.Open will fail with the same error,
 		// so just return a zero value.
-		return dsn.Info{}
+		return apmsql.DSNInfo{}
 	}
-	info := dsn.Info{
+	info := apmsql.DSNInfo{
 		Database: opts["dbname"],
 		User:     opts["user"],
 	}

@@ -7,5 +7,5 @@ import (
 )
 
 func init() {
-	apmsql.Register("sqlite3", &sqlite3.SQLiteDriver{})
+	apmsql.Register("sqlite3", &sqlite3.SQLiteDriver{}, apmsql.WithDSNParser(ParseDSN))
 }
