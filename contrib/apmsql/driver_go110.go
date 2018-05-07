@@ -34,11 +34,19 @@ func (d *driverConnector) Connect(ctx context.Context) (driver.Conn, error) {
 	if span != nil {
 		defer span.Done(-1)
 	}
+	dsnInfo := d.driver.dsnParser(d.name)
+	if span != nil {
+		span.Context.SetDatabase(elasticapm.DatabaseSpanContext{
+			Instance: dsnInfo.Database,
+			Type:     "sql",
+			User:     dsnInfo.User,
+		})
+	}
 	conn, err := d.connect(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return newConn(conn, d.driver, d.name), nil
+	return newConn(conn, d.driver, dsnInfo), nil
 }
 
 func (d *driverConnector) Driver() driver.Driver {

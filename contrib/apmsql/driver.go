@@ -112,7 +112,7 @@ func (d *tracingDriver) Open(name string) (driver.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newConn(conn, d, name), nil
+	return newConn(conn, d, d.dsnParser(name)), nil
 }
 
 func driverName(d driver.Driver) string {
