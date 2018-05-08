@@ -45,8 +45,8 @@ func TestSplitFunctionName(t *testing.T) {
 	testSplitFunctionName(t, "main", "(*Foo).Bar")
 	testSplitFunctionName(t, "github.com/elastic/apm-agent-go/foo", "bar")
 	testSplitFunctionName(t,
-		"github.com/elastic/apm-agent-go/contrib/gin",
-		"(*middleware).(github.com/elastic/apm-agent-go/contrib/gin.handle)-fm",
+		"github.com/elastic/apm-agent-go/module/apmgin",
+		"(*middleware).(github.com/elastic/apm-agent-go/module/apmgin.handle)-fm",
 	)
 }
 

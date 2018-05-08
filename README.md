@@ -89,11 +89,11 @@ custom instrumentation to your application.
 
 ## net/http
 
-Package `contrib/apmhttp` can be used to wrap `net/http` handlers:
+Package `module/apmhttp` can be used to wrap `net/http` handlers:
 
 ```go
 import (
-	"github.com/elastic/apm-agent-go/contrib/apmhttp"
+	"github.com/elastic/apm-agent-go/module/apmhttp"
 )
 
 func main() {
@@ -116,11 +116,11 @@ apmhttp.Handler{
 
 ### Gin
 
-Package `contrib/apmgin` provides middleware for [Gin](https://github.com/gin-gonic/gin):
+Package `module/apmgin` provides middleware for [Gin](https://github.com/gin-gonic/gin):
 
 ```go
 import (
-	"github.com/elastic/apm-agent-go/contrib/apmgin"
+	"github.com/elastic/apm-agent-go/module/apmgin"
 )
 
 func main() {
@@ -135,13 +135,13 @@ so you do not need to install the gin.Recovery middleware.
 
 ### gorilla/mux
 
-Package `contrib/apmgorilla` provides middleware for [gorilla/mux](https://github.com/gorilla/mux):
+Package `module/apmgorilla` provides middleware for [gorilla/mux](https://github.com/gorilla/mux):
 
 ```go
 import (
 	"github.com/gorilla/mux"
 
-	"github.com/elastic/apm-agent-go/contrib/apmgorilla"
+	"github.com/elastic/apm-agent-go/module/apmgorilla"
 )
 
 func main() {
@@ -156,15 +156,15 @@ so you do not need to install any other recovery middleware.
 
 ### httprouter
 
-Package `contrib/apmhttprouter` provides a handler wrapper for [httprouter](https://github.com/julienschmidt/httprouter):
+Package `module/apmhttprouter` provides a handler wrapper for [httprouter](https://github.com/julienschmidt/httprouter):
 
 ```go
 import (
 	"github.com/julienschmidt/httprouter"
 
 	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/contrib/apmhttp"
-	"github.com/elastic/apm-agent-go/contrib/apmhttprouter"
+	"github.com/elastic/apm-agent-go/module/apmhttp"
+	"github.com/elastic/apm-agent-go/module/apmhttprouter"
 )
 
 func main() {
@@ -183,12 +183,12 @@ hence the route must be passed into the wrapper.
 
 ### Echo
 
-Package `contrib/apmecho` provides middleware for [Echo](https://github.com/labstack/echo):
+Package `module/apmecho` provides middleware for [Echo](https://github.com/labstack/echo):
 
 ```go
 import (
 	"github.com/labstack/echo"
-	"github.com/elastic/apm-agent-go/contrib/apmecho"
+	"github.com/elastic/apm-agent-go/module/apmecho"
 )
 
 func main() {
@@ -203,12 +203,12 @@ so you do not need to install the echo/middleware.Recover middleware.
 
 ### AWS Lambda
 
-Package `contrib/apmlambda` intercepts and reports transactions for [AWS Lambda Go](https://github.com/aws/aws-lambda-go)
+Package `module/apmlambda` intercepts and reports transactions for [AWS Lambda Go](https://github.com/aws/aws-lambda-go)
 functions. Importing the package is enough to report the function invocations.
 
 ```go
 import (
-	_ "github.com/elastic/apm-agent-go/contrib/apmlambda"
+	_ "github.com/elastic/apm-agent-go/module/apmlambda"
 )
 ```
 
@@ -218,19 +218,19 @@ of lambda.Start.
 
 ### database/sql
 
-Package `contrib/apmsql` provides methods for wrapping `database/sql/driver.Drivers`,
+Package `module/apmsql` provides methods for wrapping `database/sql/driver.Drivers`,
 tracing queries as spans. To trace SQL queries, you should register drivers using
 `apmsql.Register` and obtain connections with `apmsql.Open`. The parameters are
 exactly the same as if you were to call `sql.Register` and `sql.Open` respectively.
 
 As a convenience, we also provide packages which will automatically register popular
-drivers with `apmsql.Register`: `contrib/apmsql/pq` and `contrib/apmsql/sqlite3`. e.g.
+drivers with `apmsql.Register`: `module/apmsql/pq` and `module/apmsql/sqlite3`. e.g.
 
 ```go
 import (
-	"github.com/elastic/apm-agent-go/contrib/apmsql"
-	_ "github.com/elastic/apm-agent-go/contrib/apmsql/pq"
-	_ "github.com/elastic/apm-agent-go/contrib/apmsql/sqlite3"
+	"github.com/elastic/apm-agent-go/module/apmsql"
+	_ "github.com/elastic/apm-agent-go/module/apmsql/pq"
+	_ "github.com/elastic/apm-agent-go/module/apmsql/sqlite3"
 )
 
 func main() {
@@ -244,13 +244,13 @@ methods are used, and the context includes a transaction.
 
 ### gRPC
 
-Package `contrib/apmgrpc` provides unary interceptors for [gprc-go](https://github.com/grpc/grpc-go),
+Package `module/apmgrpc` provides unary interceptors for [gprc-go](https://github.com/grpc/grpc-go),
 for tracing incoming server requests as transactions, and outgoing client
 requests as spans:
 
 ```go
 import (
-	"github.com/elastic/apm-agent-go/contrib/apmgrpc"
+	"github.com/elastic/apm-agent-go/module/apmgrpc"
 )
 
 func main() {
