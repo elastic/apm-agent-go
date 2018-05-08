@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/contrib/apmhttp"
 	"github.com/elastic/apm-agent-go/model"
+	"github.com/elastic/apm-agent-go/module/apmhttp"
 	"github.com/elastic/apm-agent-go/transport/transporttest"
 )
 
