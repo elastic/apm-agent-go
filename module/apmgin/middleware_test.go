@@ -23,7 +23,7 @@ func TestMiddleware(t *testing.T) {
 	defer tracer.Close()
 
 	r := gin.New()
-	r.Use(apmgin.Middleware(r, tracer))
+	r.Use(apmgin.Middleware(r, apmgin.WithTracer(tracer)))
 	r.GET("/hello/:name", handleHello)
 
 	w := httptest.NewRecorder()

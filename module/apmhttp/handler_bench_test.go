@@ -27,11 +27,7 @@ func BenchmarkWithMiddleware(b *testing.B) {
 	tracer := newTracer()
 	defer tracer.Close()
 	wrapHandler := func(in http.Handler) http.Handler {
-		return &apmhttp.Handler{
-			Handler:  in,
-			Recovery: apmhttp.NewTraceRecovery(tracer),
-			Tracer:   tracer,
-		}
+		return apmhttp.Wrap(in, apmhttp.WithTracer(tracer))
 	}
 	for _, path := range benchmarkPaths {
 		b.Run(path, func(b *testing.B) {

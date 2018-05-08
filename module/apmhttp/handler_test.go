@@ -21,19 +21,6 @@ import (
 	"github.com/elastic/apm-agent-go/transport/transporttest"
 )
 
-func TestWrap(t *testing.T) {
-	mux := http.DefaultServeMux
-	h := apmhttp.Wrap(mux)
-	r := apmhttp.NewTraceRecovery(nil)
-	h2 := h.WithRecovery(r)
-
-	assert.Equal(t, &apmhttp.Handler{Handler: mux}, h)
-	assert.NotEqual(t, h, h2)
-	assert.NotNil(t, h2.Recovery)
-	h2.Recovery = nil
-	assert.Equal(t, h, h2)
-}
-
 func TestHandler(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
@@ -44,11 +31,7 @@ func TestHandler(t *testing.T) {
 		w.Write([]byte("bar"))
 	}))
 
-	h := &apmhttp.Handler{
-		Handler: mux,
-		Tracer:  tracer,
-	}
-
+	h := apmhttp.Wrap(mux, apmhttp.WithTracer(tracer))
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "http://server.testing/foo", nil)
 	req.Header.Set("User-Agent", "apmhttp_test")
@@ -97,10 +80,7 @@ func TestHandlerHTTP2(t *testing.T) {
 		w.WriteHeader(http.StatusTeapot)
 		w.Write([]byte("bar"))
 	}))
-	srv := httptest.NewUnstartedServer(&apmhttp.Handler{
-		Handler: mux,
-		Tracer:  tracer,
-	})
+	srv := httptest.NewUnstartedServer(apmhttp.Wrap(mux, apmhttp.WithTracer(tracer)))
 	err := http2.ConfigureServer(srv.Config, nil)
 	require.NoError(t, err)
 	srv.TLS = srv.Config.TLSConfig
@@ -157,11 +137,11 @@ func TestHandlerCaptureBodyRaw(t *testing.T) {
 	defer tracer.Close()
 
 	tracer.SetCaptureBody(elasticapm.CaptureBodyTransactions)
-	h := &apmhttp.Handler{
-		Handler: http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}),
-		Tracer:  tracer,
-	}
-	tx := testPostTransaction(h, transport, strings.NewReader("foo"))
+	h := apmhttp.Wrap(
+		http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}),
+		apmhttp.WithTracer(tracer),
+	)
+	tx := testPostTransaction(h, tracer, transport, strings.NewReader("foo"))
 	assert.Equal(t, &model.RequestBody{Raw: "foo"}, tx.Context.Request.Body)
 }
 
@@ -170,15 +150,15 @@ func TestHandlerCaptureBodyForm(t *testing.T) {
 	defer tracer.Close()
 
 	tracer.SetCaptureBody(elasticapm.CaptureBodyTransactions)
-	h := &apmhttp.Handler{
-		Handler: http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
+	h := apmhttp.Wrap(
+		http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
 			if err := req.ParseForm(); err != nil {
 				panic(err)
 			}
 		}),
-		Tracer: tracer,
-	}
-	tx := testPostTransaction(h, transport, strings.NewReader("foo=bar&foo=baz"))
+		apmhttp.WithTracer(tracer),
+	)
+	tx := testPostTransaction(h, tracer, transport, strings.NewReader("foo=bar&foo=baz"))
 	assert.Equal(t, &model.RequestBody{
 		Form: url.Values{
 			"foo": []string{"bar", "baz"},
@@ -191,12 +171,11 @@ func TestHandlerCaptureBodyError(t *testing.T) {
 	defer tracer.Close()
 
 	tracer.SetCaptureBody(elasticapm.CaptureBodyAll)
-	h := &apmhttp.Handler{
-		Handler:  http.HandlerFunc(panicHandler),
-		Recovery: apmhttp.NewTraceRecovery(tracer),
-		Tracer:   tracer,
-	}
-	e := testPostError(h, transport, strings.NewReader("foo"))
+	h := apmhttp.Wrap(
+		http.HandlerFunc(panicHandler),
+		apmhttp.WithTracer(tracer),
+	)
+	e := testPostError(h, tracer, transport, strings.NewReader("foo"))
 	assert.Equal(t, &model.RequestBody{Raw: "foo"}, e.Context.Request.Body)
 }
 
@@ -205,30 +184,29 @@ func TestHandlerCaptureBodyErrorIgnored(t *testing.T) {
 	defer tracer.Close()
 
 	tracer.SetCaptureBody(elasticapm.CaptureBodyTransactions)
-	h := &apmhttp.Handler{
-		Handler:  http.HandlerFunc(panicHandler),
-		Recovery: apmhttp.NewTraceRecovery(tracer),
-		Tracer:   tracer,
-	}
-	e := testPostError(h, transport, strings.NewReader("foo"))
+	h := apmhttp.Wrap(
+		http.HandlerFunc(panicHandler),
+		apmhttp.WithTracer(tracer),
+	)
+	e := testPostError(h, tracer, transport, strings.NewReader("foo"))
 	assert.Nil(t, e.Context.Request.Body) // only capturing for transactions
 }
 
-func testPostTransaction(h *apmhttp.Handler, transport *transporttest.RecorderTransport, body io.Reader) *model.Transaction {
+func testPostTransaction(h http.Handler, tracer *elasticapm.Tracer, transport *transporttest.RecorderTransport, body io.Reader) *model.Transaction {
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("POST", "http://server.testing/foo", body)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	h.ServeHTTP(w, req)
-	h.Tracer.Flush(nil)
+	tracer.Flush(nil)
 	return transport.Payloads()[0].Transactions()[0]
 }
 
-func testPostError(h *apmhttp.Handler, transport *transporttest.RecorderTransport, body io.Reader) *model.Error {
+func testPostError(h http.Handler, tracer *elasticapm.Tracer, transport *transporttest.RecorderTransport, body io.Reader) *model.Error {
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("POST", "http://server.testing/foo", body)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	h.ServeHTTP(w, req)
-	h.Tracer.Flush(nil)
+	tracer.Flush(nil)
 	return transport.Payloads()[0].Errors()[0]
 }
 
@@ -236,11 +214,10 @@ func TestHandlerRecovery(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
-	h := &apmhttp.Handler{
-		Handler:  http.HandlerFunc(panicHandler),
-		Recovery: apmhttp.NewTraceRecovery(tracer),
-		Tracer:   tracer,
-	}
+	h := apmhttp.Wrap(
+		http.HandlerFunc(panicHandler),
+		apmhttp.WithTracer(tracer),
+	)
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "http://server.testing/foo", nil)

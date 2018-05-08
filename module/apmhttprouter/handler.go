@@ -9,25 +9,27 @@ import (
 	"github.com/elastic/apm-agent-go/module/apmhttp"
 )
 
-// WrapHandle wraps h such that it will trace requests to the handler using
-// tracer t, or elasticapm.DefaultTracer if t is nil, and an optional recovery
-// function.
+// Wrap wraps h such that it will report requests as transactions
+// to Elastic APM, using route in the transaction name.
 //
-// Transactions will be reported with route as the transaction name.
+// By default, the returned Handle will use elasticapm.DefaultTracer.
+// Use WithTracer to specify an alternative tracer.
 //
-// If recovery is non-nil, the wrapped handler will recover panics and
-// report them to Elastic APM.
-func WrapHandle(
-	h httprouter.Handle,
-	t *elasticapm.Tracer,
-	route string,
-	recovery apmhttp.RecoveryFunc,
-) httprouter.Handle {
-	if t == nil {
-		t = elasticapm.DefaultTracer
+// By default, the returned Handle will recover panics, reporting
+// them to the configured tracer. To override this behaviour, use
+// WithRecovery.
+func Wrap(h httprouter.Handle, route string, o ...Option) httprouter.Handle {
+	opts := options{
+		tracer: elasticapm.DefaultTracer,
+	}
+	for _, o := range o {
+		o(&opts)
+	}
+	if opts.recovery == nil {
+		opts.recovery = apmhttp.NewTraceRecovery(opts.tracer)
 	}
 	return func(w http.ResponseWriter, req *http.Request, p httprouter.Params) {
-		tx := t.StartTransaction(req.Method+" "+route, "request")
+		tx := opts.tracer.StartTransaction(req.Method+" "+route, "request")
 		if tx.Ignored() {
 			tx.Discard()
 			h(w, req, p)
@@ -39,18 +41,46 @@ func WrapHandle(
 		defer tx.Done(-1)
 
 		finished := false
-		body := t.CaptureHTTPRequestBody(req)
+		body := opts.tracer.CaptureHTTPRequestBody(req)
 		w, resp := apmhttp.WrapResponseWriter(w)
 		defer func() {
-			if recovery != nil {
-				if v := recover(); v != nil {
-					recovery(w, req, body, tx, v)
-					finished = true
-				}
+			if v := recover(); v != nil {
+				opts.recovery(w, req, body, tx, v)
+				finished = true
 			}
 			apmhttp.SetTransactionContext(tx, w, req, resp, body, finished)
 		}()
 		h(w, req, p)
 		finished = true
+	}
+}
+
+type options struct {
+	tracer   *elasticapm.Tracer
+	recovery apmhttp.RecoveryFunc
+}
+
+// Option sets options for tracing.
+type Option func(*options)
+
+// WithTracer returns an Option which sets t as the tracer
+// to use for tracing server requests.
+func WithTracer(t *elasticapm.Tracer) Option {
+	if t == nil {
+		panic("t == nil")
+	}
+	return func(o *options) {
+		o.tracer = t
+	}
+}
+
+// WithRecovery returns an Option which sets r as the recovery
+// function to use for tracing server requests.
+func WithRecovery(r apmhttp.RecoveryFunc) Option {
+	if r == nil {
+		panic("r == nil")
+	}
+	return func(o *options) {
+		o.recovery = r
 	}
 }

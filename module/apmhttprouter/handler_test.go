@@ -10,25 +10,24 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/module/apmhttp"
 	"github.com/elastic/apm-agent-go/module/apmhttprouter"
 	"github.com/elastic/apm-agent-go/transport/transporttest"
 )
 
-func TestWrapHandle(t *testing.T) {
+func TestWrap(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
 	router := httprouter.New()
 
 	const route = "/hello/:name/go/*wild"
-	router.GET(route, apmhttprouter.WrapHandle(
+	router.GET(route, apmhttprouter.Wrap(
 		func(w http.ResponseWriter, req *http.Request, p httprouter.Params) {
 			w.WriteHeader(http.StatusTeapot)
 			w.Write([]byte(fmt.Sprintf("%s:%s", p.ByName("name"), p.ByName("wild"))))
 		},
-		tracer, route,
-		nil, // no recovery
+		route,
+		apmhttprouter.WithTracer(tracer),
 	))
 
 	w := httptest.NewRecorder()
@@ -78,9 +77,9 @@ func TestRecovery(t *testing.T) {
 	router := httprouter.New()
 
 	const route = "/panic"
-	router.GET(route, apmhttprouter.WrapHandle(
-		panicHandler, tracer, route,
-		apmhttp.NewTraceRecovery(tracer),
+	router.GET(route, apmhttprouter.Wrap(
+		panicHandler, route,
+		apmhttprouter.WithTracer(tracer),
 	))
 
 	w := httptest.NewRecorder()

@@ -19,16 +19,18 @@ func init() {
 }
 
 // Middleware returns a new Gin middleware handler for tracing
-// requests and reporting errors, using the given tracer, or
-// elasticapm.DefaultTracer if the tracer is nil.
+// requests and reporting errors.
 //
 // This middleware will recover and report panics, so it can
 // be used instead of the standard gin.Recovery middleware.
-func Middleware(engine *gin.Engine, tracer *elasticapm.Tracer) gin.HandlerFunc {
-	if tracer == nil {
-		tracer = elasticapm.DefaultTracer
+//
+// By default, the middleware will use elasticapm.DefaultTracer.
+// Use WithTracer to specify an alternative tracer.
+func Middleware(engine *gin.Engine, o ...Option) gin.HandlerFunc {
+	m := &middleware{engine: engine, tracer: elasticapm.DefaultTracer}
+	for _, o := range o {
+		o(m)
 	}
-	m := &middleware{engine: engine, tracer: tracer}
 	return m.handle
 }
 
@@ -114,4 +116,18 @@ func (m *middleware) handle(c *gin.Context) {
 
 type ginContext struct {
 	Handler string `json:"handler"`
+}
+
+// Option sets options for tracing.
+type Option func(*middleware)
+
+// WithTracer returns an Option which sets t as the tracer
+// to use for tracing server requests.
+func WithTracer(t *elasticapm.Tracer) Option {
+	if t == nil {
+		panic("t == nil")
+	}
+	return func(m *middleware) {
+		m.tracer = t
+	}
 }
