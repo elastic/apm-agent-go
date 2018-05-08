@@ -393,15 +393,13 @@ If you use `Tracer.Recovered`, the stack trace is not set at all, and you
 can set it using `Error.SetExceptionStacktrace` as necessary.
 
 As well asfrom recovering from panics, you can also report errors using
-`Tracer.NewError`. Given the resulting elasticapm.Error object, you can then
-either set an "exception", or a log message. e.g.
+`Tracer.NewError` or `Tracer.NewErrorLog`. e.g.
 
 ```go
 ...
 if err != nil {
-	e := elasticapm.DefaultTracer.NewError()
-	e.SetException(err)
-	e.Exception.Handled = true // error was handled by the application
+	e := elasticapm.DefaultTracer.NewError(err)
+	e.Handled = true // error was handled by the application
 	e.Transaction = tx // optional; errors need not correspond to transactions
 	e.Send()
 }

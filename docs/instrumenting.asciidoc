@@ -1,0 +1,312 @@
+[[getting-started]]
+== Getting started
+
+To start reporting your Go application's performance to Elastic APM, we need to do a few things:
+
+1. Install the Go agent package.
+2. Instrument your application's source code.
+3. Configure the application to send data to your Elastic APM server.
+
+Below we'll look at installing the Go agent and instrumenting your application
+code. For the final step, see the <<configuration>> section.
+
+[[installation]]
+=== Installation
+
+Install the Elastic APM Go agent package using `go get`:
+
+[source,bash]
+----
+go get github.com/elastic/apm-agent-go
+----
+
+==== Requirements
+
+The Go agent is tested with Go 1.8+ on Linux, Windows and MacOS.
+
+[[instrumenting-source]]
+=== Instrumenting Go Source Code
+
+At present, Go applications must be instrumented manually at the source code level.
+Where possible, you should use the <<builtin-modules, built-in instrumentation modules>>
+to report transactions served by web and RPC frameworks in your application. If the
+built-in modules are not suitable, please refer to <<custom-instrumentation, Custom Instrumentation>>.
+
+[[builtin-modules]]
+==== Built-in Modules
+
+===== module/apmecho
+Package apmecho provides middleware for the https://github.com/labstack/echo[Echo] web framework.
+
+[source,go]
+----
+import (
+	"github.com/labstack/echo"
+	"github.com/elastic/apm-agent-go/module/apmecho"
+)
+
+func main() {
+	e := echo.New()
+	e.Use(apmecho.Middleware())
+	...
+}
+----
+
+The apmecho middleware will recover panics and send them to Elastic APM,
+so you do not need to install the echo/middleware.Recover middleware.
+
+===== module/apmgin
+Package apmgin provides middleware for the https://gin-gonic.github.io/gin/[Gin] web framework.
+
+[source,go]
+----
+import (
+	"github.com/elastic/apm-agent-go/module/apmgin"
+)
+
+func main() {
+	engine := gin.New()
+	engine.Use(apmgin.Middleware(engine))
+	...
+}
+----
+
+The apmgin middleware will recover panics and send them to Elastic APM, so you do not need to install the gin.Recovery middleware.
+
+===== module/apmgorilla
+Package apmgorilla provides middleware for the http://www.gorillatoolkit.org/pkg/mux[Gorilla Mux] router.
+
+[source,go]
+----
+import (
+	"github.com/gorilla/mux"
+
+	"github.com/elastic/apm-agent-go/module/apmgorilla"
+)
+
+func main() {
+	router := mux.NewRouter()
+	router.Use(apmgorilla.Middleware())
+	...
+}
+----
+
+The apmgorilla middleware will recover panics and send them to Elastic APM, so you do not need to install any other recovery middleware.
+
+===== module/apmgrpc
+Package apmgrpc provides server and client interceptors for https://github.com/grpc/grpc-go[gRPC-Go].
+Server interceptors report transactions for each incoming request, while client interceptors
+report spans for each outgoing request.
+
+[source,go]
+----
+import (
+	"github.com/elastic/apm-agent-go/module/apmgrpc"
+)
+
+func main() {
+	server := grpc.NewServer(grpc.UnaryInterceptor(apmgrpc.NewUnaryServerInterceptor()))
+	...
+	conn, err := grpc.Dial(addr, grpc.WithUnaryInterceptor(apmgrpc.NewUnaryClientInterceptor()))
+	...
+}
+----
+
+The server interceptor can optionally be made to recover panics, in the same way as
+https://github.com/grpc-ecosystem/go-grpc-middleware/tree/master/recovery[grpc_recovery].
+The apmgrpc server interceptor will always send panics it observes as errors to the Elastic APM server.
+If you want to recover panics but also want to continue using grpc_recovery, then you should ensure
+that it comes before the apmgrpc interceptor in the interceptor chain, or panics will not be captured
+by apmgrpc.
+
+[source,go]
+----
+server := grpc.NewServer(grpc.UnaryInterceptor(
+	apmgrpc.NewUnaryServerInterceptor(apmgrpc.WithRecovery()),
+))
+...
+----
+
+There is currently no support for intercepting at the stream level. Please file an issue and/or
+send a pull request if this is something you need.
+
+===== module/apmhttp
+Package apmhttp provides a low-level `net/http` middleware handler. Other web middleware should
+typically be based off this.
+
+[source,go]
+----
+import (
+	"github.com/elastic/apm-agent-go/module/apmhttp"
+)
+
+func main() {
+	var myHandler http.Handler = ...
+	tracedHandler := apmhttp.Wrap(myHandler)
+}
+----
+
+The apmhttp handler will recover panics and send them to Elastic APM.
+
+===== module/apmhttprouter
+Package apmhttprouter provides a low-level middleware handler for https://github.com/julienschmidt/httprouter[httprouter].
+
+[source,go]
+----
+import (
+	"github.com/julienschmidt/httprouter"
+
+	"github.com/elastic/apm-agent-go"
+	"github.com/elastic/apm-agent-go/module/apmhttp"
+	"github.com/elastic/apm-agent-go/module/apmhttprouter"
+)
+
+func main() {
+	router := httprouter.New()
+
+	const route = "/my/route"
+	router.GET(route, apmhttprouter.Wrap(h, route))
+	...
+}
+----
+
+https://github.com/julienschmidt/httprouter/pull/139[httprouter does not provide a means of obtaining the matched route], hence the route must be passed into the wrapper.
+
+===== module/apmlambda
+Package apmlambda intercepts requests to your AWS Lambda function invocations.
+
+experimental[]
+
+Importing the package is enough to report the function invocations.
+
+[source,go]
+----
+import (
+	_ "github.com/elastic/apm-agent-go/module/apmlambda"
+)
+----
+
+We currently do not expose the transactions via context; when we do, it will be
+necessary to make a small change to your code to call apmlambda.Start instead of
+lambda.Start.
+
+===== module/apmsql
+Package apmsql provides a means of wrapping `database/sql` drivers so that queries and other
+executions are reported as spans within the current transaction.
+
+To trace SQL queries, you should register drivers using apmsql.Register and obtain connections
+with apmsql.Open. The parameters are exactly the same as if you were to call sql.Register
+and sql.Open respectively.
+
+As a convenience, we also provide packages which will automatically register popular drivers
+with apmsql.Register:
+
+- module/apmsql/pq (github.com/lib/pq)
+- module/apmsql/mysql (github.com/go-sql-driver/mysql)
+- module/apmsql/sqlite3 (github.com/mattn/go-sqlite3)
+
+[source,go]
+----
+import (
+	"github.com/elastic/apm-agent-go/module/apmsql"
+	_ "github.com/elastic/apm-agent-go/module/apmsql/pq"
+	_ "github.com/elastic/apm-agent-go/module/apmsql/sqlite3"
+)
+
+func main() {
+	db, err := apmsql.Open("pq", "postgres://...")
+	db, err := apmsql.Open("sqlite3", ":memory:")
+}
+----
+
+Spans will be created for queries and other statement executions if the context methods are
+used, and the context includes a transaction.
+
+[[custom-instrumentation]]
+==== Custom instrumentation
+
+To report on the performance of transactions served by your application, you can use the Go
+agent's <<api, API>>. Instrumentation refers to modifying your application code to report:
+
+ - transactions
+ - spans within transactions
+ - errors
+
+A transaction represents a top-level operation in your application, such as an HTTP or RPC
+request. A span represents an operation within a transaction, such as a database query, or
+a request to another service. Errors may refer to Go errors, or panics.
+
+To report these things, you will use a <<tracer-api, elasticapm.Tracer>> -- typically
+`elasticapm.DefaultTracer`, which is configured via environment variables. In the code
+examples below we will refer to `elasticapm.DefaultTracer`. Please refer to the <<api, API documentation>>
+for a more thorough description of the types and methods.
+
+===== Transactions
+
+To report a transaction, you call <<tracer-api-start-transaction, elasticapm.DefaultTracer.StartTransaction>>
+with the transaction name and type. This returns a `Transaction` object; the transaction
+can be customized with additional context before you call its `Done` method to indicate
+that the transaction has completed. Once the transaction's `Done` method is called, it
+will be enqueued for sending to the Elastic APM server, and made available to the APM UI.
+
+[source,go]
+----
+tx := elasticapm.DefaultTracer.StartTransaction("GET /api/v1", "request")
+defer tx.Done(-1)
+...
+tx.Result = "HTTP 2xx"
+tx.Context.SetTag("region", "us-east-1")
+----
+
+The agent supports ignoring and sampling transactions; ignored transactions will not be
+sent to the server at all, while non-sampled transactions will be sent with limited context
+and without any spans. To determine whether a transaction is ignored, use the
+`Transaction.Ignored` method; if it returns true, any additional instrumentation should
+be avoided. Similarly, you can use the `Transaction.Sampled` method to decide whether or
+not to add to the transaction's context.
+
+Once you have started a transaction, you can include it in a `context` object for prpagating
+throughout the application.
+
+[source,go]
+----
+ctx = elasticapm.ContextWithTransaction(ctx, tx)
+----
+
+===== Spans
+
+To report an operation within a transaction, you should use <<transaction-start-span, Transaction.StartSpan>>
+or <<elasticapm-start-span, elasticapm.StartSpan>> to start a span given a transaction or a `context`
+containing a transaction, respectively. Like a transaction, a span has a name and a type. In addition,
+a span can have a parent span within the same transaction. If the context provided to `elasticapm.StartSpan`
+contains a span, then that will be considered the parent.
+
+[source,go]
+----
+span, ctx := elasticapm.StartSpan(ctx, "SELECT FROM foo", "db.mysql.query")
+if span != nil {
+	defer span.Done(-1)
+}
+----
+
+Note that both `Transaction.StartSpan` and `elasticapm.StartSpan` will return a nil `Span` if the transaction
+is not being sampled. By default, all transactions are sampled; that is, all transactions are sent with
+complete detail to the Elastic APM server. If you configure the agent to sample transactions at less than
+100%, then spans and context will be dropped, and in this case, StartSpan will sometimes return nil. Since
+sampling on the tracer can be configured via an environment variable <<config-transaction-sample-rate>>,
+it is a good idea to always check for a nil result.
+
+===== Panic recovery and errors
+
+If you want to recover panics, and report them along with your transaction, you can use the
+<<tracer-recover, Tracer.Recover>> or <<tracer-recovered, Tracer.Recovered>> methods. The former should be
+used as a deferred call, while the latter can be used if you have your own recovery logic. There are also
+methods for reporting non-panic errors: <<tracer-new-error, Tracer.NewError>>,
+<<tracer-new-error-log, Tracer.NewErrorLog>>, and <<elasticapm-captureerror, elasticapm.CaptureError>>.
+
+[source,go]
+----
+defer elasticapm.DefaultTracer.Recover(tx)
+----
+
+See the <<error-api, Error API>> for details and examples of the other methods.

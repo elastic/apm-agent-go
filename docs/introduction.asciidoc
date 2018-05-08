@@ -1,0 +1,22 @@
+[[introduction]]
+== Introduction
+
+Welcome to the Elastic APM Go Agent docs.
+
+The Go agent enables you to trace the execution of operations in your https://golang.org/[Go]
+applications, sending performance metrics and errors to the Elastic APM server.
+
+The Go agent has built-in support for many popular Go web frameworks and toolkits
+such as http://www.gorillatoolkit.org/[Gorilla] and https://gin-gonic.github.io/gin/[Gin],
+as well as support for instrumenting Go's built-in https://golang.org/pkg/net/http/[net/http],
+https://golang.org/pkg/database/sql/[database/sql] drivers, and APIs for custom instrumentation.
+
+The agent is only one of multiple components you need to get started with APM.
+Please also have a look at the documentation for
+
+ * https://www.elastic.co/guide/en/apm/server/current/index.html[APM Server]
+ * https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html[Elasticsearch]
+
+ifdef::env-github[]
+NOTE: For the best reading experience, please head over to this document at https://www.elastic.co/guide/en/apm/agent/go/current/index.html[elastic.co]
+endif::[]

@@ -1,0 +1,261 @@
+[[configuration]]
+== Configuration
+
+To adapt the Elastic APM Go agent to your needs, you can configure it using
+environment variables.
+
+In order to send your data to an Elastic APM server, you must at least configure
+<<config-server-url, ELASTIC_APM_SERVER_URL>>. Depending on the configuration
+of your server, you may also need to set <<config-secret-token, ELASTIC_APM_SECRET_TOKEN>>
+and <<config-verify-server-cert, ELASTIC_APM_VERIFY_SERVER_CERT>>. All other
+variables have usable defaults.
+
+[float]
+[[config-server-url]]
+=== `ELASTIC_APM_SERVER_URL`
+
+[options="header"]
+|============
+| Environment              | Default  | Example
+| `ELASTIC_APM_SERVER_URL` |          | `http://localhost:9200`
+|============
+
+The URL for your Elastic APM server. The server supports both HTTP and HTTPS.
+If you use HTTPS, then you may need to configure your client machines so
+that the server certificate can be verified. You can also disable certificate
+verification with <<config-verify-server-cert>>.
+
+NOTE: If `ELASTIC_APM_SERVER_URL` is not specified, then all transactions and
+errors will be discarded.
+
+[float]
+[[config-secret-token]]
+=== `ELASTIC_APM_SECRET_TOKEN`
+
+[options="header"]
+|============
+| Environment                | Default | Example
+| `ELASTIC_APM_SECRET_TOKEN` |         | "A random string"
+|============
+
+This string is used to ensure that only your agents can send data to your APM server.
+Both the agents and the APM server have to be configured with the same secret token.
+
+WARNING: the secret token is sent as plain-text in every request to the server, so you
+should also secure your communications using HTTPS. Unless you do so, your secret token
+could be observed by an attacker.
+
+[float]
+[[config-service-name]]
+=== `ELASTIC_APM_SERVICE_NAME`
+
+[options="header"]
+|============
+| Environment                | Default         | Example
+| `ELASTIC_APM_SERVICE_NAME` | Executable name | `my-app`
+|============
+
+The name of your service/application.  This is used to keep all the errors and
+transactions of your service together and is the primary filter in the Elastic APM
+user interface.
+
+If you do not specify `ELASTIC_APM_SERVICE_NAME`, the Go agent will use the
+executable name. e.g. if your executable is called "my-app.exe", then your
+service will be identified as "my-app".
+
+NOTE: The service name must conform to this regular expression: `^[a-zA-Z0-9 _-]+$`.
+In other words: your service name must only contain characters from the ASCII
+alphabet, numbers, dashes, underscores and spaces.
+
+[float]
+[[config-service-version]]
+=== `ELASTIC_APM_SERVICE_VERSION`
+[options="header"]
+|============
+| Environment                    | Default | Example
+| `ELASTIC_APM_SERVICE_VERSION`  |         | A string indicating the version of the deployed service
+|============
+
+A version string for the currently deployed version of the service.
+If you don't version your deployments, the recommended value for this field is the commit identifier
+of the deployed revision, e.g. the output of `git rev-parse HEAD`.
+
+[float]
+[[config-environment]]
+=== `ELASTIC_APM_ENVIRONMENT`
+
+[options="header"]
+|============
+| Environment               | Default | Example
+| `ELASTIC_APM_ENVIRONMENT` |         | `"production"`
+|============
+
+The name of the environment this service is deployed in, e.g. "production" or "staging".
+
+[float]
+[[config-transactions-ignore-patterns]]
+==== `ELASTIC_APM_TRANSACTIONS_IGNORE_NAMES`
+[options="header"]
+|============
+| Environment                             | Default | Example
+| `ELASTIC_APM_TRANSACTIONS_IGNORE_NAMES` |         | `^OPTIONS`
+|============
+
+A regular expression matching the names of transactions to ignore. Ignored transactions
+will not be sent to the APM server.
+
+The pattern specified in `ELASTIC_APM_TRANSCATION_IGNORE_NAMES` is treated
+case-insensitively by default. To override this behavior and match case-sensitively,
+wrap the value like `(?-i:<value>)`. For a full definition of Go's regular
+expression syntax, see https://golang.org/pkg/regexp/syntax/.
+
+[float]
+[[config-sanitize-field-names]]
+==== `ELASTIC_APM_SANITIZE_FIELD_NAMES`
+[options="header"]
+|============
+| Environment                        | Default                                                                    | Example
+| `ELASTIC_APM_SANITIZE_FIELD_NAMES` | `password|passwd|pwd|secret|.*key|.*token|.*session.*|.*credit.*|.*card.*` | `sekrits`
+|============
+
+A regular expression matching the names of HTTP cookies and POST form fields to redact.
+
+The pattern specified in `ELASTIC_APM_SANITIZE_FIELD_NAMES` is treated
+case-insensitively by default. To override this behavior and match case-sensitively,
+wrap the value like `(?-i:<value>)`. For a full definition of Go's regular
+expression syntax, see https://golang.org/pkg/regexp/syntax/.
+
+[float]
+[[config-capture-body]]
+==== `ELASTIC_APM_CAPTURE_BODY`
+
+|============
+| Environment                | Default
+| `ELASTIC_APM_CAPTURE_BODY` | `off`
+|============
+
+For transactions that are HTTP requests, the Go agent can optionally capture the request body.
+
+Possible values: `errors`, `transactions`, `all`, `off`.
+
+WARNING: request bodies often contain sensitive values like passwords, credit card numbers, etc.
+If your service handles data like this, enable this feature with care.
+
+[float]
+[[config-hostname]]
+==== `ELASTIC_APM_HOSTNAME`
+
+[options="header"]
+|============
+| Environment                | Default         | Example
+| `ELASTIC_APM_HOSTNAME`     | `os.Hostname()` | `app-server01`
+|============
+
+The host name to use when sending error and transaction data to the APM server.
+
+[float]
+[[config-flush-interval]]
+==== `ELASTIC_APM_FLUSH_INTERVAL`
+
+|============
+| Environment                  | Default
+| `ELASTIC_APM_FLUSH_INTERVAL` | `10s`
+|============
+
+Amount of time to wait before sending transactions to the Elastic APM server.
+Transactions will be batched up and sent periodically. Errors are always sent
+as soon as possible.
+
+A lower value will increase the load on your APM server, while a higher value
+can increase the memory pressure on your app. A higher value also impacts the
+time until transactions are indexed and searchable in Elasticsearch.
+
+[float]
+[[config-transaction-max-spans]]
+==== `ELASTIC_APM_TRANSACTION_MAX_SPANS`
+
+|============
+| Environment                         | Default
+| `ELASTIC_APM_TRANSACTION_MAX_SPANS` | `500`
+|============
+
+Limits the amount of spans that are recorded per transaction.
+
+This is helpful in cases where a transaction creates a large number
+of spans (e.g. thousands of SQL queries). Setting an upper limit will
+prevent overloading the agent and the APM server with too much work
+for such edge cases.
+
+[float]
+[[config-span-frames-min-duration-ms]]
+==== `ELASTIC_APM_SPAN_FRAMES_MIN_DURATION`
+
+|============
+| Environment                            | Default
+| `ELASTIC_APM_SPAN_FRAMES_MIN_DURATION` | `5ms`
+|============
+
+The APM agent will collect a stack trace for every recorded span whose duration
+exceeds this configured value. While this is very helpful to find the exact
+place in your code that causes the span, collecting this stack trace does have
+some processing and storage overhead.
+
+[float]
+[[config-max-queue-size]]
+==== `ELASTIC_APM_MAX_QUEUE_SIZE`
+
+|============
+| Environment                  | Default
+| `ELASTIC_APM_MAX_QUEUE_SIZE` | `500`
+|============
+
+Maximum queue length of transactions before sending transactions to the APM server.
+A lower value will increase the load on your APM server, while a higher value can
+increase the memory pressure of your app. A higher value also impacts the time until
+transactions are indexed and searchable in Elasticsearch.
+
+This setting is useful to limit memory consumption if you experience a sudden spike
+of traffic. The queue will not grow beyond the configured size; once it has reached
+capacity, old transactions are dropped in favour of new ones.
+
+[float]
+[[config-transaction-sample-rate]]
+==== `ELASTIC_APM_TRANSACTION_SAMPLE_RATE`
+
+|============
+| Environment                           | Default
+| `ELASTIC_APM_TRANSACTION_SAMPLE_RATE` | `1.0`
+|============
+
+By default, the agent will sample every transaction (e.g. request to your service).
+To reduce overhead and storage requirements, you can set the sample rate to a value
+between `0.0` and `1.0`. We still record overall time and the result for unsampled
+transactions, but no context information, tags, or spans.
+
+[float]
+[[config-verify-server-cert]]
+==== `ELASTIC_APM_VERIFY_SERVER_CERT`
+|============
+| Environment                       | Default
+| `ELASTIC_APM_VERIFY_SERVER_CERT`  | `true`
+|============
+
+By default, the agent verifies the server's certificate if you use an
+HTTPS connection to the APM server. Verification can be disabled by
+changing this setting to `false`.
+
+[float]
+[[config-debug]]
+==== `ELASTIC_APM_DEBUG`
+|============
+| Environment         | Default
+| `ELASTIC_APM_DEBUG` |
+|============
+
+`ELASTIC_APM_DEBUG` can be used to debug issues with the Elastic APM Go agent
+or your instrumentation. The value should be a comma-separated list of key=value
+debug directives. Currently we support just one: `tracetransport=1`.
+
+By setting `ELASTIC_APM_DEBUG="tracetransport=1"`, the Go agent will log all
+transport calls to the terminal.
+

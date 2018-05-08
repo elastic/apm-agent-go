@@ -1,0 +1,17 @@
+= APM Go Agent Reference
+
+ifdef::env-github[]
+* link:./introduction.asciidoc[Introduction]
+* link:./instrumenting.asciidoc[Instrumenting]
+* link:./configuration.asciidoc[Configuration]
+* link:./api.asciidoc[API documentation]
+* link:./contributing.asciidoc[Contributing]
+endif::[]
+
+ifndef::env-github[]
+include::./introduction.asciidoc[Introduction]
+include::./instrumenting.asciidoc[Instrumenting]
+include::./configuration.asciidoc[Configuration]
+include::./api.asciidoc[API documentation]
+include::./contributing.asciidoc[Contributing]
+endif::[]
