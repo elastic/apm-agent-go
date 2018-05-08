@@ -147,41 +147,6 @@ func TestHTTPError(t *testing.T) {
 	assert.EqualError(t, err, "SendTransactions failed with 500 Internal Server Error: error-message")
 }
 
-func TestConcurrentSendTransactions(t *testing.T) {
-	payload := &model.TransactionsPayload{
-		Service: &model.Service{},
-	}
-	testConcurrentSend(t, func(tr transport.Transport) {
-		tr.SendTransactions(context.Background(), payload)
-	})
-}
-
-func TestConcurrentSendErrors(t *testing.T) {
-	payload := &model.ErrorsPayload{
-		Service: &model.Service{},
-	}
-	testConcurrentSend(t, func(tr transport.Transport) {
-		tr.SendErrors(context.Background(), payload)
-	})
-}
-
-func testConcurrentSend(t *testing.T, write func(transport.Transport)) {
-	transport, server := newHTTPTransport(t, nopHandler{})
-	defer server.Close()
-
-	var wg sync.WaitGroup
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for i := 0; i < 100; i++ {
-				write(transport)
-			}
-		}()
-	}
-	wg.Wait()
-}
-
 func newHTTPTransport(t *testing.T, handler http.Handler) (*transport.HTTPTransport, *httptest.Server) {
 	server := httptest.NewServer(handler)
 	transport, err := transport.NewHTTPTransport(server.URL, "")
