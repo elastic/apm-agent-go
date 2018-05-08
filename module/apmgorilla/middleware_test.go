@@ -19,7 +19,7 @@ func TestMuxMiddleware(t *testing.T) {
 	defer tracer.Close()
 
 	r := mux.NewRouter()
-	r.Use(apmgorilla.Middleware(tracer))
+	r.Use(apmgorilla.Middleware(apmgorilla.WithTracer(tracer)))
 	sub := r.PathPrefix("/prefix").Subrouter()
 	sub.Path("/articles/{category}/{id:[0-9]+}").Handler(http.HandlerFunc(articleHandler))
 

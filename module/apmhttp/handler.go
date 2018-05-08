@@ -6,60 +6,50 @@ import (
 	"github.com/elastic/apm-agent-go"
 )
 
-// Wrap returns a Handler wrapping h. This is a convenience function:
-// `apmhttp.Wrap(h)` is equivalent to `&apmhttp.Handler{Handler: h}`.
-func Wrap(h http.Handler) *Handler {
-	return &Handler{Handler: h}
+// Wrap returns a Handler wrapping h, reporting each request as a
+// transaction to Elastic APM.
+//
+// By default, the returned Handler will use elasticapm.DefaultTracer.
+// Use WithTracer to specify an alternative tracer.
+//
+// By default, the returned Handler will recover panics, reporting
+// them to the configured tracer. To override this behaviour, use
+// WithRecovery.
+func Wrap(h http.Handler, o ...Option) http.Handler {
+	if h == nil {
+		panic("h == nil")
+	}
+	handler := &handler{
+		handler:     h,
+		tracer:      elasticapm.DefaultTracer,
+		requestName: RequestName,
+	}
+	for _, o := range o {
+		o(handler)
+	}
+	if handler.recovery == nil {
+		handler.recovery = NewTraceRecovery(handler.tracer)
+	}
+	return handler
 }
 
-// Handler wraps an http.Handler, reporting a new transaction for each request.
+// handler wraps an http.Handler, reporting a new transaction for each request.
 //
 // The http.Request's context will be updated with the transaction.
-type Handler struct {
-	// Handler is the original http.Handler to trace.
-	Handler http.Handler
-
-	// Recovery is an optional panic recovery handler. If this is
-	// non-nil, panics will be recovered and passed to this function,
-	// along with the request and response writer. If Recovery is
-	// nil, panics will not be recovered.
-	Recovery RecoveryFunc
-
-	// RequestName, if non-nil, will be called by ServeHTTP to obtain
-	// the transaction name for the request. If this is nil, the
-	// package-level RequestName function will be used.
-	RequestName func(*http.Request) string
-
-	// Tracer is an optional elasticapm.Tracer for tracing transactions.
-	// If this is nil, elasticapm.DefaultTracer will be used instead.
-	Tracer *elasticapm.Tracer
-}
-
-// WithRecovery returns a copy of h with Recovery set to r.
-func (h *Handler) WithRecovery(r RecoveryFunc) *Handler {
-	hcopy := *h
-	hcopy.Recovery = r
-	return &hcopy
+type handler struct {
+	handler     http.Handler
+	tracer      *elasticapm.Tracer
+	recovery    RecoveryFunc
+	requestName RequestNameFunc
 }
 
 // ServeHTTP delegates to h.Handler, tracing the transaction with
 // h.Tracer, or elasticapm.DefaultTracer if h.Tracer is nil.
-func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	t := h.Tracer
-	if t == nil {
-		t = elasticapm.DefaultTracer
-	}
-
-	var name string
-	if h.RequestName != nil {
-		name = h.RequestName(req)
-	} else {
-		name = RequestName(req)
-	}
-	tx := t.StartTransaction(name, "request")
+func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	tx := h.tracer.StartTransaction(h.requestName(req), "request")
 	if tx.Ignored() {
 		tx.Discard()
-		h.Handler.ServeHTTP(w, req)
+		h.handler.ServeHTTP(w, req)
 		return
 	}
 	ctx := elasticapm.ContextWithTransaction(req.Context(), tx)
@@ -67,18 +57,16 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	defer tx.Done(-1)
 
 	finished := false
-	body := t.CaptureHTTPRequestBody(req)
+	body := h.tracer.CaptureHTTPRequestBody(req)
 	w, resp := WrapResponseWriter(w)
 	defer func() {
-		if h.Recovery != nil {
-			if v := recover(); v != nil {
-				h.Recovery(w, req, body, tx, v)
-				finished = true
-			}
+		if v := recover(); v != nil {
+			h.recovery(w, req, body, tx, v)
+			finished = true
 		}
 		SetTransactionContext(tx, w, req, resp, body, finished)
 	}()
-	h.Handler.ServeHTTP(w, req)
+	h.handler.ServeHTTP(w, req)
 	finished = true
 }
 
@@ -217,4 +205,43 @@ type responseWriterHijackerPusher struct {
 	responseWriter
 	http.Hijacker
 	http.Pusher
+}
+
+// Option sets options for tracing.
+type Option func(*handler)
+
+// WithTracer returns an Option which sets t as the tracer
+// to use for tracing server requests.
+func WithTracer(t *elasticapm.Tracer) Option {
+	if t == nil {
+		panic("t == nil")
+	}
+	return func(h *handler) {
+		h.tracer = t
+	}
+}
+
+// WithRecovery returns an Option which sets r as the recovery
+// function to use for tracing server requests.
+func WithRecovery(r RecoveryFunc) Option {
+	if r == nil {
+		panic("r == nil")
+	}
+	return func(h *handler) {
+		h.recovery = r
+	}
+}
+
+// RequestNameFunc is the type of a function for use in WithRequestName.
+type RequestNameFunc func(*http.Request) string
+
+// WithRequestName returns an Option which sets r as the function
+// to use to obtain the transaction name for the given request.
+func WithRequestName(r RequestNameFunc) Option {
+	if r == nil {
+		panic("r == nil")
+	}
+	return func(h *handler) {
+		h.requestName = r
+	}
 }

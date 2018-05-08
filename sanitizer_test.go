@@ -21,10 +21,7 @@ func TestSanitizeRequest(t *testing.T) {
 	mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusTeapot)
 	}))
-	h := &apmhttp.Handler{
-		Handler: mux,
-		Tracer:  tracer,
-	}
+	h := apmhttp.Wrap(mux, apmhttp.WithTracer(tracer))
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "http://server.testing/", nil)
@@ -78,10 +75,7 @@ func testSetSanitizedFieldNames(t *testing.T, expect string, sanitized ...string
 	mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusTeapot)
 	}))
-	h := &apmhttp.Handler{
-		Handler: mux,
-		Tracer:  tracer,
-	}
+	h := apmhttp.Wrap(mux, apmhttp.WithTracer(tracer))
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "http://server.testing/", nil)

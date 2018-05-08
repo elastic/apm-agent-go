@@ -27,7 +27,7 @@ func BenchmarkWithMiddleware(b *testing.B) {
 	tracer := newTracer()
 	defer tracer.Close()
 	addMiddleware := func(r *gin.Engine) {
-		r.Use(apmgin.Middleware(r, tracer))
+		r.Use(apmgin.Middleware(r, apmgin.WithTracer(tracer)))
 	}
 	for _, path := range benchmarkPaths {
 		b.Run(path, func(b *testing.B) {

@@ -118,7 +118,7 @@ func testTracerSanitizeFieldNamesEnv(t *testing.T, envValue, expect string) {
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "http://server.testing/", nil)
 	req.AddCookie(&http.Cookie{Name: "secret", Value: "top"})
-	h := &apmhttp.Handler{Handler: http.NotFoundHandler(), Tracer: tracer}
+	h := apmhttp.Wrap(http.NotFoundHandler(), apmhttp.WithTracer(tracer))
 	h.ServeHTTP(w, req)
 	tracer.Flush(nil)
 

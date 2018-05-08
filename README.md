@@ -98,21 +98,11 @@ import (
 
 func main() {
 	var myHandler http.Handler = ...
-	tracedHandler := apmhttp.Handler{
-		Handler: myHandler,
-	}
+	tracedHandler := apmhttp.Wrap(myHandler)
 }
 ```
 
-If you want your handler to recover panics and send them to Elastic APM,
-then you can set the Recovery field of apmhttp.Handler:
-
-```go
-apmhttp.Handler{
-	Handler: myHandler,
-	Recovery: apmhttp.NewTraceHandler(nil),
-}
-```
+The apmhttp handler will recover panics and send them to Elastic APM.
 
 ### Gin
 
@@ -125,7 +115,7 @@ import (
 
 func main() {
 	engine := gin.New()
-	engine.Use(apmgin.Middleware(engine, nil))
+	engine.Use(apmgin.Middleware(engine))
 	...
 }
 ```
@@ -146,7 +136,7 @@ import (
 
 func main() {
 	router := mux.NewRouter()
-	router.Use(apmgorilla.Middleware(nil)) // nil for default tracer
+	router.Use(apmgorilla.Middleware())
 	...
 }
 ```
@@ -171,9 +161,7 @@ func main() {
 	router := httprouter.New()
 
 	const route = "/my/route"
-	tracer := elasticapm.DefaultTracer
-	recovery := apmhttp.NewTraceRecovery(tracer) // optional panic recovery
-	router.GET(route, apmhttprouter.WrapHandle(h, tracer, route, recovery))
+	router.GET(route, apmhttprouter.Wrap(h, route))
 	...
 }
 ```
@@ -193,7 +181,7 @@ import (
 
 func main() {
 	e := echo.New()
-	e.Use(apmecho.Middleware(nil)) // nil for default tracer
+	e.Use(apmecho.Middleware())
 	...
 }
 ```

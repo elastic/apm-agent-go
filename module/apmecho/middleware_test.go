@@ -21,7 +21,7 @@ func TestEchoMiddleware(t *testing.T) {
 	defer tracer.Close()
 
 	e := echo.New()
-	e.Use(apmecho.Middleware(tracer))
+	e.Use(apmecho.Middleware(apmecho.WithTracer(tracer)))
 	e.GET("/hello/:name", handleHello)
 
 	w := doRequest(e, "GET", "http://server.testing/hello/foo")
@@ -68,7 +68,7 @@ func TestEchoMiddlewarePanic(t *testing.T) {
 	defer tracer.Close()
 
 	e := echo.New()
-	e.Use(apmecho.Middleware(tracer))
+	e.Use(apmecho.Middleware(apmecho.WithTracer(tracer)))
 	e.GET("/panic", handlePanic)
 
 	w := doRequest(e, "GET", "http://server.testing/panic")
@@ -82,7 +82,7 @@ func TestEchoMiddlewareError(t *testing.T) {
 	defer tracer.Close()
 
 	e := echo.New()
-	e.Use(apmecho.Middleware(tracer))
+	e.Use(apmecho.Middleware(apmecho.WithTracer(tracer)))
 	e.GET("/error", handleError)
 
 	w := doRequest(e, "GET", "http://server.testing/error")
