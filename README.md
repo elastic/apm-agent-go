@@ -4,15 +4,14 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/elastic/apm-agent-go)](https://goreportcard.com/report/github.com/elastic/apm-agent-go)
 [![codecov.io](https://codecov.io/github/elastic/apm-agent-go/coverage.svg?branch=master)](https://codecov.io/github/elastic/apm-agent-go?branch=master)
 
-# apm-agent-go: APM Agent for Go (pre-alpha)
+# apm-agent-go: APM Agent for Go (alpha)
 
 This is the official Go package for [Elastic APM](https://www.elastic.co/solutions/apm).
 
 The Go agent enables you to trace the execution of operations in your application,
 sending performance metrics and errors to the Elastic APM server.
 
-This repository is in a pre-alpha state and under heavy development.
-Do not deploy into production!
+We'd love to hear your feedback, please take a minute to fill out our [survey](https://docs.google.com/forms/d/e/1FAIpQLScbW7D8m-otPO7cxqeg7XstWR8vMnxG6brnXLs_TFVSTHuHvg/viewform?usp=sf_link).
 
 ## Installation
 
