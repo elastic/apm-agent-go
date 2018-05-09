@@ -1,4 +1,4 @@
-= APM Go Agent Reference
+= APM Go Agent Reference (Alpha)
 
 ifdef::env-github[]
 * link:./introduction.asciidoc[Introduction]
