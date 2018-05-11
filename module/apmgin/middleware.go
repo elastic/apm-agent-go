@@ -47,6 +47,10 @@ type routeInfo struct {
 }
 
 func (m *middleware) handle(c *gin.Context) {
+	if !m.tracer.Active() {
+		c.Next()
+		return
+	}
 	m.setRouteMapOnce.Do(func() {
 		routes := m.engine.Routes()
 		rm := make(map[string]map[string]routeInfo)

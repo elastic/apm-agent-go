@@ -34,6 +34,9 @@ func NewUnaryServerInterceptor(o ...ServerOption) grpc.UnaryServerInterceptor {
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (resp interface{}, err error) {
+		if !opts.tracer.Active() {
+			return handler(ctx, req)
+		}
 		tx := opts.tracer.StartTransaction(info.FullMethod, "grpc")
 		if tx.Ignored() {
 			tx.Discard()

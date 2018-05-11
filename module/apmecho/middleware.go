@@ -35,6 +35,9 @@ type middleware struct {
 }
 
 func (m *middleware) handle(c echo.Context) error {
+	if !m.tracer.Active() {
+		return m.handler(c)
+	}
 	req := c.Request()
 	name := req.Method + " " + c.Path()
 	tx := m.tracer.StartTransaction(name, "request")

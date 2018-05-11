@@ -20,9 +20,10 @@ func Wrap(h http.Handler, o ...Option) http.Handler {
 		panic("h == nil")
 	}
 	handler := &handler{
-		handler:     h,
-		tracer:      elasticapm.DefaultTracer,
-		requestName: RequestName,
+		handler:        h,
+		tracer:         elasticapm.DefaultTracer,
+		requestName:    RequestName,
+		requestIgnorer: ignoreNone,
 	}
 	for _, o := range o {
 		o(handler)
@@ -37,15 +38,20 @@ func Wrap(h http.Handler, o ...Option) http.Handler {
 //
 // The http.Request's context will be updated with the transaction.
 type handler struct {
-	handler     http.Handler
-	tracer      *elasticapm.Tracer
-	recovery    RecoveryFunc
-	requestName RequestNameFunc
+	handler        http.Handler
+	tracer         *elasticapm.Tracer
+	recovery       RecoveryFunc
+	requestName    RequestNameFunc
+	requestIgnorer RequestIgnorerFunc
 }
 
 // ServeHTTP delegates to h.Handler, tracing the transaction with
 // h.Tracer, or elasticapm.DefaultTracer if h.Tracer is nil.
 func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	if !h.tracer.Active() || h.requestIgnorer(req) {
+		h.handler.ServeHTTP(w, req)
+		return
+	}
 	tx := h.tracer.StartTransaction(h.requestName(req), "request")
 	if tx.Ignored() {
 		tx.Discard()
@@ -207,6 +213,10 @@ type responseWriterHijackerPusher struct {
 	http.Pusher
 }
 
+func ignoreNone(*http.Request) bool {
+	return false
+}
+
 // Option sets options for tracing.
 type Option func(*handler)
 
@@ -243,5 +253,21 @@ func WithRequestName(r RequestNameFunc) Option {
 	}
 	return func(h *handler) {
 		h.requestName = r
+	}
+}
+
+// RequestIgnorerFunc is the type of a function for use in WithRequestIgnorer.
+type RequestIgnorerFunc func(*http.Request) bool
+
+// WithRequestIgnorer returns an Option which sets r as the
+// function to use to determine whether or not a request should
+// be ignored./ This is in addition to standard tracer
+// configuration, e.g. ELASTIC_APM_TRANSACTION_IGNORE_NAMES.
+func WithRequestIgnorer(r RequestIgnorerFunc) Option {
+	if r == nil {
+		panic("r == nil")
+	}
+	return func(h *handler) {
+		h.requestIgnorer = r
 	}
 }

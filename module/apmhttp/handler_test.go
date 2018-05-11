@@ -238,6 +238,25 @@ func TestHandlerRecovery(t *testing.T) {
 	}, transaction.Context.Response)
 }
 
+func TestHandlerRequestIgnorer(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	h := apmhttp.Wrap(
+		http.NotFoundHandler(),
+		apmhttp.WithTracer(tracer),
+		apmhttp.WithRequestIgnorer(func(*http.Request) bool {
+			return true
+		}),
+	)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "http://server.testing/foo", nil)
+	h.ServeHTTP(w, req)
+	tracer.Flush(nil)
+	assert.Empty(t, transport.Payloads())
+}
+
 func panicHandler(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusTeapot)
 	panic("foo")

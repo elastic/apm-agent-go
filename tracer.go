@@ -56,6 +56,7 @@ type options struct {
 	serviceName             string
 	serviceVersion          string
 	serviceEnvironment      string
+	active                  bool
 }
 
 func (opts *options) init(continueOnError bool) error {
@@ -108,6 +109,12 @@ func (opts *options) init(continueOnError bool) error {
 		errs = append(errs, err)
 	}
 
+	active, err := initialActive()
+	if err != nil {
+		active = true
+		errs = append(errs, err)
+	}
+
 	if len(errs) != 0 && !continueOnError {
 		return errs[0]
 	}
@@ -124,6 +131,7 @@ func (opts *options) init(continueOnError bool) error {
 	opts.transactionIgnoreNames = transactionIgnoreNames
 	opts.spanFramesMinDuration = spanFramesMinDuration
 	opts.serviceName, opts.serviceVersion, opts.serviceEnvironment = initialService()
+	opts.active = active
 	return nil
 }
 
@@ -157,6 +165,7 @@ type Tracer struct {
 	process *model.Process
 	system  *model.System
 
+	active                     bool
 	closing                    chan struct{}
 	closed                     chan struct{}
 	forceFlush                 chan chan<- struct{}
@@ -241,10 +250,16 @@ func newTracer(opts options) *Tracer {
 		captureBody:                opts.captureBody,
 		transactionIgnoreNames:     opts.transactionIgnoreNames,
 		spanFramesMinDuration:      opts.spanFramesMinDuration,
+		active:                     opts.active,
 	}
 	t.Service.Name = opts.serviceName
 	t.Service.Version = opts.serviceVersion
 	t.Service.Environment = opts.serviceEnvironment
+
+	if !t.active {
+		close(t.closed)
+		return t
+	}
 
 	go t.loop()
 	t.setFlushInterval <- opts.flushInterval
@@ -281,6 +296,12 @@ func (t *Tracer) Flush(abort <-chan struct{}) {
 		}
 	case <-t.closed:
 	}
+}
+
+// Active reports whether the tracer is active. If the tracer is inactive,
+// no transactions or errors will be sent to the Elastic APM server.
+func (t *Tracer) Active() bool {
+	return t.active
 }
 
 // SetFlushInterval sets the flush interval -- the amount of time

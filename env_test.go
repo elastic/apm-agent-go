@@ -284,3 +284,26 @@ func TestTracerSpanFramesMinDurationEnvInvalid(t *testing.T) {
 	_, err := elasticapm.NewTracer("tracer_testing", "")
 	assert.EqualError(t, err, "failed to parse ELASTIC_APM_SPAN_FRAMES_MIN_DURATION: time: invalid duration aeon")
 }
+
+func TestTracerActive(t *testing.T) {
+	os.Setenv("ELASTIC_APM_ACTIVE", "false")
+	defer os.Unsetenv("ELASTIC_APM_ACTIVE")
+
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+	assert.False(t, tracer.Active())
+
+	tx := tracer.StartTransaction("name", "type")
+	tx.Done(-1)
+
+	tracer.Flush(nil)
+	assert.Empty(t, transport.Payloads())
+}
+
+func TestTracerActiveInvalid(t *testing.T) {
+	os.Setenv("ELASTIC_APM_ACTIVE", "yep")
+	defer os.Unsetenv("ELASTIC_APM_ACTIVE")
+
+	_, err := elasticapm.NewTracer("tracer_testing", "")
+	assert.EqualError(t, err, "failed to parse ELASTIC_APM_ACTIVE: strconv.ParseBool: parsing \"yep\": invalid syntax")
+}
