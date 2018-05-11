@@ -93,6 +93,19 @@ of the deployed revision, e.g. the output of `git rev-parse HEAD`.
 The name of the environment this service is deployed in, e.g. "production" or "staging".
 
 [float]
+[[config-active]]
+=== `ELASTIC_APM_ACTIVE`
+
+[options="header"]
+|============
+| Environment          | Default | Example
+| `ELASTIC_APM_ACTIVE` | true    | `false`
+|============
+
+Enable or disable the tracer. If set to false, then the Go agent does not send
+any data to the Elastic APM server, and instrumentation overhead is minimized.
+
+[float]
 [[config-transactions-ignore-patterns]]
 ==== `ELASTIC_APM_TRANSACTIONS_IGNORE_NAMES`
 [options="header"]

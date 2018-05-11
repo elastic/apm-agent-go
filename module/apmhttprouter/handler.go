@@ -29,6 +29,10 @@ func Wrap(h httprouter.Handle, route string, o ...Option) httprouter.Handle {
 		opts.recovery = apmhttp.NewTraceRecovery(opts.tracer)
 	}
 	return func(w http.ResponseWriter, req *http.Request, p httprouter.Params) {
+		if !opts.tracer.Active() {
+			h(w, req, p)
+			return
+		}
 		tx := opts.tracer.StartTransaction(req.Method+" "+route, "request")
 		if tx.Ignored() {
 			tx.Discard()

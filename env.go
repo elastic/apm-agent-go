@@ -26,6 +26,7 @@ const (
 	envServiceVersion         = "ELASTIC_APM_SERVICE_VERSION"
 	envEnvironment            = "ELASTIC_APM_ENVIRONMENT"
 	envSpanFramesMinDuration  = "ELASTIC_APM_SPAN_FRAMES_MIN_DURATION"
+	envActive                 = "ELASTIC_APM_ACTIVE"
 
 	defaultFlushInterval           = 10 * time.Second
 	defaultMaxTransactionQueueSize = 500
@@ -182,4 +183,16 @@ func initialSpanFramesMinDuration() (time.Duration, error) {
 		return 0, errors.Wrapf(err, "failed to parse %s", envSpanFramesMinDuration)
 	}
 	return d, nil
+}
+
+func initialActive() (bool, error) {
+	value := os.Getenv(envActive)
+	if value == "" {
+		return true, nil
+	}
+	active, err := strconv.ParseBool(value)
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to parse %s", envActive)
+	}
+	return active, nil
 }
