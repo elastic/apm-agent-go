@@ -1,6 +1,7 @@
 package apmhttp
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/elastic/apm-agent-go"
@@ -59,7 +60,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	ctx := elasticapm.ContextWithTransaction(req.Context(), tx)
-	req = req.WithContext(ctx)
+	req = RequestWithContext(ctx, req)
 	defer tx.Done(-1)
 
 	finished := false
@@ -70,20 +71,19 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			h.recovery(w, req, body, tx, v)
 			finished = true
 		}
-		SetTransactionContext(tx, w, req, resp, body, finished)
+		SetTransactionContext(tx, req, resp, body, finished)
 	}()
 	h.handler.ServeHTTP(w, req)
 	finished = true
 }
 
 // SetTransactionContext sets tx.Result and, if the transaction is being
-// sampled, sets tx.Context with information from w, req, resp, and
-// finished.
+// sampled, sets tx.Context with information from req, resp, and finished.
 //
 // The finished property indicates that the response was not completely
 // written, e.g. because the handler panicked and we did not recover the
 // panic.
-func SetTransactionContext(tx *elasticapm.Transaction, w http.ResponseWriter, req *http.Request, resp *Response, body *elasticapm.BodyCapturer, finished bool) {
+func SetTransactionContext(tx *elasticapm.Transaction, req *http.Request, resp *Response, body *elasticapm.BodyCapturer, finished bool) {
 	tx.Result = StatusCodeResult(resp.StatusCode)
 	if !tx.Sampled() {
 		return
@@ -91,7 +91,7 @@ func SetTransactionContext(tx *elasticapm.Transaction, w http.ResponseWriter, re
 	tx.Context.SetHTTPRequest(req)
 	tx.Context.SetHTTPRequestBody(body)
 	tx.Context.SetHTTPStatusCode(resp.StatusCode)
-	tx.Context.SetHTTPResponseHeaders(w.Header())
+	tx.Context.SetHTTPResponseHeaders(resp.Headers)
 
 	if finished {
 		// Responses are always "finished" unless the handler panics
@@ -101,7 +101,7 @@ func SetTransactionContext(tx *elasticapm.Transaction, w http.ResponseWriter, re
 		// don't know for sure it finished.
 		tx.Context.SetHTTPResponseFinished(finished)
 	}
-	if resp.HeadersWritten || len(w.Header()) != 0 {
+	if resp.HeadersWritten || len(resp.Headers) != 0 {
 		// We only set headers_sent if we know for sure
 		// that headers have been sent. Otherwise we
 		// leave it to indicate that we don't know.
@@ -121,6 +121,7 @@ func WrapResponseWriter(w http.ResponseWriter) (http.ResponseWriter, *Response) 
 		ResponseWriter: w,
 		resp: Response{
 			StatusCode: http.StatusOK,
+			Headers:    w.Header(),
 		},
 	}
 	h, _ := w.(http.Hijacker)
@@ -153,6 +154,9 @@ func WrapResponseWriter(w http.ResponseWriter) (http.ResponseWriter, *Response) 
 type Response struct {
 	// StatusCode records the HTTP status code set via WriteHeader.
 	StatusCode int
+
+	// Headers holds the headers set in the ResponseWriter.
+	Headers http.Header
 
 	// HeadersWritten records whether or not headers were written.
 	HeadersWritten bool
@@ -270,4 +274,15 @@ func WithRequestIgnorer(r RequestIgnorerFunc) Option {
 	return func(h *handler) {
 		h.requestIgnorer = r
 	}
+}
+
+// RequestWithContext is equivalent to req.WithContext, except that the URL
+// pointer is copied, rather than the contents.
+func RequestWithContext(ctx context.Context, req *http.Request) *http.Request {
+	url := req.URL
+	req.URL = nil
+	reqCopy := req.WithContext(ctx)
+	reqCopy.URL = url
+	req.URL = url
+	return reqCopy
 }

@@ -118,7 +118,7 @@ func (t *HTTPTransport) SendTransactions(ctx context.Context, p *model.Transacti
 	p.MarshalFastJSON(&t.jsonwriter)
 	buf := t.jsonwriter.Bytes()
 
-	req := t.newTransactionsRequest().WithContext(ctx)
+	req := requestWithContext(ctx, t.newTransactionsRequest())
 	req.ContentLength = int64(len(buf))
 	req.Body = ioutil.NopCloser(bytes.NewReader(buf))
 	return t.send(req, "SendTransactions")
@@ -130,7 +130,7 @@ func (t *HTTPTransport) SendErrors(ctx context.Context, p *model.ErrorsPayload) 
 	p.MarshalFastJSON(&t.jsonwriter)
 	buf := t.jsonwriter.Bytes()
 
-	req := t.newErrorsRequest().WithContext(ctx)
+	req := requestWithContext(ctx, t.newErrorsRequest())
 	req.ContentLength = int64(len(buf))
 	req.Body = ioutil.NopCloser(bytes.NewReader(buf))
 	return t.send(req, "SendErrors")
@@ -205,4 +205,13 @@ func (e *HTTPError) Error() string {
 		msg += ": " + e.Message
 	}
 	return msg
+}
+
+func requestWithContext(ctx context.Context, req *http.Request) *http.Request {
+	url := req.URL
+	req.URL = nil
+	reqCopy := req.WithContext(ctx)
+	reqCopy.URL = url
+	req.URL = url
+	return reqCopy
 }
