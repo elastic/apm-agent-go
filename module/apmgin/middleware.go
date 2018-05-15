@@ -80,7 +80,7 @@ func (m *middleware) handle(c *gin.Context) {
 	}
 
 	ctx := elasticapm.ContextWithTransaction(c.Request.Context(), tx)
-	c.Request = c.Request.WithContext(ctx)
+	c.Request = apmhttp.RequestWithContext(ctx, c.Request)
 	defer tx.Done(-1)
 
 	body := m.tracer.CaptureHTTPRequestBody(c.Request)

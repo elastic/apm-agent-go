@@ -41,7 +41,7 @@ func Wrap(h httprouter.Handle, route string, o ...Option) httprouter.Handle {
 		}
 
 		ctx := elasticapm.ContextWithTransaction(req.Context(), tx)
-		req = req.WithContext(ctx)
+		req = apmhttp.RequestWithContext(ctx, req)
 		defer tx.Done(-1)
 
 		finished := false
@@ -52,7 +52,7 @@ func Wrap(h httprouter.Handle, route string, o ...Option) httprouter.Handle {
 				opts.recovery(w, req, body, tx, v)
 				finished = true
 			}
-			apmhttp.SetTransactionContext(tx, w, req, resp, body, finished)
+			apmhttp.SetTransactionContext(tx, req, resp, body, finished)
 		}()
 		h(w, req, p)
 		finished = true
