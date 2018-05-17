@@ -21,4 +21,6 @@ func TestLibraryPackage(t *testing.T) {
 	assert.True(t, stacktrace.IsLibraryPackage("encoding/jsonzzz"))
 	assert.False(t, stacktrace.IsLibraryPackage("encoding/jsonzzz/yyy"))
 	assert.False(t, stacktrace.IsLibraryPackage("encoding/jsonzzz/yyy/xxx"))
+
+	assert.True(t, stacktrace.IsLibraryPackage("github.com/elastic/apm-server/vendor/github.com/elastic/apm-agent-go"))
 }
