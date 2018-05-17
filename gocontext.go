@@ -31,18 +31,18 @@ func TransactionFromContext(ctx context.Context) *Transaction {
 }
 
 // StartSpan starts and returns a new Span within the sampled transaction
-// and parent span in the context, if any, and returns the span along with
-// a new context containing the span.
+// and parent span in the context, if any. If the span isn't dropped, it
+// will be stored in the resulting context.
 //
-// If there is no transaction in the context, or it is not being sampled,
-// StartSpan returns nil.
+// StartSpan always returns a non-nil Span. Its Done method must be called
+// when the span completes.
 func StartSpan(ctx context.Context, name, spanType string) (*Span, context.Context) {
 	tx := TransactionFromContext(ctx)
-	if tx == nil || !tx.Sampled() {
-		return nil, ctx
-	}
 	span := tx.StartSpan(name, spanType, SpanFromContext(ctx))
-	return span, context.WithValue(ctx, contextSpanKey{}, span)
+	if !span.Dropped() {
+		ctx = context.WithValue(ctx, contextSpanKey{}, span)
+	}
+	return span, ctx
 }
 
 // CaptureError returns a new Error related to the sampled transaction

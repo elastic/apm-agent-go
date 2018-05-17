@@ -46,7 +46,7 @@ func (c *conn) startStmtSpan(ctx context.Context, stmt, spanType string) (*elast
 
 func (c *conn) startSpan(ctx context.Context, name, spanType, stmt string) (*elasticapm.Span, context.Context) {
 	span, ctx := elasticapm.StartSpan(ctx, name, spanType)
-	if span != nil {
+	if !span.Dropped() {
 		span.Context.SetDatabase(elasticapm.DatabaseSpanContext{
 			Instance:  c.dsnInfo.Database,
 			Statement: stmt,
@@ -77,9 +77,7 @@ func (c *conn) Ping(ctx context.Context) (resultError error) {
 		return nil
 	}
 	span, ctx := c.startSpan(ctx, "ping", c.driver.pingSpanType, "")
-	if span != nil {
-		defer c.finishSpan(ctx, span, resultError)
-	}
+	defer c.finishSpan(ctx, span, resultError)
 	return c.pinger.Ping(ctx)
 }
 
@@ -88,9 +86,7 @@ func (c *conn) QueryContext(ctx context.Context, query string, args []driver.Nam
 		return nil, driver.ErrSkip
 	}
 	span, ctx := c.startStmtSpan(ctx, query, c.driver.querySpanType)
-	if span != nil {
-		defer c.finishSpan(ctx, span, resultError)
-	}
+	defer c.finishSpan(ctx, span, resultError)
 
 	if c.queryerContext != nil {
 		return c.queryerContext.QueryContext(ctx, query, args)
@@ -113,9 +109,7 @@ func (*conn) Query(query string, args []driver.Value) (driver.Rows, error) {
 
 func (c *conn) PrepareContext(ctx context.Context, query string) (_ driver.Stmt, resultError error) {
 	span, ctx := c.startStmtSpan(ctx, query, c.driver.prepareSpanType)
-	if span != nil {
-		defer c.finishSpan(ctx, span, resultError)
-	}
+	defer c.finishSpan(ctx, span, resultError)
 	var stmt driver.Stmt
 	var err error
 	if c.connPrepareContext != nil {
@@ -142,9 +136,7 @@ func (c *conn) ExecContext(ctx context.Context, query string, args []driver.Name
 		return nil, driver.ErrSkip
 	}
 	span, ctx := c.startStmtSpan(ctx, query, c.driver.execSpanType)
-	if span != nil {
-		defer c.finishSpan(ctx, span, resultError)
-	}
+	defer c.finishSpan(ctx, span, resultError)
 
 	if c.execerContext != nil {
 		return c.execerContext.ExecContext(ctx, query, args)

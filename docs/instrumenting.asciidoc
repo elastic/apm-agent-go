@@ -284,17 +284,13 @@ contains a span, then that will be considered the parent.
 [source,go]
 ----
 span, ctx := elasticapm.StartSpan(ctx, "SELECT FROM foo", "db.mysql.query")
-if span != nil {
-	defer span.Done(-1)
-}
+defer span.Done(-1)
 ----
 
-Note that both `Transaction.StartSpan` and `elasticapm.StartSpan` will return a nil `Span` if the transaction
-is not being sampled. By default, all transactions are sampled; that is, all transactions are sent with
-complete detail to the Elastic APM server. If you configure the agent to sample transactions at less than
-100%, then spans and context will be dropped, and in this case, StartSpan will sometimes return nil. Since
-sampling on the tracer can be configured via an environment variable <<config-transaction-sample-rate>>,
-it is a good idea to always check for a nil result.
+`Transaction.StartSpan` and `elasticapm.StartSpan` will always return a non-nil `Span`, even if the
+transaction is nil. It is always safe to defer a call to the span's Done method. If setting the span's
+context would incur significant overhead, you may want to check if the span is dropped first, by calling
+the `Span.Dropped` method.
 
 ===== Panic recovery and errors
 
