@@ -46,10 +46,16 @@ func RegisterApplicationPackage(pkg ...string) {
 }
 
 // IsLibraryPackage reports whether or not the given package path is
-// a well-known library path (stdlib or apm-agent-go).
+// a library package. This includes known library packages
+// (e.g. stdlib or apm-agent-go), vendored packages, and any packages
+// with a prefix registered with RegisterLibraryPackage but not
+// RegisterApplicationPackage.
 func IsLibraryPackage(pkg string) bool {
 	if strings.HasSuffix(pkg, "_test") {
 		return false
+	}
+	if strings.Contains(pkg, "/vendor/") {
+		return true
 	}
 	prefix, v, ok := libraryPackages.LongestPrefix(pkg)
 	if !ok || v == false {
