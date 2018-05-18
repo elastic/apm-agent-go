@@ -277,6 +277,7 @@ func newTracer(opts options) *Tracer {
 	t.setMaxErrorQueueSize <- defaultMaxErrorQueueSize
 	t.setPreContext <- defaultPreContext
 	t.setPostContext <- defaultPostContext
+	t.addMetricsGatherer <- builtinMetricsGatherer{}
 	return t
 }
 

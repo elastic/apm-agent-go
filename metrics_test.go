@@ -18,8 +18,6 @@ func TestTracerMetricsGatherer(t *testing.T) {
 
 	tracer.AddMetricsGatherer(elasticapm.GatherMetricsFunc(
 		func(ctx context.Context, m *elasticapm.Metrics) error {
-			m.AddGauge("heap_inuse_bytes", nil, 1)
-			m.AddGauge("heap_idle_bytes", nil, 2)
 			m.AddCounter("http.request", []elasticapm.MetricLabel{
 				{Name: "code", Value: "400"},
 				{Name: "path", Value: "/"},
@@ -46,17 +44,21 @@ func TestTracerMetricsGatherer(t *testing.T) {
 		metrics[i].Timestamp = model.Time{}
 	}
 
-	assert.Equal(t, []*model.Metrics{{
-		Samples: map[string]model.Metric{
-			"heap_inuse_bytes": {Value: newFloat64(1)},
-			"heap_idle_bytes":  {Value: newFloat64(2)},
-		},
-	}, {
+	builtinMetrics := metrics[0]
+	assert.Nil(t, builtinMetrics.Labels)
+	assert.Contains(t, builtinMetrics.Samples, "go.goroutines")
+	assert.Contains(t, builtinMetrics.Samples, "go.heap.mallocs")
+	assert.NotNil(t, builtinMetrics.Samples["go.goroutines"].Value)
+	assert.NotNil(t, builtinMetrics.Samples["go.heap.mallocs"].Count)
+
+	assert.Equal(t, &model.Metrics{
 		Labels: model.StringMap{{Key: "code", Value: "200"}},
 		Samples: map[string]model.Metric{
 			"http.request": {Count: newFloat64(4)},
 		},
-	}, {
+	}, metrics[1])
+
+	assert.Equal(t, &model.Metrics{
 		Labels: model.StringMap{
 			{Key: "code", Value: "400"},
 			{Key: "path", Value: "/"},
@@ -64,7 +66,7 @@ func TestTracerMetricsGatherer(t *testing.T) {
 		Samples: map[string]model.Metric{
 			"http.request": {Count: newFloat64(3)},
 		},
-	}}, metrics)
+	}, metrics[2])
 }
 
 func newFloat64(f float64) *float64 {
