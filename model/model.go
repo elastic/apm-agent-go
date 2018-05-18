@@ -488,3 +488,39 @@ type ResponseHeaders struct {
 
 // Time is a timestamp, formatted as "YYYY-MM-DDTHH:mm:ss.sssZ".
 type Time time.Time
+
+// Metrics holds a set of metric samples, with an optional set of labels.
+type Metrics struct {
+	// Timestamp holds the time at which the metric samples were taken.
+	Timestamp Time `json:"timestamp"`
+
+	// Labels holds a set of labels associated with the metrics.
+	// The labels apply uniformly to all metric samples in the set.
+	Labels StringMap `json:"labels,omitempty"`
+
+	// Samples holds a map of metric samples, keyed by metric name.
+	Samples map[string]Metric `json:"samples"`
+}
+
+// Metric holds metric values.
+type Metric struct {
+	// Count holds the value for a counter metric
+	// (non-negative, monotonically increasing).
+	Count *float64 `json:"count,omitempty"`
+
+	// Value holds the value for a gauge metric.
+	Value *float64 `json:"value,omitempty"`
+
+	// Sum holds the sum value for a summary-type metric.
+	Sum *float64 `json:"sum,omitempty"`
+
+	// Max holds the maximum value for a summary-type metric.
+	Max *float64 `json:"max,omitempty"`
+
+	// Min holds the minimum value for a summary-type metric.
+	Min *float64 `json:"min,omitempty"`
+
+	// Percentiles holds a set map of percentile values, keyed
+	// by percentile (e.g. 95.0 for the 95th percentile).
+	Percentiles map[float64]float64 `json:"percentile,omitempty"`
+}

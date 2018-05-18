@@ -20,6 +20,7 @@ import (
 const (
 	transactionsPath = "/v1/transactions"
 	errorsPath       = "/v1/errors"
+	metricsPath      = "/v1/metrics"
 
 	envSecretToken      = "ELASTIC_APM_SECRET_TOKEN"
 	envServerURL        = "ELASTIC_APM_SERVER_URL"
@@ -39,6 +40,7 @@ type HTTPTransport struct {
 	baseURL         *url.URL
 	transactionsURL *url.URL
 	errorsURL       *url.URL
+	metricsURL      *url.URL
 	headers         http.Header
 	jsonwriter      fastjson.Writer
 }
@@ -108,6 +110,7 @@ func NewHTTPTransport(serverURL, secretToken string) (*HTTPTransport, error) {
 		baseURL:         req.URL,
 		transactionsURL: urlWithPath(req.URL, transactionsPath),
 		errorsURL:       urlWithPath(req.URL, errorsPath),
+		metricsURL:      urlWithPath(req.URL, metricsPath),
 		headers:         headers,
 	}, nil
 }
@@ -134,6 +137,18 @@ func (t *HTTPTransport) SendErrors(ctx context.Context, p *model.ErrorsPayload) 
 	req.ContentLength = int64(len(buf))
 	req.Body = ioutil.NopCloser(bytes.NewReader(buf))
 	return t.send(req, "SendErrors")
+}
+
+// SendMetrics sends the metrics payload over HTTP.
+func (t *HTTPTransport) SendMetrics(ctx context.Context, p *model.MetricsPayload) error {
+	t.jsonwriter.Reset()
+	p.MarshalFastJSON(&t.jsonwriter)
+	buf := t.jsonwriter.Bytes()
+
+	req := t.newMetricsRequest().WithContext(ctx)
+	req.ContentLength = int64(len(buf))
+	req.Body = ioutil.NopCloser(bytes.NewReader(buf))
+	return t.send(req, "SendMetrics")
 }
 
 func (t *HTTPTransport) send(req *http.Request, op string) error {
@@ -168,6 +183,10 @@ func (t *HTTPTransport) newTransactionsRequest() *http.Request {
 
 func (t *HTTPTransport) newErrorsRequest() *http.Request {
 	return t.newRequest(t.errorsURL)
+}
+
+func (t *HTTPTransport) newMetricsRequest() *http.Request {
+	return t.newRequest(t.metricsURL)
 }
 
 func (t *HTTPTransport) newRequest(url *url.URL) *http.Request {

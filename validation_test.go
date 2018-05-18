@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/santhosh-tekuri/jsonschema"
 	"github.com/stretchr/testify/require"
 
@@ -261,6 +262,11 @@ func (t *validatingTransport) SendTransactions(ctx context.Context, p *model.Tra
 func (t *validatingTransport) SendErrors(ctx context.Context, p *model.ErrorsPayload) error {
 	t.validate(p, errorSchema)
 	return nil
+}
+
+func (t *validatingTransport) SendMetrics(ctx context.Context, p *model.MetricsPayload) error {
+	// TODO(axw) use the metrics schema once defined.
+	return errors.New("not implemented")
 }
 
 func (t *validatingTransport) validate(payload fastjson.Marshaler, schema *jsonschema.Schema) {

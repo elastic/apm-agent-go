@@ -425,3 +425,45 @@ func (m *IfaceMap) UnmarshalJSON(data []byte) error {
 func (*IfaceMapItem) MarshalFastJSON(*fastjson.Writer) {
 	panic("unreachable")
 }
+
+func (m StringMap) isZero() bool {
+	return len(m) == 0
+}
+
+// MarshalFastJSON writes the JSON representation of m to w.
+func (m StringMap) MarshalFastJSON(w *fastjson.Writer) {
+	w.RawByte('{')
+	first := true
+	for _, item := range m {
+		if first {
+			first = false
+		} else {
+			w.RawByte(',')
+		}
+		w.String(item.Key)
+		w.RawByte(':')
+		fastjson.Marshal(w, item.Value)
+	}
+	w.RawByte('}')
+}
+
+// UnmarshalJSON unmarshals the JSON data into m.
+func (m *StringMap) UnmarshalJSON(data []byte) error {
+	var mm map[string]string
+	if err := json.Unmarshal(data, &mm); err != nil {
+		return err
+	}
+	*m = make(StringMap, 0, len(mm))
+	for k, v := range mm {
+		*m = append(*m, StringMapItem{Key: k, Value: v})
+	}
+	sort.Slice(*m, func(i, j int) bool {
+		return (*m)[i].Key < (*m)[j].Key
+	})
+	return nil
+}
+
+// MarshalFastJSON exists to prevent code generation for StringMapItem.
+func (*StringMapItem) MarshalFastJSON(*fastjson.Writer) {
+	panic("unreachable")
+}
