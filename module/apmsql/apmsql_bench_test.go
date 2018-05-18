@@ -36,6 +36,7 @@ func BenchmarkStmtQueryContext(b *testing.B) {
 		tracer.Transport = httpTransport
 		defer tracer.Close()
 
+		tracer.SetMaxSpans(b.N)
 		tx := tracer.StartTransaction("name", "type")
 		ctx := elasticapm.ContextWithTransaction(context.Background(), tx)
 		benchmarkQueries(b, ctx, stmt)

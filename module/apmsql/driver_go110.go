@@ -31,11 +31,9 @@ type driverConnector struct {
 
 func (d *driverConnector) Connect(ctx context.Context) (driver.Conn, error) {
 	span, ctx := elasticapm.StartSpan(ctx, "connect", d.driver.connectSpanType)
-	if span != nil {
-		defer span.Done(-1)
-	}
+	defer span.Done(-1)
 	dsnInfo := d.driver.dsnParser(d.name)
-	if span != nil {
+	if !span.Dropped() {
 		span.Context.SetDatabase(elasticapm.DatabaseSpanContext{
 			Instance: dsnInfo.Database,
 			Type:     "sql",

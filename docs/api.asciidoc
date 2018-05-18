@@ -100,20 +100,20 @@ application.
 
 StartSpan starts and returns a new Span within the transaction, with the specified name,
 type, and optional parent span, and with the start time set to the current time relative
-to the transaction's timestamp. The span's ID will be set.
+to the transaction's timestamp.
 
 If the transaction is sampled, then the span's ID will be set, and its stacktrace will
-be set if the tracer is configured accordingly.
+be set if the tracer is configured accordingly. If the transaction is not sampled, then
+the returned span will be silently discarded when its Done method is called. You can
+avoid any unnecessary computation for these dropped spans by calling its <<span-dropped, Dropped>>
+method.
 
-IMPORTANT: If the transaction is not being sampled, then StartSpan will return nil.
-You should always check if the resulting span is nil before using it.
+As a convenience, it is valid to create a span on a nil Transaction; the resulting span
+will be non-nil and safe for use, but will not be reported to the APM server.
 
 [source,go]
 ----
 span := tx.StartSpan("SELECT FROM foo", "db.mysql.query", nil)
-if span != nil {
-	...
-}
 ----
 
 [float]
@@ -121,16 +121,12 @@ if span != nil {
 ==== `func StartSpan(ctx context.Context, name, spanType string) (*Span, context.Context)`
 
 StartSpan starts and returns a new Span within the sampled transaction and parent span
-in the context, if any, and returns the span along with a new context containing the span.
-
-If there is no transaction in the context, or it is not being sampled, StartSpan returns nil.
+in the context, if any. If the span isn't dropped, it will be indluded in the resulting
+context.
 
 [source,go]
 ----
 span, ctx := elasticapm.StartSpan(ctx, "SELECT FROM foo", "db.mysql.query")
-if span != nil {
-	...
-}
 ----
 
 [float]
@@ -141,6 +137,14 @@ Done sets the span's duration to the specified value. The Span must not be used 
 
 If the duration specified is negative, then Done will set the duration to the amount of
 wall-clock time that has elapsed since the span was started.
+
+[float]
+[[span-dropped]]
+==== `func (*Span) Dropped() bool`
+
+Dropped indicates whether or not the span is dropped, meaning it will not be reported to
+the APM server. Spans are dropped when the created via a nil or non-sampled transaction,
+or one whose max spans limit has been reached.
 
 // -------------------------------------------------------------------------------------------------
 

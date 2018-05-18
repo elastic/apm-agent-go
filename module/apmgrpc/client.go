@@ -27,9 +27,7 @@ func NewUnaryClientInterceptor(o ...ClientOption) grpc.UnaryClientInterceptor {
 		opts ...grpc.CallOption,
 	) error {
 		span, ctx := elasticapm.StartSpan(ctx, method, "grpc")
-		if span != nil {
-			defer span.Done(-1)
-		}
+		defer span.Done(-1)
 		return invoker(ctx, method, req, resp, cc, opts...)
 	}
 }

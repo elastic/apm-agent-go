@@ -118,9 +118,7 @@ func (api *api) handleOrder(ctx context.Context, product string) {
 
 func storeOrder(ctx context.Context, product string) {
 	span, _ := elasticapm.StartSpan(ctx, "store_order", "rpc")
-	if span != nil {
-		defer span.Done(-1)
-	}
+	defer span.Done(-1)
 
 	time.Sleep(50 * time.Millisecond)
 }
