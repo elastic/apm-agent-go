@@ -2,20 +2,14 @@ package elasticapm
 
 import (
 	"context"
-	"regexp"
 
 	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/stacktrace"
 )
 
 type sender struct {
-	tracer                  *Tracer
-	logger                  Logger
-	processor               Processor
-	contextSetter           stacktrace.ContextSetter
-	preContext, postContext int
-	stats                   *TracerStats
-	sanitizedFieldNames     *regexp.Regexp
+	tracer *Tracer
+	cfg    *tracerConfig
+	stats  *TracerStats
 }
 
 // sendTransactions attempts to send enqueued transactions to the APM server,
@@ -24,16 +18,16 @@ func (s *sender) sendTransactions(ctx context.Context, transactions []*Transacti
 	if len(transactions) == 0 {
 		return false
 	}
-	if s.contextSetter != nil {
+	if s.cfg.contextSetter != nil {
 		var err error
 		for _, tx := range transactions {
-			if err = tx.setContext(s.contextSetter, s.preContext, s.postContext); err != nil {
+			if err = tx.setContext(s.cfg.contextSetter, s.cfg.preContext, s.cfg.postContext); err != nil {
 				break
 			}
 		}
 		if err != nil {
-			if s.logger != nil {
-				s.logger.Debugf("setting context failed: %s", err)
+			if s.cfg.logger != nil {
+				s.cfg.logger.Debugf("setting context failed: %s", err)
 			}
 			s.stats.Errors.SetContext++
 		}
@@ -49,18 +43,18 @@ func (s *sender) sendTransactions(ctx context.Context, transactions []*Transacti
 		tx.setID()
 		if tx.Sampled() {
 			tx.model.Context = tx.Context.build()
-			if s.sanitizedFieldNames != nil && tx.model.Context != nil && tx.model.Context.Request != nil {
-				sanitizeRequest(tx.model.Context.Request, s.sanitizedFieldNames)
+			if s.cfg.sanitizedFieldNames != nil && tx.model.Context != nil && tx.model.Context.Request != nil {
+				sanitizeRequest(tx.model.Context.Request, s.cfg.sanitizedFieldNames)
 			}
 		}
-		if s.processor != nil {
-			s.processor.ProcessTransaction(&tx.model)
+		if s.cfg.processor != nil {
+			s.cfg.processor.ProcessTransaction(&tx.model)
 		}
 		payload.Transactions[i] = &tx.model
 	}
 	if err := s.tracer.Transport.SendTransactions(ctx, &payload); err != nil {
-		if s.logger != nil {
-			s.logger.Debugf("sending transactions failed: %s", err)
+		if s.cfg.logger != nil {
+			s.cfg.logger.Debugf("sending transactions failed: %s", err)
 		}
 		s.stats.Errors.SendTransactions++
 		return false
@@ -75,16 +69,16 @@ func (s *sender) sendErrors(ctx context.Context, errors []*Error) bool {
 	if len(errors) == 0 {
 		return false
 	}
-	if s.contextSetter != nil {
+	if s.cfg.contextSetter != nil {
 		var err error
 		for _, e := range errors {
-			if err = e.setContext(s.contextSetter, s.preContext, s.postContext); err != nil {
+			if err = e.setContext(s.cfg.contextSetter, s.cfg.preContext, s.cfg.postContext); err != nil {
 				break
 			}
 		}
 		if err != nil {
-			if s.logger != nil {
-				s.logger.Debugf("setting context failed: %s", err)
+			if s.cfg.logger != nil {
+				s.cfg.logger.Debugf("setting context failed: %s", err)
 			}
 			s.stats.Errors.SetContext++
 		}
@@ -107,14 +101,14 @@ func (s *sender) sendErrors(ctx context.Context, errors []*Error) bool {
 		e.model.Timestamp = model.Time(e.Timestamp.UTC())
 		e.model.Context = e.Context.build()
 		e.model.Exception.Handled = e.Handled
-		if s.processor != nil {
-			s.processor.ProcessError(&e.model)
+		if s.cfg.processor != nil {
+			s.cfg.processor.ProcessError(&e.model)
 		}
 		payload.Errors[i] = &e.model
 	}
 	if err := s.tracer.Transport.SendErrors(ctx, &payload); err != nil {
-		if s.logger != nil {
-			s.logger.Debugf("sending errors failed: %s", err)
+		if s.cfg.logger != nil {
+			s.cfg.logger.Debugf("sending errors failed: %s", err)
 		}
 		s.stats.Errors.SendErrors++
 		return false
