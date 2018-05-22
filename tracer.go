@@ -165,21 +165,13 @@ type Tracer struct {
 	process *model.Process
 	system  *model.System
 
-	active                     bool
-	closing                    chan struct{}
-	closed                     chan struct{}
-	forceFlush                 chan chan<- struct{}
-	setFlushInterval           chan time.Duration
-	setMaxTransactionQueueSize chan int
-	setMaxErrorQueueSize       chan int
-	setPreContext              chan int
-	setPostContext             chan int
-	setContextSetter           chan stacktrace.ContextSetter
-	setLogger                  chan Logger
-	setProcessor               chan Processor
-	setSanitizedFieldNames     chan *regexp.Regexp
-	transactions               chan *Transaction
-	errors                     chan *Error
+	active         bool
+	closing        chan struct{}
+	closed         chan struct{}
+	forceFlush     chan chan<- struct{}
+	configCommands chan tracerConfigCommand
+	transactions   chan *Transaction
+	errors         chan *Error
 
 	statsMu sync.Mutex
 	stats   TracerStats
@@ -228,29 +220,21 @@ func NewTracer(serviceName, serviceVersion string) (*Tracer, error) {
 
 func newTracer(opts options) *Tracer {
 	t := &Tracer{
-		Transport:                  transport.Default,
-		process:                    &currentProcess,
-		system:                     &localSystem,
-		closing:                    make(chan struct{}),
-		closed:                     make(chan struct{}),
-		forceFlush:                 make(chan chan<- struct{}),
-		setFlushInterval:           make(chan time.Duration),
-		setMaxTransactionQueueSize: make(chan int),
-		setMaxErrorQueueSize:       make(chan int),
-		setPreContext:              make(chan int),
-		setPostContext:             make(chan int),
-		setContextSetter:           make(chan stacktrace.ContextSetter),
-		setLogger:                  make(chan Logger),
-		setProcessor:               make(chan Processor),
-		setSanitizedFieldNames:     make(chan *regexp.Regexp),
-		transactions:               make(chan *Transaction, transactionsChannelCap),
-		errors:                     make(chan *Error, errorsChannelCap),
-		maxSpans:                   opts.maxSpans,
-		sampler:                    opts.sampler,
-		captureBody:                opts.captureBody,
-		transactionIgnoreNames:     opts.transactionIgnoreNames,
-		spanFramesMinDuration:      opts.spanFramesMinDuration,
-		active:                     opts.active,
+		Transport:              transport.Default,
+		process:                &currentProcess,
+		system:                 &localSystem,
+		closing:                make(chan struct{}),
+		closed:                 make(chan struct{}),
+		forceFlush:             make(chan chan<- struct{}),
+		configCommands:         make(chan tracerConfigCommand),
+		transactions:           make(chan *Transaction, transactionsChannelCap),
+		errors:                 make(chan *Error, errorsChannelCap),
+		maxSpans:               opts.maxSpans,
+		sampler:                opts.sampler,
+		captureBody:            opts.captureBody,
+		transactionIgnoreNames: opts.transactionIgnoreNames,
+		spanFramesMinDuration:  opts.spanFramesMinDuration,
+		active:                 opts.active,
 	}
 	t.Service.Name = opts.serviceName
 	t.Service.Version = opts.serviceVersion
@@ -262,12 +246,14 @@ func newTracer(opts options) *Tracer {
 	}
 
 	go t.loop()
-	t.setFlushInterval <- opts.flushInterval
-	t.setMaxTransactionQueueSize <- opts.maxTransactionQueueSize
-	t.setSanitizedFieldNames <- opts.sanitizedFieldNames
-	t.setMaxErrorQueueSize <- defaultMaxErrorQueueSize
-	t.setPreContext <- defaultPreContext
-	t.setPostContext <- defaultPostContext
+	t.configCommands <- func(cfg *tracerConfig) {
+		cfg.flushInterval = opts.flushInterval
+		cfg.maxTransactionQueueSize = opts.maxTransactionQueueSize
+		cfg.maxErrorQueueSize = defaultMaxErrorQueueSize
+		cfg.sanitizedFieldNames = opts.sanitizedFieldNames
+		cfg.preContext = defaultPreContext
+		cfg.postContext = defaultPostContext
+	}
 	return t
 }
 
@@ -307,54 +293,44 @@ func (t *Tracer) Active() bool {
 // SetFlushInterval sets the flush interval -- the amount of time
 // to wait before flushing enqueued transactions to the APM server.
 func (t *Tracer) SetFlushInterval(d time.Duration) {
-	select {
-	case t.setFlushInterval <- d:
-	case <-t.closing:
-	case <-t.closed:
-	}
+	t.sendConfigCommand(func(cfg *tracerConfig) {
+		cfg.flushInterval = d
+	})
 }
 
 // SetMaxTransactionQueueSize sets the maximum transaction queue size -- the
 // maximum number of transactions to buffer before flushing to the APM server.
 // If set to a non-positive value, the queue size is unlimited.
 func (t *Tracer) SetMaxTransactionQueueSize(n int) {
-	select {
-	case t.setMaxTransactionQueueSize <- n:
-	case <-t.closing:
-	case <-t.closed:
-	}
+	t.sendConfigCommand(func(cfg *tracerConfig) {
+		cfg.maxTransactionQueueSize = n
+	})
 }
 
 // SetMaxErrorQueueSize sets the maximum error queue size -- the
 // maximum number of errors to buffer before they will start getting
 // dropped. If set to a non-positive value, the queue size is unlimited.
 func (t *Tracer) SetMaxErrorQueueSize(n int) {
-	select {
-	case t.setMaxErrorQueueSize <- n:
-	case <-t.closing:
-	case <-t.closed:
-	}
+	t.sendConfigCommand(func(cfg *tracerConfig) {
+		cfg.maxErrorQueueSize = n
+	})
 }
 
 // SetContextSetter sets the stacktrace.ContextSetter to be used for
 // setting stacktrace source context. If nil (which is the initial
 // value), no context will be set.
 func (t *Tracer) SetContextSetter(setter stacktrace.ContextSetter) {
-	select {
-	case t.setContextSetter <- setter:
-	case <-t.closing:
-	case <-t.closed:
-	}
+	t.sendConfigCommand(func(cfg *tracerConfig) {
+		cfg.contextSetter = setter
+	})
 }
 
 // SetLogger sets the Logger to be used for logging the operation of
 // the tracer.
 func (t *Tracer) SetLogger(logger Logger) {
-	select {
-	case t.setLogger <- logger:
-	case <-t.closing:
-	case <-t.closed:
-	}
+	t.sendConfigCommand(func(cfg *tracerConfig) {
+		cfg.logger = logger
+	})
 }
 
 // SetProcessor sets the processors for the tracer.
@@ -363,11 +339,9 @@ func (t *Tracer) SetProcessor(p ...Processor) {
 	if len(p) > 0 {
 		processor = Processors(p)
 	}
-	select {
-	case t.setProcessor <- processor:
-	case <-t.closing:
-	case <-t.closed:
-	}
+	t.sendConfigCommand(func(cfg *tracerConfig) {
+		cfg.processor = processor
+	})
 }
 
 // SetSanitizedFieldNames sets the patterns that will be used to match
@@ -384,12 +358,18 @@ func (t *Tracer) SetSanitizedFieldNames(patterns ...string) error {
 			return err
 		}
 	}
+	t.sendConfigCommand(func(cfg *tracerConfig) {
+		cfg.sanitizedFieldNames = re
+	})
+	return nil
+}
+
+func (t *Tracer) sendConfigCommand(cmd tracerConfigCommand) {
 	select {
-	case t.setSanitizedFieldNames <- re:
+	case t.configCommands <- cmd:
 	case <-t.closing:
 	case <-t.closed:
 	}
-	return nil
 }
 
 // SetTransactionIgnoreNames sets the patterns that will be used to match
@@ -463,16 +443,15 @@ func (t *Tracer) loop() {
 		}
 	}()
 
-	var flushInterval time.Duration
+	var cfg tracerConfig
 	var flushed chan<- struct{}
-	var maxTransactionQueueSize int
-	var maxErrorQueueSize int
 	var flushC <-chan time.Time
 	var transactions []*Transaction
 	var errors []*Error
 	var statsUpdates TracerStats
 	sender := sender{
 		tracer: t,
+		cfg:    &cfg,
 		stats:  &statsUpdates,
 	}
 
@@ -493,15 +472,15 @@ func (t *Tracer) loop() {
 			default:
 			}
 		}
-		flushTimer.Reset(flushInterval)
+		flushTimer.Reset(cfg.flushInterval)
 		flushC = flushTimer.C
 	}
 	receivedTransaction := func(tx *Transaction, stats *TracerStats) {
-		if maxTransactionQueueSize > 0 && len(transactions) >= maxTransactionQueueSize {
+		if cfg.maxTransactionQueueSize > 0 && len(transactions) >= cfg.maxTransactionQueueSize {
 			// The queue is full, so pop the oldest item.
 			// TODO(axw) use container/ring? implement
 			// ring buffer on top of slice? profile
-			n := uint64(len(transactions) - maxTransactionQueueSize + 1)
+			n := uint64(len(transactions) - cfg.maxTransactionQueueSize + 1)
 			for _, tx := range transactions[:n] {
 				tx.reset()
 				t.transactionPool.Put(tx)
@@ -519,28 +498,11 @@ func (t *Tracer) loop() {
 		select {
 		case <-t.closing:
 			return
-		case flushInterval = <-t.setFlushInterval:
-			continue
-		case maxTransactionQueueSize = <-t.setMaxTransactionQueueSize:
-			if maxTransactionQueueSize <= 0 || len(transactions) < maxTransactionQueueSize {
-				continue
-			}
-		case maxErrorQueueSize = <-t.setMaxErrorQueueSize:
-			if maxErrorQueueSize <= 0 || len(errors) < maxErrorQueueSize {
+		case cmd := <-t.configCommands:
+			cmd(&cfg)
+			if cfg.maxErrorQueueSize <= 0 || len(errors) < cfg.maxErrorQueueSize {
 				errorsC = t.errors
 			}
-			continue
-		case sender.preContext = <-t.setPreContext:
-			continue
-		case sender.postContext = <-t.setPostContext:
-			continue
-		case sender.contextSetter = <-t.setContextSetter:
-			continue
-		case sender.logger = <-t.setLogger:
-			continue
-		case sender.processor = <-t.setProcessor:
-			continue
-		case sender.sanitizedFieldNames = <-t.setSanitizedFieldNames:
 			continue
 		case e := <-errorsC:
 			errors = append(errors, e)
@@ -555,7 +517,7 @@ func (t *Tracer) loop() {
 				t.statsMu.Unlock()
 				continue
 			}
-			if maxTransactionQueueSize <= 0 || len(transactions) < maxTransactionQueueSize {
+			if cfg.maxTransactionQueueSize <= 0 || len(transactions) < cfg.maxTransactionQueueSize {
 				startTimer()
 				continue
 			}
@@ -578,7 +540,7 @@ func (t *Tracer) loop() {
 			sendTransactions = true
 		}
 
-		if remainder := maxErrorQueueSize - len(errors); remainder > 0 {
+		if remainder := cfg.maxErrorQueueSize - len(errors); remainder > 0 {
 			// Drain any errors in the channel, up to the maximum queue size.
 			for n := len(t.errors); n > 0 && remainder > 0; n-- {
 				errors = append(errors, <-t.errors)
@@ -592,7 +554,7 @@ func (t *Tracer) loop() {
 			}
 			errors = errors[:0]
 			errorsC = t.errors
-		} else if len(errors) == maxErrorQueueSize {
+		} else if len(errors) == cfg.maxErrorQueueSize {
 			errorsC = nil
 		}
 		if sendTransactions {
@@ -624,117 +586,17 @@ func (t *Tracer) loop() {
 	}
 }
 
-type sender struct {
-	tracer                  *Tracer
+// tracerConfig holds the tracer's runtime configuration, which may be modified
+// by sending a tracerConfigCommand to the tracer's configCommands channel.
+type tracerConfig struct {
+	flushInterval           time.Duration
+	maxTransactionQueueSize int
+	maxErrorQueueSize       int
 	logger                  Logger
 	processor               Processor
 	contextSetter           stacktrace.ContextSetter
 	preContext, postContext int
-	stats                   *TracerStats
 	sanitizedFieldNames     *regexp.Regexp
 }
 
-// sendTransactions attempts to send enqueued transactions to the APM server,
-// returning true if the transactions were successfully sent.
-func (s *sender) sendTransactions(ctx context.Context, transactions []*Transaction) bool {
-	if len(transactions) == 0 {
-		return false
-	}
-	if s.contextSetter != nil {
-		var err error
-		for _, tx := range transactions {
-			if err = tx.setContext(s.contextSetter, s.preContext, s.postContext); err != nil {
-				break
-			}
-		}
-		if err != nil {
-			if s.logger != nil {
-				s.logger.Debugf("setting context failed: %s", err)
-			}
-			s.stats.Errors.SetContext++
-		}
-	}
-	service := makeService(s.tracer.Service.Name, s.tracer.Service.Version, s.tracer.Service.Environment)
-	payload := model.TransactionsPayload{
-		Service:      &service,
-		Process:      s.tracer.process,
-		System:       s.tracer.system,
-		Transactions: make([]*model.Transaction, len(transactions)),
-	}
-	for i, tx := range transactions {
-		tx.setID()
-		if tx.Sampled() {
-			tx.model.Context = tx.Context.build()
-			if s.sanitizedFieldNames != nil && tx.model.Context != nil && tx.model.Context.Request != nil {
-				sanitizeRequest(tx.model.Context.Request, s.sanitizedFieldNames)
-			}
-		}
-		if s.processor != nil {
-			s.processor.ProcessTransaction(&tx.model)
-		}
-		payload.Transactions[i] = &tx.model
-	}
-	if err := s.tracer.Transport.SendTransactions(ctx, &payload); err != nil {
-		if s.logger != nil {
-			s.logger.Debugf("sending transactions failed: %s", err)
-		}
-		s.stats.Errors.SendTransactions++
-		return false
-	}
-	s.stats.TransactionsSent += uint64(len(transactions))
-	return true
-}
-
-// sendErrors attempts to send enqueued errors to the APM server,
-// returning true if the errors were successfully sent.
-func (s *sender) sendErrors(ctx context.Context, errors []*Error) bool {
-	if len(errors) == 0 {
-		return false
-	}
-	if s.contextSetter != nil {
-		var err error
-		for _, e := range errors {
-			if err = e.setContext(s.contextSetter, s.preContext, s.postContext); err != nil {
-				break
-			}
-		}
-		if err != nil {
-			if s.logger != nil {
-				s.logger.Debugf("setting context failed: %s", err)
-			}
-			s.stats.Errors.SetContext++
-		}
-	}
-	service := makeService(s.tracer.Service.Name, s.tracer.Service.Version, s.tracer.Service.Environment)
-	payload := model.ErrorsPayload{
-		Service: &service,
-		Process: s.tracer.process,
-		System:  s.tracer.system,
-		Errors:  make([]*model.Error, len(errors)),
-	}
-	for i, e := range errors {
-		if e.Transaction != nil {
-			e.Transaction.setID()
-			e.model.Transaction.ID = e.Transaction.model.ID
-		}
-		e.setStacktrace()
-		e.setCulprit()
-		e.model.ID = e.ID
-		e.model.Timestamp = model.Time(e.Timestamp.UTC())
-		e.model.Context = e.Context.build()
-		e.model.Exception.Handled = e.Handled
-		if s.processor != nil {
-			s.processor.ProcessError(&e.model)
-		}
-		payload.Errors[i] = &e.model
-	}
-	if err := s.tracer.Transport.SendErrors(ctx, &payload); err != nil {
-		if s.logger != nil {
-			s.logger.Debugf("sending errors failed: %s", err)
-		}
-		s.stats.Errors.SendErrors++
-		return false
-	}
-	s.stats.ErrorsSent += uint64(len(errors))
-	return true
-}
+type tracerConfigCommand func(*tracerConfig)
