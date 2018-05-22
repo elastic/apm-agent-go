@@ -83,6 +83,14 @@ type Transaction struct {
 	spans []*Span
 }
 
+func (tx *Transaction) GetID() string {
+	return tx.model.ID
+}
+
+func (tx *Transaction) SetID(id string) {
+	tx.model.ID = id
+}
+
 func (tx *Transaction) setID() {
 	if tx.model.ID != "" {
 		return
