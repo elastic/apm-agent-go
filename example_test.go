@@ -1,9 +1,11 @@
 package elasticapm_test
 
 import (
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -135,8 +137,16 @@ func (r *recorder) count() int {
 }
 
 func (r *recorder) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	var body io.Reader = req.Body
+	if req.Header.Get("Content-Encoding") == "gzip" {
+		r, err := gzip.NewReader(body)
+		if err != nil {
+			panic(err)
+		}
+		body = r
+	}
 	var m map[string]interface{}
-	if err := json.NewDecoder(req.Body).Decode(&m); err != nil {
+	if err := json.NewDecoder(body).Decode(&m); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 	r.mu.Lock()

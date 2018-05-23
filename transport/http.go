@@ -2,9 +2,11 @@ package transport
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -24,6 +26,10 @@ const (
 	envSecretToken      = "ELASTIC_APM_SECRET_TOKEN"
 	envServerURL        = "ELASTIC_APM_SERVER_URL"
 	envVerifyServerCert = "ELASTIC_APM_VERIFY_SERVER_CERT"
+
+	// gzipThresholdBytes is the minimum size of the uncompressed
+	// payload before we'll consider gzip-compressing it.
+	gzipThresholdBytes = 1024
 )
 
 var (
@@ -40,7 +46,10 @@ type HTTPTransport struct {
 	transactionsURL *url.URL
 	errorsURL       *url.URL
 	headers         http.Header
-	jsonwriter      fastjson.Writer
+	gzipHeaders     http.Header
+	jsonWriter      fastjson.Writer
+	gzipWriter      *gzip.Writer
+	gzipBuffer      bytes.Buffer
 }
 
 // NewHTTPTransport returns a new HTTPTransport, which can be used for sending
@@ -103,40 +112,59 @@ func NewHTTPTransport(serverURL, secretToken string) (*HTTPTransport, error) {
 		headers.Set("Authorization", "Bearer "+secretToken)
 	}
 
-	return &HTTPTransport{
+	gzipHeaders := make(http.Header)
+	for k, v := range headers {
+		gzipHeaders[k] = v
+	}
+	gzipHeaders.Set("Content-Encoding", "gzip")
+
+	t := &HTTPTransport{
 		Client:          client,
 		baseURL:         req.URL,
 		transactionsURL: urlWithPath(req.URL, transactionsPath),
 		errorsURL:       urlWithPath(req.URL, errorsPath),
 		headers:         headers,
-	}, nil
+		gzipHeaders:     gzipHeaders,
+	}
+	t.gzipWriter = gzip.NewWriter(&t.gzipBuffer)
+	return t, nil
 }
 
 // SendTransactions sends the transactions payload over HTTP.
 func (t *HTTPTransport) SendTransactions(ctx context.Context, p *model.TransactionsPayload) error {
-	t.jsonwriter.Reset()
-	p.MarshalFastJSON(&t.jsonwriter)
-	buf := t.jsonwriter.Bytes()
-
+	t.jsonWriter.Reset()
+	p.MarshalFastJSON(&t.jsonWriter)
 	req := requestWithContext(ctx, t.newTransactionsRequest())
-	req.ContentLength = int64(len(buf))
-	req.Body = ioutil.NopCloser(bytes.NewReader(buf))
-	return t.send(req, "SendTransactions")
+	return t.sendPayload(req, "SendTransactions")
 }
 
 // SendErrors sends the errors payload over HTTP.
 func (t *HTTPTransport) SendErrors(ctx context.Context, p *model.ErrorsPayload) error {
-	t.jsonwriter.Reset()
-	p.MarshalFastJSON(&t.jsonwriter)
-	buf := t.jsonwriter.Bytes()
-
+	t.jsonWriter.Reset()
+	p.MarshalFastJSON(&t.jsonWriter)
 	req := requestWithContext(ctx, t.newErrorsRequest())
-	req.ContentLength = int64(len(buf))
-	req.Body = ioutil.NopCloser(bytes.NewReader(buf))
-	return t.send(req, "SendErrors")
+	return t.sendPayload(req, "SendErrors")
 }
 
-func (t *HTTPTransport) send(req *http.Request, op string) error {
+func (t *HTTPTransport) sendPayload(req *http.Request, op string) error {
+	buf := t.jsonWriter.Bytes()
+	var body io.Reader = bytes.NewReader(buf)
+	req.ContentLength = int64(len(buf))
+	if req.ContentLength >= gzipThresholdBytes {
+		t.gzipBuffer.Reset()
+		t.gzipWriter.Reset(&t.gzipBuffer)
+		if _, err := io.Copy(t.gzipWriter, body); err != nil {
+			return err
+		}
+		if err := t.gzipWriter.Flush(); err != nil {
+			return err
+		}
+		req.ContentLength = int64(t.gzipBuffer.Len())
+		body = &t.gzipBuffer
+		req.Header = t.gzipHeaders
+	}
+	req.Body = ioutil.NopCloser(body)
+
 	resp, err := t.Client.Do(req)
 	if err != nil {
 		return errors.Wrapf(err, "sending request for %s failed", op)
