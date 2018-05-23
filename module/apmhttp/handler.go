@@ -16,14 +16,14 @@ import (
 // By default, the returned Handler will recover panics, reporting
 // them to the configured tracer. To override this behaviour, use
 // WithRecovery.
-func Wrap(h http.Handler, o ...Option) http.Handler {
+func Wrap(h http.Handler, o ...ServerOption) http.Handler {
 	if h == nil {
 		panic("h == nil")
 	}
 	handler := &handler{
 		handler:        h,
 		tracer:         elasticapm.DefaultTracer,
-		requestName:    RequestName,
+		requestName:    ServerRequestName,
 		requestIgnorer: ignoreNone,
 	}
 	for _, o := range o {
@@ -221,12 +221,12 @@ func ignoreNone(*http.Request) bool {
 	return false
 }
 
-// Option sets options for tracing.
-type Option func(*handler)
+// ServerOption sets options for tracing server requests.
+type ServerOption func(*handler)
 
-// WithTracer returns an Option which sets t as the tracer
+// WithTracer returns a ServerOption which sets t as the tracer
 // to use for tracing server requests.
-func WithTracer(t *elasticapm.Tracer) Option {
+func WithTracer(t *elasticapm.Tracer) ServerOption {
 	if t == nil {
 		panic("t == nil")
 	}
@@ -235,9 +235,9 @@ func WithTracer(t *elasticapm.Tracer) Option {
 	}
 }
 
-// WithRecovery returns an Option which sets r as the recovery
+// WithRecovery returns a ServerOption which sets r as the recovery
 // function to use for tracing server requests.
-func WithRecovery(r RecoveryFunc) Option {
+func WithRecovery(r RecoveryFunc) ServerOption {
 	if r == nil {
 		panic("r == nil")
 	}
@@ -246,12 +246,13 @@ func WithRecovery(r RecoveryFunc) Option {
 	}
 }
 
-// RequestNameFunc is the type of a function for use in WithRequestName.
+// RequestNameFunc is the type of a function for use in
+// WithServerRequestName.
 type RequestNameFunc func(*http.Request) string
 
-// WithRequestName returns an Option which sets r as the function
-// to use to obtain the transaction name for the given request.
-func WithRequestName(r RequestNameFunc) Option {
+// WithServerRequestName returns a ServerOption which sets r as the function
+// to use to obtain the transaction name for the given server request.
+func WithServerRequestName(r RequestNameFunc) ServerOption {
 	if r == nil {
 		panic("r == nil")
 	}
@@ -260,14 +261,15 @@ func WithRequestName(r RequestNameFunc) Option {
 	}
 }
 
-// RequestIgnorerFunc is the type of a function for use in WithRequestIgnorer.
+// RequestIgnorerFunc is the type of a function for use in
+// WithServerRequestIgnorer.
 type RequestIgnorerFunc func(*http.Request) bool
 
-// WithRequestIgnorer returns an Option which sets r as the
-// function to use to determine whether or not a request should
-// be ignored./ This is in addition to standard tracer
-// configuration, e.g. ELASTIC_APM_TRANSACTION_IGNORE_NAMES.
-func WithRequestIgnorer(r RequestIgnorerFunc) Option {
+// WithServerRequestIgnorer returns a ServerOption which sets r as the
+// function to use to determine whether or not a server request should
+// be ignored. This is in addition to standard tracer configuration,
+// e.g. ELASTIC_APM_TRANSACTION_IGNORE_NAMES.
+func WithServerRequestIgnorer(r RequestIgnorerFunc) ServerOption {
 	if r == nil {
 		panic("r == nil")
 	}

@@ -7,8 +7,8 @@ import (
 	"strings"
 )
 
-// RequestName returns the transaction name for req.
-func RequestName(req *http.Request) string {
+// ServerRequestName returns the transaction name for the server request, req.
+func ServerRequestName(req *http.Request) string {
 	var b strings.Builder
 	b.Grow(len(req.Method) + len(req.URL.Path) + 1)
 	b.WriteString(req.Method)
