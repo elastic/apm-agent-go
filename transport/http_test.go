@@ -1,9 +1,12 @@
 package transport_test
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -13,7 +16,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"github.com/elastic/apm-agent-go/internal/fastjson"
 	"github.com/elastic/apm-agent-go/model"
 	"github.com/elastic/apm-agent-go/transport"
 )
@@ -147,6 +152,50 @@ func TestHTTPError(t *testing.T) {
 	assert.EqualError(t, err, "SendTransactions failed with 500 Internal Server Error: error-message")
 }
 
+func TestHTTPTransportSmallUncompressed(t *testing.T) {
+	var h recordingHandler
+	server := httptest.NewServer(&h)
+	defer server.Close()
+
+	transport, err := transport.NewHTTPTransport(server.URL, "")
+	assert.NoError(t, err)
+	transport.SendTransactions(context.Background(), &model.TransactionsPayload{})
+
+	assert.Len(t, h.requests, 1)
+	assert.Empty(t, h.requests[0].Header.Get("Content-Encoding"))
+}
+
+func TestHTTPTransportLargeCompressed(t *testing.T) {
+	var h recordingHandler
+	server := httptest.NewServer(&h)
+	defer server.Close()
+
+	transport, err := transport.NewHTTPTransport(server.URL, "")
+	assert.NoError(t, err)
+
+	payload := &model.TransactionsPayload{
+		Transactions: make([]*model.Transaction, 1024),
+	}
+	for i := range payload.Transactions {
+		payload.Transactions[i] = &model.Transaction{}
+	}
+	transport.SendTransactions(context.Background(), payload)
+
+	require.Len(t, h.requests, 1)
+	assert.Equal(t, "gzip", h.requests[0].Header.Get("Content-Encoding"))
+
+	var jw fastjson.Writer
+	payload.MarshalFastJSON(&jw)
+
+	r, err := gzip.NewReader(h.requests[0].Body)
+	require.NoError(t, err)
+	defer r.Close()
+
+	var decoded bytes.Buffer
+	io.Copy(&decoded, r)
+	assert.Equal(t, string(jw.Bytes()), decoded.String())
+}
+
 func newHTTPTransport(t *testing.T, handler http.Handler) (*transport.HTTPTransport, *httptest.Server) {
 	server := httptest.NewServer(handler)
 	transport, err := transport.NewHTTPTransport(server.URL, "")
@@ -169,6 +218,13 @@ type recordingHandler struct {
 func (h *recordingHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+
+	var buf bytes.Buffer
+	_, err := io.Copy(&buf, req.Body)
+	if err != nil {
+		panic(err)
+	}
+	req.Body = ioutil.NopCloser(&buf)
 	h.requests = append(h.requests, req)
 }
 
