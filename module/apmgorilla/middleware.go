@@ -27,7 +27,7 @@ func Middleware(o ...Option) mux.MiddlewareFunc {
 		return apmhttp.Wrap(
 			h,
 			apmhttp.WithTracer(opts.tracer),
-			apmhttp.WithRequestName(routeRequestName),
+			apmhttp.WithServerRequestName(routeRequestName),
 		)
 	}
 }
@@ -40,7 +40,7 @@ func routeRequestName(req *http.Request) string {
 			return req.Method + " " + massageTemplate(tpl)
 		}
 	}
-	return apmhttp.RequestName(req)
+	return apmhttp.ServerRequestName(req)
 }
 
 type options struct {

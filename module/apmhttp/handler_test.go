@@ -245,7 +245,7 @@ func TestHandlerRequestIgnorer(t *testing.T) {
 	h := apmhttp.Wrap(
 		http.NotFoundHandler(),
 		apmhttp.WithTracer(tracer),
-		apmhttp.WithRequestIgnorer(func(*http.Request) bool {
+		apmhttp.WithServerRequestIgnorer(func(*http.Request) bool {
 			return true
 		}),
 	)
