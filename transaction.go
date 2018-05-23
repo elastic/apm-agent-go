@@ -10,15 +10,7 @@ import (
 
 // StartTransaction returns a new Transaction with the specified
 // name and type, and with the start time set to the current time.
-func (t *Tracer) StartTransaction(name, transactionType string) *Transaction {
-	tx := t.newTransaction(name, transactionType)
-	tx.Timestamp = time.Now()
-	return tx
-}
-
-// newTransaction returns a new Transaction with the specified
-// name and type, and sampling applied.
-func (t *Tracer) newTransaction(name, transactionType string) *Transaction {
+func (t *Tracer) StartTransaction(name, transactionType string, opts ...TransactionOption) *Transaction {
 	tx, _ := t.transactionPool.Get().(*Transaction)
 	if tx == nil {
 		tx = &Transaction{
@@ -37,6 +29,9 @@ func (t *Tracer) newTransaction(name, transactionType string) *Transaction {
 	if transactionIgnoreNames != nil && transactionIgnoreNames.MatchString(name) {
 		tx.ignored = true
 		return tx
+	}
+	for _, o := range opts {
+		o(tx)
 	}
 
 	// Take a snapshot of the max spans config to ensure
@@ -58,6 +53,7 @@ func (t *Tracer) newTransaction(name, transactionType string) *Transaction {
 		tx.sampled = false
 		tx.model.Sampled = &tx.sampled
 	}
+	tx.Timestamp = time.Now()
 	return tx
 }
 
@@ -185,3 +181,6 @@ func (tx *Transaction) enqueue() {
 		tx.tracer.transactionPool.Put(tx)
 	}
 }
+
+// TransactionOption sets options when starting a transaction.
+type TransactionOption func(*Transaction)
