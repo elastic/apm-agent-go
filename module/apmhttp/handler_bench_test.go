@@ -15,15 +15,15 @@ import (
 
 var benchmarkPaths = []string{"/hello/world", "/sleep/1ms"}
 
-func BenchmarkWithoutMiddleware(b *testing.B) {
+func BenchmarkHandlerWithoutMiddleware(b *testing.B) {
 	for _, path := range benchmarkPaths {
 		b.Run(path, func(b *testing.B) {
-			benchmark(b, path, nil)
+			benchmarkHandler(b, path, nil)
 		})
 	}
 }
 
-func BenchmarkWithMiddleware(b *testing.B) {
+func BenchmarkHandlerWithMiddleware(b *testing.B) {
 	tracer := newTracer()
 	defer tracer.Close()
 	wrapHandler := func(in http.Handler) http.Handler {
@@ -31,12 +31,12 @@ func BenchmarkWithMiddleware(b *testing.B) {
 	}
 	for _, path := range benchmarkPaths {
 		b.Run(path, func(b *testing.B) {
-			benchmark(b, path, wrapHandler)
+			benchmarkHandler(b, path, wrapHandler)
 		})
 	}
 }
 
-func benchmark(b *testing.B, path string, wrapHandler func(http.Handler) http.Handler) {
+func benchmarkHandler(b *testing.B, path string, wrapHandler func(http.Handler) http.Handler) {
 	w := httptest.NewRecorder()
 	h := testMux()
 	if wrapHandler != nil {

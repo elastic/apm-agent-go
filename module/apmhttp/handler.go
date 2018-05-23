@@ -7,8 +7,8 @@ import (
 	"github.com/elastic/apm-agent-go"
 )
 
-// Wrap returns a Handler wrapping h, reporting each request as a
-// transaction to Elastic APM.
+// Wrap returns an http.Handler wrapping h, reporting each request as
+// a transaction to Elastic APM.
 //
 // By default, the returned Handler will use elasticapm.DefaultTracer.
 // Use WithTracer to specify an alternative tracer.
