@@ -174,10 +174,7 @@ func TestHTTPTransportLargeCompressed(t *testing.T) {
 	assert.NoError(t, err)
 
 	payload := &model.TransactionsPayload{
-		Transactions: make([]*model.Transaction, 1024),
-	}
-	for i := range payload.Transactions {
-		payload.Transactions[i] = &model.Transaction{}
+		Transactions: make([]model.Transaction, 1024),
 	}
 	transport.SendTransactions(context.Background(), payload)
 

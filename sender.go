@@ -4,12 +4,17 @@ import (
 	"context"
 
 	"github.com/elastic/apm-agent-go/model"
+	"github.com/elastic/apm-agent-go/stacktrace"
 )
 
 type sender struct {
 	tracer *Tracer
 	cfg    *tracerConfig
 	stats  *TracerStats
+
+	modelTransactions []model.Transaction
+	modelSpans        []model.Span
+	modelStacktrace   []model.StacktraceFrame
 }
 
 // sendTransactions attempts to send enqueued transactions to the APM server,
@@ -18,40 +23,69 @@ func (s *sender) sendTransactions(ctx context.Context, transactions []*Transacti
 	if len(transactions) == 0 {
 		return false
 	}
-	if s.cfg.contextSetter != nil {
-		var err error
-		for _, tx := range transactions {
-			if err = tx.setContext(s.cfg.contextSetter, s.cfg.preContext, s.cfg.postContext); err != nil {
-				break
+
+	s.modelTransactions = s.modelTransactions[:0]
+	s.modelSpans = s.modelSpans[:0]
+	s.modelStacktrace = s.modelStacktrace[:0]
+	var spanOffset int
+	var stacktraceOffset int
+
+	for _, tx := range transactions {
+		s.modelTransactions = append(s.modelTransactions, model.Transaction{
+			Name:      truncateString(tx.name),
+			Type:      truncateString(tx.txType),
+			ID:        tx.id,
+			Result:    truncateString(tx.Result),
+			Timestamp: model.Time(tx.Timestamp.UTC()),
+			Duration:  tx.Duration.Seconds() * 1000,
+			SpanCount: model.SpanCount{
+				Dropped: model.SpanCountDropped{
+					Total: tx.spansDropped,
+				},
+			},
+		})
+		modelTx := &s.modelTransactions[len(s.modelTransactions)-1]
+		if tx.Sampled() {
+			modelTx.Context = tx.Context.build()
+			if s.cfg.sanitizedFieldNames != nil && modelTx.Context != nil && modelTx.Context.Request != nil {
+				sanitizeRequest(modelTx.Context.Request, s.cfg.sanitizedFieldNames)
 			}
+			for _, span := range tx.spans {
+				s.modelSpans = append(s.modelSpans, model.Span{
+					ID:       &span.id,
+					Name:     truncateString(span.name),
+					Type:     truncateString(span.spanType),
+					Start:    span.Timestamp.Sub(tx.Timestamp).Seconds() * 1000,
+					Duration: span.Duration.Seconds() * 1000,
+					Context:  span.Context.build(),
+				})
+				modelSpan := &s.modelSpans[len(s.modelSpans)-1]
+				if span.parent != -1 {
+					modelSpan.Parent = &span.parent
+				}
+				s.modelStacktrace = appendModelStacktraceFrames(s.modelStacktrace, span.stacktrace)
+				modelSpan.Stacktrace = s.modelStacktrace[stacktraceOffset:]
+				stacktraceOffset += len(span.stacktrace)
+				s.setStacktraceContext(modelSpan.Stacktrace)
+			}
+			modelTx.Spans = s.modelSpans[spanOffset:]
+			spanOffset += len(tx.spans)
+		} else {
+			modelTx.Sampled = &tx.sampled
 		}
-		if err != nil {
-			if s.cfg.logger != nil {
-				s.cfg.logger.Debugf("setting context failed: %s", err)
-			}
-			s.stats.Errors.SetContext++
+		if s.cfg.processor != nil {
+			s.cfg.processor.ProcessTransaction(modelTx)
 		}
 	}
+
 	service := makeService(s.tracer.Service.Name, s.tracer.Service.Version, s.tracer.Service.Environment)
 	payload := model.TransactionsPayload{
 		Service:      &service,
 		Process:      s.tracer.process,
 		System:       s.tracer.system,
-		Transactions: make([]*model.Transaction, len(transactions)),
+		Transactions: s.modelTransactions,
 	}
-	for i, tx := range transactions {
-		tx.setID()
-		if tx.Sampled() {
-			tx.model.Context = tx.Context.build()
-			if s.cfg.sanitizedFieldNames != nil && tx.model.Context != nil && tx.model.Context.Request != nil {
-				sanitizeRequest(tx.model.Context.Request, s.cfg.sanitizedFieldNames)
-			}
-		}
-		if s.cfg.processor != nil {
-			s.cfg.processor.ProcessTransaction(&tx.model)
-		}
-		payload.Transactions[i] = &tx.model
-	}
+
 	if err := s.tracer.Transport.SendTransactions(ctx, &payload); err != nil {
 		if s.cfg.logger != nil {
 			s.cfg.logger.Debugf("sending transactions failed: %s", err)
@@ -69,20 +103,6 @@ func (s *sender) sendErrors(ctx context.Context, errors []*Error) bool {
 	if len(errors) == 0 {
 		return false
 	}
-	if s.cfg.contextSetter != nil {
-		var err error
-		for _, e := range errors {
-			if err = e.setContext(s.cfg.contextSetter, s.cfg.preContext, s.cfg.postContext); err != nil {
-				break
-			}
-		}
-		if err != nil {
-			if s.cfg.logger != nil {
-				s.cfg.logger.Debugf("setting context failed: %s", err)
-			}
-			s.stats.Errors.SetContext++
-		}
-	}
 	service := makeService(s.tracer.Service.Name, s.tracer.Service.Version, s.tracer.Service.Environment)
 	payload := model.ErrorsPayload{
 		Service: &service,
@@ -92,9 +112,9 @@ func (s *sender) sendErrors(ctx context.Context, errors []*Error) bool {
 	}
 	for i, e := range errors {
 		if e.Transaction != nil {
-			e.Transaction.setID()
-			e.model.Transaction.ID = e.Transaction.model.ID
+			e.model.Transaction.ID = e.Transaction.id
 		}
+		s.setStacktraceContext(e.modelStacktrace)
 		e.setStacktrace()
 		e.setCulprit()
 		e.model.ID = e.ID
@@ -115,4 +135,15 @@ func (s *sender) sendErrors(ctx context.Context, errors []*Error) bool {
 	}
 	s.stats.ErrorsSent += uint64(len(errors))
 	return true
+}
+
+func (s *sender) setStacktraceContext(stack []model.StacktraceFrame) {
+	if s.cfg.contextSetter == nil || len(stack) == 0 {
+		return
+	}
+	err := stacktrace.SetContext(s.cfg.contextSetter, stack, s.cfg.preContext, s.cfg.postContext)
+	if s.cfg.logger != nil {
+		s.cfg.logger.Debugf("setting context failed: %s", err)
+	}
+	s.stats.Errors.SetContext++
 }

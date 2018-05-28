@@ -81,7 +81,9 @@ func (t *Tracer) NewError(err error) *Error {
 		panic("NewError must be called with a non-nil error")
 	}
 	e := t.newError()
-	e.ID, _ = NewUUID() // ignore error result
+	if uuid, ok := newUUID(); ok {
+		e.ID = uuid
+	}
 	e.model.Exception.Message = err.Error()
 	if e.model.Exception.Message == "" {
 		e.model.Exception.Message = "[EMPTY]"
@@ -207,13 +209,6 @@ func (e *Error) setCulprit() {
 	} else if e.modelStacktrace != nil {
 		e.model.Culprit = stacktraceCulprit(e.modelStacktrace)
 	}
-}
-
-func (e *Error) setContext(setter stacktrace.ContextSetter, pre, post int) error {
-	if err := stacktrace.SetContext(setter, e.modelStacktrace, pre, post); err != nil {
-		return err
-	}
-	return nil
 }
 
 // stacktraceCulprit returns the first non-library stacktrace frame's

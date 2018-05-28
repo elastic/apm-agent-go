@@ -76,7 +76,7 @@ type Payload struct {
 
 // Transactions returns the transactions within the payload. If the payload
 // is not a transactions payload, this will panic.
-func (p Payload) Transactions() []*model.Transaction {
+func (p Payload) Transactions() []model.Transaction {
 	return p.Value.(*model.TransactionsPayload).Transactions
 }
 
