@@ -69,18 +69,20 @@ transaction.Context.SetCustom("key", "value")
 See <<context-api>> for more details on setting transaction context.
 
 [float]
-[[transaction-done]]
-==== `func (*Transaction) Done(time.Duration)`
+[[transaction-end]]
+==== `func (*Transaction) End()`
 
-Done sets the transaction's duration to the specified value, and enqueues it for
-sending to the Elastic APM server. The Transaction must not be used after this.
+End enqueues the transaction for sending to the Elastic APM server.
+The Transaction must not be used after this.
 
-If the duration specified is negative, then Done will set the duration to
-"time.Since(tx.Timestamp)" instead.
+The transaction's duration will be calculated as the amount of time
+elapsed since the transaction was started until this call. To override
+this behaviour, the transaction's Duration field may be set before
+calling End.
 
 [source,go]
 ----
-transaction.Done(-1)
+transaction.End()
 ----
 
 // -------------------------------------------------------------------------------------------------
@@ -104,7 +106,7 @@ to the transaction's timestamp.
 
 If the transaction is sampled, then the span's ID will be set, and its stacktrace will
 be set if the tracer is configured accordingly. If the transaction is not sampled, then
-the returned span will be silently discarded when its Done method is called. You can
+the returned span will be silently discarded when its End method is called. You can
 avoid any unnecessary computation for these dropped spans by calling its <<span-dropped, Dropped>>
 method.
 
@@ -130,13 +132,14 @@ span, ctx := elasticapm.StartSpan(ctx, "SELECT FROM foo", "db.mysql.query")
 ----
 
 [float]
-[[span-done]]
-==== `func (*Span) Done(time.Duration)`
+[[span-end]]
+==== `func (*Span) End()`
 
-Done sets the span's duration to the specified value. The Span must not be used after this.
+End marks the span as complete; it must not be used after this.
 
-If the duration specified is negative, then Done will set the duration to the amount of
-wall-clock time that has elapsed since the span was started.
+The span's duration will be calculated as the amount of time elapsed
+since the span was started until this call. To override this behaviour,
+the span's Duration field may be set before calling End.
 
 [float]
 [[span-dropped]]
@@ -300,7 +303,7 @@ transaction provided to Recover, and calls the resulting Error's Send method.
 [source,go]
 ----
 tx := elasticapm.DefaultTracer.StartTransaction(...)
-defer tx.Done(-1)
+defer tx.End()
 defer elasticapm.DefaultTracer.Recover(tx)
 ----
 
@@ -315,7 +318,7 @@ and then call its `Send` method.
 [source,go]
 ----
 tx := elasticapm.DefaultTracer.StartTransaction(...)
-defer tx.Done(-1)
+defer tx.End()
 defer elasticapm.DefaultTracer.Recover(tx)
 ----
 
@@ -349,7 +352,7 @@ an active Transaction object:
 [source,go]
 ----
 tx := elasticapm.DefaultTracer.StartTransaction("GET /foo", "request")
-defer tx.Done(-1)
+defer tx.End()
 e := elasticapm.DefaultTracer.NewError(err)
 e.Transaction = tx
 e.Send()

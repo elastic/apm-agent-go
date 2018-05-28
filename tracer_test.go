@@ -21,7 +21,7 @@ func TestTracerStats(t *testing.T) {
 	tracer.Transport = transporttest.Discard
 
 	for i := 0; i < 500; i++ {
-		tracer.StartTransaction("name", "type").Done(-1)
+		tracer.StartTransaction("name", "type").End()
 	}
 	tracer.Flush(nil)
 	assert.Equal(t, elasticapm.TracerStats{
@@ -35,7 +35,7 @@ func TestTracerClosedSendNonblocking(t *testing.T) {
 	tracer.Close()
 
 	for i := 0; i < 1001; i++ {
-		tracer.StartTransaction("name", "type").Done(-1)
+		tracer.StartTransaction("name", "type").End()
 	}
 	assert.Equal(t, uint64(1), tracer.Stats().TransactionsDropped)
 }
@@ -50,7 +50,7 @@ func TestTracerFlushInterval(t *testing.T) {
 	tracer.SetFlushInterval(interval)
 
 	before := time.Now()
-	tracer.StartTransaction("name", "type").Done(-1)
+	tracer.StartTransaction("name", "type").End()
 	assert.Equal(t, elasticapm.TracerStats{TransactionsSent: 0}, tracer.Stats())
 	for tracer.Stats().TransactionsSent == 0 {
 		time.Sleep(10 * time.Millisecond)
@@ -70,7 +70,7 @@ func TestTracerMaxQueueSize(t *testing.T) {
 	// we should see 5 transactons dropped.
 	tracer.SetMaxTransactionQueueSize(5)
 	for i := 0; i < 10; i++ {
-		tracer.StartTransaction("name", "type").Done(-1)
+		tracer.StartTransaction("name", "type").End()
 	}
 	for tracer.Stats().TransactionsDropped < 5 {
 		time.Sleep(10 * time.Millisecond)
@@ -96,7 +96,7 @@ func TestTracerRetryTimer(t *testing.T) {
 	tracer.SetMaxTransactionQueueSize(1)
 
 	before := time.Now()
-	tracer.StartTransaction("name", "type").Done(-1)
+	tracer.StartTransaction("name", "type").End()
 	for tracer.Stats().Errors.SendTransactions < 1 {
 		time.Sleep(10 * time.Millisecond)
 	}
@@ -109,7 +109,7 @@ func TestTracerRetryTimer(t *testing.T) {
 	// Send another transaction, which should cause the
 	// existing transaction to be dropped, but should not
 	// preempt the retry timer.
-	tracer.StartTransaction("name", "type").Done(-1)
+	tracer.StartTransaction("name", "type").End()
 	for tracer.Stats().Errors.SendTransactions < 2 {
 		time.Sleep(10 * time.Millisecond)
 	}
@@ -131,7 +131,7 @@ func TestTracerRetryTimerFlush(t *testing.T) {
 	transactions := make(chan transporttest.SendTransactionsRequest)
 	tracer.Transport = &transporttest.ChannelTransport{Transactions: transactions}
 
-	tracer.StartTransaction("name", "type").Done(-1)
+	tracer.StartTransaction("name", "type").End()
 	before := time.Now()
 	after := make(chan time.Time, 1)
 	cancel := make(chan struct{})
@@ -174,7 +174,7 @@ func TestTracerMaxSpans(t *testing.T) {
 	s0 := tx.StartSpan("name", "type", nil)
 	s1 := tx.StartSpan("name", "type", nil)
 	s2 := tx.StartSpan("name", "type", nil)
-	tx.Done(-1)
+	tx.End()
 
 	assert.False(t, s0.Dropped())
 	assert.False(t, s1.Dropped())
@@ -294,7 +294,7 @@ func TestTracerProcessor(t *testing.T) {
 	})
 
 	e_.Send()
-	tx_.Done(-1)
+	tx_.End()
 	tracer.Flush(nil)
 	assert.True(t, processedError)
 	assert.True(t, processedTransaction)
@@ -317,7 +317,7 @@ func TestTracerRecover(t *testing.T) {
 
 func capturePanic(tracer *elasticapm.Tracer, v interface{}) {
 	tx := tracer.StartTransaction("name", "type")
-	defer tx.Done(-1)
+	defer tx.End()
 	defer tracer.Recover(tx)
 	panic(v)
 }
@@ -349,12 +349,17 @@ func TestSpanStackTrace(t *testing.T) {
 	tracer.SetSpanFramesMinDuration(10 * time.Millisecond)
 
 	tx := tracer.StartTransaction("name", "type")
-	tx.StartSpan("name", "type", nil).Done(9 * time.Millisecond)
-	tx.StartSpan("name", "type", nil).Done(10 * time.Millisecond)
 	s := tx.StartSpan("name", "type", nil)
+	s.Duration = 9 * time.Millisecond
+	s.End()
+	s = tx.StartSpan("name", "type", nil)
+	s.Duration = 10 * time.Millisecond
+	s.End()
+	s = tx.StartSpan("name", "type", nil)
 	s.SetStacktrace(1)
-	s.Done(11 * time.Millisecond)
-	tx.Done(-1)
+	s.Duration = 11 * time.Millisecond
+	s.End()
+	tx.End()
 	tracer.Flush(nil)
 
 	transaction := r.Payloads()[0].Transactions()[0]

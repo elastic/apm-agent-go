@@ -34,7 +34,7 @@ func TestClientSpan(t *testing.T) {
 	resp, err = client.SayHello(ctx, &pb.HelloRequest{Name: "birita"})
 	require.NoError(t, err)
 	assert.Equal(t, resp, &pb.HelloReply{Message: "hello, birita"})
-	tx.Done(-1)
+	tx.End()
 
 	tracer.Flush(nil)
 	out := transport.Payloads()[0].Transactions()[0]

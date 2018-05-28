@@ -203,7 +203,7 @@ func (s *helloworldServer) SayHello(ctx context.Context, req *pb.HelloRequest) (
 	// The context passed to the server should contain a Transaction
 	// for the gRPC request.
 	span, ctx := elasticapm.StartSpan(ctx, "server_span", "type")
-	span.Done(-1)
+	span.End()
 	if s.panic {
 		panic(s.err)
 	}

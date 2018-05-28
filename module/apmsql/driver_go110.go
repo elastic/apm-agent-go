@@ -31,7 +31,7 @@ type driverConnector struct {
 
 func (d *driverConnector) Connect(ctx context.Context) (driver.Conn, error) {
 	span, ctx := elasticapm.StartSpan(ctx, "connect", d.driver.connectSpanType)
-	defer span.Done(-1)
+	defer span.End()
 	dsnInfo := d.driver.dsnParser(d.name)
 	if !span.Dropped() {
 		span.Context.SetDatabase(elasticapm.DatabaseSpanContext{

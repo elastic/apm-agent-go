@@ -42,7 +42,7 @@ func Wrap(h httprouter.Handle, route string, o ...Option) httprouter.Handle {
 
 		ctx := elasticapm.ContextWithTransaction(req.Context(), tx)
 		req = apmhttp.RequestWithContext(ctx, req)
-		defer tx.Done(-1)
+		defer tx.End()
 
 		finished := false
 		body := opts.tracer.CaptureHTTPRequestBody(req)

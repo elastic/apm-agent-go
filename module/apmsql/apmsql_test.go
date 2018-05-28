@@ -141,7 +141,7 @@ func withTransaction(t *testing.T, f func(ctx context.Context)) *model.Transacti
 	ctx := elasticapm.ContextWithTransaction(context.Background(), tx)
 	f(ctx)
 
-	tx.Done(-1)
+	tx.End()
 	tracer.Flush(nil)
 	payloads := transport.Payloads()
 	require.Len(t, payloads, 1)

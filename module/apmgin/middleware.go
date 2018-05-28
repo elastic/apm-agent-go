@@ -81,7 +81,7 @@ func (m *middleware) handle(c *gin.Context) {
 
 	ctx := elasticapm.ContextWithTransaction(c.Request.Context(), tx)
 	c.Request = apmhttp.RequestWithContext(ctx, c.Request)
-	defer tx.Done(-1)
+	defer tx.End()
 
 	body := m.tracer.CaptureHTTPRequestBody(c.Request)
 	ginContext := ginContext{Handler: handlerName}

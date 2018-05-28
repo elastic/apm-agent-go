@@ -49,7 +49,7 @@ func (m *middleware) handle(c echo.Context) error {
 	ctx := elasticapm.ContextWithTransaction(req.Context(), tx)
 	req = apmhttp.RequestWithContext(ctx, req)
 	c.SetRequest(req)
-	defer tx.Done(-1)
+	defer tx.End()
 	body := m.tracer.CaptureHTTPRequestBody(req)
 
 	defer func() {
