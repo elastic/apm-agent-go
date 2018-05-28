@@ -34,7 +34,7 @@ func TransactionFromContext(ctx context.Context) *Transaction {
 // and parent span in the context, if any. If the span isn't dropped, it
 // will be stored in the resulting context.
 //
-// StartSpan always returns a non-nil Span. Its Done method must be called
+// StartSpan always returns a non-nil Span. Its End method must be called
 // when the span completes.
 func StartSpan(ctx context.Context, name, spanType string) (*Span, context.Context) {
 	tx := TransactionFromContext(ctx)

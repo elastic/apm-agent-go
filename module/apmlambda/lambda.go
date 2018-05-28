@@ -59,7 +59,7 @@ func (f *Function) Ping(req *messages.PingRequest, response *messages.PingRespon
 func (f *Function) Invoke(req *messages.InvokeRequest, response *messages.InvokeResponse) error {
 	tx := f.tracer.StartTransaction(lambdacontext.FunctionName, "function")
 	defer f.tracer.Flush(nonBlocking)
-	defer tx.Done(-1)
+	defer tx.End()
 	defer f.tracer.Recover(tx)
 	if tx.Sampled() {
 		tx.Context.SetCustom("lambda", &lambdaContext)

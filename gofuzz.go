@@ -133,7 +133,7 @@ func Fuzz(data []byte) int {
 				continue
 			}
 			span := tx.StartSpan(s.Name, s.Type, nil)
-			span.Start = tx.Timestamp.Add(time.Duration(s.Start * float64(time.Millisecond)))
+			span.Timestamp = tx.Timestamp.Add(time.Duration(s.Start * float64(time.Millisecond)))
 			if s.Context != nil && s.Context.Database != nil {
 				span.Context.SetDatabase(DatabaseSpanContext{
 					Instance:  s.Context.Database.Instance,
@@ -142,9 +142,11 @@ func Fuzz(data []byte) int {
 					User:      s.Context.Database.User,
 				})
 			}
-			span.Done(time.Duration(s.Duration * float64(time.Millisecond)))
+			span.Duration = time.Duration(s.Duration * float64(time.Millisecond))
+			span.End()
 		}
-		tx.Done(time.Duration(t.Duration * float64(time.Millisecond)))
+		tx.Duration = time.Duration(t.Duration * float64(time.Millisecond))
+		tx.End()
 	}
 
 	for _, e := range payload.Errors {

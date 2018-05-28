@@ -14,7 +14,8 @@ func (t *Tracer) StartTransaction(name, transactionType string, opts ...Transact
 	tx, _ := t.transactionPool.Get().(*Transaction)
 	if tx == nil {
 		tx = &Transaction{
-			tracer: t,
+			tracer:   t,
+			Duration: -1,
 			Context: Context{
 				captureBodyMask: CaptureBodyTransactions,
 			},
@@ -61,6 +62,7 @@ func (t *Tracer) StartTransaction(name, transactionType string, opts ...Transact
 type Transaction struct {
 	model     model.Transaction
 	Timestamp time.Time
+	Duration  time.Duration
 	Context   Context
 	Result    string
 
@@ -109,9 +111,10 @@ func (tx *Transaction) reset() {
 		model: model.Transaction{
 			Spans: tx.model.Spans[:0],
 		},
-		tracer:  tx.tracer,
-		spans:   tx.spans[:0],
-		Context: tx.Context,
+		tracer:   tx.tracer,
+		spans:    tx.spans[:0],
+		Context:  tx.Context,
+		Duration: -1,
 	}
 	tx.Context.reset()
 }
@@ -137,35 +140,30 @@ func (tx *Transaction) Sampled() bool {
 	return tx.sampled
 }
 
-// Done sets the transaction's duration to the specified value, and
-// enqueues it for sending to the Elastic APM server. The Transaction
-// must not be used after this.
+// End enqueues tx for sending to the Elastic APM server; tx must not
+// be used after this.
 //
-// If the duration specified is negative, then Done will set the
-// duration to "time.Since(tx.Timestamp)" instead.
-func (tx *Transaction) Done(d time.Duration) {
+// If tx.Duration has not been set, End will set it to the elapsed
+// time since tx.Timestamp.
+func (tx *Transaction) End() {
 	if tx.ignored {
 		tx.Discard()
 		return
 	}
-	if d < 0 {
-		d = time.Since(tx.Timestamp)
+	if tx.Duration < 0 {
+		tx.Duration = time.Since(tx.Timestamp)
 	}
-	tx.model.Duration = d.Seconds() * 1000
+	tx.model.Duration = tx.Duration.Seconds() * 1000
 	tx.model.Timestamp = model.Time(tx.Timestamp.UTC())
 	tx.model.Result = truncateString(tx.Result)
 
-	tx.mu.Lock()
-	spans := tx.spans[:len(tx.spans)]
-	tx.mu.Unlock()
-	if len(spans) != 0 {
-		tx.model.Spans = make([]*model.Span, len(spans))
-		for i, s := range spans {
-			s.finalize(tx.Timestamp.Add(d))
+	if len(tx.spans) != 0 {
+		tx.model.Spans = make([]*model.Span, len(tx.spans))
+		for i, s := range tx.spans {
+			s.finalize(tx.Timestamp.Add(tx.Duration))
 			tx.model.Spans[i] = &s.model
 		}
 	}
-
 	tx.enqueue()
 }
 

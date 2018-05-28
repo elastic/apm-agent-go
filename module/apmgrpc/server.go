@@ -44,7 +44,7 @@ func NewUnaryServerInterceptor(o ...ServerOption) grpc.UnaryServerInterceptor {
 		}
 
 		ctx = elasticapm.ContextWithTransaction(ctx, tx)
-		defer tx.Done(-1)
+		defer tx.End()
 
 		if tx.Sampled() {
 			p, ok := peer.FromContext(ctx)

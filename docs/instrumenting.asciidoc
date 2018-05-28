@@ -268,14 +268,14 @@ for a more thorough description of the types and methods.
 
 To report a transaction, you call <<tracer-api-start-transaction, elasticapm.DefaultTracer.StartTransaction>>
 with the transaction name and type. This returns a `Transaction` object; the transaction
-can be customized with additional context before you call its `Done` method to indicate
-that the transaction has completed. Once the transaction's `Done` method is called, it
+can be customized with additional context before you call its `End` method to indicate
+that the transaction has completed. Once the transaction's `End` method is called, it
 will be enqueued for sending to the Elastic APM server, and made available to the APM UI.
 
 [source,go]
 ----
 tx := elasticapm.DefaultTracer.StartTransaction("GET /api/v1", "request")
-defer tx.Done(-1)
+defer tx.End()
 ...
 tx.Result = "HTTP 2xx"
 tx.Context.SetTag("region", "us-east-1")
@@ -307,11 +307,11 @@ contains a span, then that will be considered the parent.
 [source,go]
 ----
 span, ctx := elasticapm.StartSpan(ctx, "SELECT FROM foo", "db.mysql.query")
-defer span.Done(-1)
+defer span.End()
 ----
 
 `Transaction.StartSpan` and `elasticapm.StartSpan` will always return a non-nil `Span`, even if the
-transaction is nil. It is always safe to defer a call to the span's Done method. If setting the span's
+transaction is nil. It is always safe to defer a call to the span's End method. If setting the span's
 context would incur significant overhead, you may want to check if the span is dropped first, by calling
 the `Span.Dropped` method.
 

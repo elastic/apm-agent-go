@@ -34,7 +34,7 @@ func TestClient(t *testing.T) {
 	assert.NoError(t, err)
 	resp.Body.Close()
 	assert.Equal(t, http.StatusTeapot, resp.StatusCode)
-	tx.Done(-1)
+	tx.End()
 	tracer.Flush(nil)
 
 	payloads := transport.Payloads()

@@ -108,7 +108,7 @@ type api struct {
 
 func (api *api) handleOrder(ctx context.Context, product string) {
 	tx := api.tracer.StartTransaction("order", "request")
-	defer tx.Done(-1)
+	defer tx.End()
 	ctx = elasticapm.ContextWithTransaction(ctx, tx)
 
 	tx.Context.SetCustom("product", product)
@@ -120,7 +120,7 @@ func (api *api) handleOrder(ctx context.Context, product string) {
 
 func storeOrder(ctx context.Context, product string) {
 	span, _ := elasticapm.StartSpan(ctx, "store_order", "rpc")
-	defer span.Done(-1)
+	defer span.End()
 
 	time.Sleep(50 * time.Millisecond)
 }

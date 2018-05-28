@@ -46,7 +46,7 @@ func testTracerFlushIntervalEnv(t *testing.T, envValue string, expectedInterval 
 	tracer.Transport = transporttest.Discard
 
 	before := time.Now()
-	tracer.StartTransaction("name", "type").Done(-1)
+	tracer.StartTransaction("name", "type").End()
 	assert.Equal(t, elasticapm.TracerStats{TransactionsSent: 0}, tracer.Stats())
 	for tracer.Stats().TransactionsSent == 0 {
 		time.Sleep(10 * time.Millisecond)
@@ -90,7 +90,7 @@ func testTracerTransactionRateEnv(t *testing.T, envValue string, ratio float64) 
 		if tx.Sampled() {
 			sampled++
 		}
-		tx.Done(-1)
+		tx.End()
 	}
 	assert.InDelta(t, N*ratio, sampled, N*0.02) // allow 2% error
 }
@@ -164,7 +164,7 @@ func testTracerServiceNameSanitization(t *testing.T, sanitizedServiceName string
 	}
 
 	tx := tracer.StartTransaction("name", "type")
-	tx.Done(-1)
+	tx.End()
 	tracer.Flush(nil)
 	assert.True(t, called)
 }
@@ -208,7 +208,7 @@ func testTracerCaptureBodyEnv(t *testing.T, envValue string, expectBody bool) {
 	tx := tracer.StartTransaction("name", "type")
 	tx.Context.SetHTTPRequest(req)
 	tx.Context.SetHTTPRequestBody(body)
-	tx.Done(-1)
+	tx.End()
 	tracer.Flush(nil)
 
 	out := transport.Payloads()[0].Transactions()[0]
@@ -260,9 +260,13 @@ func TestTracerSpanFramesMinDurationEnv(t *testing.T) {
 	defer tracer.Close()
 
 	tx := tracer.StartTransaction("name", "type")
-	tx.StartSpan("name", "type", nil).Done(9 * time.Millisecond)
-	tx.StartSpan("name", "type", nil).Done(10 * time.Millisecond)
-	tx.Done(-1)
+	s := tx.StartSpan("name", "type", nil)
+	s.Duration = 9 * time.Millisecond
+	s.End()
+	s = tx.StartSpan("name", "type", nil)
+	s.Duration = 10 * time.Millisecond
+	s.End()
+	tx.End()
 	tracer.Flush(nil)
 
 	transaction := transport.Payloads()[0].Transactions()[0]
@@ -294,7 +298,7 @@ func TestTracerActive(t *testing.T) {
 	assert.False(t, tracer.Active())
 
 	tx := tracer.StartTransaction("name", "type")
-	tx.Done(-1)
+	tx.End()
 
 	tracer.Flush(nil)
 	assert.Empty(t, transport.Payloads())

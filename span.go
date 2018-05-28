@@ -18,7 +18,7 @@ var droppedSpanPool sync.Pool
 // with the start time set to the current time relative to the
 // transaction's timestamp.
 //
-// StartSpan always returns a non-nil Span. Its Done method must
+// StartSpan always returns a non-nil Span. Its End method must
 // be called when the span completes.
 func (tx *Transaction) StartSpan(name, spanType string, parent *Span) *Span {
 	if tx == nil || !tx.Sampled() {
@@ -34,7 +34,7 @@ func (tx *Transaction) StartSpan(name, spanType string, parent *Span) *Span {
 	}
 	span, _ = tx.tracer.spanPool.Get().(*Span)
 	if span == nil {
-		span = &Span{}
+		span = &Span{Duration: -1}
 	}
 	span.tx = tx
 	span.id = int64(len(tx.spans))
@@ -43,7 +43,7 @@ func (tx *Transaction) StartSpan(name, spanType string, parent *Span) *Span {
 
 	span.model.Name = truncateString(name)
 	span.model.Type = truncateString(spanType)
-	span.Start = time.Now()
+	span.Timestamp = time.Now()
 	if parent != nil {
 		span.model.Parent = parent.model.ID
 	}
@@ -52,10 +52,11 @@ func (tx *Transaction) StartSpan(name, spanType string, parent *Span) *Span {
 
 // Span describes an operation within a transaction.
 type Span struct {
-	tx      *Transaction // nil if span is dropped
-	id      int64
-	Start   time.Time
-	Context SpanContext
+	tx        *Transaction // nil if span is dropped
+	id        int64
+	Timestamp time.Time
+	Duration  time.Duration
+	Context   SpanContext
 
 	mu         sync.Mutex
 	model      model.Span
@@ -76,6 +77,7 @@ func (s *Span) reset() {
 			Stacktrace: s.model.Stacktrace[:0],
 		},
 		Context:    s.Context,
+		Duration:   -1,
 		stacktrace: s.stacktrace[:0],
 	}
 	s.Context.reset()
@@ -103,24 +105,23 @@ func (s *Span) Dropped() bool {
 	return s.tx == nil
 }
 
-// Done sets the span's duration to the specified value. The Span
-// must not be used after this.
+// End marks the s as being complete; s must not be used after this.
 //
-// If the duration specified is negative, then Done will set the
-// duration to "time.Since(s.Start)" instead.
-func (s *Span) Done(d time.Duration) {
+// If s.Duration has not been set, End will set it to the elapsed time
+// since s.Timestamp.
+func (s *Span) End() {
 	if s.Dropped() {
 		droppedSpanPool.Put(s)
 		return
 	}
-	if d < 0 {
-		d = time.Since(s.Start)
-	}
 	s.mu.Lock()
+	if s.Duration < 0 {
+		s.Duration = time.Since(s.Timestamp)
+	}
 	if s.model.ID == nil {
 		s.model.ID = &s.id
-		s.model.Duration = d.Seconds() * 1000
-		if s.model.Stacktrace == nil && d >= s.tx.spanFramesMinDuration {
+		s.model.Duration = s.Duration.Seconds() * 1000
+		if s.model.Stacktrace == nil && s.Duration >= s.tx.spanFramesMinDuration {
 			s.SetStacktrace(1)
 		}
 	}
@@ -128,16 +129,19 @@ func (s *Span) Done(d time.Duration) {
 }
 
 func (s *Span) finalize(end time.Time) {
-	s.model.Start = s.Start.Sub(s.tx.Timestamp).Seconds() * 1000
+	s.model.Start = s.Timestamp.Sub(s.tx.Timestamp).Seconds() * 1000
 	s.model.Context = s.Context.build()
 
 	s.mu.Lock()
 	if s.model.ID == nil {
-		// s.Done was never called, so mark it as truncated and
+		// s.End was never called, so mark it as truncated and
 		// truncate its duration to the end of the transaction.
 		s.model.ID = &s.id
 		s.model.Type += ".truncated"
-		s.model.Duration = end.Sub(s.Start).Seconds() * 1000
+		if s.Duration < 0 {
+			s.Duration = end.Sub(s.Timestamp)
+		}
+		s.model.Duration = s.Duration.Seconds() * 1000
 	}
 	s.mu.Unlock()
 }

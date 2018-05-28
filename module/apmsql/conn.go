@@ -66,7 +66,7 @@ func (c *conn) finishSpan(ctx context.Context, span *elasticapm.Span, resultErro
 		// in check.
 		return
 	}
-	span.Done(-1)
+	span.End()
 	if e := elasticapm.CaptureError(ctx, resultError); e != nil {
 		e.Send()
 	}

@@ -39,13 +39,13 @@ func TestValidateServiceEnvironment(t *testing.T) {
 
 func TestValidateTransactionName(t *testing.T) {
 	validatePayloads(t, func(tracer *elasticapm.Tracer) {
-		tracer.StartTransaction(strings.Repeat("x", 1025), "type").Done(-1)
+		tracer.StartTransaction(strings.Repeat("x", 1025), "type").End()
 	})
 }
 
 func TestValidateTransactionType(t *testing.T) {
 	validatePayloads(t, func(tracer *elasticapm.Tracer) {
-		tracer.StartTransaction("name", strings.Repeat("x", 1025)).Done(-1)
+		tracer.StartTransaction("name", strings.Repeat("x", 1025)).End()
 	})
 }
 
@@ -53,19 +53,19 @@ func TestValidateTransactionResult(t *testing.T) {
 	validatePayloads(t, func(tracer *elasticapm.Tracer) {
 		tx := tracer.StartTransaction("name", "type")
 		tx.Result = strings.Repeat("x", 1025)
-		tx.Done(-1)
+		tx.End()
 	})
 }
 
 func TestValidateSpanName(t *testing.T) {
 	validateTransaction(t, func(tx *elasticapm.Transaction) {
-		tx.StartSpan(strings.Repeat("x", 1025), "type", nil).Done(-1)
+		tx.StartSpan(strings.Repeat("x", 1025), "type", nil).End()
 	})
 }
 
 func TestValidateSpanType(t *testing.T) {
 	validateTransaction(t, func(tx *elasticapm.Transaction) {
-		tx.StartSpan("name", strings.Repeat("x", 1025), nil).Done(-1)
+		tx.StartSpan("name", strings.Repeat("x", 1025), nil).End()
 	})
 }
 
@@ -202,14 +202,14 @@ func validateTransaction(t *testing.T, f func(tx *elasticapm.Transaction)) {
 	validatePayloads(t, func(tracer *elasticapm.Tracer) {
 		tx := tracer.StartTransaction("name", "type")
 		f(tx)
-		tx.Done(-1)
+		tx.End()
 	})
 }
 
 func validatePayloadMetadata(t *testing.T, f func(tracer *elasticapm.Tracer)) {
 	validatePayloads(t, func(tracer *elasticapm.Tracer) {
 		f(tracer)
-		tracer.StartTransaction("name", "type").Done(-1)
+		tracer.StartTransaction("name", "type").End()
 	})
 }
 

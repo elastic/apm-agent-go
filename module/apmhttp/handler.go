@@ -61,7 +61,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 	ctx := elasticapm.ContextWithTransaction(req.Context(), tx)
 	req = RequestWithContext(ctx, req)
-	defer tx.Done(-1)
+	defer tx.End()
 
 	finished := false
 	body := h.tracer.CaptureHTTPRequestBody(req)
