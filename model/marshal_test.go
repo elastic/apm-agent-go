@@ -442,8 +442,8 @@ func TestUnmarshalJSON(t *testing.T) {
 	assert.Equal(t, &tp, &out)
 }
 
-func fakeTransaction() *model.Transaction {
-	return &model.Transaction{
+func fakeTransaction() model.Transaction {
+	return model.Transaction{
 		ID:        "d51ae41d-93da-4984-bba3-ae15e9b2247f",
 		Name:      "GET /foo/bar",
 		Type:      "request",
@@ -503,7 +503,7 @@ func fakeTransaction() *model.Transaction {
 				Total: 4,
 			},
 		},
-		Spans: []*model.Span{{
+		Spans: []model.Span{{
 			Name:     "SELECT FROM bar",
 			Start:    2,
 			Duration: 3,
@@ -563,7 +563,7 @@ func fakeProcess() *model.Process {
 }
 
 func fakeTransactionsPayload(n int) model.TransactionsPayload {
-	transactions := make([]*model.Transaction, n)
+	transactions := make([]model.Transaction, n)
 	tx := fakeTransaction()
 	for i := range transactions {
 		transactions[i] = tx

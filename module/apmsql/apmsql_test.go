@@ -133,7 +133,7 @@ func TestStmtQueryContext(t *testing.T) {
 	assert.Equal(t, "db.sqlite3.query", tx.Spans[0].Type)
 }
 
-func withTransaction(t *testing.T, f func(ctx context.Context)) *model.Transaction {
+func withTransaction(t *testing.T, f func(ctx context.Context)) model.Transaction {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 

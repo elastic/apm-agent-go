@@ -4,7 +4,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/elastic/apm-agent-go/model"
 	"github.com/elastic/apm-agent-go/stacktrace"
 )
 
@@ -28,24 +27,27 @@ func (tx *Transaction) StartSpan(name, spanType string, parent *Span) *Span {
 	var span *Span
 	tx.mu.Lock()
 	if tx.maxSpans > 0 && len(tx.spans) >= tx.maxSpans {
-		tx.model.SpanCount.Dropped.Total++
+		tx.spansDropped++
 		tx.mu.Unlock()
 		return newDroppedSpan()
 	}
 	span, _ = tx.tracer.spanPool.Get().(*Span)
 	if span == nil {
-		span = &Span{Duration: -1}
+		span = &Span{
+			Duration: -1,
+			parent:   -1,
+		}
 	}
 	span.tx = tx
 	span.id = int64(len(tx.spans))
 	tx.spans = append(tx.spans, span)
 	tx.mu.Unlock()
 
-	span.model.Name = truncateString(name)
-	span.model.Type = truncateString(spanType)
+	span.name = name
+	span.spanType = spanType
 	span.Timestamp = time.Now()
 	if parent != nil {
-		span.model.Parent = parent.model.ID
+		span.parent = parent.id
 	}
 	return span
 }
@@ -54,12 +56,14 @@ func (tx *Transaction) StartSpan(name, spanType string, parent *Span) *Span {
 type Span struct {
 	tx        *Transaction // nil if span is dropped
 	id        int64
+	parent    int64
+	name      string
+	spanType  string
 	Timestamp time.Time
 	Duration  time.Duration
 	Context   SpanContext
 
 	mu         sync.Mutex
-	model      model.Span
 	stacktrace []stacktrace.Frame
 }
 
@@ -73,11 +77,9 @@ func newDroppedSpan() *Span {
 
 func (s *Span) reset() {
 	*s = Span{
-		model: model.Span{
-			Stacktrace: s.model.Stacktrace[:0],
-		},
 		Context:    s.Context,
 		Duration:   -1,
+		parent:     -1,
 		stacktrace: s.stacktrace[:0],
 	}
 	s.Context.reset()
@@ -91,7 +93,6 @@ func (s *Span) SetStacktrace(skip int) {
 		return
 	}
 	s.stacktrace = stacktrace.AppendStacktrace(s.stacktrace[:0], skip+1, -1)
-	s.model.Stacktrace = appendModelStacktraceFrames(s.model.Stacktrace[:0], s.stacktrace)
 }
 
 // Dropped indicates whether or not the span is dropped, meaning it will not
@@ -118,30 +119,19 @@ func (s *Span) End() {
 	if s.Duration < 0 {
 		s.Duration = time.Since(s.Timestamp)
 	}
-	if s.model.ID == nil {
-		s.model.ID = &s.id
-		s.model.Duration = s.Duration.Seconds() * 1000
-		if s.model.Stacktrace == nil && s.Duration >= s.tx.spanFramesMinDuration {
-			s.SetStacktrace(1)
-		}
+	if len(s.stacktrace) == 0 && s.Duration >= s.tx.spanFramesMinDuration {
+		s.SetStacktrace(1)
 	}
 	s.mu.Unlock()
 }
 
 func (s *Span) finalize(end time.Time) {
-	s.model.Start = s.Timestamp.Sub(s.tx.Timestamp).Seconds() * 1000
-	s.model.Context = s.Context.build()
-
 	s.mu.Lock()
-	if s.model.ID == nil {
+	if s.Duration < 0 {
 		// s.End was never called, so mark it as truncated and
 		// truncate its duration to the end of the transaction.
-		s.model.ID = &s.id
-		s.model.Type += ".truncated"
-		if s.Duration < 0 {
-			s.Duration = end.Sub(s.Timestamp)
-		}
-		s.model.Duration = s.Duration.Seconds() * 1000
+		s.spanType += ".truncated"
+		s.Duration = end.Sub(s.Timestamp)
 	}
 	s.mu.Unlock()
 }

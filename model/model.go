@@ -137,7 +137,7 @@ type Transaction struct {
 	SpanCount SpanCount `json:"span_count,omitempty"`
 
 	// Spans holds the transaction's spans.
-	Spans []*Span `json:"spans,omitempty"`
+	Spans []Span `json:"spans,omitempty"`
 }
 
 // SpanCount holds statistics on spans within a transaction.

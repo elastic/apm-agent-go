@@ -3,9 +3,6 @@ package elasticapm
 import (
 	"sync"
 	"time"
-
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/stacktrace"
 )
 
 // StartTransaction returns a new Transaction with the specified
@@ -21,19 +18,27 @@ func (t *Tracer) StartTransaction(name, transactionType string, opts ...Transact
 			},
 		}
 	}
-	tx.model.Name = truncateString(name)
-	tx.model.Type = truncateString(transactionType)
+	tx.name = name
+	tx.txType = transactionType
 
 	t.transactionIgnoreNamesMu.RLock()
 	transactionIgnoreNames := t.transactionIgnoreNames
 	t.transactionIgnoreNamesMu.RUnlock()
 	if transactionIgnoreNames != nil && transactionIgnoreNames.MatchString(name) {
-		tx.ignored = true
 		return tx
 	}
 	for _, o := range opts {
 		o(tx)
 	}
+
+	uuid, ok := newUUID()
+	if !ok {
+		// A UUID could not be allocated, so leave tx.id
+		// empty, which indicates that the transaction is
+		// ignored.
+		return tx
+	}
+	tx.id = uuid
 
 	// Take a snapshot of the max spans config to ensure
 	// that once the maximum is reached, all future span
@@ -52,7 +57,6 @@ func (t *Tracer) StartTransaction(name, transactionType string, opts ...Transact
 	tx.sampled = true
 	if sampler != nil && !sampler.Sample(tx) {
 		tx.sampled = false
-		tx.model.Sampled = &tx.sampled
 	}
 	tx.Timestamp = time.Now()
 	return tx
@@ -60,44 +64,22 @@ func (t *Tracer) StartTransaction(name, transactionType string, opts ...Transact
 
 // Transaction describes an event occurring in the monitored service.
 type Transaction struct {
-	model     model.Transaction
 	Timestamp time.Time
 	Duration  time.Duration
 	Context   Context
 	Result    string
+	id        string
+	name      string
+	txType    string
 
 	tracer                *Tracer
-	ignored               bool
 	sampled               bool
 	maxSpans              int
 	spanFramesMinDuration time.Duration
 
-	mu    sync.Mutex
-	spans []*Span
-}
-
-func (tx *Transaction) setID() {
-	if tx.model.ID != "" {
-		return
-	}
-	transactionID, err := NewUUID()
-	if err != nil {
-		// We ignore the error from NewUUID, which will
-		// only occur if the entropy source fails. In
-		// that case, there's nothing we can do. We don't
-		// want to panic inside the user's application.
-		return
-	}
-	tx.model.ID = transactionID
-}
-
-func (tx *Transaction) setContext(setter stacktrace.ContextSetter, pre, post int) error {
-	for _, s := range tx.model.Spans {
-		if err := stacktrace.SetContext(setter, s.Stacktrace, pre, post); err != nil {
-			return err
-		}
-	}
-	return nil
+	mu           sync.Mutex
+	spans        []*Span
+	spansDropped int
 }
 
 // reset resets the Transaction back to its zero state, so it can be reused
@@ -108,9 +90,6 @@ func (tx *Transaction) reset() {
 		tx.tracer.spanPool.Put(s)
 	}
 	*tx = Transaction{
-		model: model.Transaction{
-			Spans: tx.model.Spans[:0],
-		},
 		tracer:   tx.tracer,
 		spans:    tx.spans[:0],
 		Context:  tx.Context,
@@ -132,7 +111,7 @@ func (tx *Transaction) Discard() {
 // the tracer. Ignored also implies that the transaction is not
 // sampled.
 func (tx *Transaction) Ignored() bool {
-	return tx.ignored
+	return tx.id == ""
 }
 
 // Sampled reports whether or not the transaction is sampled.
@@ -146,23 +125,15 @@ func (tx *Transaction) Sampled() bool {
 // If tx.Duration has not been set, End will set it to the elapsed
 // time since tx.Timestamp.
 func (tx *Transaction) End() {
-	if tx.ignored {
+	if tx.Ignored() {
 		tx.Discard()
 		return
 	}
 	if tx.Duration < 0 {
 		tx.Duration = time.Since(tx.Timestamp)
 	}
-	tx.model.Duration = tx.Duration.Seconds() * 1000
-	tx.model.Timestamp = model.Time(tx.Timestamp.UTC())
-	tx.model.Result = truncateString(tx.Result)
-
-	if len(tx.spans) != 0 {
-		tx.model.Spans = make([]*model.Span, len(tx.spans))
-		for i, s := range tx.spans {
-			s.finalize(tx.Timestamp.Add(tx.Duration))
-			tx.model.Spans[i] = &s.model
-		}
+	for _, s := range tx.spans {
+		s.finalize(tx.Timestamp.Add(tx.Duration))
 	}
 	tx.enqueue()
 }

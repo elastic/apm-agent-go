@@ -192,7 +192,7 @@ func TestHandlerCaptureBodyErrorIgnored(t *testing.T) {
 	assert.Nil(t, e.Context.Request.Body) // only capturing for transactions
 }
 
-func testPostTransaction(h http.Handler, tracer *elasticapm.Tracer, transport *transporttest.RecorderTransport, body io.Reader) *model.Transaction {
+func testPostTransaction(h http.Handler, tracer *elasticapm.Tracer, transport *transporttest.RecorderTransport, body io.Reader) model.Transaction {
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("POST", "http://server.testing/foo", body)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")

@@ -143,8 +143,10 @@ func TestTracerServiceNameEnvSanitizationExecutableName(t *testing.T) {
 func testTracerServiceNameSanitization(t *testing.T, sanitizedServiceName string, env ...string) {
 	if os.Getenv("_INSIDE_TEST") != "1" {
 		cmd := exec.Command(os.Args[0], "-test.run=^"+t.Name()+"$")
-		cmd.Env = append(cmd.Env, "_INSIDE_TEST=1")
+		cmd.Env = append(os.Environ(), "_INSIDE_TEST=1")
 		cmd.Env = append(cmd.Env, env...)
+		cmd.Stderr = os.Stderr
+		cmd.Stdout = os.Stdout
 		err := cmd.Run()
 		assert.NoError(t, err)
 		return
@@ -189,11 +191,13 @@ func TestTracerCaptureBodyEnvOff(t *testing.T) {
 func testTracerCaptureBodyEnv(t *testing.T, envValue string, expectBody bool) {
 	if os.Getenv("_INSIDE_TEST") != "1" {
 		cmd := exec.Command(os.Args[0], "-test.run=^"+t.Name()+"$")
-		cmd.Env = append(cmd.Env, "_INSIDE_TEST=1")
+		cmd.Env = append(os.Environ(), "_INSIDE_TEST=1")
 		cmd.Env = append(cmd.Env, "ELASTIC_APM_CAPTURE_BODY="+envValue)
 		if expectBody {
 			cmd.Env = append(cmd.Env, "_EXPECT_BODY=1")
 		}
+		cmd.Stderr = os.Stderr
+		cmd.Stdout = os.Stdout
 		err := cmd.Run()
 		assert.NoError(t, err)
 		return
