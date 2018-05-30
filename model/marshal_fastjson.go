@@ -140,7 +140,7 @@ func (v *Transaction) MarshalFastJSON(w *fastjson.Writer) {
 	w.RawString("\"duration\":")
 	w.Float64(v.Duration)
 	w.RawString(",\"id\":")
-	w.String(v.ID)
+	v.ID.MarshalFastJSON(w)
 	w.RawString(",\"name\":")
 	w.String(v.Name)
 	w.RawString(",\"timestamp\":")
@@ -424,7 +424,7 @@ func (v *Error) MarshalFastJSON(w *fastjson.Writer) {
 func (v *ErrorTransaction) MarshalFastJSON(w *fastjson.Writer) {
 	w.RawByte('{')
 	w.RawString("\"id\":")
-	w.String(v.ID)
+	v.ID.MarshalFastJSON(w)
 	w.RawByte('}')
 }
 

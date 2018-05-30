@@ -102,7 +102,7 @@ type Process struct {
 // Transaction represents a transaction handled by the service.
 type Transaction struct {
 	// ID holds the hex-formatted UUID of the transaction.
-	ID string `json:"id"`
+	ID UUID `json:"id"`
 
 	// Name holds the name of the transaction.
 	Name string `json:"name"`
@@ -278,7 +278,7 @@ type Error struct {
 // ErrorTransaction identifies the transaction within which the error occurred.
 type ErrorTransaction struct {
 	// ID is the UUID of the transaction.
-	ID string `json:"id"`
+	ID UUID `json:"id"`
 }
 
 // Exception represents an exception: an error or panic.
@@ -488,3 +488,6 @@ type ResponseHeaders struct {
 
 // Time is a timestamp, formatted as "YYYY-MM-DDTHH:mm:ss.sssZ".
 type Time time.Time
+
+// UUID holds a 128-bit UUID.
+type UUID [16]byte

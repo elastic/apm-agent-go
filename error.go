@@ -10,6 +10,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/elastic/apm-agent-go/internal/uuid"
 	"github.com/elastic/apm-agent-go/model"
 	"github.com/elastic/apm-agent-go/stacktrace"
 )
@@ -81,8 +82,8 @@ func (t *Tracer) NewError(err error) *Error {
 		panic("NewError must be called with a non-nil error")
 	}
 	e := t.newError()
-	if uuid, ok := newUUID(); ok {
-		e.ID = uuid
+	if uuid, err := uuid.NewV4(); err == nil {
+		e.ID = uuid.String()
 	}
 	e.model.Exception.Message = err.Error()
 	if e.model.Exception.Message == "" {

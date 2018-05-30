@@ -28,7 +28,7 @@ func TestMarshalTransaction(t *testing.T) {
 	}
 
 	expect := map[string]interface{}{
-		"id":        "d51ae41d-93da-4984-bba3-ae15e9b2247f",
+		"id":        "00010203-0405-0607-0809-0a0b0c0d0e0f",
 		"name":      "GET /foo/bar",
 		"type":      "request",
 		"timestamp": "1970-01-01T00:02:03Z",
@@ -180,10 +180,10 @@ func TestMarshalError(t *testing.T) {
 	e.MarshalFastJSON(&w)
 	assert.Equal(t, `{"timestamp":"1970-01-01T00:02:03Z"}`, string(w.Bytes()))
 
-	e.Transaction.ID = "xyz"
+	e.Transaction.ID = model.UUID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
 	w.Reset()
 	e.MarshalFastJSON(&w)
-	assert.Equal(t, `{"timestamp":"1970-01-01T00:02:03Z","transaction":{"id":"xyz"}}`, string(w.Bytes()))
+	assert.Equal(t, `{"timestamp":"1970-01-01T00:02:03Z","transaction":{"id":"00010203-0405-0607-0809-0a0b0c0d0e0f"}}`, string(w.Bytes()))
 }
 
 func TestMarshalCookies(t *testing.T) {
@@ -444,7 +444,7 @@ func TestUnmarshalJSON(t *testing.T) {
 
 func fakeTransaction() model.Transaction {
 	return model.Transaction{
-		ID:        "d51ae41d-93da-4984-bba3-ae15e9b2247f",
+		ID:        model.UUID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
 		Name:      "GET /foo/bar",
 		Type:      "request",
 		Timestamp: model.Time(time.Unix(123, 0).UTC()),
