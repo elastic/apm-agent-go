@@ -1,6 +1,9 @@
 package elasticapm
 
 import (
+	cryptorand "crypto/rand"
+	"encoding/binary"
+	"math/rand"
 	"sync"
 	"time"
 )
@@ -17,6 +20,11 @@ func (t *Tracer) StartTransaction(name, transactionType string, opts ...Transact
 				captureBodyMask: CaptureBodyTransactions,
 			},
 		}
+		var seed int64
+		if err := binary.Read(cryptorand.Reader, binary.LittleEndian, &seed); err != nil {
+			seed = time.Now().UnixNano()
+		}
+		tx.rand = rand.New(rand.NewSource(seed))
 	}
 	tx.name = name
 	tx.txType = transactionType
@@ -25,20 +33,16 @@ func (t *Tracer) StartTransaction(name, transactionType string, opts ...Transact
 	transactionIgnoreNames := t.transactionIgnoreNames
 	t.transactionIgnoreNamesMu.RUnlock()
 	if transactionIgnoreNames != nil && transactionIgnoreNames.MatchString(name) {
+		tx.name = "" // ignored
 		return tx
 	}
 	for _, o := range opts {
 		o(tx)
 	}
 
-	uuid, ok := newUUID()
-	if !ok {
-		// A UUID could not be allocated, so leave tx.id
-		// empty, which indicates that the transaction is
-		// ignored.
-		return tx
-	}
-	tx.id = uuid
+	// Generate a random transaction ID.
+	binary.LittleEndian.PutUint64(tx.id[:8], tx.rand.Uint64())
+	binary.LittleEndian.PutUint64(tx.id[8:], tx.rand.Uint64())
 
 	// Take a snapshot of the max spans config to ensure
 	// that once the maximum is reached, all future span
@@ -68,7 +72,7 @@ type Transaction struct {
 	Duration  time.Duration
 	Context   Context
 	Result    string
-	id        string
+	id        [16]byte
 	name      string
 	txType    string
 
@@ -80,6 +84,7 @@ type Transaction struct {
 	mu           sync.Mutex
 	spans        []*Span
 	spansDropped int
+	rand         *rand.Rand // for ID generation
 }
 
 // reset resets the Transaction back to its zero state, so it can be reused
@@ -94,6 +99,7 @@ func (tx *Transaction) reset() {
 		spans:    tx.spans[:0],
 		Context:  tx.Context,
 		Duration: -1,
+		rand:     tx.rand,
 	}
 	tx.Context.reset()
 }
@@ -111,7 +117,7 @@ func (tx *Transaction) Discard() {
 // the tracer. Ignored also implies that the transaction is not
 // sampled.
 func (tx *Transaction) Ignored() bool {
-	return tx.id == ""
+	return tx.name == ""
 }
 
 // Sampled reports whether or not the transaction is sampled.
