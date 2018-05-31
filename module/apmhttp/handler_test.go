@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -255,6 +256,40 @@ func TestHandlerRequestIgnorer(t *testing.T) {
 	h.ServeHTTP(w, req)
 	tracer.Flush(nil)
 	assert.Empty(t, transport.Payloads())
+}
+
+func TestHandlerTraceparentHeader(t *testing.T) {
+	os.Setenv("ELASTIC_APM_DISTRIBUTED_TRACING", "true")
+	defer os.Unsetenv("ELASTIC_APM_DISTRIBUTED_TRACING")
+
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	mux := http.NewServeMux()
+	mux.Handle("/foo", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.WriteHeader(http.StatusTeapot)
+		w.Write([]byte("bar"))
+	}))
+
+	h := apmhttp.Wrap(mux, apmhttp.WithTracer(tracer))
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "http://server.testing/foo", nil)
+	req.Header.Set("Elastic-Apm-Traceparent", "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01")
+	req.Header.Set("User-Agent", "apmhttp_test")
+	req.RemoteAddr = "client.testing:1234"
+	h.ServeHTTP(w, req)
+	tracer.Flush(nil)
+
+	payloads := transport.Payloads()
+	transactions := payloads[0].Transactions()
+	transaction := transactions[0]
+	assert.Equal(t, "0af7651916cd43dd8448eb211c80319c", elasticapm.TraceID(transaction.TraceID).String())
+	assert.Equal(t, "b7ad6b7169203331", elasticapm.SpanID(transaction.ParentID).String())
+	assert.NotZero(t, transaction.ID.SpanID)
+	assert.Zero(t, transaction.ID.UUID)
+	assert.Equal(t, "GET /foo", transaction.Name)
+	assert.Equal(t, "request", transaction.Type)
+	assert.Equal(t, "HTTP 4xx", transaction.Result)
 }
 
 func panicHandler(w http.ResponseWriter, req *http.Request) {

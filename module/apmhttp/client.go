@@ -50,12 +50,32 @@ type roundTripper struct {
 // RoundTrip delegates to r.r, emitting a span if req's context
 // contains a transaction.
 func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	// TODO(axw) propagate Tracestate, adding/shifting the elastic
+	// key to the left most position.
 	if r.requestIgnorer(req) {
 		return r.r.RoundTrip(req)
 	}
 	ctx := req.Context()
 	tx := elasticapm.TransactionFromContext(ctx)
-	if tx == nil || !tx.Sampled() {
+	if tx == nil {
+		return r.r.RoundTrip(req)
+	}
+
+	// RoundTrip is not supposed to mutate req, so copy req
+	// and set the trace-context headers only in the copy.
+	reqCopy := *req
+	reqCopy.Header = make(http.Header, len(req.Header))
+	for k, v := range req.Header {
+		reqCopy.Header[k] = v
+	}
+	req = &reqCopy
+
+	traceContext := tx.TraceContext()
+	distributedTracing := traceContext.Span != (elasticapm.SpanID{})
+	if !tx.Sampled() {
+		if distributedTracing {
+			req.Header.Set(traceparentHeader, FormatTraceparentHeader(traceContext))
+		}
 		return r.r.RoundTrip(req)
 	}
 
@@ -63,7 +83,13 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	spanType := "ext.http"
 	span := tx.StartSpan(name, spanType, elasticapm.SpanFromContext(ctx))
 	defer span.End()
+	if !span.Dropped() {
+		traceContext = span.TraceContext()
+	}
 
+	if distributedTracing {
+		req.Header.Set(traceparentHeader, FormatTraceparentHeader(traceContext))
+	}
 	ctx = elasticapm.ContextWithSpan(ctx, span)
 	req = RequestWithContext(ctx, req)
 	return r.r.RoundTrip(req)
