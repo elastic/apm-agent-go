@@ -32,3 +32,26 @@ func TestParseDurationEnv(t *testing.T) {
 	_, err = apmconfig.ParseDurationEnv(envKey, "", 42*time.Second)
 	assert.EqualError(t, err, "failed to parse ELASTIC_APM_TEST_DURATION: time: missing unit in duration 5")
 }
+
+func TestParseBoolEnv(t *testing.T) {
+	const envKey = "ELASTIC_APM_TEST_BOOL"
+	os.Setenv(envKey, "")
+
+	b, err := apmconfig.ParseBoolEnv(envKey, true)
+	assert.NoError(t, err)
+	assert.True(t, b)
+
+	os.Setenv(envKey, "true")
+	b, err = apmconfig.ParseBoolEnv(envKey, false)
+	assert.NoError(t, err)
+	assert.True(t, b)
+
+	os.Setenv(envKey, "false")
+	b, err = apmconfig.ParseBoolEnv(envKey, true)
+	assert.NoError(t, err)
+	assert.False(t, b)
+
+	os.Setenv(envKey, "falsk")
+	_, err = apmconfig.ParseBoolEnv(envKey, true)
+	assert.EqualError(t, err, `failed to parse ELASTIC_APM_TEST_BOOL: strconv.ParseBool: parsing "falsk": invalid syntax`)
+}

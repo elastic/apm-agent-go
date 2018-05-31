@@ -271,7 +271,7 @@ func TestTracerRecover(t *testing.T) {
 	error0 := payloads[0].Errors()[0]
 	transaction := payloads[1].Transactions()[0]
 	assert.Equal(t, "blam", error0.Exception.Message)
-	assert.Equal(t, transaction.ID, error0.Transaction.ID)
+	assert.Equal(t, transaction.ID.UUID, error0.Transaction.ID)
 }
 
 func capturePanic(tracer *elasticapm.Tracer, v interface{}) {
