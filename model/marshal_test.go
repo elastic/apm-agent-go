@@ -28,7 +28,9 @@ func TestMarshalTransaction(t *testing.T) {
 	}
 
 	expect := map[string]interface{}{
-		"id":        "00010203-0405-0607-0809-0a0b0c0d0e0f",
+		"trace_id":  "0102030405060708090a0b0c0d0e0f10",
+		"id":        "0102030405060708",
+		"parent_id": "0001020304050607",
 		"name":      "GET /foo/bar",
 		"type":      "request",
 		"timestamp": "1970-01-01T00:02:03Z",
@@ -244,10 +246,23 @@ func TestMarshalError(t *testing.T) {
 	e.MarshalFastJSON(&w)
 	assert.Equal(t, `{"timestamp":"1970-01-01T00:02:03Z"}`, string(w.Bytes()))
 
-	e.Transaction.ID = model.UUID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
+	e.Transaction.ID = model.UUID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	w.Reset()
 	e.MarshalFastJSON(&w)
-	assert.Equal(t, `{"timestamp":"1970-01-01T00:02:03Z","transaction":{"id":"00010203-0405-0607-0809-0a0b0c0d0e0f"}}`, string(w.Bytes()))
+	assert.Equal(t,
+		`{"timestamp":"1970-01-01T00:02:03Z","transaction":{"id":"01020304-0506-0708-090a-0b0c0d0e0f10"}}`,
+		string(w.Bytes()),
+	)
+
+	e.Transaction.ID = model.UUID{}
+	e.TraceID = model.TraceID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+	e.ParentID = model.SpanID{1, 2, 3, 4, 5, 6, 7, 8}
+	w.Reset()
+	e.MarshalFastJSON(&w)
+	assert.Equal(t,
+		`{"timestamp":"1970-01-01T00:02:03Z","parent_id":"0102030405060708","trace_id":"0102030405060708090a0b0c0d0e0f10"}`,
+		string(w.Bytes()),
+	)
 }
 
 func TestMarshalCookies(t *testing.T) {
@@ -496,7 +511,9 @@ func TestMarshalURL(t *testing.T) {
 }
 
 func TestUnmarshalJSON(t *testing.T) {
-	tp := fakeTransactionsPayload(1)
+	tp := fakeTransactionsPayload(2)
+	tp.Transactions[1].ID.SpanID = model.SpanID{}
+	tp.Transactions[1].ID.UUID = model.UUID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	var w fastjson.Writer
 	tp.MarshalFastJSON(&w)
 
@@ -508,7 +525,11 @@ func TestUnmarshalJSON(t *testing.T) {
 
 func fakeTransaction() model.Transaction {
 	return model.Transaction{
-		ID:        model.UUID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+		TraceID: model.TraceID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
+		ID: model.TransactionID{
+			SpanID: model.SpanID{1, 2, 3, 4, 5, 6, 7, 8},
+		},
+		ParentID:  model.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
 		Name:      "GET /foo/bar",
 		Type:      "request",
 		Timestamp: model.Time(time.Unix(123, 0).UTC()),

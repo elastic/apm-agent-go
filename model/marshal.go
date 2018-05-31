@@ -246,7 +246,7 @@ func (c *Cookies) UnmarshalJSON(data []byte) error {
 }
 
 // isZero is used by fastjson to implement omitempty.
-func (t *ErrorTransaction) isZero() bool {
+func (t *TransactionReference) isZero() bool {
 	return t.ID.isZero()
 }
 
@@ -469,24 +469,53 @@ func (*StringMapItem) MarshalFastJSON(*fastjson.Writer) {
 	panic("unreachable")
 }
 
-// MarshalFastJSON writes the JSON representation of q to w.
-func (q *Quantile) MarshalFastJSON(w *fastjson.Writer) {
-	w.RawByte('[')
-	w.Float64(q.Quantile)
-	w.RawByte(',')
-	w.Float64(q.Value)
-	w.RawByte(']')
+func (id *TransactionID) MarshalFastJSON(w *fastjson.Writer) {
+	if !id.SpanID.isZero() {
+		id.SpanID.MarshalFastJSON(w)
+		return
+	}
+	id.UUID.MarshalFastJSON(w)
 }
 
-// UnmarshalJSON unmarshals the JSON data into q.
-func (q *Quantile) UnmarshalJSON(data []byte) error {
-	var values []float64
-	if err := json.Unmarshal(data, &values); err != nil {
-		return err
+func (id *TransactionID) UnmarshalJSON(data []byte) error {
+	if len(data) == len(id.SpanID)*2+2 {
+		return id.SpanID.UnmarshalJSON(data)
 	}
-	q.Quantile = values[0]
-	q.Value = values[1]
-	return nil
+	return id.UUID.UnmarshalJSON(data)
+}
+
+func (id *TraceID) isZero() bool {
+	return *id == TraceID{}
+}
+
+// MarshalFastJSON writes the JSON representation of id to w.
+func (id *TraceID) MarshalFastJSON(w *fastjson.Writer) {
+	w.RawByte('"')
+	writeHex(w, id[:])
+	w.RawByte('"')
+}
+
+// UnmarshalJSON unmarshals the JSON data into id.
+func (id *TraceID) UnmarshalJSON(data []byte) error {
+	_, err := hex.Decode(id[:], data[1:len(data)-1])
+	return err
+}
+
+func (id *SpanID) isZero() bool {
+	return *id == SpanID{}
+}
+
+// UnmarshalJSON unmarshals the JSON data into id.
+func (id *SpanID) UnmarshalJSON(data []byte) error {
+	_, err := hex.Decode(id[:], data[1:len(data)-1])
+	return err
+}
+
+// MarshalFastJSON writes the JSON representation of id to w.
+func (id *SpanID) MarshalFastJSON(w *fastjson.Writer) {
+	w.RawByte('"')
+	writeHex(w, id[:])
+	w.RawByte('"')
 }
 
 func (id *UUID) isZero() bool {
