@@ -34,12 +34,6 @@ func Wrap(h httprouter.Handle, route string, o ...Option) httprouter.Handle {
 			return
 		}
 		tx := opts.tracer.StartTransaction(req.Method+" "+route, "request")
-		if tx.Ignored() {
-			tx.Discard()
-			h(w, req, p)
-			return
-		}
-
 		ctx := elasticapm.ContextWithTransaction(req.Context(), tx)
 		req = apmhttp.RequestWithContext(ctx, req)
 		defer tx.End()

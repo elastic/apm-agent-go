@@ -29,14 +29,6 @@ func (t *Tracer) StartTransaction(name, transactionType string, opts ...Transact
 	tx.name = name
 	tx.txType = transactionType
 
-	t.transactionIgnoreNamesMu.RLock()
-	transactionIgnoreNames := t.transactionIgnoreNames
-	t.transactionIgnoreNamesMu.RUnlock()
-	if transactionIgnoreNames != nil && transactionIgnoreNames.MatchString(name) {
-		tx.name = "" // ignored
-		return tx
-	}
-
 	var txOpts transactionOptions
 	for _, o := range opts {
 		o(&txOpts)
@@ -113,15 +105,6 @@ func (tx *Transaction) Discard() {
 	tx.tracer.transactionPool.Put(tx)
 }
 
-// Ignored reports whether or not the transaction is ignored.
-//
-// Transactions may be ignored based on the configuration of
-// the tracer. Ignored also implies that the transaction is not
-// sampled.
-func (tx *Transaction) Ignored() bool {
-	return tx.name == ""
-}
-
 // Sampled reports whether or not the transaction is sampled.
 func (tx *Transaction) Sampled() bool {
 	return tx.sampled
@@ -133,10 +116,6 @@ func (tx *Transaction) Sampled() bool {
 // If tx.Duration has not been set, End will set it to the elapsed
 // time since tx.Timestamp.
 func (tx *Transaction) End() {
-	if tx.Ignored() {
-		tx.Discard()
-		return
-	}
 	if tx.Duration < 0 {
 		tx.Duration = time.Since(tx.Timestamp)
 	}

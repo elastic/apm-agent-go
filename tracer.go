@@ -51,7 +51,6 @@ type options struct {
 	sampler                 Sampler
 	sanitizedFieldNames     *regexp.Regexp
 	captureBody             CaptureBodyMode
-	transactionIgnoreNames  *regexp.Regexp
 	spanFramesMinDuration   time.Duration
 	serviceName             string
 	serviceVersion          string
@@ -97,12 +96,6 @@ func (opts *options) init(continueOnError bool) error {
 		errs = append(errs, err)
 	}
 
-	transactionIgnoreNames, err := initialTransactionIgnoreNamesRegexp()
-	if err != nil {
-		transactionIgnoreNames = nil
-		errs = append(errs, err)
-	}
-
 	spanFramesMinDuration, err := initialSpanFramesMinDuration()
 	if err != nil {
 		spanFramesMinDuration = defaultSpanFramesMinDuration
@@ -128,7 +121,6 @@ func (opts *options) init(continueOnError bool) error {
 	opts.sampler = sampler
 	opts.sanitizedFieldNames = sanitizedFieldNames
 	opts.captureBody = captureBody
-	opts.transactionIgnoreNames = transactionIgnoreNames
 	opts.spanFramesMinDuration = spanFramesMinDuration
 	opts.serviceName, opts.serviceVersion, opts.serviceEnvironment = initialService()
 	opts.active = active
@@ -176,9 +168,6 @@ type Tracer struct {
 	statsMu sync.Mutex
 	stats   TracerStats
 
-	transactionIgnoreNamesMu sync.RWMutex
-	transactionIgnoreNames   *regexp.Regexp
-
 	maxSpansMu sync.RWMutex
 	maxSpans   int
 
@@ -220,21 +209,20 @@ func NewTracer(serviceName, serviceVersion string) (*Tracer, error) {
 
 func newTracer(opts options) *Tracer {
 	t := &Tracer{
-		Transport:              transport.Default,
-		process:                &currentProcess,
-		system:                 &localSystem,
-		closing:                make(chan struct{}),
-		closed:                 make(chan struct{}),
-		forceFlush:             make(chan chan<- struct{}),
-		configCommands:         make(chan tracerConfigCommand),
-		transactions:           make(chan *Transaction, transactionsChannelCap),
-		errors:                 make(chan *Error, errorsChannelCap),
-		maxSpans:               opts.maxSpans,
-		sampler:                opts.sampler,
-		captureBody:            opts.captureBody,
-		transactionIgnoreNames: opts.transactionIgnoreNames,
-		spanFramesMinDuration:  opts.spanFramesMinDuration,
-		active:                 opts.active,
+		Transport:             transport.Default,
+		process:               &currentProcess,
+		system:                &localSystem,
+		closing:               make(chan struct{}),
+		closed:                make(chan struct{}),
+		forceFlush:            make(chan chan<- struct{}),
+		configCommands:        make(chan tracerConfigCommand),
+		transactions:          make(chan *Transaction, transactionsChannelCap),
+		errors:                make(chan *Error, errorsChannelCap),
+		maxSpans:              opts.maxSpans,
+		sampler:               opts.sampler,
+		captureBody:           opts.captureBody,
+		spanFramesMinDuration: opts.spanFramesMinDuration,
+		active:                opts.active,
 	}
 	t.Service.Name = opts.serviceName
 	t.Service.Version = opts.serviceVersion
@@ -370,24 +358,6 @@ func (t *Tracer) sendConfigCommand(cmd tracerConfigCommand) {
 	case <-t.closing:
 	case <-t.closed:
 	}
-}
-
-// SetTransactionIgnoreNames sets the patterns that will be used to match
-// transaction names that should be ignored. If SetTransactionIgnoreNames
-// is called with no arguments, then no transactions will be ignored.
-func (t *Tracer) SetTransactionIgnoreNames(patterns ...string) error {
-	var re *regexp.Regexp
-	if len(patterns) != 0 {
-		var err error
-		re, err = regexp.Compile(fmt.Sprintf("(?i:%s)", strings.Join(patterns, "|")))
-		if err != nil {
-			return err
-		}
-	}
-	t.transactionIgnoreNamesMu.Lock()
-	t.transactionIgnoreNames = re
-	t.transactionIgnoreNamesMu.Unlock()
-	return nil
 }
 
 // SetSampler sets the sampler the tracer. It is valid to pass nil,
