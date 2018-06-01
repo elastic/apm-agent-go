@@ -26,8 +26,8 @@ func (t *Tracer) StartTransaction(name, transactionType string, opts ...Transact
 		}
 		tx.rand = rand.New(rand.NewSource(seed))
 	}
-	tx.name = name
-	tx.txType = transactionType
+	tx.Name = name
+	tx.Type = transactionType
 
 	var txOpts transactionOptions
 	for _, o := range opts {
@@ -62,13 +62,13 @@ func (t *Tracer) StartTransaction(name, transactionType string, opts ...Transact
 
 // Transaction describes an event occurring in the monitored service.
 type Transaction struct {
+	Name      string
+	Type      string
 	Timestamp time.Time
 	Duration  time.Duration
 	Context   Context
 	Result    string
 	id        [16]byte
-	name      string
-	txType    string
 
 	tracer                *Tracer
 	sampled               bool

@@ -32,8 +32,8 @@ func (s *sender) sendTransactions(ctx context.Context, transactions []*Transacti
 
 	for _, tx := range transactions {
 		s.modelTransactions = append(s.modelTransactions, model.Transaction{
-			Name:      truncateString(tx.name),
-			Type:      truncateString(tx.txType),
+			Name:      truncateString(tx.Name),
+			Type:      truncateString(tx.Type),
 			ID:        tx.id,
 			Result:    truncateString(tx.Result),
 			Timestamp: model.Time(tx.Timestamp.UTC()),
@@ -53,8 +53,8 @@ func (s *sender) sendTransactions(ctx context.Context, transactions []*Transacti
 			for _, span := range tx.spans {
 				s.modelSpans = append(s.modelSpans, model.Span{
 					ID:       &span.id,
-					Name:     truncateString(span.name),
-					Type:     truncateString(span.spanType),
+					Name:     truncateString(span.Name),
+					Type:     truncateString(span.Type),
 					Start:    span.Timestamp.Sub(tx.Timestamp).Seconds() * 1000,
 					Duration: span.Duration.Seconds() * 1000,
 					Context:  span.Context.build(),
