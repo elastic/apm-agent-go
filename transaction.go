@@ -36,8 +36,10 @@ func (t *Tracer) StartTransaction(name, transactionType string, opts ...Transact
 		tx.name = "" // ignored
 		return tx
 	}
+
+	var txOpts transactionOptions
 	for _, o := range opts {
-		o(tx)
+		o(&txOpts)
 	}
 
 	// Generate a random transaction ID.
@@ -158,4 +160,6 @@ func (tx *Transaction) enqueue() {
 }
 
 // TransactionOption sets options when starting a transaction.
-type TransactionOption func(*Transaction)
+type TransactionOption func(*transactionOptions)
+
+type transactionOptions struct{}
