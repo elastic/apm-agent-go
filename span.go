@@ -43,8 +43,8 @@ func (tx *Transaction) StartSpan(name, spanType string, parent *Span) *Span {
 	tx.spans = append(tx.spans, span)
 	tx.mu.Unlock()
 
-	span.name = name
-	span.spanType = spanType
+	span.Name = name
+	span.Type = spanType
 	span.Timestamp = time.Now()
 	if parent != nil {
 		span.parent = parent.id
@@ -57,8 +57,8 @@ type Span struct {
 	tx        *Transaction // nil if span is dropped
 	id        int64
 	parent    int64
-	name      string
-	spanType  string
+	Name      string
+	Type      string
 	Timestamp time.Time
 	Duration  time.Duration
 	Context   SpanContext
@@ -130,7 +130,7 @@ func (s *Span) finalize(end time.Time) {
 	if s.Duration < 0 {
 		// s.End was never called, so mark it as truncated and
 		// truncate its duration to the end of the transaction.
-		s.spanType += ".truncated"
+		s.Type += ".truncated"
 		s.Duration = end.Sub(s.Timestamp)
 	}
 	s.mu.Unlock()
