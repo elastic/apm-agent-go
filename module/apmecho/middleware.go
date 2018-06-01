@@ -41,11 +41,6 @@ func (m *middleware) handle(c echo.Context) error {
 	req := c.Request()
 	name := req.Method + " " + c.Path()
 	tx := m.tracer.StartTransaction(name, "request")
-	if tx.Ignored() {
-		tx.Discard()
-		return m.handler(c)
-	}
-
 	ctx := elasticapm.ContextWithTransaction(req.Context(), tx)
 	req = apmhttp.RequestWithContext(ctx, req)
 	c.SetRequest(req)

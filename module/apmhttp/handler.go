@@ -54,11 +54,6 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	tx := h.tracer.StartTransaction(h.requestName(req), "request")
-	if tx.Ignored() {
-		tx.Discard()
-		h.handler.ServeHTTP(w, req)
-		return
-	}
 	ctx := elasticapm.ContextWithTransaction(req.Context(), tx)
 	req = RequestWithContext(ctx, req)
 	defer tx.End()
@@ -267,11 +262,10 @@ type RequestIgnorerFunc func(*http.Request) bool
 
 // WithServerRequestIgnorer returns a ServerOption which sets r as the
 // function to use to determine whether or not a server request should
-// be ignored. This is in addition to standard tracer configuration,
-// e.g. ELASTIC_APM_TRANSACTION_IGNORE_NAMES.
+// be ignored. If r is nil, all requests will be reported.
 func WithServerRequestIgnorer(r RequestIgnorerFunc) ServerOption {
 	if r == nil {
-		panic("r == nil")
+		r = ignoreNone
 	}
 	return func(h *handler) {
 		h.requestIgnorer = r

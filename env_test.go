@@ -220,38 +220,6 @@ func testTracerCaptureBodyEnv(t *testing.T, envValue string, expectBody bool) {
 	}
 }
 
-func TestTracerTransactionIgnoreNamesEnvInvalid(t *testing.T) {
-	os.Setenv("ELASTIC_APM_TRANSACTION_IGNORE_NAMES", "oy(")
-	defer os.Unsetenv("ELASTIC_APM_TRANSACTION_IGNORE_NAMES")
-
-	_, err := elasticapm.NewTracer("tracer_testing", "")
-	assert.EqualError(t, err, "invalid ELASTIC_APM_TRANSACTION_IGNORE_NAMES value: error parsing regexp: missing closing ): `oy(`")
-}
-
-func TestTracerTransactionIgnoreNamesEnv(t *testing.T) {
-	type test struct {
-		name    string
-		re      string
-		ignored bool
-	}
-	tests := []test{
-		{name: "matching", re: "foo", ignored: true},
-		{name: "nonmatching", re: "not_foo", ignored: false},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			os.Setenv("ELASTIC_APM_TRANSACTION_IGNORE_NAMES", test.re)
-			defer os.Unsetenv("ELASTIC_APM_TRANSACTION_IGNORE_NAMES")
-
-			tracer, _ := elasticapm.NewTracer("tracer_testing", "")
-			defer tracer.Close()
-
-			tx := tracer.StartTransaction("FOO", "type")
-			assert.Equal(t, test.ignored, tx.Ignored())
-		})
-	}
-}
-
 func TestTracerSpanFramesMinDurationEnv(t *testing.T) {
 	os.Setenv("ELASTIC_APM_SPAN_FRAMES_MIN_DURATION", "10ms")
 	defer os.Unsetenv("ELASTIC_APM_SPAN_FRAMES_MIN_DURATION")

@@ -281,15 +281,14 @@ tx.Result = "HTTP 2xx"
 tx.Context.SetTag("region", "us-east-1")
 ----
 
-The agent supports ignoring and sampling transactions; ignored transactions will not be
-sent to the server at all, while non-sampled transactions will be sent with limited context
-and without any spans. To determine whether a transaction is ignored, use the
-`Transaction.Ignored` method; if it returns true, any additional instrumentation should
-be avoided. Similarly, you can use the `Transaction.Sampled` method to decide whether or
-not to add to the transaction's context.
+The agent supports sampling transactions: non-sampled transactions will be still be
+reported, but with limited context and without any spans. To determine whether a
+transaction is sampled, use the `Transaction.Sampled` method; if it returns false,
+you should avoid unnecessary storage or processing required for setting transaction
+context.
 
-Once you have started a transaction, you can include it in a `context` object for prpagating
-throughout the application.
+Once you have started a transaction, you can include it in a `context` object for
+propagating throughout the application.
 
 [source,go]
 ----

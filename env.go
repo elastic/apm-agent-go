@@ -15,18 +15,17 @@ import (
 )
 
 const (
-	envFlushInterval          = "ELASTIC_APM_FLUSH_INTERVAL"
-	envMaxQueueSize           = "ELASTIC_APM_MAX_QUEUE_SIZE"
-	envMaxSpans               = "ELASTIC_APM_TRANSACTION_MAX_SPANS"
-	envTransactionSampleRate  = "ELASTIC_APM_TRANSACTION_SAMPLE_RATE"
-	envTransactionIgnoreNames = "ELASTIC_APM_TRANSACTION_IGNORE_NAMES"
-	envSanitizeFieldNames     = "ELASTIC_APM_SANITIZE_FIELD_NAMES"
-	envCaptureBody            = "ELASTIC_APM_CAPTURE_BODY"
-	envServiceName            = "ELASTIC_APM_SERVICE_NAME"
-	envServiceVersion         = "ELASTIC_APM_SERVICE_VERSION"
-	envEnvironment            = "ELASTIC_APM_ENVIRONMENT"
-	envSpanFramesMinDuration  = "ELASTIC_APM_SPAN_FRAMES_MIN_DURATION"
-	envActive                 = "ELASTIC_APM_ACTIVE"
+	envFlushInterval         = "ELASTIC_APM_FLUSH_INTERVAL"
+	envMaxQueueSize          = "ELASTIC_APM_MAX_QUEUE_SIZE"
+	envMaxSpans              = "ELASTIC_APM_TRANSACTION_MAX_SPANS"
+	envTransactionSampleRate = "ELASTIC_APM_TRANSACTION_SAMPLE_RATE"
+	envSanitizeFieldNames    = "ELASTIC_APM_SANITIZE_FIELD_NAMES"
+	envCaptureBody           = "ELASTIC_APM_CAPTURE_BODY"
+	envServiceName           = "ELASTIC_APM_SERVICE_NAME"
+	envServiceVersion        = "ELASTIC_APM_SERVICE_VERSION"
+	envEnvironment           = "ELASTIC_APM_ENVIRONMENT"
+	envSpanFramesMinDuration = "ELASTIC_APM_SPAN_FRAMES_MIN_DURATION"
+	envActive                = "ELASTIC_APM_ACTIVE"
 
 	defaultFlushInterval           = 10 * time.Second
 	defaultMaxTransactionQueueSize = 500
@@ -124,19 +123,6 @@ func initialSanitizedFieldNamesRegexp() (*regexp.Regexp, error) {
 	if err != nil {
 		_, err = regexp.Compile(value)
 		return nil, errors.Wrapf(err, "invalid %s value", envSanitizeFieldNames)
-	}
-	return re, nil
-}
-
-func initialTransactionIgnoreNamesRegexp() (*regexp.Regexp, error) {
-	value := os.Getenv(envTransactionIgnoreNames)
-	if value == "" {
-		return nil, nil
-	}
-	re, err := regexp.Compile(fmt.Sprintf("(?i:%s)", value))
-	if err != nil {
-		_, err = regexp.Compile(value)
-		return nil, errors.Wrapf(err, "invalid %s value", envTransactionIgnoreNames)
 	}
 	return re, nil
 }

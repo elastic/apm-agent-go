@@ -73,12 +73,6 @@ func (m *middleware) handle(c *gin.Context) {
 		requestName = routeInfo.transactionName
 	}
 	tx := m.tracer.StartTransaction(requestName, "request")
-	if tx.Ignored() {
-		tx.Discard()
-		c.Next()
-		return
-	}
-
 	ctx := elasticapm.ContextWithTransaction(c.Request.Context(), tx)
 	c.Request = apmhttp.RequestWithContext(ctx, c.Request)
 	defer tx.End()

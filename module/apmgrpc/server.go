@@ -38,11 +38,6 @@ func NewUnaryServerInterceptor(o ...ServerOption) grpc.UnaryServerInterceptor {
 			return handler(ctx, req)
 		}
 		tx := opts.tracer.StartTransaction(info.FullMethod, "grpc")
-		if tx.Ignored() {
-			tx.Discard()
-			return handler(ctx, req)
-		}
-
 		ctx = elasticapm.ContextWithTransaction(ctx, tx)
 		defer tx.End()
 

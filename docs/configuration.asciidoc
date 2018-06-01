@@ -70,6 +70,7 @@ alphabet, numbers, dashes, underscores and spaces.
 [float]
 [[config-service-version]]
 === `ELASTIC_APM_SERVICE_VERSION`
+
 [options="header"]
 |============
 | Environment                    | Default | Example
@@ -106,29 +107,13 @@ Enable or disable the tracer. If set to false, then the Go agent does not send
 any data to the Elastic APM server, and instrumentation overhead is minimized.
 
 [float]
-[[config-transactions-ignore-patterns]]
-==== `ELASTIC_APM_TRANSACTIONS_IGNORE_NAMES`
-[options="header"]
-|============
-| Environment                             | Default | Example
-| `ELASTIC_APM_TRANSACTIONS_IGNORE_NAMES` |         | `^OPTIONS`
-|============
-
-A regular expression matching the names of transactions to ignore. Ignored transactions
-will not be sent to the APM server.
-
-The pattern specified in `ELASTIC_APM_TRANSCATION_IGNORE_NAMES` is treated
-case-insensitively by default. To override this behavior and match case-sensitively,
-wrap the value like `(?-i:<value>)`. For a full definition of Go's regular
-expression syntax, see https://golang.org/pkg/regexp/syntax/.
-
-[float]
 [[config-sanitize-field-names]]
-==== `ELASTIC_APM_SANITIZE_FIELD_NAMES`
+=== `ELASTIC_APM_SANITIZE_FIELD_NAMES`
+
 [options="header"]
 |============
-| Environment                        | Default                                                                    | Example
-| `ELASTIC_APM_SANITIZE_FIELD_NAMES` | `password|passwd|pwd|secret|.*key|.*token|.*session.*|.*credit.*|.*card.*` | `sekrits`
+| Environment                        | Default                                                                            | Example
+| `ELASTIC_APM_SANITIZE_FIELD_NAMES` | `password\|passwd\|pwd\|secret\|.*key\|.*token\|.*session.*\|.*credit.*\|.*card.*` | `sekrits`
 |============
 
 A regular expression matching the names of HTTP cookies and POST form fields to redact.
@@ -140,8 +125,9 @@ expression syntax, see https://golang.org/pkg/regexp/syntax/.
 
 [float]
 [[config-capture-body]]
-==== `ELASTIC_APM_CAPTURE_BODY`
+=== `ELASTIC_APM_CAPTURE_BODY`
 
+[options="header"]
 |============
 | Environment                | Default
 | `ELASTIC_APM_CAPTURE_BODY` | `off`
@@ -156,8 +142,9 @@ If your service handles data like this, enable this feature with care.
 
 [float]
 [[config-hostname]]
-==== `ELASTIC_APM_HOSTNAME`
+=== `ELASTIC_APM_HOSTNAME`
 
+[options="header"]
 [options="header"]
 |============
 | Environment                | Default         | Example
@@ -168,8 +155,9 @@ The host name to use when sending error and transaction data to the APM server.
 
 [float]
 [[config-flush-interval]]
-==== `ELASTIC_APM_FLUSH_INTERVAL`
+=== `ELASTIC_APM_FLUSH_INTERVAL`
 
+[options="header"]
 |============
 | Environment                  | Default
 | `ELASTIC_APM_FLUSH_INTERVAL` | `10s`
@@ -185,8 +173,9 @@ time until transactions are indexed and searchable in Elasticsearch.
 
 [float]
 [[config-transaction-max-spans]]
-==== `ELASTIC_APM_TRANSACTION_MAX_SPANS`
+=== `ELASTIC_APM_TRANSACTION_MAX_SPANS`
 
+[options="header"]
 |============
 | Environment                         | Default
 | `ELASTIC_APM_TRANSACTION_MAX_SPANS` | `500`
@@ -201,8 +190,9 @@ for such edge cases.
 
 [float]
 [[config-span-frames-min-duration-ms]]
-==== `ELASTIC_APM_SPAN_FRAMES_MIN_DURATION`
+=== `ELASTIC_APM_SPAN_FRAMES_MIN_DURATION`
 
+[options="header"]
 |============
 | Environment                            | Default
 | `ELASTIC_APM_SPAN_FRAMES_MIN_DURATION` | `5ms`
@@ -215,8 +205,9 @@ some processing and storage overhead.
 
 [float]
 [[config-max-queue-size]]
-==== `ELASTIC_APM_MAX_QUEUE_SIZE`
+=== `ELASTIC_APM_MAX_QUEUE_SIZE`
 
+[options="header"]
 |============
 | Environment                  | Default
 | `ELASTIC_APM_MAX_QUEUE_SIZE` | `500`
@@ -233,8 +224,9 @@ capacity, old transactions are dropped in favour of new ones.
 
 [float]
 [[config-transaction-sample-rate]]
-==== `ELASTIC_APM_TRANSACTION_SAMPLE_RATE`
+=== `ELASTIC_APM_TRANSACTION_SAMPLE_RATE`
 
+[options="header"]
 |============
 | Environment                           | Default
 | `ELASTIC_APM_TRANSACTION_SAMPLE_RATE` | `1.0`
@@ -247,7 +239,9 @@ transactions, but no context information, tags, or spans.
 
 [float]
 [[config-verify-server-cert]]
-==== `ELASTIC_APM_VERIFY_SERVER_CERT`
+=== `ELASTIC_APM_VERIFY_SERVER_CERT`
+
+[options="header"]
 |============
 | Environment                       | Default
 | `ELASTIC_APM_VERIFY_SERVER_CERT`  | `true`
@@ -259,7 +253,9 @@ changing this setting to `false`.
 
 [float]
 [[config-debug]]
-==== `ELASTIC_APM_DEBUG`
+=== `ELASTIC_APM_DEBUG`
+
+[options="header"]
 |============
 | Environment         | Default
 | `ELASTIC_APM_DEBUG` |
