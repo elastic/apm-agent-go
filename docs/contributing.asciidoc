@@ -6,7 +6,7 @@ The Go APM Agent is open source and we love to receive contributions from our co
 There are many ways to contribute, from writing tutorials or blog posts, improving the
 documentation, submitting bug reports and feature requests or writing code.
 
-You can get in touch with us through https://discuss.elastic.co/c/apm[Discuss].
+You can get in touch with us through {apm-forum}[Discuss].
 Feedback and ideas are always welcome.
 
 [float]

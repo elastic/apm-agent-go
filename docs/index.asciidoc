@@ -9,6 +9,8 @@ ifdef::env-github[]
 endif::[]
 
 ifndef::env-github[]
+:branch: current
+include::{asciidoc-dir}/../../shared/attributes.asciidoc[]
 include::./introduction.asciidoc[Introduction]
 include::./instrumenting.asciidoc[Instrumenting]
 include::./configuration.asciidoc[Configuration]
