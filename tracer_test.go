@@ -7,10 +7,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/model"
 	"github.com/elastic/apm-agent-go/transport/transporttest"
 )
 
@@ -259,45 +257,6 @@ func TestTracerErrorsBuffered(t *testing.T) {
 		}
 		req.Result <- nil
 	}
-}
-
-func TestTracerProcessor(t *testing.T) {
-	tracer, err := elasticapm.NewTracer("tracer_testing", "")
-	assert.NoError(t, err)
-	defer tracer.Close()
-	tracer.Transport = transporttest.Discard
-
-	e_ := tracer.NewError(errors.New("oy vey"))
-	tx_ := tracer.StartTransaction("name", "type")
-
-	var processedError bool
-	var processedTransaction bool
-	processError := func(e *model.Error) {
-		processedError = true
-		require.NotNil(t, e)
-		assert.Equal(t, e_.ID, e.ID)
-		assert.NotEmpty(t, e.Exception.Stacktrace)
-		assert.Equal(t, "TestTracerProcessor", e.Culprit)
-		assert.Equal(t, "oy vey", e.Exception.Message)
-	}
-	processTransaction := func(tx *model.Transaction) {
-		assert.Equal(t, "name", tx.Name)
-		assert.Equal(t, "type", tx.Type)
-		processedTransaction = true
-	}
-	tracer.SetProcessor(struct {
-		elasticapm.ErrorProcessor
-		elasticapm.TransactionProcessor
-	}{
-		elasticapm.ErrorProcessorFunc(processError),
-		elasticapm.TransactionProcessorFunc(processTransaction),
-	})
-
-	e_.Send()
-	tx_.End()
-	tracer.Flush(nil)
-	assert.True(t, processedError)
-	assert.True(t, processedTransaction)
 }
 
 func TestTracerRecover(t *testing.T) {

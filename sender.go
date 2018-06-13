@@ -73,9 +73,6 @@ func (s *sender) sendTransactions(ctx context.Context, transactions []*Transacti
 		} else {
 			modelTx.Sampled = &tx.sampled
 		}
-		if s.cfg.processor != nil {
-			s.cfg.processor.ProcessTransaction(modelTx)
-		}
 	}
 
 	service := makeService(s.tracer.Service.Name, s.tracer.Service.Version, s.tracer.Service.Environment)
@@ -121,9 +118,6 @@ func (s *sender) sendErrors(ctx context.Context, errors []*Error) bool {
 		e.model.Timestamp = model.Time(e.Timestamp.UTC())
 		e.model.Context = e.Context.build()
 		e.model.Exception.Handled = e.Handled
-		if s.cfg.processor != nil {
-			s.cfg.processor.ProcessError(&e.model)
-		}
 		payload.Errors[i] = &e.model
 	}
 	if err := s.tracer.Transport.SendErrors(ctx, &payload); err != nil {
