@@ -321,17 +321,6 @@ func (t *Tracer) SetLogger(logger Logger) {
 	})
 }
 
-// SetProcessor sets the processors for the tracer.
-func (t *Tracer) SetProcessor(p ...Processor) {
-	var processor Processor
-	if len(p) > 0 {
-		processor = Processors(p)
-	}
-	t.sendConfigCommand(func(cfg *tracerConfig) {
-		cfg.processor = processor
-	})
-}
-
 // SetSanitizedFieldNames sets the patterns that will be used to match
 // cookie and form field names for sanitization. Fields matching any
 // of the the supplied patterns will have their values redacted. If
@@ -563,7 +552,6 @@ type tracerConfig struct {
 	maxTransactionQueueSize int
 	maxErrorQueueSize       int
 	logger                  Logger
-	processor               Processor
 	contextSetter           stacktrace.ContextSetter
 	preContext, postContext int
 	sanitizedFieldNames     *regexp.Regexp
