@@ -13,6 +13,7 @@ func BenchmarkMarshalTransactionPayloadStdlib(b *testing.B) {
 	var w fastjson.Writer
 	for i := 0; i < b.N; i++ {
 		p.MarshalFastJSON(&w)
+		b.SetBytes(int64(w.Size()))
 		w.Reset()
 	}
 }
