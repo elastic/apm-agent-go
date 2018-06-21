@@ -17,7 +17,7 @@ variables have usable defaults.
 [options="header"]
 |============
 | Environment              | Default  | Example
-| `ELASTIC_APM_SERVER_URL` |          | `http://localhost:9200`
+| `ELASTIC_APM_SERVER_URL` |          | `http://localhost:8200`
 |============
 
 The URL for your Elastic APM server. The server supports both HTTP and HTTPS.
