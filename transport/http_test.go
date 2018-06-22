@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -30,9 +31,21 @@ func init() {
 	os.Setenv("ELASTIC_APM_VERIFY_SERVER_CERT", "")
 }
 
-func TestNewHTTPTransportNoURL(t *testing.T) {
-	_, err := transport.NewHTTPTransport("", "")
-	assert.Error(t, err)
+func TestNewHTTPTransportDefaultURL(t *testing.T) {
+	var h recordingHandler
+	server := &http.Server{Handler: &h}
+	defer server.Close()
+
+	lis, err := net.Listen("tcp", "localhost:8200")
+	if err != nil {
+		t.Skipf("cannot listen on default server address: %s", err)
+	}
+	go server.Serve(lis)
+
+	transport, err := transport.NewHTTPTransport("", "")
+	assert.NoError(t, err)
+	transport.SendTransactions(context.Background(), &model.TransactionsPayload{})
+	assert.Len(t, h.requests, 1)
 }
 
 func TestHTTPTransportEnvURL(t *testing.T) {

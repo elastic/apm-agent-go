@@ -4,7 +4,9 @@
 To adapt the Elastic APM Go agent to your needs, you can configure it using
 environment variables.
 
-In order to send your data to an Elastic APM server, you must at least configure
+By default, the agent will attempt to send data to the Elastic APM Server
+at `http://localhost:8200`, to simplify development and testing. To send
+data to an alternative location, you must configure
 <<config-server-url, ELASTIC_APM_SERVER_URL>>. Depending on the configuration
 of your server, you may also need to set <<config-secret-token, ELASTIC_APM_SECRET_TOKEN>>
 and <<config-verify-server-cert, ELASTIC_APM_VERIFY_SERVER_CERT>>. All other
@@ -16,17 +18,14 @@ variables have usable defaults.
 
 [options="header"]
 |============
-| Environment              | Default  | Example
-| `ELASTIC_APM_SERVER_URL` |          | `http://localhost:8200`
+| Environment              | Default                 | Example
+| `ELASTIC_APM_SERVER_URL` | `http://localhost:8200` | `http://localhost:8200`
 |============
 
 The URL for your Elastic APM server. The server supports both HTTP and HTTPS.
 If you use HTTPS, then you may need to configure your client machines so
 that the server certificate can be verified. You can also disable certificate
 verification with <<config-verify-server-cert>>.
-
-NOTE: If `ELASTIC_APM_SERVER_URL` is not specified, then all transactions and
-errors will be discarded.
 
 [float]
 [[config-secret-token]]
