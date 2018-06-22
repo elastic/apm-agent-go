@@ -469,6 +469,7 @@ func (*StringMapItem) MarshalFastJSON(*fastjson.Writer) {
 	panic("unreachable")
 }
 
+// MarshalFastJSON writes the JSON representation of q to w.
 func (q *Quantile) MarshalFastJSON(w *fastjson.Writer) {
 	w.RawByte('[')
 	w.Float64(q.Quantile)
@@ -479,12 +480,12 @@ func (q *Quantile) MarshalFastJSON(w *fastjson.Writer) {
 
 // UnmarshalJSON unmarshals the JSON data into q.
 func (q *Quantile) UnmarshalJSON(data []byte) error {
-	var pair [2]float64
-	if err := json.Unmarshal(data, pair[:]); err != nil {
+	var values []float64
+	if err := json.Unmarshal(data, &values); err != nil {
 		return err
 	}
-	q.Quantile = pair[0]
-	q.Value = pair[1]
+	q.Quantile = values[0]
+	q.Value = values[1]
 	return nil
 }
 

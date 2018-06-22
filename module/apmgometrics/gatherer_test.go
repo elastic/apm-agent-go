@@ -33,8 +33,9 @@ func TestGatherer(t *testing.T) {
 	assert.Equal(t, []*model.Metrics{{
 		Samples: map[string]model.Metric{
 			"http.requests_total": {
-				// go-metrics's counters are
-				// gauges by our definition.
+				// go-metrics's counters are gauges by our
+				// definition, as they are not required to
+				// be monotonically increasing.
 				Type:  "gauge",
 				Value: newFloat64(123),
 			},
@@ -44,6 +45,33 @@ func TestGatherer(t *testing.T) {
 			},
 		},
 	}}, metrics)
+}
+
+func TestHistogram(t *testing.T) {
+	r := metrics.NewRegistry()
+	sample := metrics.NewUniformSample(1024)
+	hist := metrics.GetOrRegisterHistogram("histogram", r, sample)
+	hist.Update(50)
+	hist.Update(100)
+	hist.Update(150)
+
+	g := apmgometrics.Wrap(r)
+	metrics := gatherMetrics(g)
+
+	assert.Contains(t, metrics[0].Samples, "histogram")
+	assert.Equal(t, model.Metric{
+		Type:   "summary",
+		Count:  newUint64(3),
+		Sum:    newFloat64(300),
+		Min:    newFloat64(50),
+		Max:    newFloat64(150),
+		Stddev: newFloat64(40.824829046386306),
+		Quantiles: []model.Quantile{
+			{Quantile: 0.5, Value: 100},
+			{Quantile: 0.9, Value: 150},
+			{Quantile: 0.99, Value: 150},
+		},
+	}, metrics[0].Samples["histogram"])
 }
 
 func gatherMetrics(g elasticapm.MetricsGatherer) []*model.Metrics {
@@ -56,6 +84,10 @@ func gatherMetrics(g elasticapm.MetricsGatherer) []*model.Metrics {
 		m.Timestamp = model.Time{}
 	}
 	return metrics
+}
+
+func newUint64(v uint64) *uint64 {
+	return &v
 }
 
 func newFloat64(v float64) *float64 {

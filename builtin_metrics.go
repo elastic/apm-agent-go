@@ -3,6 +3,7 @@ package elasticapm
 import (
 	"context"
 	"runtime"
+	"runtime/debug"
 	"time"
 )
 
@@ -53,6 +54,23 @@ func (*builtinMetricsGatherer) gatherMemStatsMetrics(m *Metrics) {
 	addGaugeUint64("go.mem.gc.next", unitByte, mem.NextGC)
 	addGauge("go.mem.gc.last", unitSecond, time.Duration(mem.LastGC).Seconds())
 	addGauge("go.mem.gc.cpu.pct", "", mem.GCCPUFraction*100)
+
+	gcStats := debug.GCStats{
+		PauseQuantiles: make([]time.Duration, 5),
+	}
+	debug.ReadGCStats(&gcStats)
+	gcPauseQuantiles := map[float64]float64{
+		0:    gcStats.PauseQuantiles[0].Seconds(),
+		0.25: gcStats.PauseQuantiles[1].Seconds(),
+		0.5:  gcStats.PauseQuantiles[2].Seconds(),
+		0.75: gcStats.PauseQuantiles[3].Seconds(),
+		1.0:  gcStats.PauseQuantiles[4].Seconds(),
+	}
+	m.AddSummary("go.mem.gc.pause", unitSecond, nil, SummaryMetric{
+		Count:     uint64(gcStats.NumGC),
+		Sum:       gcStats.PauseTotal.Seconds(),
+		Quantiles: gcPauseQuantiles,
+	})
 }
 
 func (g *builtinMetricsGatherer) gatherTracerStatsMetrics(m *Metrics) {

@@ -30,30 +30,55 @@ func TestTracerMetricsBuiltin(t *testing.T) {
 	assert.NotEmpty(t, builtinMetrics.Timestamp)
 
 	gcPct := builtinMetrics.Samples["go.mem.gc.cpu.pct"]
-	if assert.NotNil(t, gcPct.Value) && runtime.GOOS != "windows" {
-		// NOTE(axw) on Windows, sometimes MemStats.GCCPUFraction
-		// is outside the expected range [0,1). We should isolate
-		// the issue and report it upstream.
+	if assert.NotNil(t, gcPct.Value) && runtime.GOOS == "linux" {
+		// NOTE(axw) on Windows and macOS, sometimes
+		// MemStats.GCCPUFraction is outside the expected
+		// range [0,1). We should isolate the issue and
+		// report it upstream.
 		assert.Condition(t, func() bool {
 			return *gcPct.Value >= 0 && *gcPct.Value <= 100
 		}, "value: %v", *gcPct.Value)
 	}
 
 	var dummy float64 = 123
-	for _, m := range builtinMetrics.Samples {
-		if m.Count != nil {
-			*m.Count = dummy
+	maybeSetFloat64 := func(ptr *float64, to float64) {
+		if ptr != nil {
+			*ptr = to
 		}
-		if m.Value != nil {
-			*m.Value = dummy
+	}
+	for _, m := range builtinMetrics.Samples {
+		maybeSetFloat64(m.Value, dummy)
+		if m.Count != nil {
+			*m.Count = uint64(dummy)
+		}
+		maybeSetFloat64(m.Sum, dummy)
+		maybeSetFloat64(m.Min, dummy)
+		maybeSetFloat64(m.Max, dummy)
+		maybeSetFloat64(m.Stddev, dummy)
+		for i := range m.Quantiles {
+			m.Quantiles[i].Value = dummy
 		}
 	}
 
 	counterMetric := func(unit string) model.Metric {
-		return model.Metric{Type: "counter", Unit: unit, Count: &dummy}
+		return model.Metric{Type: "counter", Unit: unit, Value: &dummy}
 	}
 	gaugeMetric := func(unit string) model.Metric {
 		return model.Metric{Type: "gauge", Unit: unit, Value: &dummy}
+	}
+
+	gcSummaryMetric := model.Metric{
+		Type:  "summary",
+		Unit:  "sec",
+		Count: newUint64(uint64(dummy)),
+		Sum:   newFloat64(dummy),
+		Quantiles: []model.Quantile{
+			{Quantile: 0, Value: dummy},
+			{Quantile: 0.25, Value: dummy},
+			{Quantile: 0.5, Value: dummy},
+			{Quantile: 0.75, Value: dummy},
+			{Quantile: 1, Value: dummy},
+		},
 	}
 
 	assert.Equal(t, map[string]model.Metric{
@@ -70,6 +95,7 @@ func TestTracerMetricsBuiltin(t *testing.T) {
 		"go.mem.gc.cpu.pct":         gaugeMetric(""),
 		"go.mem.gc.last":            gaugeMetric("sec"),
 		"go.mem.gc.next":            gaugeMetric("byte"),
+		"go.mem.gc.pause":           gcSummaryMetric,
 
 		"elasticapm.transactions.sent":        counterMetric(""),
 		"elasticapm.transactions.dropped":     counterMetric(""),
@@ -108,7 +134,7 @@ func TestTracerMetricsGatherer(t *testing.T) {
 	assert.Equal(t, map[string]model.Metric{
 		"http.request": {
 			Type:  "counter",
-			Count: newFloat64(4),
+			Value: newFloat64(4),
 		},
 	}, metrics[1].Samples)
 
@@ -119,7 +145,7 @@ func TestTracerMetricsGatherer(t *testing.T) {
 	assert.Equal(t, map[string]model.Metric{
 		"http.request": {
 			Type:  "counter",
-			Count: newFloat64(3),
+			Value: newFloat64(3),
 		},
 	}, metrics[2].Samples)
 }
@@ -146,6 +172,10 @@ func TestTracerMetricsDeregister(t *testing.T) {
 
 	metrics := payloads[0].Metrics()
 	require.Len(t, metrics, 1) // just the builtin/unlabeled metrics
+}
+
+func newUint64(v uint64) *uint64 {
+	return &v
 }
 
 func newFloat64(f float64) *float64 {

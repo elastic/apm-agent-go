@@ -51,8 +51,21 @@ func (g gatherer) GatherMetrics(ctx context.Context, out *elasticapm.Metrics) er
 				v := m.GetUntyped().GetValue()
 				out.AddGauge(name, "", makeLabels(m.GetLabel()), v)
 			}
+		case dto.MetricType_SUMMARY:
+			for _, m := range mf.GetMetric() {
+				s := m.GetSummary()
+				quantiles := make(map[float64]float64)
+				for _, q := range s.GetQuantile() {
+					quantiles[q.GetQuantile()] = q.GetValue()
+				}
+				out.AddSummary(name, "", makeLabels(m.GetLabel()), elasticapm.SummaryMetric{
+					Count:     s.GetSampleCount(),
+					Sum:       s.GetSampleSum(),
+					Quantiles: quantiles,
+				})
+			}
 		default:
-			// TODO(axw) MetricType_SUMMARY, MetricType_HISTOGRAM
+			// TODO(axw) MetricType_HISTOGRAM
 		}
 	}
 	return nil

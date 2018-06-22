@@ -32,8 +32,24 @@ func (g gatherer) GatherMetrics(ctx context.Context, m *elasticapm.Metrics) erro
 			m.AddGauge(name, "", nil, float64(v.Value()))
 		case metrics.GaugeFloat64:
 			m.AddGauge(name, "", nil, v.Value())
+		case metrics.Histogram:
+			stddev := v.StdDev()
+			min := float64(v.Min())
+			max := float64(v.Max())
+			quantiles := map[float64]float64{0.5: 0, 0.9: 0, 0.99: 0}
+			for q := range quantiles {
+				quantiles[q] = v.Percentile(q)
+			}
+			m.AddSummary(name, "", nil, elasticapm.SummaryMetric{
+				Count:     uint64(v.Count()),
+				Sum:       float64(v.Sum()),
+				Stddev:    &stddev,
+				Min:       &min,
+				Max:       &max,
+				Quantiles: quantiles,
+			})
 		default:
-			// TODO(axw) Meter, Timer, Histogram, EWMA
+			// TODO(axw) Meter, Timer, EWMA
 		}
 	})
 	return nil

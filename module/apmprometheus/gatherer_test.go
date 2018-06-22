@@ -22,7 +22,35 @@ func TestGoCollector(t *testing.T) {
 	assert.Contains(t, metrics[0].Samples, "go_memstats_alloc_bytes")
 	assert.Contains(t, metrics[0].Samples, "go_memstats_alloc_bytes_total")
 	assert.NotNil(t, metrics[0].Samples["go_memstats_alloc_bytes"].Value)
-	assert.NotNil(t, metrics[0].Samples["go_memstats_alloc_bytes_total"].Count)
+	assert.NotNil(t, metrics[0].Samples["go_memstats_alloc_bytes_total"].Value)
+}
+
+func TestSummary(t *testing.T) {
+	r := prometheus.NewRegistry()
+	s := prometheus.NewSummary(prometheus.SummaryOpts{
+		Name:       "summary",
+		Help:       "halp",
+		Objectives: prometheus.DefObjectives,
+	})
+	r.MustRegister(s)
+
+	s.Observe(50)
+	s.Observe(100)
+	s.Observe(150)
+
+	g := apmprometheus.Wrap(r)
+	metrics := gatherMetrics(g)
+	assert.Contains(t, metrics[0].Samples, "summary")
+	assert.Equal(t, model.Metric{
+		Type:  "summary",
+		Count: newUint64(3),
+		Sum:   newFloat64(300),
+		Quantiles: []model.Quantile{
+			{Quantile: 0.5, Value: 100},
+			{Quantile: 0.9, Value: 150},
+			{Quantile: 0.99, Value: 150},
+		},
+	}, metrics[0].Samples["summary"])
 }
 
 func TestLabels(t *testing.T) {
@@ -59,7 +87,7 @@ func TestLabels(t *testing.T) {
 		Samples: map[string]model.Metric{
 			"http_requests_total": {
 				Type:  "counter",
-				Count: newFloat64(123),
+				Value: newFloat64(123),
 			},
 			"http_requests_inflight": {
 				Type:  "gauge",
@@ -74,7 +102,7 @@ func TestLabels(t *testing.T) {
 		Samples: map[string]model.Metric{
 			"http_requests_total": {
 				Type:  "counter",
-				Count: newFloat64(1),
+				Value: newFloat64(1),
 			},
 		},
 	}, {
@@ -85,7 +113,7 @@ func TestLabels(t *testing.T) {
 		Samples: map[string]model.Metric{
 			"http_requests_total": {
 				Type:  "counter",
-				Count: newFloat64(1),
+				Value: newFloat64(1),
 			},
 		},
 	}}, metrics)
@@ -101,6 +129,10 @@ func gatherMetrics(g elasticapm.MetricsGatherer) []*model.Metrics {
 		s.Timestamp = model.Time{}
 	}
 	return metrics
+}
+
+func newUint64(v uint64) *uint64 {
+	return &v
 }
 
 func newFloat64(v float64) *float64 {
