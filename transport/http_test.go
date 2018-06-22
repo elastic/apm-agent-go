@@ -33,18 +33,21 @@ func init() {
 
 func TestNewHTTPTransportDefaultURL(t *testing.T) {
 	var h recordingHandler
-	server := &http.Server{Handler: &h}
+	server := httptest.NewUnstartedServer(&h)
 	defer server.Close()
 
 	lis, err := net.Listen("tcp", "localhost:8200")
 	if err != nil {
 		t.Skipf("cannot listen on default server address: %s", err)
 	}
-	go server.Serve(lis)
+	server.Listener.Close()
+	server.Listener = lis
+	server.Start()
 
 	transport, err := transport.NewHTTPTransport("", "")
 	assert.NoError(t, err)
-	transport.SendTransactions(context.Background(), &model.TransactionsPayload{})
+	err = transport.SendTransactions(context.Background(), &model.TransactionsPayload{})
+	assert.NoError(t, err)
 	assert.Len(t, h.requests, 1)
 }
 
@@ -57,7 +60,8 @@ func TestHTTPTransportEnvURL(t *testing.T) {
 
 	transport, err := transport.NewHTTPTransport("", "")
 	assert.NoError(t, err)
-	transport.SendTransactions(context.Background(), &model.TransactionsPayload{})
+	err = transport.SendTransactions(context.Background(), &model.TransactionsPayload{})
+	assert.NoError(t, err)
 	assert.Len(t, h.requests, 1)
 }
 
