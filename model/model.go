@@ -507,16 +507,36 @@ type Metrics struct {
 
 // Metric holds metric values.
 type Metric struct {
-	// Type is the metric type: "counter", or "gauge".
+	// Type is the metric type: "counter", "gauge", or "summary".
 	Type string `json:"type"`
 
 	// Unit holds the metric unit, e.g. "byte", or "sec".
 	Unit string `json:"unit,omitempty"`
 
-	// Count holds the value for a counter metric
-	// (non-negative, monotonically increasing).
-	Count *float64 `json:"count,omitempty"`
-
-	// Value holds the value for a gauge metric.
+	// Value holds the value for gauge and counter metrics.
 	Value *float64 `json:"value,omitempty"`
+
+	// Count holds the count for summary metrics.
+	Count *uint64 `json:"count,omitempty"`
+
+	// Sum holds the sum for summary metrics.
+	Sum *float64 `json:"sum,omitempty"`
+
+	// Min holds the minimum value for summary metrics.
+	Min *float64 `json:"min,omitempty"`
+
+	// Max holds the maximum value for summary metrics.
+	Max *float64 `json:"max,omitempty"`
+
+	// Stddev holds the standard deviation for summary metrics.
+	Stddev *float64 `json:"stddev,omitempty"`
+
+	// Quantiles holds φ-quantiles for summary metrics.
+	Quantiles []Quantile `json:"quantiles,omitempty"`
+}
+
+// Quantile represents a φ-quantile for a summary metric.
+type Quantile struct {
+	Quantile float64
+	Value    float64
 }

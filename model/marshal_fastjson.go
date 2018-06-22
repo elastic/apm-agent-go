@@ -782,7 +782,34 @@ func (v *Metric) MarshalFastJSON(w *fastjson.Writer) {
 	w.String(v.Type)
 	if v.Count != nil {
 		w.RawString(",\"count\":")
-		w.Float64(*v.Count)
+		w.Uint64(*v.Count)
+	}
+	if v.Max != nil {
+		w.RawString(",\"max\":")
+		w.Float64(*v.Max)
+	}
+	if v.Min != nil {
+		w.RawString(",\"min\":")
+		w.Float64(*v.Min)
+	}
+	if v.Quantiles != nil {
+		w.RawString(",\"quantiles\":")
+		w.RawByte('[')
+		for i, v := range v.Quantiles {
+			if i != 0 {
+				w.RawByte(',')
+			}
+			v.MarshalFastJSON(w)
+		}
+		w.RawByte(']')
+	}
+	if v.Stddev != nil {
+		w.RawString(",\"stddev\":")
+		w.Float64(*v.Stddev)
+	}
+	if v.Sum != nil {
+		w.RawString(",\"sum\":")
+		w.Float64(*v.Sum)
 	}
 	if v.Unit != "" {
 		w.RawString(",\"unit\":")

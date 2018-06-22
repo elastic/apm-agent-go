@@ -469,6 +469,25 @@ func (*StringMapItem) MarshalFastJSON(*fastjson.Writer) {
 	panic("unreachable")
 }
 
+func (q *Quantile) MarshalFastJSON(w *fastjson.Writer) {
+	w.RawByte('[')
+	w.Float64(q.Quantile)
+	w.RawByte(',')
+	w.Float64(q.Value)
+	w.RawByte(']')
+}
+
+// UnmarshalJSON unmarshals the JSON data into q.
+func (q *Quantile) UnmarshalJSON(data []byte) error {
+	var pair [2]float64
+	if err := json.Unmarshal(data, pair[:]); err != nil {
+		return err
+	}
+	q.Quantile = pair[0]
+	q.Value = pair[1]
+	return nil
+}
+
 func (id *UUID) isZero() bool {
 	return *id == UUID{}
 }

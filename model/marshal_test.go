@@ -125,11 +125,26 @@ func TestMarshalMetrics(t *testing.T) {
 			"counter_metric": map[string]interface{}{
 				"type":  "counter",
 				"unit":  "byte",
-				"count": float64(1024),
+				"value": float64(1024),
 			},
 			"gauge_metric": map[string]interface{}{
 				"type":  "gauge",
 				"value": float64(-66.6),
+			},
+			"summary_metric": map[string]interface{}{
+				"type":   "summary",
+				"count":  float64(3),
+				"sum":    float64(300),
+				"stddev": float64(40.82),
+				"min":    float64(50),
+				"max":    float64(150),
+				"quantiles": []interface{}{
+					[]interface{}{float64(0.00), float64(50)},
+					[]interface{}{float64(0.25), float64(50)},
+					[]interface{}{float64(0.50), float64(100)},
+					[]interface{}{float64(0.75), float64(100)},
+					[]interface{}{float64(1.00), float64(100)},
+				},
 			},
 		},
 	}
@@ -577,11 +592,26 @@ func fakeMetrics() *model.Metrics {
 			"counter_metric": {
 				Type:  "counter",
 				Unit:  "byte",
-				Count: newFloat64(1024),
+				Value: newFloat64(1024),
 			},
 			"gauge_metric": {
 				Type:  "gauge",
 				Value: newFloat64(-66.6),
+			},
+			"summary_metric": {
+				Type:   "summary",
+				Count:  newUint64(3),
+				Sum:    newFloat64(300),
+				Stddev: newFloat64(40.82),
+				Min:    newFloat64(50),
+				Max:    newFloat64(150),
+				Quantiles: []model.Quantile{
+					{0, 50},
+					{0.25, 50},
+					{0.5, 100},
+					{0.75, 100},
+					{1, 100},
+				},
 			},
 		},
 	}
@@ -649,6 +679,10 @@ func mustParseURL(s string) *url.URL {
 		panic(err)
 	}
 	return u
+}
+
+func newUint64(v uint64) *uint64 {
+	return &v
 }
 
 func newFloat64(v float64) *float64 {
