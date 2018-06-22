@@ -3,7 +3,6 @@ package transport_test
 import (
 	"context"
 	"net"
-	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -32,14 +31,16 @@ func TestInitDefault(t *testing.T) {
 
 func TestInitDefaultDiscard(t *testing.T) {
 	var h recordingHandler
-	server := &http.Server{Handler: &h}
+	server := httptest.NewUnstartedServer(&h)
 	defer server.Close()
 
 	lis, err := net.Listen("tcp", "localhost:8200")
 	if err != nil {
 		t.Skipf("cannot listen on default server address: %s", err)
 	}
-	go server.Serve(lis)
+	server.Listener.Close()
+	server.Listener = lis
+	server.Start()
 
 	defer patchEnv("ELASTIC_APM_SERVER_URL", "")()
 
