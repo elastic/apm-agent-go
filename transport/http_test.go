@@ -51,11 +51,31 @@ func TestNewHTTPTransportDefaultURL(t *testing.T) {
 	assert.Len(t, h.requests, 1)
 }
 
-func TestHTTPTransportEnvURL(t *testing.T) {
+func TestHTTPTransportUserAgent(t *testing.T) {
 	var h recordingHandler
 	server := httptest.NewServer(&h)
 	defer server.Close()
+	defer patchEnv("ELASTIC_APM_SERVER_URL", server.URL)()
 
+	transport, err := transport.NewHTTPTransport("", "")
+	assert.NoError(t, err)
+	err = transport.SendTransactions(context.Background(), &model.TransactionsPayload{})
+	assert.NoError(t, err)
+	assert.Len(t, h.requests, 1)
+
+	transport.SetUserAgent("foo")
+	err = transport.SendTransactions(context.Background(), &model.TransactionsPayload{})
+	assert.NoError(t, err)
+	assert.Len(t, h.requests, 2)
+
+	assert.Regexp(t, "Go-http-client/.*", h.requests[0].UserAgent())
+	assert.Equal(t, "foo", h.requests[1].UserAgent())
+}
+
+func TestHTTPTransportDefaultUserAgent(t *testing.T) {
+	var h recordingHandler
+	server := httptest.NewServer(&h)
+	defer server.Close()
 	defer patchEnv("ELASTIC_APM_SERVER_URL", server.URL)()
 
 	transport, err := transport.NewHTTPTransport("", "")
@@ -82,7 +102,6 @@ func TestHTTPTransportEnvSecretToken(t *testing.T) {
 	var h recordingHandler
 	server := httptest.NewServer(&h)
 	defer server.Close()
-
 	defer patchEnv("ELASTIC_APM_SECRET_TOKEN", "hunter2")()
 
 	transport, err := transport.NewHTTPTransport(server.URL, "")

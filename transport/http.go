@@ -130,6 +130,13 @@ func NewHTTPTransport(serverURL, secretToken string) (*HTTPTransport, error) {
 	return t, nil
 }
 
+// SetUserAgent sets the User-Agent header that will be
+// sent with each request.
+func (t *HTTPTransport) SetUserAgent(ua string) {
+	t.headers.Set("User-Agent", ua)
+	t.gzipHeaders.Set("User-Agent", ua)
+}
+
 // SendTransactions sends the transactions payload over HTTP.
 func (t *HTTPTransport) SendTransactions(ctx context.Context, p *model.TransactionsPayload) error {
 	t.jsonWriter.Reset()
