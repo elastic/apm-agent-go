@@ -36,6 +36,8 @@ var (
 	// Take a copy of the http.DefaultTransport pointer,
 	// in case another package replaces the value later.
 	defaultHTTPTransport = http.DefaultTransport.(*http.Transport)
+
+	defaultServerURL = "http://localhost:8200"
 )
 
 // HTTPTransport is an implementation of Transport, sending payloads via
@@ -58,9 +60,9 @@ type HTTPTransport struct {
 //
 // If the URL specified is the empty string, then NewHTTPTransport will use the
 // value of the ELASTIC_APM_SERVER_URL environment variable, if defined; if
-// the environment variable is also undefined, then an error will be returned.
-// The URL must be the base server URL, excluding any transactions or errors
-// path. e.g. "http://elastic-apm.example:8200".
+// the environment variable is also undefined, then the transport will use the
+// default URL "http://localhost:8200". The URL must be the base server URL,
+// excluding any transactions or errors path. e.g. "http://server.example:8200".
 //
 // If the secret token specified is the empty string, then NewHTTPTransport
 // will use the value of the ELASTIC_APM_SECRET_TOKEN environment variable, if
@@ -77,9 +79,7 @@ func NewHTTPTransport(serverURL, secretToken string) (*HTTPTransport, error) {
 	if serverURL == "" {
 		serverURL = os.Getenv(envServerURL)
 		if serverURL == "" {
-			return nil, errors.Errorf(
-				"URL not specified, and $%s not set", envServerURL,
-			)
+			serverURL = defaultServerURL
 		}
 	}
 	req, err := http.NewRequest("POST", serverURL, nil)
