@@ -230,6 +230,7 @@ func validatePayloads(t *testing.T, f func(tracer *elasticapm.Tracer)) {
 	} else if transactionSchema == nil {
 		var err error
 		compiler := jsonschema.NewCompiler()
+		compiler.Draft = jsonschema.Draft4
 		specDir := path.Join(filepath.ToSlash(serverPkg.Dir), "docs/spec")
 		transactionSchema, err = compiler.Compile("file://" + path.Join(specDir, "transactions/payload.json"))
 		require.NoError(t, err)
