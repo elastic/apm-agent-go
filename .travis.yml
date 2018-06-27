@@ -11,7 +11,7 @@ matrix:
   allow_failures:
     - os: osx
   include:
-    - go: "1.x"
+    - go: stable
       os: osx
 
 before_install:
@@ -20,7 +20,13 @@ before_install:
   - go get -d github.com/elastic/apm-server || true
 
 script:
-  - make install precheck coverage.txt
+  - make install check
 
-after_success:
-  - bash <(curl -s https://codecov.io/bash)
+jobs:
+  include:
+    - stage: coverage
+      go: stable
+      script:
+       - go get -d github.com/elastic/apm-server || true
+       - make install coverage.txt
+       - bash <(curl -s https://codecov.io/bash)
