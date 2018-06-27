@@ -309,7 +309,7 @@ func initStacktrace(e *Error, err error) {
 		for i, frame := range stackTrace {
 			pc[i] = uintptr(frame)
 		}
-		e.stacktrace = stacktrace.AppendCallerFrames(e.stacktrace[:0], pc)
+		e.stacktrace = stacktrace.AppendCallerFrames(e.stacktrace[:0], pc, -1)
 	}
 }
 
