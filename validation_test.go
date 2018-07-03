@@ -11,7 +11,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pkg/errors"
 	"github.com/santhosh-tekuri/jsonschema"
 	"github.com/stretchr/testify/require"
 
@@ -199,6 +198,40 @@ func TestValidateErrorLog(t *testing.T) {
 	}
 }
 
+func TestValidateMetrics(t *testing.T) {
+	gather := func(ctx context.Context, m *elasticapm.Metrics) error {
+		m.AddCounter("counter", "", nil, -66)
+		m.AddCounter("counter_with_labels", "", []elasticapm.MetricLabel{
+			{Name: "name", Value: "value"},
+		}, -66)
+		m.AddCounter("counter_with_unit", "bytes", nil, -66)
+		m.AddGauge("gauge", "", nil, 123.45)
+
+		min := float64(-66)
+		max := float64(66)
+		stddev := float64(2)
+		m.AddSummary("summary", "", nil, elasticapm.SummaryMetric{
+			Count:  123,
+			Sum:    456,
+			Min:    &min,
+			Max:    &max,
+			Stddev: &stddev,
+			Quantiles: map[float64]float64{
+				0.25: 1,
+				0.50: 2,
+				0.75: 3,
+			},
+		})
+		return nil
+	}
+
+	validatePayloads(t, func(tracer *elasticapm.Tracer) {
+		unregister := tracer.RegisterMetricsGatherer(elasticapm.GatherMetricsFunc(gather))
+		defer unregister()
+		tracer.SendMetrics(nil)
+	})
+}
+
 func validateTransaction(t *testing.T, f func(tx *elasticapm.Transaction)) {
 	validatePayloads(t, func(tracer *elasticapm.Tracer) {
 		tx := tracer.StartTransaction("name", "type")
@@ -219,6 +252,7 @@ var (
 	serverPkgErr      error
 	transactionSchema *jsonschema.Schema
 	errorSchema       *jsonschema.Schema
+	metricSchema      *jsonschema.Schema
 )
 
 func validatePayloads(t *testing.T, f func(tracer *elasticapm.Tracer)) {
@@ -236,6 +270,8 @@ func validatePayloads(t *testing.T, f func(tracer *elasticapm.Tracer)) {
 		transactionSchema, err = compiler.Compile("file://" + path.Join(specDir, "transactions/payload.json"))
 		require.NoError(t, err)
 		errorSchema, err = compiler.Compile("file://" + path.Join(specDir, "errors/payload.json"))
+		require.NoError(t, err)
+		metricSchema, err = compiler.Compile("file://" + path.Join(specDir, "metrics/payload.json"))
 		require.NoError(t, err)
 	}
 	tracer, _ := elasticapm.NewTracer("tracer_testing", "")
@@ -266,8 +302,8 @@ func (t *validatingTransport) SendErrors(ctx context.Context, p *model.ErrorsPay
 }
 
 func (t *validatingTransport) SendMetrics(ctx context.Context, p *model.MetricsPayload) error {
-	// TODO(axw) use the metrics schema once defined.
-	return errors.New("not implemented")
+	t.validate(p, metricSchema)
+	return nil
 }
 
 func (t *validatingTransport) validate(payload fastjson.Marshaler, schema *jsonschema.Schema) {
