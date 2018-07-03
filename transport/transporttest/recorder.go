@@ -42,6 +42,12 @@ func (r *RecorderTransport) SendErrors(ctx context.Context, payload *model.Error
 	return r.record(payload, &model.ErrorsPayload{})
 }
 
+// SendMetrics records the metrics payload such that it can later be obtained via
+// Payloads.
+func (r *RecorderTransport) SendMetrics(ctx context.Context, payload *model.MetricsPayload) error {
+	return r.record(payload, &model.MetricsPayload{})
+}
+
 // Payloads returns the payloads recorded by SendTransactions and SendErrors.
 // Each element of Payloads is a deep copy of the *model.TransactionsPayload
 // or *model.ErrorsPayload, produced by encoding/decoding the payload to/from
@@ -84,4 +90,10 @@ func (p Payload) Transactions() []model.Transaction {
 // is not an errors payload, this will panic.
 func (p Payload) Errors() []*model.Error {
 	return p.Value.(*model.ErrorsPayload).Errors
+}
+
+// Metrics returns the metrics within the payload. If the payload
+// is not a metrics payload, this will panic.
+func (p Payload) Metrics() []*model.Metrics {
+	return p.Value.(*model.MetricsPayload).Metrics
 }

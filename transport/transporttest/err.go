@@ -26,3 +26,8 @@ func (t ErrorTransport) SendTransactions(context.Context, *model.TransactionsPay
 func (t ErrorTransport) SendErrors(context.Context, *model.ErrorsPayload) error {
 	return t.Error
 }
+
+// SendMetrics discards the payload and returns t.Error.
+func (t ErrorTransport) SendMetrics(context.Context, *model.MetricsPayload) error {
+	return t.Error
+}

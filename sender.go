@@ -2,15 +2,18 @@ package elasticapm
 
 import (
 	"context"
+	"sync"
+	"time"
 
 	"github.com/elastic/apm-agent-go/model"
 	"github.com/elastic/apm-agent-go/stacktrace"
 )
 
 type sender struct {
-	tracer *Tracer
-	cfg    *tracerConfig
-	stats  *TracerStats
+	tracer  *Tracer
+	cfg     *tracerConfig
+	stats   *TracerStats
+	metrics Metrics
 
 	modelTransactions []model.Transaction
 	modelSpans        []model.Span
@@ -129,6 +132,56 @@ func (s *sender) sendErrors(ctx context.Context, errors []*Error) bool {
 	}
 	s.stats.ErrorsSent += uint64(len(errors))
 	return true
+}
+
+// gatherMetrics gathers metrics from each of the registered
+// metrics gatherers. Once all gatherers have returned, a value
+// will be sent on the "gathered" channel.
+func (s *sender) gatherMetrics(ctx context.Context, gathered chan<- struct{}) {
+	// s.cfg must not be used within the goroutines, as it may be
+	// concurrently mutated by the main tracer goroutine. Take a
+	// copy of the current config.
+	logger := s.cfg.logger
+
+	timestamp := model.Time(time.Now().UTC())
+	var group sync.WaitGroup
+	for _, g := range s.cfg.metricsGatherers {
+		group.Add(1)
+		go func(g MetricsGatherer) {
+			defer group.Done()
+			gatherMetrics(ctx, g, &s.metrics, logger)
+		}(g)
+	}
+
+	go func() {
+		group.Wait()
+		for _, m := range s.metrics.metrics {
+			m.Timestamp = timestamp
+		}
+		gathered <- struct{}{}
+	}()
+}
+
+// sendMetrics attempts to send metrics to the APM server. This must be
+// called after gatherMetrics has signalled that metrics have all been
+// gathered.
+func (s *sender) sendMetrics(ctx context.Context) {
+	if len(s.metrics.metrics) == 0 {
+		return
+	}
+	service := makeService(s.tracer.Service.Name, s.tracer.Service.Version, s.tracer.Service.Environment)
+	payload := model.MetricsPayload{
+		Service: &service,
+		Process: s.tracer.process,
+		System:  s.tracer.system,
+		Metrics: s.metrics.metrics,
+	}
+	if err := s.tracer.Transport.SendMetrics(ctx, &payload); err != nil {
+		if s.cfg.logger != nil {
+			s.cfg.logger.Debugf("sending metrics failed: %s", err)
+		}
+	}
+	s.metrics.reset()
 }
 
 func (s *sender) setStacktraceContext(stack []model.StacktraceFrame) {

@@ -46,6 +46,7 @@ func init() {
 
 type options struct {
 	flushInterval           time.Duration
+	metricsInterval         time.Duration
 	maxTransactionQueueSize int
 	maxSpans                int
 	sampler                 Sampler
@@ -63,6 +64,12 @@ func (opts *options) init(continueOnError bool) error {
 	flushInterval, err := initialFlushInterval()
 	if err != nil {
 		flushInterval = defaultFlushInterval
+		errs = append(errs, err)
+	}
+
+	metricsInterval, err := initialMetricsInterval()
+	if err != nil {
+		metricsInterval = defaultMetricsInterval
 		errs = append(errs, err)
 	}
 
@@ -116,6 +123,7 @@ func (opts *options) init(continueOnError bool) error {
 	}
 
 	opts.flushInterval = flushInterval
+	opts.metricsInterval = metricsInterval
 	opts.maxTransactionQueueSize = maxTransactionQueueSize
 	opts.maxSpans = maxSpans
 	opts.sampler = sampler
@@ -157,13 +165,14 @@ type Tracer struct {
 	process *model.Process
 	system  *model.System
 
-	active         bool
-	closing        chan struct{}
-	closed         chan struct{}
-	forceFlush     chan chan<- struct{}
-	configCommands chan tracerConfigCommand
-	transactions   chan *Transaction
-	errors         chan *Error
+	active           bool
+	closing          chan struct{}
+	closed           chan struct{}
+	forceFlush       chan chan<- struct{}
+	forceSendMetrics chan chan<- struct{}
+	configCommands   chan tracerConfigCommand
+	transactions     chan *Transaction
+	errors           chan *Error
 
 	statsMu sync.Mutex
 	stats   TracerStats
@@ -215,6 +224,7 @@ func newTracer(opts options) *Tracer {
 		closing:               make(chan struct{}),
 		closed:                make(chan struct{}),
 		forceFlush:            make(chan chan<- struct{}),
+		forceSendMetrics:      make(chan chan<- struct{}),
 		configCommands:        make(chan tracerConfigCommand),
 		transactions:          make(chan *Transaction, transactionsChannelCap),
 		errors:                make(chan *Error, errorsChannelCap),
@@ -235,12 +245,14 @@ func newTracer(opts options) *Tracer {
 
 	go t.loop()
 	t.configCommands <- func(cfg *tracerConfig) {
+		cfg.metricsInterval = opts.metricsInterval
 		cfg.flushInterval = opts.flushInterval
 		cfg.maxTransactionQueueSize = opts.maxTransactionQueueSize
 		cfg.maxErrorQueueSize = defaultMaxErrorQueueSize
 		cfg.sanitizedFieldNames = opts.sanitizedFieldNames
 		cfg.preContext = defaultPreContext
 		cfg.postContext = defaultPostContext
+		cfg.metricsGatherers = []MetricsGatherer{&builtinMetricsGatherer{tracer: t}}
 	}
 	return t
 }
@@ -283,6 +295,14 @@ func (t *Tracer) Active() bool {
 func (t *Tracer) SetFlushInterval(d time.Duration) {
 	t.sendConfigCommand(func(cfg *tracerConfig) {
 		cfg.flushInterval = d
+	})
+}
+
+// SetMetricsInterval sets the metrics interval -- the amount of time in
+// between metrics samples being gathered.
+func (t *Tracer) SetMetricsInterval(d time.Duration) {
+	t.sendConfigCommand(func(cfg *tracerConfig) {
+		cfg.metricsInterval = d
 	})
 }
 
@@ -341,6 +361,33 @@ func (t *Tracer) SetSanitizedFieldNames(patterns ...string) error {
 	return nil
 }
 
+// RegisterMetricsGatherer registers g for periodic (or forced) metrics
+// gathering by t.
+//
+// RegisterMetricsGatherer returns a function which will deregister g.
+// It may safely be called multiple times.
+func (t *Tracer) RegisterMetricsGatherer(g MetricsGatherer) func() {
+	// Wrap g in a pointer-to-struct, so we can safely compare.
+	wrapped := &struct{ MetricsGatherer }{MetricsGatherer: g}
+	t.sendConfigCommand(func(cfg *tracerConfig) {
+		cfg.metricsGatherers = append(cfg.metricsGatherers, wrapped)
+	})
+	deregister := func(cfg *tracerConfig) {
+		for i, g := range cfg.metricsGatherers {
+			if g != wrapped {
+				continue
+			}
+			cfg.metricsGatherers = append(cfg.metricsGatherers[:i], cfg.metricsGatherers[i+1:]...)
+		}
+	}
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			t.sendConfigCommand(deregister)
+		})
+	}
+}
+
 func (t *Tracer) sendConfigCommand(cmd tracerConfigCommand) {
 	select {
 	case t.configCommands <- cmd:
@@ -381,6 +428,22 @@ func (t *Tracer) SetCaptureBody(mode CaptureBodyMode) {
 	t.captureBodyMu.Unlock()
 }
 
+// SendMetrics forces the tracer to gather and send metrics immediately,
+// blocking until the metrics have been sent or the abort channel is
+// signalled.
+func (t *Tracer) SendMetrics(abort <-chan struct{}) {
+	sent := make(chan struct{}, 1)
+	select {
+	case t.forceSendMetrics <- sent:
+		select {
+		case <-abort:
+		case <-sent:
+		case <-t.closed:
+		}
+	case <-t.closed:
+	}
+}
+
 // Stats returns the current TracerStats. This will return the most
 // recent values even after the tracer has been closed.
 func (t *Tracer) Stats() TracerStats {
@@ -404,6 +467,9 @@ func (t *Tracer) loop() {
 
 	var cfg tracerConfig
 	var flushed chan<- struct{}
+	var forceSentMetrics chan<- struct{}
+	var sendMetricsC <-chan time.Time
+	var gatheringMetrics bool
 	var flushC <-chan time.Time
 	var transactions []*Transaction
 	var errors []*Error
@@ -416,24 +482,41 @@ func (t *Tracer) loop() {
 
 	errorsC := t.errors
 	forceFlush := t.forceFlush
+	forceSendMetrics := t.forceSendMetrics
+	gatheredMetrics := make(chan struct{}, 1)
 	flushTimer := time.NewTimer(0)
 	if !flushTimer.Stop() {
 		<-flushTimer.C
 	}
-	startTimer := func() {
-		if flushC != nil {
+	metricsTimer := time.NewTimer(0)
+	if !metricsTimer.Stop() {
+		<-metricsTimer.C
+	}
+	startTimer := func(ch *<-chan time.Time, timer *time.Timer, interval time.Duration) {
+		if *ch != nil {
 			// Timer already started.
 			return
 		}
-		if !flushTimer.Stop() {
+		if !timer.Stop() {
 			select {
-			case <-flushTimer.C:
+			case <-timer.C:
 			default:
 			}
 		}
-		flushTimer.Reset(cfg.flushInterval)
-		flushC = flushTimer.C
+		if interval <= 0 {
+			// Non-positive interval disables the timer.
+			return
+		}
+		timer.Reset(interval)
+		*ch = timer.C
 	}
+	startFlushTimer := func() {
+		startTimer(&flushC, flushTimer, cfg.flushInterval)
+	}
+	startMetricsTimer := func() {
+		startTimer(&sendMetricsC, metricsTimer, cfg.metricsInterval)
+	}
+
 	receivedTransaction := func(tx *Transaction, stats *TracerStats) {
 		if cfg.maxTransactionQueueSize > 0 && len(transactions) >= cfg.maxTransactionQueueSize {
 			// The queue is full, so pop the oldest item.
@@ -451,6 +534,8 @@ func (t *Tracer) loop() {
 	}
 
 	for {
+		var gatherMetrics bool
+		var sendMetrics bool
 		var sendTransactions bool
 		statsUpdates = TracerStats{}
 
@@ -462,6 +547,7 @@ func (t *Tracer) loop() {
 			if cfg.maxErrorQueueSize <= 0 || len(errors) < cfg.maxErrorQueueSize {
 				errorsC = t.errors
 			}
+			startMetricsTimer()
 			continue
 		case e := <-errorsC:
 			errors = append(errors, e)
@@ -477,7 +563,7 @@ func (t *Tracer) loop() {
 				continue
 			}
 			if cfg.maxTransactionQueueSize <= 0 || len(transactions) < cfg.maxTransactionQueueSize {
-				startTimer()
+				startFlushTimer()
 				continue
 			}
 			sendTransactions = true
@@ -497,6 +583,19 @@ func (t *Tracer) loop() {
 			forceFlush = nil
 			flushC = nil
 			sendTransactions = true
+		case <-sendMetricsC:
+			sendMetricsC = nil
+			gatherMetrics = !gatheringMetrics
+		case forceSentMetrics = <-forceSendMetrics:
+			// forceSentMetrics will be signaled, and forceSendMetrics
+			// set back to t.forceSendMetrics, when metrics have been
+			// gathered and an attempt to send them has been made.
+			forceSendMetrics = nil
+			sendMetricsC = nil
+			gatherMetrics = !gatheringMetrics
+		case <-gatheredMetrics:
+			gatheringMetrics = false
+			sendMetrics = true
 		}
 
 		if remainder := cfg.maxErrorQueueSize - len(errors); remainder > 0 {
@@ -525,17 +624,33 @@ func (t *Tracer) loop() {
 				transactions = transactions[:0]
 			}
 		}
-
 		if !statsUpdates.isZero() {
 			t.statsMu.Lock()
 			t.stats.accumulate(statsUpdates)
 			t.statsMu.Unlock()
-
-			if statsUpdates.Errors.SendTransactions != 0 || statsUpdates.Errors.SendErrors != 0 {
-				// Sending transactions or errors failed, start a new timer to resend.
-				startTimer()
-				continue
+		}
+		if gatherMetrics {
+			gatheringMetrics = true
+			sender.gatherMetrics(ctx, gatheredMetrics)
+		}
+		if sendMetrics {
+			sender.sendMetrics(ctx)
+			// We don't retry sending metrics on failure;
+			// inform the caller that an attempt was made
+			// regardless of the outcome, and restart the
+			// timer.
+			if forceSentMetrics != nil {
+				forceSentMetrics <- struct{}{}
+				forceSentMetrics = nil
+				forceSendMetrics = t.forceSendMetrics
 			}
+			startMetricsTimer()
+		}
+
+		if statsUpdates.Errors.SendTransactions != 0 || statsUpdates.Errors.SendErrors != 0 {
+			// Sending transactions or errors failed, start a new timer to resend.
+			startFlushTimer()
+			continue
 		}
 		if sendTransactions && flushed != nil {
 			forceFlush = t.forceFlush
@@ -549,9 +664,11 @@ func (t *Tracer) loop() {
 // by sending a tracerConfigCommand to the tracer's configCommands channel.
 type tracerConfig struct {
 	flushInterval           time.Duration
+	metricsInterval         time.Duration
 	maxTransactionQueueSize int
 	maxErrorQueueSize       int
 	logger                  Logger
+	metricsGatherers        []MetricsGatherer
 	contextSetter           stacktrace.ContextSetter
 	preContext, postContext int
 	sanitizedFieldNames     *regexp.Regexp

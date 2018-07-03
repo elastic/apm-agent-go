@@ -105,6 +105,53 @@ func TestMarshalTransaction(t *testing.T) {
 	assert.Equal(t, expect, in)
 }
 
+func TestMarshalMetrics(t *testing.T) {
+	metrics := fakeMetrics()
+
+	var w fastjson.Writer
+	metrics.MarshalFastJSON(&w)
+
+	var in map[string]interface{}
+	if err := json.Unmarshal(w.Bytes(), &in); err != nil {
+		t.Fatalf("unmarshalling result failed: %v", err)
+	}
+
+	expect := map[string]interface{}{
+		"timestamp": "1970-01-01T00:02:03Z",
+		"labels": map[string]interface{}{
+			"foo": "bar",
+		},
+		"samples": map[string]interface{}{
+			"counter_metric": map[string]interface{}{
+				"type":  "counter",
+				"unit":  "byte",
+				"value": float64(1024),
+			},
+			"gauge_metric": map[string]interface{}{
+				"type":  "gauge",
+				"value": float64(-66.6),
+			},
+			"summary_metric": map[string]interface{}{
+				"type":   "summary",
+				"count":  float64(3),
+				"sum":    float64(300),
+				"stddev": float64(40.82),
+				"min":    float64(50),
+				"max":    float64(150),
+				"quantiles": []interface{}{
+					[]interface{}{float64(0.00), float64(50)},
+					[]interface{}{float64(0.25), float64(50)},
+					[]interface{}{float64(0.50), float64(100)},
+					[]interface{}{float64(0.75), float64(100)},
+					[]interface{}{float64(1.00), float64(100)},
+				},
+			},
+		},
+	}
+
+	assert.Equal(t, expect, in)
+}
+
 func TestMarshalPayloads(t *testing.T) {
 	tp := fakeTransactionsPayload(0)
 	var w fastjson.Writer
@@ -167,6 +214,23 @@ func TestMarshalPayloads(t *testing.T) {
 	}
 	delete(expect, "transactions")
 	expect["errors"] = []interface{}{}
+	assert.Equal(t, expect, in)
+
+	mp := &model.MetricsPayload{
+		Service: tp.Service,
+		Process: tp.Process,
+		System:  tp.System,
+		Metrics: []*model.Metrics{},
+	}
+	w.Reset()
+	mp.MarshalFastJSON(&w)
+
+	in = make(map[string]interface{})
+	if err := json.Unmarshal(w.Bytes(), &in); err != nil {
+		t.Fatalf("unmarshalling result failed: %v", err)
+	}
+	delete(expect, "errors")
+	expect["metrics"] = []interface{}{}
 	assert.Equal(t, expect, in)
 }
 
@@ -520,6 +584,39 @@ func fakeTransaction() model.Transaction {
 	}
 }
 
+func fakeMetrics() *model.Metrics {
+	return &model.Metrics{
+		Timestamp: model.Time(time.Unix(123, 0).UTC()),
+		Labels:    model.StringMap{{Key: "foo", Value: "bar"}},
+		Samples: map[string]model.Metric{
+			"counter_metric": {
+				Type:  "counter",
+				Unit:  "byte",
+				Value: newFloat64(1024),
+			},
+			"gauge_metric": {
+				Type:  "gauge",
+				Value: newFloat64(-66.6),
+			},
+			"summary_metric": {
+				Type:   "summary",
+				Count:  newUint64(3),
+				Sum:    newFloat64(300),
+				Stddev: newFloat64(40.82),
+				Min:    newFloat64(50),
+				Max:    newFloat64(150),
+				Quantiles: []model.Quantile{
+					{Quantile: 0, Value: 50},
+					{Quantile: 0.25, Value: 50},
+					{Quantile: 0.5, Value: 100},
+					{Quantile: 0.75, Value: 100},
+					{Quantile: 1, Value: 100},
+				},
+			},
+		},
+	}
+}
+
 func fakeService() *model.Service {
 	return &model.Service{
 		Name:        "fake-service",
@@ -582,4 +679,12 @@ func mustParseURL(s string) *url.URL {
 		panic(err)
 	}
 	return u
+}
+
+func newUint64(v uint64) *uint64 {
+	return &v
+}
+
+func newFloat64(v float64) *float64 {
+	return &v
 }
