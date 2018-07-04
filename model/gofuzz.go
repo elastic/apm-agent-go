@@ -13,11 +13,11 @@ import (
 
 func Fuzz(data []byte) int {
 	type Payload struct {
-		Service      *Service       `json:"service"`
-		Process      *Process       `json:"process,omitempty"`
-		System       *System        `json:"system,omitempty"`
-		Errors       []*Error       `json:"errors"`
-		Transactions []*Transaction `json:"transactions"`
+		Service      *Service      `json:"service"`
+		Process      *Process      `json:"process,omitempty"`
+		System       *System       `json:"system,omitempty"`
+		Errors       []*Error      `json:"errors"`
+		Transactions []Transaction `json:"transactions"`
 	}
 
 	var payload Payload
