@@ -61,7 +61,7 @@ func TestQueryContext(t *testing.T) {
 	require.Len(t, tx.Spans, 1)
 
 	assert.NotNil(t, tx.Spans[0].ID)
-	assert.Equal(t, "SELECT", tx.Spans[0].Name)
+	assert.Equal(t, "SELECT FROM foo", tx.Spans[0].Name)
 	assert.Equal(t, "db.sqlite3.query", tx.Spans[0].Type)
 	assert.Equal(t, &model.SpanContext{
 		Database: &model.DatabaseSpanContext{
@@ -107,7 +107,7 @@ func TestStmtExecContext(t *testing.T) {
 		require.NoError(t, err)
 	})
 	require.Len(t, tx.Spans, 1)
-	assert.Equal(t, "DELETE", tx.Spans[0].Name)
+	assert.Equal(t, "DELETE FROM foo", tx.Spans[0].Name)
 	assert.Equal(t, "db.sqlite3.exec", tx.Spans[0].Type)
 }
 
@@ -129,7 +129,7 @@ func TestStmtQueryContext(t *testing.T) {
 		rows.Close()
 	})
 	require.Len(t, tx.Spans, 1)
-	assert.Equal(t, "SELECT", tx.Spans[0].Name)
+	assert.Equal(t, "SELECT FROM foo", tx.Spans[0].Name)
 	assert.Equal(t, "db.sqlite3.query", tx.Spans[0].Type)
 }
 

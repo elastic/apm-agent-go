@@ -20,6 +20,7 @@ import (
 	"github.com/elastic/apm-agent-go/stacktrace"
 	"github.com/elastic/apm-server/processor"
 	error_processor "github.com/elastic/apm-server/processor/error"
+	metric_processor "github.com/elastic/apm-server/processor/metric"
 	transaction_processor "github.com/elastic/apm-server/processor/transaction"
 )
 
@@ -129,9 +130,6 @@ func Fuzz(data []byte) int {
 			return 0
 		}
 		for _, s := range t.Spans {
-			if s == nil {
-				continue
-			}
 			span := tx.StartSpan(s.Name, s.Type, nil)
 			span.Timestamp = tx.Timestamp.Add(time.Duration(s.Start * float64(time.Millisecond)))
 			if s.Context != nil && s.Context.Database != nil {
@@ -229,6 +227,13 @@ func (t *gofuzzTransport) SendErrors(ctx context.Context, payload *model.ErrorsP
 	t.writer.Reset()
 	payload.MarshalFastJSON(&t.writer)
 	t.process(error_processor.NewProcessor())
+	return nil
+}
+
+func (t *gofuzzTransport) SendMetrics(ctx context.Context, payload *model.MetricsPayload) error {
+	t.writer.Reset()
+	payload.MarshalFastJSON(&t.writer)
+	t.process(metric_processor.NewProcessor())
 	return nil
 }
 

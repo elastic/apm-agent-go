@@ -97,14 +97,7 @@ func (d *tracingDriver) formatSpanType(suffix string) string {
 // querySignature returns the value to use in Span.Name for
 // a database query.
 func (d *tracingDriver) querySignature(query string) string {
-	// TODO(axw) parse statement. Create a WrapOption for
-	// consumers to provide a driver-specific parser if
-	// necessary.
-	fields := strings.Fields(query)
-	if len(fields) == 0 {
-		return ""
-	}
-	return strings.ToUpper(fields[0])
+	return genericQuerySignature(query)
 }
 
 func (d *tracingDriver) Open(name string) (driver.Conn, error) {
