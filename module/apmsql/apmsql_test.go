@@ -133,6 +133,33 @@ func TestStmtQueryContext(t *testing.T) {
 	assert.Equal(t, "db.sqlite3.query", tx.Spans[0].Type)
 }
 
+func TestTxStmtQueryContext(t *testing.T) {
+	db, err := apmsql.Open("sqlite3", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+
+	_, err = db.Exec("CREATE TABLE foo (bar INT)")
+	require.NoError(t, err)
+
+	stmt, err := db.Prepare("SELECT * FROM foo")
+	require.NoError(t, err)
+	defer stmt.Close()
+
+	tx := withTransaction(t, func(ctx context.Context) {
+		tx, err := db.BeginTx(ctx, nil)
+		require.NoError(t, err)
+		defer tx.Rollback()
+
+		stmt := tx.Stmt(stmt)
+		rows, err := stmt.QueryContext(ctx)
+		require.NoError(t, err)
+		rows.Close()
+	})
+	require.Len(t, tx.Spans, 1)
+	assert.Equal(t, "SELECT FROM foo", tx.Spans[0].Name)
+	assert.Equal(t, "db.sqlite3.query", tx.Spans[0].Type)
+}
+
 func withTransaction(t *testing.T, f func(ctx context.Context)) model.Transaction {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
