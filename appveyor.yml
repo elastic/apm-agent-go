@@ -7,7 +7,6 @@ environment:
   PATH: C:\msys64\mingw64\bin;%PATH%
 
 build_script:
-- cmd: go get -d github.com/elastic/apm-server || true
 - cmd: go get -t ./...
 
 test_script:
