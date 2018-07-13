@@ -4,10 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"go/build"
 	"net/http"
-	"path"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -15,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/apm-agent-go"
+	"github.com/elastic/apm-agent-go/internal/apmschema"
 	"github.com/elastic/apm-agent-go/internal/fastjson"
 	"github.com/elastic/apm-agent-go/model"
 )
@@ -247,33 +245,7 @@ func validatePayloadMetadata(t *testing.T, f func(tracer *elasticapm.Tracer)) {
 	})
 }
 
-var (
-	serverPkg         *build.Package
-	serverPkgErr      error
-	transactionSchema *jsonschema.Schema
-	errorSchema       *jsonschema.Schema
-	metricSchema      *jsonschema.Schema
-)
-
 func validatePayloads(t *testing.T, f func(tracer *elasticapm.Tracer)) {
-	if serverPkg == nil && serverPkgErr == nil {
-		serverPkg, serverPkgErr = build.Default.Import("github.com/elastic/apm-server", "", build.FindOnly)
-	}
-	if serverPkgErr != nil {
-		t.Logf("couldn't find github.com/elastic/apm-server: %s", serverPkgErr)
-		t.SkipNow()
-	} else if transactionSchema == nil {
-		var err error
-		compiler := jsonschema.NewCompiler()
-		compiler.Draft = jsonschema.Draft4
-		specDir := path.Join(filepath.ToSlash(serverPkg.Dir), "docs/spec")
-		transactionSchema, err = compiler.Compile("file://" + path.Join(specDir, "transactions/payload.json"))
-		require.NoError(t, err)
-		errorSchema, err = compiler.Compile("file://" + path.Join(specDir, "errors/payload.json"))
-		require.NoError(t, err)
-		metricSchema, err = compiler.Compile("file://" + path.Join(specDir, "metrics/payload.json"))
-		require.NoError(t, err)
-	}
 	tracer, _ := elasticapm.NewTracer("tracer_testing", "")
 	defer tracer.Close()
 	tracer.Service.Name = "x"
@@ -292,17 +264,17 @@ type validatingTransport struct {
 }
 
 func (t *validatingTransport) SendTransactions(ctx context.Context, p *model.TransactionsPayload) error {
-	t.validate(p, transactionSchema)
+	t.validate(p, apmschema.Transactions)
 	return nil
 }
 
 func (t *validatingTransport) SendErrors(ctx context.Context, p *model.ErrorsPayload) error {
-	t.validate(p, errorSchema)
+	t.validate(p, apmschema.Errors)
 	return nil
 }
 
 func (t *validatingTransport) SendMetrics(ctx context.Context, p *model.MetricsPayload) error {
-	t.validate(p, metricSchema)
+	t.validate(p, apmschema.Metrics)
 	return nil
 }
 
