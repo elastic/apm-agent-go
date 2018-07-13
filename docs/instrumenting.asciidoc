@@ -179,8 +179,6 @@ Package apmhttprouter provides a low-level middleware handler for https://github
 import (
 	"github.com/julienschmidt/httprouter"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/module/apmhttp"
 	"github.com/elastic/apm-agent-go/module/apmhttprouter"
 )
 
