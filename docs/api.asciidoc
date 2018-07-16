@@ -178,6 +178,24 @@ only restriction is that the name may not contain any special characters
 (`.`, `*`, or `"`), and the value must be JSON-encodable. Custom context
 will not be indexed in Elasticsearch, but will be included in the document.
 
+[float]
+[[context-set-username]]
+==== `func (*Context) SetUsername(username string)`
+
+SetUsername records the username of the user associated with the transaction.
+
+[float]
+[[context-set-user-id]]
+==== `func (*Context) SetUserID(id string)`
+
+SetUserID records the ID of the user associated with the transaction.
+
+[float]
+[[context-set-user-email]]
+==== `func (*Context) SetUserEmail(email string)`
+
+SetUserEmail records the email address of the user associated with the transaction.
+
 // -------------------------------------------------------------------------------------------------
 
 [float]

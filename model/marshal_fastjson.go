@@ -367,7 +367,7 @@ func (v *User) MarshalFastJSON(w *fastjson.Writer) {
 		}
 		w.String(v.Email)
 	}
-	if !v.ID.isZero() {
+	if v.ID != "" {
 		const prefix = ",\"id\":"
 		if first {
 			first = false
@@ -375,7 +375,7 @@ func (v *User) MarshalFastJSON(w *fastjson.Writer) {
 		} else {
 			w.RawString(prefix)
 		}
-		v.ID.MarshalFastJSON(w)
+		w.String(v.ID)
 	}
 	if v.Username != "" {
 		const prefix = ",\"username\":"

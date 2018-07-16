@@ -349,12 +349,12 @@ func TestMarshalExceptionCode(t *testing.T) {
 func TestMarshalUser(t *testing.T) {
 	user := model.User{
 		Email:    "foo@example.com",
-		ID:       model.UserID{Number: 123},
+		ID:       "123",
 		Username: "bar",
 	}
 	var w fastjson.Writer
 	user.MarshalFastJSON(&w)
-	assert.Equal(t, `{"email":"foo@example.com","id":123,"username":"bar"}`, string(w.Bytes()))
+	assert.Equal(t, `{"email":"foo@example.com","id":"123","username":"bar"}`, string(w.Bytes()))
 }
 
 func TestMarshalStacktraceFrame(t *testing.T) {

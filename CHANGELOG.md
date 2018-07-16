@@ -9,6 +9,7 @@
  - module/apmsql: SQL is parsed to generate more useful span names (#129)
  - Basic vgo module added (#136)
  - module/apmhttprouter: added a wrapper type for httprouter.Router to simplify adding routes (#140)
+ - Add Transaction.Context methods for setting user IDs (#144)
 
 ## [v0.4.0](https://github.com/elastic/apm-agent-go/releases/tag/v0.4.0)
 
