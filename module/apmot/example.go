@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/elastic/apm-agent-go"
-	_ "github.com/elastic/apm-agent-go/contrib/apmot"
-	opentracing "github.com/opentracing/opentracing-go"
+	_ "github.com/elastic/apm-agent-go/module/apmot"
+	"github.com/opentracing/opentracing-go"
 )
 
 func main() {

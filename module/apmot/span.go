@@ -2,38 +2,40 @@ package apmot
 
 import (
 	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
 	"sync"
-	"time"
 
-	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/log"
 
 	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/model"
+	"github.com/elastic/apm-agent-go/module/apmhttp"
 )
 
 // spanImpl wraps elasticapm objects to implement the opentracing.Span interface.
 type spanImpl struct {
 	tracer *tracerImpl
-	tx     *elasticapm.Transaction
-	span   *elasticapm.Span
 
 	mu   sync.Mutex
+	tx   *elasticapm.Transaction
+	span *elasticapm.Span
 	tags opentracing.Tags
 	ctx  SpanContext
 }
 
+// SetOperationName sets or changes the operation name.
 func (s *spanImpl) SetOperationName(operationName string) opentracing.Span {
-	if s.span != nil {
-		s.span.Name = operationName
-	} else {
+	if s.tx != nil {
 		s.tx.Name = operationName
+	} else {
+		s.span.Name = operationName
 	}
 	return s
 }
 
+// SetTag adds or changes a tag.
 func (s *spanImpl) SetTag(key string, value interface{}) opentracing.Span {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -44,38 +46,51 @@ func (s *spanImpl) SetTag(key string, value interface{}) opentracing.Span {
 	return s
 }
 
+// Finish ends the span; this (or FinishWithOptions) must be the last method
+// call on the span, except for calls to Context which may be called at any
+// time.
 func (s *spanImpl) Finish() {
 	s.FinishWithOptions(opentracing.FinishOptions{})
 }
 
+// FinishWithOptions is like Finish, but provides explicit control over the
+// end timestamp and log data.
 func (s *spanImpl) FinishWithOptions(opts opentracing.FinishOptions) {
-	var duration time.Duration = -1
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if !opts.FinishTime.IsZero() {
 		if s.span != nil {
-			duration = opts.FinishTime.Sub(s.span.Start)
+			s.span.Duration = opts.FinishTime.Sub(s.span.Timestamp)
 		} else {
-			duration = opts.FinishTime.Sub(s.tx.Timestamp)
+			s.tx.Duration = opts.FinishTime.Sub(s.tx.Timestamp)
 		}
 	}
 	if s.span != nil {
 		s.setSpanContext()
-		s.span.Done(duration)
+		s.span.End()
 	} else {
 		s.setTransactionContext()
-		s.tx.Done(duration)
+		s.tx.End()
 	}
 }
 
+// Tracer returns the Tracer that created this span.
 func (s *spanImpl) Tracer() opentracing.Tracer {
 	return s.tracer
 }
 
+// Context returns the span's current context.
+//
+// It is valid to call Context after calling Finish or FinishWithOptions.
+// The resulting context is also valid after the span is finished.
 func (s *spanImpl) Context() opentracing.SpanContext {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.ctx
 }
 
+// SetBaggageItem sets a key:value pair on this Span and its SpanContext
+// that also propagates to descendants of this Span.
 func (s *spanImpl) SetBaggageItem(key, val string) opentracing.Span {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -83,6 +98,9 @@ func (s *spanImpl) SetBaggageItem(key, val string) opentracing.Span {
 	return s
 }
 
+// BaggageItem returns tthe value for a baggage item given its key.
+// If there is no baggage item for the given key, the empty string
+// is returned.
 func (s *spanImpl) BaggageItem(key string) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -110,15 +128,13 @@ func (*spanImpl) Log(ld opentracing.LogData) {
 }
 
 func (s *spanImpl) setSpanContext() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	var dbContext model.DatabaseSpanContext
+	var dbContext elasticapm.DatabaseSpanContext
 	var haveDBContext bool
 	s.span.Type = "unknown" // fallback
 	for k, v := range s.tags {
 		switch k {
 		case "component":
-			s.tx.Type = fmt.Sprint(v)
+			s.span.Type = fmt.Sprint(v)
 		case "db.instance":
 			dbContext.Instance = fmt.Sprint(v)
 			haveDBContext = true
@@ -139,64 +155,57 @@ func (s *spanImpl) setSpanContext() {
 			dbType = dbContext.Type
 		}
 		s.tx.Type = fmt.Sprintf("db.%s.query", dbType)
-		s.span.Context = &model.SpanContext{
-			Database: &dbContext,
-		}
+		s.span.Context.SetDatabase(dbContext)
 	}
 }
 
 func (s *spanImpl) setTransactionContext() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	var (
-		ctx          model.Context
-		otCustom     map[string]interface{}
-		httpRequest  model.Request
-		httpResponse model.Response
-		httpURL      string
+		otCustom   map[string]interface{}
+		httpMethod string
+		httpURL    string
 	)
 	for k, v := range s.tags {
 		var shouldSetCustom bool
 		switch k {
 		case "component":
 			s.tx.Type = fmt.Sprint(v)
-			shouldSetCustom = true
 		case "http.method":
-			httpRequest.Method = fmt.Sprint(v)
-			ctx.Request = &httpRequest
+			httpMethod = fmt.Sprint(v)
 		case "http.status_code":
-			s.tx.Result = fmt.Sprint(v)
 			if code, ok := v.(uint64); ok {
-				httpResponse.StatusCode = int(code)
+				s.tx.Result = apmhttp.StatusCodeResult(int(code))
+				s.tx.Context.SetHTTPStatusCode(int(code))
+			} else {
+				// ???
+				s.tx.Result = fmt.Sprint(v)
 			}
-			ctx.Response = &httpResponse
 		case "http.url":
 			httpURL = fmt.Sprint(v)
 		default:
 			shouldSetCustom = true
 		}
 		if shouldSetCustom {
-			if ctx.Custom == nil {
+			if otCustom == nil {
 				otCustom = make(map[string]interface{})
-				ctx.Custom = map[string]interface{}{"ot": otCustom}
+				s.tx.Context.SetCustom("ot", otCustom)
 			}
 			setCustom(otCustom, k, v)
 		}
 	}
-	if httpURL != "" || ctx.Custom != nil {
-		s.tx.Context = &ctx
-	}
+
 	if httpURL != "" || s.tx.Type == "" {
 		s.tx.Type = "request"
 	}
 	if httpURL != "" {
 		uri, err := url.ParseRequestURI(httpURL)
 		if err == nil {
-			httpRequest.URL.Protocol = uri.Scheme
-			httpRequest.URL.Path = uri.Path
-			httpRequest.URL.Search = uri.RawQuery
-			httpRequest.URL.Hash = uri.Fragment
-			ctx.Request = &httpRequest
+			var req http.Request
+			req.ProtoMajor = 1 // Assume HTTP/1.1
+			req.ProtoMinor = 1
+			req.Method = httpMethod
+			req.URL = uri
+			s.tx.Context.SetHTTPRequest(&req)
 		}
 	}
 }

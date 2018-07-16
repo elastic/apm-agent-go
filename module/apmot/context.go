@@ -8,11 +8,9 @@ import (
 
 // SpanContext holds the basic Span metadata.
 type SpanContext struct {
-	tx   *elasticapm.Transaction
-	span *elasticapm.Span
-
-	// The span's associated baggage.
-	baggage map[string]string // initialized on first use
+	tx      *elasticapm.Transaction
+	span    *elasticapm.Span
+	baggage map[string]string
 }
 
 // ForeachBaggageItem belongs to the opentracing.SpanContext interface
@@ -37,8 +35,7 @@ func (c SpanContext) WithBaggageItem(key, val string) SpanContext {
 		}
 		newBaggage[key] = val
 	}
-	// Use positional parameters so the compiler will help catch new fields.
-	return SpanContext{c.tx, c.span, newBaggage}
+	return SpanContext{tx: c.tx, span: c.span, baggage: newBaggage}
 }
 
 func parentSpanContext(refs []opentracing.SpanReference) (SpanContext, bool) {

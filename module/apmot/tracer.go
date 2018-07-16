@@ -1,18 +1,22 @@
 package apmot
 
 import (
-	"time"
-
-	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go"
 
 	"github.com/elastic/apm-agent-go"
 )
 
 func init() {
-	opentracing.SetGlobalTracer(New(elasticapm.DefaultTracer))
+	opentracing.SetGlobalTracer(New(nil))
 }
 
+// New returns a new opentracing.Tracer backed by the supplied
+// Elastic APM tracer. If the supplied tracer is nil, then
+// opentracing.DefaultTracer will be used.
 func New(tracer *elasticapm.Tracer) opentracing.Tracer {
+	if tracer == nil {
+		tracer = elasticapm.DefaultTracer
+	}
 	return &tracerImpl{tracer: tracer}
 }
 
@@ -37,18 +41,28 @@ func (t *tracerImpl) StartSpanWithOptions(
 	opts opentracing.StartSpanOptions,
 ) opentracing.Span {
 
-	startTime := opts.StartTime
-	if startTime.IsZero() {
-		startTime = time.Now()
-	}
-
 	var ctx SpanContext
 	parentCtx, ok := parentSpanContext(opts.References)
 	if !ok {
 		ctx.tx = t.tracer.StartTransaction(operationName, "")
+		if !opts.StartTime.IsZero() {
+			ctx.tx.Timestamp = opts.StartTime
+		}
 	} else {
-		ctx.tx = parentCtx.tx
-		ctx.span = ctx.tx.StartSpan(operationName, "", parentCtx.span)
+		if parentCtx.tx != nil {
+			ctx.tx = parentCtx.tx
+			ctx.span = ctx.tx.StartSpan(operationName, "", parentCtx.span)
+			if !opts.StartTime.IsZero() {
+				ctx.span.Timestamp = opts.StartTime
+			}
+		} else {
+			// TODO(axw) create a transaction with trace and
+			// parent ID taken from the parent context.
+			ctx.tx = t.tracer.StartTransaction(operationName, "")
+			if !opts.StartTime.IsZero() {
+				ctx.tx.Timestamp = opts.StartTime
+			}
+		}
 		if n := len(parentCtx.baggage); n != 0 {
 			ctx.baggage = make(map[string]string, n)
 			for k, v := range parentCtx.baggage {
@@ -57,7 +71,8 @@ func (t *tracerImpl) StartSpanWithOptions(
 		}
 	}
 
-	// TODO(axw) pool spanImpls to avoid allocation overhead.
+	// Because the Context method can be called at any time after the span
+	// is finished, we cannot pool the objects.
 	return &spanImpl{
 		tracer: t,
 		tx:     ctx.tx,
