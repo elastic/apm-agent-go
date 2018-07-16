@@ -193,6 +193,27 @@ func main() {
 
 https://github.com/julienschmidt/httprouter/pull/139[httprouter does not provide a means of obtaining the matched route], hence the route must be passed into the wrapper.
 
+Alternatively you can use the apmhttprouter.Router type, which wraps httprouter.Router,
+providing the same API and instrumenting added routes. To use this wrapper type, you
+should rewrite your use of `httprouter.New` to `apmhttprouter.New`; the returned type
+is `*apmhttprouter.Router`, and not `*httprouter.Router`.
+
+[source,go]
+----
+import (
+	"github.com/julienschmidt/httprouter"
+
+	"github.com/elastic/apm-agent-go/module/apmhttprouter"
+)
+
+func main() {
+	router := apmhttprouter.New()
+
+	router.GET(route, h)
+	...
+}
+----
+
 ===== module/apmlambda
 Package apmlambda intercepts requests to your AWS Lambda function invocations.
 
