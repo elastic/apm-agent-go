@@ -69,6 +69,14 @@ func TestValidateSpanType(t *testing.T) {
 
 func TestValidateContextUser(t *testing.T) {
 	validateTransaction(t, func(tx *elasticapm.Transaction) {
+		tx.Context.SetUsername(strings.Repeat("x", 1025))
+		tx.Context.SetUserEmail(strings.Repeat("x", 1025))
+		tx.Context.SetUserID(strings.Repeat("x", 1025))
+	})
+}
+
+func TestValidateContextUserBasicAuth(t *testing.T) {
+	validateTransaction(t, func(tx *elasticapm.Transaction) {
 		req, err := http.NewRequest("GET", "/", nil)
 		require.NoError(t, err)
 		req.SetBasicAuth(strings.Repeat("x", 1025), "")

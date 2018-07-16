@@ -179,3 +179,27 @@ func (c *Context) SetHTTPStatusCode(statusCode int) {
 	c.response.StatusCode = statusCode
 	c.model.Response = &c.response
 }
+
+// SetUserID sets the ID of the authenticated user.
+func (c *Context) SetUserID(id string) {
+	c.user.ID = truncateString(id)
+	if c.user.ID != "" {
+		c.model.User = &c.user
+	}
+}
+
+// SetUserEmail sets the email for the authenticated user.
+func (c *Context) SetUserEmail(email string) {
+	c.user.Email = truncateString(email)
+	if c.user.Email != "" {
+		c.model.User = &c.user
+	}
+}
+
+// SetUsername sets the username of the authenticated user.
+func (c *Context) SetUsername(username string) {
+	c.user.Username = truncateString(username)
+	if c.user.Username != "" {
+		c.model.User = &c.user
+	}
+}
