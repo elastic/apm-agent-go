@@ -37,6 +37,8 @@ const (
 	REPLACE
 	SELECT
 	SET
+	TABLE
+	TRUNCATE // Cassandra/CQL-specific
 	UPDATE
 )
 
@@ -54,16 +56,18 @@ var tokenStrings = [...]string{
 	LPAREN: "(",
 	RPAREN: ")",
 
-	CALL:    "CALL",
-	DELETE:  "DELETE",
-	FROM:    "FROM",
-	INSERT:  "INSERT",
-	INTO:    "INTO",
-	OR:      "OR",
-	REPLACE: "REPLACE",
-	SELECT:  "SELECT",
-	SET:     "SET",
-	UPDATE:  "UPDATE",
+	CALL:     "CALL",
+	DELETE:   "DELETE",
+	FROM:     "FROM",
+	INSERT:   "INSERT",
+	INTO:     "INTO",
+	OR:       "OR",
+	REPLACE:  "REPLACE",
+	SELECT:   "SELECT",
+	SET:      "SET",
+	TABLE:    "TABLE",
+	TRUNCATE: "TRUNCATE",
+	UPDATE:   "UPDATE",
 }
 
 // keywords contains keyword tokens, indexed
@@ -72,6 +76,8 @@ var keywords = [...][]Token{
 	2: []Token{OR},
 	3: []Token{SET},
 	4: []Token{CALL, FROM, INTO},
+	5: []Token{TABLE},
 	6: []Token{DELETE, INSERT, SELECT, UPDATE},
 	7: []Token{REPLACE},
+	8: []Token{TRUNCATE},
 }

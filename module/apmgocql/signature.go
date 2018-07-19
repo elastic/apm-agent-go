@@ -1,4 +1,4 @@
-package apmsql
+package apmgocql
 
 import (
 	"strings"
@@ -6,16 +6,15 @@ import (
 	"github.com/elastic/apm-agent-go/internal/sqlscanner"
 )
 
-// genericQuerySignature returns the "signature" for a query:
+// querySignature returns the "signature" for a Cassandra query:
 // a high level description of the operation.
 //
 // For DDL statements (CREATE, DROP, ALTER, etc.), we we only
 // report the first keyword, on the grounds that these statements
 // are not expected to be common within the hot code paths of
-// an application. For SELECT, INSERT, and UPDATE, and DELETE,
-// we attempt to extract the first table name. If we are unable
-// to identify the table name, we simply omit it.
-func genericQuerySignature(query string) string {
+// an application. For DML statements, we extract and include
+// the table name in the signature.
+func querySignature(query string) string {
 	s := sqlscanner.NewScanner(query)
 	for s.Scan() {
 		if s.Token() != sqlscanner.COMMENT {
@@ -45,12 +44,6 @@ func genericQuerySignature(query string) string {
 	}
 
 	switch s.Token() {
-	case sqlscanner.CALL:
-		if !scanUntil(sqlscanner.IDENT) {
-			break
-		}
-		return "CALL " + s.Text()
-
 	case sqlscanner.DELETE:
 		if !scanUntil(sqlscanner.FROM) {
 			break
@@ -64,8 +57,7 @@ func genericQuerySignature(query string) string {
 		}
 		return "DELETE FROM " + tableName
 
-	case sqlscanner.INSERT, sqlscanner.REPLACE:
-		action := s.Text()
+	case sqlscanner.INSERT:
 		if !scanUntil(sqlscanner.INTO) {
 			break
 		}
@@ -76,7 +68,7 @@ func genericQuerySignature(query string) string {
 		for scanToken(sqlscanner.PERIOD) && scanToken(sqlscanner.IDENT) {
 			tableName += "." + s.Text()
 		}
-		return action + " INTO " + tableName
+		return "INSERT INTO " + tableName
 
 	case sqlscanner.SELECT:
 		var level int
@@ -102,37 +94,25 @@ func genericQuerySignature(query string) string {
 			}
 		}
 
-	case sqlscanner.UPDATE:
-		// Scan for the table name. Some dialects allow
-		// option keywords before the table name.
-		var havePeriod, haveFirstPeriod bool
-		if !scanToken(sqlscanner.IDENT) {
-			return "UPDATE"
+	case sqlscanner.TRUNCATE:
+		if !scanUntil(sqlscanner.IDENT) {
+			break
 		}
 		tableName := s.Text()
-		for s.Scan() {
-			switch tok := s.Token(); tok {
-			case sqlscanner.IDENT:
-				if havePeriod {
-					tableName += s.Text()
-					havePeriod = false
-				}
-				if !haveFirstPeriod {
-					tableName = s.Text()
-				} else {
-					// Two adjacent identifiers found
-					// after the first period. Ignore
-					// the secondary ones, in case they
-					// are unknown keywords.
-				}
-			case sqlscanner.PERIOD:
-				haveFirstPeriod = true
-				havePeriod = true
-				tableName += "."
-			case sqlscanner.SET:
-				return "UPDATE " + tableName
-			}
+		for scanToken(sqlscanner.PERIOD) && scanToken(sqlscanner.IDENT) {
+			tableName += "." + s.Text()
 		}
+		return "TRUNCATE " + tableName
+
+	case sqlscanner.UPDATE:
+		if !scanToken(sqlscanner.IDENT) {
+			break
+		}
+		tableName := s.Text()
+		for scanToken(sqlscanner.PERIOD) && scanToken(sqlscanner.IDENT) {
+			tableName += "." + s.Text()
+		}
+		return "UPDATE " + tableName
 	}
 
 	// If all else fails, just return the first token of the query.
