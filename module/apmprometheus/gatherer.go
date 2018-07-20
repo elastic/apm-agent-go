@@ -2,6 +2,7 @@ package apmprometheus
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
@@ -32,7 +33,7 @@ func (g gatherer) GatherMetrics(ctx context.Context, out *elasticapm.Metrics) er
 		case dto.MetricType_COUNTER:
 			for _, m := range mf.GetMetric() {
 				v := m.GetCounter().GetValue()
-				out.AddCounter(name, "", makeLabels(m.GetLabel()), v)
+				out.Add(name, makeLabels(m.GetLabel()), v)
 			}
 		case dto.MetricType_GAUGE:
 			metrics := mf.GetMetric()
@@ -44,25 +45,23 @@ func (g gatherer) GatherMetrics(ctx context.Context, out *elasticapm.Metrics) er
 			}
 			for _, m := range metrics {
 				v := m.GetGauge().GetValue()
-				out.AddGauge(name, "", makeLabels(m.GetLabel()), v)
+				out.Add(name, makeLabels(m.GetLabel()), v)
 			}
 		case dto.MetricType_UNTYPED:
 			for _, m := range mf.GetMetric() {
 				v := m.GetUntyped().GetValue()
-				out.AddGauge(name, "", makeLabels(m.GetLabel()), v)
+				out.Add(name, makeLabels(m.GetLabel()), v)
 			}
 		case dto.MetricType_SUMMARY:
 			for _, m := range mf.GetMetric() {
 				s := m.GetSummary()
-				quantiles := make(map[float64]float64)
+				labels := makeLabels(m.GetLabel())
+				out.Add(name+".count", labels, float64(s.GetSampleCount()))
+				out.Add(name+".total", labels, float64(s.GetSampleSum()))
 				for _, q := range s.GetQuantile() {
-					quantiles[q.GetQuantile()] = q.GetValue()
+					p := int(q.GetQuantile() * 100)
+					out.Add(name+".percentile."+strconv.Itoa(p), labels, q.GetValue())
 				}
-				out.AddSummary(name, "", makeLabels(m.GetLabel()), elasticapm.SummaryMetric{
-					Count:     s.GetSampleCount(),
-					Sum:       s.GetSampleSum(),
-					Quantiles: quantiles,
-				})
 			}
 		default:
 			// TODO(axw) MetricType_HISTOGRAM

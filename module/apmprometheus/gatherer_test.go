@@ -1,6 +1,7 @@
 package apmprometheus_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -40,17 +41,18 @@ func TestSummary(t *testing.T) {
 
 	g := apmprometheus.Wrap(r)
 	metrics := gatherMetrics(g)
-	assert.Contains(t, metrics[0].Samples, "summary")
-	assert.Equal(t, model.Metric{
-		Type:  "summary",
-		Count: newUint64(3),
-		Sum:   newFloat64(300),
-		Quantiles: []model.Quantile{
-			{Quantile: 0.5, Value: 100},
-			{Quantile: 0.9, Value: 150},
-			{Quantile: 0.99, Value: 150},
-		},
-	}, metrics[0].Samples["summary"])
+	for name := range metrics[0].Samples {
+		if !strings.HasPrefix(name, "summary.") {
+			delete(metrics[0].Samples, name)
+		}
+	}
+	assert.Equal(t, map[string]model.Metric{
+		"summary.count":         {Value: 3},
+		"summary.total":         {Value: 300},
+		"summary.percentile.50": {Value: 100},
+		"summary.percentile.90": {Value: 150},
+		"summary.percentile.99": {Value: 150},
+	}, metrics[0].Samples)
 }
 
 func TestLabels(t *testing.T) {
@@ -76,7 +78,7 @@ func TestLabels(t *testing.T) {
 
 	assert.NotEmpty(t, metrics)
 	assert.Empty(t, metrics[0].Labels)
-	assert.Contains(t, metrics[0].Samples, "go.mem.heap.mallocs")
+	assert.Contains(t, metrics[0].Samples, "golang.heap.allocations.mallocs")
 	metrics = metrics[1:]
 
 	assert.Equal(t, []*model.Metrics{{
@@ -86,12 +88,10 @@ func TestLabels(t *testing.T) {
 		},
 		Samples: map[string]model.Metric{
 			"http_requests_total": {
-				Type:  "counter",
-				Value: newFloat64(123),
+				Value: 123,
 			},
 			"http_requests_inflight": {
-				Type:  "gauge",
-				Value: newFloat64(10),
+				Value: 10,
 			},
 		},
 	}, {
@@ -101,8 +101,7 @@ func TestLabels(t *testing.T) {
 		},
 		Samples: map[string]model.Metric{
 			"http_requests_total": {
-				Type:  "counter",
-				Value: newFloat64(1),
+				Value: 1,
 			},
 		},
 	}, {
@@ -112,8 +111,7 @@ func TestLabels(t *testing.T) {
 		},
 		Samples: map[string]model.Metric{
 			"http_requests_total": {
-				Type:  "counter",
-				Value: newFloat64(1),
+				Value: 1,
 			},
 		},
 	}}, metrics)
@@ -129,12 +127,4 @@ func gatherMetrics(g elasticapm.MetricsGatherer) []*model.Metrics {
 		s.Timestamp = model.Time{}
 	}
 	return metrics
-}
-
-func newUint64(v uint64) *uint64 {
-	return &v
-}
-
-func newFloat64(v float64) *float64 {
-	return &v
 }
