@@ -264,6 +264,38 @@ func main() {
 Spans will be created for queries and other statement executions if the context methods are
 used, and the context includes a transaction.
 
+===== module/apmgocql
+Package apmgocql provides a means of instrumenting https://github.com/gocql/gocql[gocql] so
+that queries are reported as spans within the current transaction.
+
+To report `gocql` queries, you can construct an `apmgocql.Observer` and assign it to
+the `QueryObserver` and `BatchObserver` fields of `gocql.ClusterConfig`, or install it
+into a specific `gocql.Query` or `gocql.Batch` via their `Observer` methods.
+
+Spans will be created for queries as long as they have context associated, and the
+context includes a transaction.
+
+[source,go]
+----
+import (
+	"github.com/gocql/gocql"
+
+	"github.com/elastic/apm-agent-go/module/apmgocql"
+)
+
+func main() {
+	observer := apmgocql.NewObserver()
+	config := gocql.NewCluster("cassandra_host")
+	config.QueryObserver = observer
+	config.BatchObserver = observer
+
+	session, err := config.CreateSession()
+	...
+	err = session.Query("SELECT * FROM foo").WithContext(ctx).Exec()
+	...
+}
+----
+
 [[custom-instrumentation]]
 ==== Custom instrumentation
 
