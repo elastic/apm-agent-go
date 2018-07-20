@@ -9,6 +9,10 @@ import (
 	"github.com/elastic/apm-agent-go/stacktrace"
 )
 
+// notSampled is used as the pointee for the model.Transaction.Sampled field
+// of non-sampled transactions.
+var notSampled = false
+
 type sender struct {
 	tracer  *Tracer
 	cfg     *tracerConfig
@@ -30,52 +34,11 @@ func (s *sender) sendTransactions(ctx context.Context, transactions []*Transacti
 	s.modelTransactions = s.modelTransactions[:0]
 	s.modelSpans = s.modelSpans[:0]
 	s.modelStacktrace = s.modelStacktrace[:0]
-	var spanOffset int
-	var stacktraceOffset int
 
 	for _, tx := range transactions {
-		s.modelTransactions = append(s.modelTransactions, model.Transaction{
-			Name:      truncateString(tx.Name),
-			Type:      truncateString(tx.Type),
-			ID:        tx.id,
-			Result:    truncateString(tx.Result),
-			Timestamp: model.Time(tx.Timestamp.UTC()),
-			Duration:  tx.Duration.Seconds() * 1000,
-			SpanCount: model.SpanCount{
-				Dropped: model.SpanCountDropped{
-					Total: tx.spansDropped,
-				},
-			},
-		})
+		s.modelTransactions = append(s.modelTransactions, model.Transaction{})
 		modelTx := &s.modelTransactions[len(s.modelTransactions)-1]
-		if tx.Sampled() {
-			modelTx.Context = tx.Context.build()
-			if s.cfg.sanitizedFieldNames != nil && modelTx.Context != nil && modelTx.Context.Request != nil {
-				sanitizeRequest(modelTx.Context.Request, s.cfg.sanitizedFieldNames)
-			}
-			for _, span := range tx.spans {
-				s.modelSpans = append(s.modelSpans, model.Span{
-					ID:       &span.id,
-					Name:     truncateString(span.Name),
-					Type:     truncateString(span.Type),
-					Start:    span.Timestamp.Sub(tx.Timestamp).Seconds() * 1000,
-					Duration: span.Duration.Seconds() * 1000,
-					Context:  span.Context.build(),
-				})
-				modelSpan := &s.modelSpans[len(s.modelSpans)-1]
-				if span.parent != -1 {
-					modelSpan.Parent = &span.parent
-				}
-				s.modelStacktrace = appendModelStacktraceFrames(s.modelStacktrace, span.stacktrace)
-				modelSpan.Stacktrace = s.modelStacktrace[stacktraceOffset:]
-				stacktraceOffset += len(span.stacktrace)
-				s.setStacktraceContext(modelSpan.Stacktrace)
-			}
-			modelTx.Spans = s.modelSpans[spanOffset:]
-			spanOffset += len(tx.spans)
-		} else {
-			modelTx.Sampled = &tx.sampled
-		}
+		s.buildModelTransaction(modelTx, tx)
 	}
 
 	service := makeService(s.tracer.Service.Name, s.tracer.Service.Version, s.tracer.Service.Environment)
@@ -112,7 +75,12 @@ func (s *sender) sendErrors(ctx context.Context, errors []*Error) bool {
 	}
 	for i, e := range errors {
 		if e.Transaction != nil {
-			e.model.Transaction.ID = e.Transaction.id
+			if !e.Transaction.traceContext.Span.isZero() {
+				e.model.TraceID = model.TraceID(e.Transaction.traceContext.Trace)
+				e.model.ParentID = model.SpanID(e.Transaction.traceContext.Span)
+			} else {
+				e.model.Transaction.ID = model.UUID(e.Transaction.traceContext.Trace)
+			}
 		}
 		s.setStacktraceContext(e.modelStacktrace)
 		e.setStacktrace()
@@ -182,6 +150,59 @@ func (s *sender) sendMetrics(ctx context.Context) {
 		}
 	}
 	s.metrics.reset()
+}
+
+func (s *sender) buildModelTransaction(out *model.Transaction, tx *Transaction) {
+	if !tx.traceContext.Span.isZero() {
+		out.TraceID = model.TraceID(tx.traceContext.Trace)
+		out.ParentID = model.SpanID(tx.parentSpan)
+		out.ID.SpanID = model.SpanID(tx.traceContext.Span)
+	} else {
+		out.ID.UUID = model.UUID(tx.traceContext.Trace)
+	}
+
+	out.Name = truncateString(tx.Name)
+	out.Type = truncateString(tx.Type)
+	out.Result = truncateString(tx.Result)
+	out.Timestamp = model.Time(tx.Timestamp.UTC())
+	out.Duration = tx.Duration.Seconds() * 1000
+	out.SpanCount.Dropped.Total = tx.spansDropped
+
+	if !tx.Sampled() {
+		out.Sampled = &notSampled
+	}
+
+	out.Context = tx.Context.build()
+	if s.cfg.sanitizedFieldNames != nil && out.Context != nil && out.Context.Request != nil {
+		sanitizeRequest(out.Context.Request, s.cfg.sanitizedFieldNames)
+	}
+
+	spanOffset := len(s.modelSpans)
+	for _, span := range tx.spans {
+		s.modelSpans = append(s.modelSpans, model.Span{})
+		modelSpan := &s.modelSpans[len(s.modelSpans)-1]
+		s.buildModelSpan(modelSpan, span)
+	}
+	out.Spans = s.modelSpans[spanOffset:]
+}
+
+func (s *sender) buildModelSpan(out *model.Span, span *Span) {
+	if !span.tx.traceContext.Span.isZero() {
+		out.ID = model.SpanID(span.id)
+		out.ParentID = model.SpanID(span.parent)
+		out.TraceID = model.TraceID(span.tx.traceContext.Trace)
+	}
+
+	out.Name = truncateString(span.Name)
+	out.Type = truncateString(span.Type)
+	out.Start = span.Timestamp.Sub(span.tx.Timestamp).Seconds() * 1000
+	out.Duration = span.Duration.Seconds() * 1000
+	out.Context = span.Context.build()
+
+	stacktraceOffset := len(s.modelStacktrace)
+	s.modelStacktrace = appendModelStacktraceFrames(s.modelStacktrace, span.stacktrace)
+	out.Stacktrace = s.modelStacktrace[stacktraceOffset:]
+	s.setStacktraceContext(out.Stacktrace)
 }
 
 func (s *sender) setStacktraceContext(stack []model.StacktraceFrame) {

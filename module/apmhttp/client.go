@@ -55,7 +55,28 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 	ctx := req.Context()
 	tx := elasticapm.TransactionFromContext(ctx)
-	if tx == nil || !tx.Sampled() {
+	if tx == nil {
+		// TODO(axw) propagate Traceparent and Tracestate
+		// from incoming request. We'll need to add them
+		// to the context.
+		return r.r.RoundTrip(req)
+	}
+
+	// RoundTrip is not supposed to mutate req, so copy req
+	// and set the trace-context headers only in the copy.
+	reqCopy := *req
+	reqCopy.Header = make(http.Header, len(req.Header))
+	for k, v := range req.Header {
+		reqCopy.Header[k] = v
+	}
+	req = &reqCopy
+
+	// TODO(axw) propagate Tracestate, adding/shifting the elastic
+	// key to the left most position.
+
+	traceContext := tx.TraceContext()
+	if !tx.Sampled() {
+		req.Header.Set(traceparentHeader, FormatTraceparentHeader(traceContext))
 		return r.r.RoundTrip(req)
 	}
 
@@ -63,7 +84,11 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	spanType := "ext.http"
 	span := tx.StartSpan(name, spanType, elasticapm.SpanFromContext(ctx))
 	defer span.End()
+	if !span.Dropped() {
+		traceContext = span.TraceContext()
+	}
 
+	req.Header.Set(traceparentHeader, FormatTraceparentHeader(traceContext))
 	ctx = elasticapm.ContextWithSpan(ctx, span)
 	req = RequestWithContext(ctx, req)
 	return r.r.RoundTrip(req)

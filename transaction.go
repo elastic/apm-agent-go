@@ -29,14 +29,24 @@ func (t *Tracer) StartTransaction(name, transactionType string, opts ...Transact
 	tx.Name = name
 	tx.Type = transactionType
 
-	var txOpts transactionOptions
+	txOpts := transactionOptions{tx: tx}
 	for _, o := range opts {
 		o(&txOpts)
 	}
 
-	// Generate a random transaction ID.
-	binary.LittleEndian.PutUint64(tx.id[:8], tx.rand.Uint64())
-	binary.LittleEndian.PutUint64(tx.id[8:], tx.rand.Uint64())
+	if tx.traceContext.Trace.isZero() {
+		// In any case, we fill out the trace ID; this will be used for
+		// either the transaction's trace ID, or for its UUID in case
+		// distributed tracing is disabled. If distributed tracing is
+		// enabled, we also set the span ID.
+		binary.LittleEndian.PutUint64(tx.traceContext.Trace[:8], tx.rand.Uint64())
+		binary.LittleEndian.PutUint64(tx.traceContext.Trace[8:], tx.rand.Uint64())
+		if tx.tracer.distributedTracing {
+			copy(tx.traceContext.Span[:], tx.traceContext.Trace[:])
+		}
+	} else {
+		binary.LittleEndian.PutUint64(tx.traceContext.Span[:], tx.rand.Uint64())
+	}
 
 	// Take a snapshot of the max spans config to ensure
 	// that once the maximum is reached, all future span
@@ -49,12 +59,18 @@ func (t *Tracer) StartTransaction(name, transactionType string, opts ...Transact
 	tx.spanFramesMinDuration = t.spanFramesMinDuration
 	t.spanFramesMinDurationMu.RUnlock()
 
-	t.samplerMu.RLock()
-	sampler := t.sampler
-	t.samplerMu.RUnlock()
-	tx.sampled = true
-	if sampler != nil && !sampler.Sample(tx) {
-		tx.sampled = false
+	// TODO(axw) make this behaviour configurable. In some cases
+	// it may not be a good idea to honour the sampled flag, as
+	// it may open up the application to DoS by forced sampling.
+	// Even ignoring bad actors, a service that has many feeder
+	// applications may end up being sampled at a very high rate.
+	if !tx.traceContext.Options.Sampled() {
+		t.samplerMu.RLock()
+		sampler := t.sampler
+		t.samplerMu.RUnlock()
+		if sampler == nil || sampler.Sample(tx) {
+			tx.traceContext.Options = tx.traceContext.Options.WithSampled(true)
+		}
 	}
 	tx.Timestamp = time.Now()
 	return tx
@@ -62,16 +78,16 @@ func (t *Tracer) StartTransaction(name, transactionType string, opts ...Transact
 
 // Transaction describes an event occurring in the monitored service.
 type Transaction struct {
-	Name      string
-	Type      string
-	Timestamp time.Time
-	Duration  time.Duration
-	Context   Context
-	Result    string
-	id        [16]byte
+	Name         string
+	Type         string
+	Timestamp    time.Time
+	Duration     time.Duration
+	Context      Context
+	Result       string
+	traceContext TraceContext
+	parentSpan   SpanID
 
 	tracer                *Tracer
-	sampled               bool
 	maxSpans              int
 	spanFramesMinDuration time.Duration
 
@@ -107,7 +123,14 @@ func (tx *Transaction) Discard() {
 
 // Sampled reports whether or not the transaction is sampled.
 func (tx *Transaction) Sampled() bool {
-	return tx.sampled
+	return tx.traceContext.Options.Sampled()
+}
+
+// TraceContext returns the transaction's TraceContext: its trace ID,
+// span ID, and trace options. The values are undefined if distributed
+// tracing is disabled.
+func (tx *Transaction) TraceContext() TraceContext {
+	return tx.traceContext
 }
 
 // End enqueues tx for sending to the Elastic APM server; tx must not
@@ -141,4 +164,23 @@ func (tx *Transaction) enqueue() {
 // TransactionOption sets options when starting a transaction.
 type TransactionOption func(*transactionOptions)
 
-type transactionOptions struct{}
+type transactionOptions struct {
+	tx *Transaction
+}
+
+// WithTraceContext returns a TransactionOption which sets the
+// transaction's TraceContext: its trace ID, parent span ID,
+// and trace options. If distributed tracing is disabled, this
+// option is ignored.
+func WithTraceContext(c TraceContext) TransactionOption {
+	return func(opts *transactionOptions) {
+		if !opts.tx.tracer.distributedTracing {
+			return
+		}
+		if c.Trace.Validate() == nil && c.Span.Validate() == nil {
+			opts.tx.traceContext.Trace = c.Trace
+			opts.tx.parentSpan = c.Span
+		}
+		opts.tx.traceContext.Options = c.Options
+	}
+}
