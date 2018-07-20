@@ -48,7 +48,7 @@ func TestQueryObserver(t *testing.T) {
 	assert.WithinDuration(t,
 		time.Time(tx.Timestamp).Add(time.Duration((tx.Spans[0].Start+tx.Spans[0].Duration)*1000000)),
 		start.Add(3*time.Second),
-		time.Millisecond,
+		100*time.Millisecond, // allow some leeway for slow systems
 	)
 	assert.Equal(t, &model.SpanContext{
 		Database: &model.DatabaseSpanContext{
