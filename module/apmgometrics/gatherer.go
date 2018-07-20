@@ -23,31 +23,20 @@ func (g gatherer) GatherMetrics(ctx context.Context, m *elasticapm.Metrics) erro
 	g.r.Each(func(name string, v interface{}) {
 		switch v := v.(type) {
 		case metrics.Counter:
-			// NOTE(axw) in go-metrics, counters can go up and down,
-			// hence we use a gauge here. Should we provide config
-			// to allow a user to specify that a counter is always
-			// increasing, hence represent it as a counter type?
-			m.AddGauge(name, "", nil, float64(v.Count()))
+			m.Add(name, nil, float64(v.Count()))
 		case metrics.Gauge:
-			m.AddGauge(name, "", nil, float64(v.Value()))
+			m.Add(name, nil, float64(v.Value()))
 		case metrics.GaugeFloat64:
-			m.AddGauge(name, "", nil, v.Value())
+			m.Add(name, nil, v.Value())
 		case metrics.Histogram:
-			stddev := v.StdDev()
-			min := float64(v.Min())
-			max := float64(v.Max())
-			quantiles := map[float64]float64{0.5: 0, 0.9: 0, 0.99: 0}
-			for q := range quantiles {
-				quantiles[q] = v.Percentile(q)
-			}
-			m.AddSummary(name, "", nil, elasticapm.SummaryMetric{
-				Count:     uint64(v.Count()),
-				Sum:       float64(v.Sum()),
-				Stddev:    &stddev,
-				Min:       &min,
-				Max:       &max,
-				Quantiles: quantiles,
-			})
+			m.Add(name+".count", nil, float64(v.Count()))
+			m.Add(name+".total", nil, float64(v.Sum()))
+			m.Add(name+".min", nil, float64(v.Min()))
+			m.Add(name+".max", nil, float64(v.Max()))
+			m.Add(name+".stddev", nil, v.StdDev())
+			m.Add(name+".percentile.50", nil, v.Percentile(0.5))
+			m.Add(name+".percentile.95", nil, v.Percentile(0.95))
+			m.Add(name+".percentile.99", nil, v.Percentile(0.99))
 		default:
 			// TODO(axw) Meter, Timer, EWMA
 		}

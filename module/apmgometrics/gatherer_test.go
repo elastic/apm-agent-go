@@ -33,15 +33,10 @@ func TestGatherer(t *testing.T) {
 	assert.Equal(t, []*model.Metrics{{
 		Samples: map[string]model.Metric{
 			"http.requests_total": {
-				// go-metrics's counters are gauges by our
-				// definition, as they are not required to
-				// be monotonically increasing.
-				Type:  "gauge",
-				Value: newFloat64(123),
+				Value: 123,
 			},
 			"http.requests_inflight": {
-				Type:  "gauge",
-				Value: newFloat64(10),
+				Value: 10,
 			},
 		},
 	}}, metrics)
@@ -57,21 +52,22 @@ func TestHistogram(t *testing.T) {
 
 	g := apmgometrics.Wrap(r)
 	metrics := gatherMetrics(g)
+	for name := range metrics[0].Samples {
+		if !strings.HasPrefix(name, "histogram.") {
+			delete(metrics[0].Samples, name)
+		}
+	}
 
-	assert.Contains(t, metrics[0].Samples, "histogram")
-	assert.Equal(t, model.Metric{
-		Type:   "summary",
-		Count:  newUint64(3),
-		Sum:    newFloat64(300),
-		Min:    newFloat64(50),
-		Max:    newFloat64(150),
-		Stddev: newFloat64(40.824829046386306),
-		Quantiles: []model.Quantile{
-			{Quantile: 0.5, Value: 100},
-			{Quantile: 0.9, Value: 150},
-			{Quantile: 0.99, Value: 150},
-		},
-	}, metrics[0].Samples["histogram"])
+	assert.Equal(t, map[string]model.Metric{
+		"histogram.count":         {Value: 3},
+		"histogram.total":         {Value: 300},
+		"histogram.min":           {Value: 50},
+		"histogram.max":           {Value: 150},
+		"histogram.stddev":        {Value: 40.824829046386306},
+		"histogram.percentile.50": {Value: 100},
+		"histogram.percentile.95": {Value: 150},
+		"histogram.percentile.99": {Value: 150},
+	}, metrics[0].Samples)
 }
 
 func gatherMetrics(g elasticapm.MetricsGatherer) []*model.Metrics {
@@ -84,12 +80,4 @@ func gatherMetrics(g elasticapm.MetricsGatherer) []*model.Metrics {
 		m.Timestamp = model.Time{}
 	}
 	return metrics
-}
-
-func newUint64(v uint64) *uint64 {
-	return &v
-}
-
-func newFloat64(v float64) *float64 {
-	return &v
 }
