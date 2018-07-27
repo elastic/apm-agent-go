@@ -28,31 +28,6 @@ type MetricLabel struct {
 	Value string
 }
 
-// SummaryMetric holds summary statistics for a set of metric values.
-type SummaryMetric struct {
-	// Count is the count of values.
-	Count uint64
-
-	// Sum is the sum of values.
-	Sum float64
-
-	// Min holds the minimum value. This is optional, and only
-	// reported if non-nil.
-	Min *float64
-
-	// Max holds the maximum value. This is optional, and only
-	// reported if non-nil.
-	Max *float64
-
-	// Stddev holds the standard deviation. This is optional,
-	// and only reported if non-nil.
-	Stddev *float64
-
-	// Quantile holds the φ-quantiles. This is optional, and
-	// only reported if non-empty.
-	Quantiles map[float64]float64
-}
-
 // MetricsGatherer provides an interface for gathering metrics.
 type MetricsGatherer interface {
 	// GatherMetrics gathers metrics and adds them to m.
@@ -73,52 +48,10 @@ func (f GatherMetricsFunc) GatherMetrics(ctx context.Context, m *Metrics) error 
 	return f(ctx, m)
 }
 
-// AddCounter adds a counter metric with the given name, optional unit and labels,
-// and value. The labels are expected to be sorted lexicographically.
-func (m *Metrics) AddCounter(name, unit string, labels []MetricLabel, count float64) {
-	m.addMetric(name, labels, model.Metric{
-		Type:  "counter",
-		Unit:  unit,
-		Value: &count,
-	})
-}
-
-// AddGauge adds a gauge metric with the given name, optional unit and labels,
-// and value. The labels are expected to be sorted lexicographically.
-func (m *Metrics) AddGauge(name, unit string, labels []MetricLabel, value float64) {
-	m.addMetric(name, labels, model.Metric{
-		Type:  "gauge",
-		Unit:  unit,
-		Value: &value,
-	})
-}
-
-// AddSummary adds a summary metric with the given name, optional unit and labels,
-// and values. The labels are expected to be sorted lexicographically.
-func (m *Metrics) AddSummary(name, unit string, labels []MetricLabel, summary SummaryMetric) {
-	var quantiles []model.Quantile
-	if len(summary.Quantiles) > 0 {
-		quantiles = make([]model.Quantile, 0, len(summary.Quantiles))
-		for q, v := range summary.Quantiles {
-			quantiles = append(quantiles, model.Quantile{
-				Quantile: q,
-				Value:    v,
-			})
-		}
-		sort.Slice(quantiles, func(i, j int) bool {
-			return quantiles[i].Quantile < quantiles[j].Quantile
-		})
-	}
-	m.addMetric(name, labels, model.Metric{
-		Type:      "summary",
-		Unit:      unit,
-		Count:     &summary.Count,
-		Sum:       &summary.Sum,
-		Min:       summary.Min,
-		Max:       summary.Max,
-		Stddev:    summary.Stddev,
-		Quantiles: quantiles,
-	})
+// Add adds a metric with the given name, labels, and value,
+// The labels are expected to be sorted lexicographically.
+func (m *Metrics) Add(name string, labels []MetricLabel, value float64) {
+	m.addMetric(name, labels, model.Metric{Value: value})
 }
 
 func (m *Metrics) addMetric(name string, labels []MetricLabel, metric model.Metric) {

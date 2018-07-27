@@ -206,28 +206,10 @@ func TestValidateErrorLog(t *testing.T) {
 
 func TestValidateMetrics(t *testing.T) {
 	gather := func(ctx context.Context, m *elasticapm.Metrics) error {
-		m.AddCounter("counter", "", nil, -66)
-		m.AddCounter("counter_with_labels", "", []elasticapm.MetricLabel{
+		m.Add("without_labels", nil, -66)
+		m.Add("with_labels", []elasticapm.MetricLabel{
 			{Name: "name", Value: "value"},
 		}, -66)
-		m.AddCounter("counter_with_unit", "bytes", nil, -66)
-		m.AddGauge("gauge", "", nil, 123.45)
-
-		min := float64(-66)
-		max := float64(66)
-		stddev := float64(2)
-		m.AddSummary("summary", "", nil, elasticapm.SummaryMetric{
-			Count:  123,
-			Sum:    456,
-			Min:    &min,
-			Max:    &max,
-			Stddev: &stddev,
-			Quantiles: map[float64]float64{
-				0.25: 1,
-				0.50: 2,
-				0.75: 3,
-			},
-		})
 		return nil
 	}
 

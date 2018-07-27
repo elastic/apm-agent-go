@@ -17,60 +17,48 @@ type builtinMetricsGatherer struct {
 
 // GatherMetrics gathers mem metrics into m.
 func (g *builtinMetricsGatherer) GatherMetrics(ctx context.Context, m *Metrics) error {
-	m.AddGauge("go.goroutines", "", nil, float64(runtime.NumGoroutine()))
+	m.Add("golang.goroutines", nil, float64(runtime.NumGoroutine()))
 	g.gatherMemStatsMetrics(m)
 	g.gatherTracerStatsMetrics(m)
 	return nil
 }
 
-func (*builtinMetricsGatherer) gatherMemStatsMetrics(m *Metrics) {
+func (g *builtinMetricsGatherer) gatherMemStatsMetrics(m *Metrics) {
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
 
-	addCounterUint64 := func(name, unit string, v uint64) {
-		m.AddCounter(name, unit, nil, float64(v))
+	addUint64 := func(name string, v uint64) {
+		m.Add(name, nil, float64(v))
 	}
-	addGauge := func(name, unit string, v float64) {
-		m.AddGauge(name, unit, nil, v)
-	}
-	addGaugeUint64 := func(name, unit string, v uint64) {
-		addGauge(name, unit, float64(v))
+	add := func(name string, v float64) {
+		m.Add(name, nil, v)
 	}
 
-	const (
-		unitObject = "object"
-		unitByte   = "byte"
-		unitSecond = "sec"
-	)
-
-	addCounterUint64("go.mem.heap.mallocs", "", mem.Mallocs)
-	addCounterUint64("go.mem.heap.frees", "", mem.Frees)
-	addCounterUint64("go.mem.heap.alloc_total", unitByte, mem.TotalAlloc)
-	addGaugeUint64("go.mem.heap.alloc", unitByte, mem.HeapAlloc)
-	addGaugeUint64("go.mem.heap.alloc_objects", "", mem.HeapObjects)
-	addGaugeUint64("go.mem.heap.inuse", unitByte, mem.HeapInuse)
-	addGaugeUint64("go.mem.heap.idle", unitByte, mem.HeapIdle)
-	addGaugeUint64("go.mem.sys", unitByte, mem.Sys)
-	addGaugeUint64("go.mem.gc.next", unitByte, mem.NextGC)
-	addGauge("go.mem.gc.last", unitSecond, time.Duration(mem.LastGC).Seconds())
-	addGauge("go.mem.gc.cpu.pct", "", mem.GCCPUFraction*100)
+	addUint64("golang.heap.allocations.mallocs", mem.Mallocs)
+	addUint64("golang.heap.allocations.frees", mem.Frees)
+	addUint64("golang.heap.allocations.objects", mem.HeapObjects)
+	addUint64("golang.heap.allocations.total", mem.TotalAlloc)
+	addUint64("golang.heap.allocations.allocated", mem.HeapAlloc)
+	addUint64("golang.heap.allocations.idle", mem.HeapIdle)
+	addUint64("golang.heap.allocations.active", mem.HeapInuse)
+	addUint64("golang.heap.system.total", mem.Sys)
+	addUint64("golang.heap.system.obtained", mem.HeapSys)
+	addUint64("golang.heap.system.stack", mem.StackSys)
+	addUint64("golang.heap.system.released", mem.HeapReleased)
+	addUint64("golang.heap.gc.next_gc_limit", mem.NextGC)
+	addUint64("golang.heap.gc.total_count", uint64(mem.NumGC))
+	addUint64("golang.heap.gc.total_pause.ns", mem.PauseTotalNs)
+	add("golang.heap.gc.cpu_fraction", mem.GCCPUFraction)
 
 	gcStats := debug.GCStats{
 		PauseQuantiles: make([]time.Duration, 5),
 	}
 	debug.ReadGCStats(&gcStats)
-	gcPauseQuantiles := map[float64]float64{
-		0:    gcStats.PauseQuantiles[0].Seconds(),
-		0.25: gcStats.PauseQuantiles[1].Seconds(),
-		0.5:  gcStats.PauseQuantiles[2].Seconds(),
-		0.75: gcStats.PauseQuantiles[3].Seconds(),
-		1.0:  gcStats.PauseQuantiles[4].Seconds(),
-	}
-	m.AddSummary("go.mem.gc.pause", unitSecond, nil, SummaryMetric{
-		Count:     uint64(gcStats.NumGC),
-		Sum:       gcStats.PauseTotal.Seconds(),
-		Quantiles: gcPauseQuantiles,
-	})
+	addUint64("golang.heap.gc.pause.min.ns", uint64(gcStats.PauseQuantiles[0].Nanoseconds()))
+	addUint64("golang.heap.gc.pause.max.ns", uint64(gcStats.PauseQuantiles[4].Nanoseconds()))
+	addUint64("golang.heap.gc.pause.percentile.25.ns", uint64(gcStats.PauseQuantiles[1].Nanoseconds()))
+	addUint64("golang.heap.gc.pause.percentile.50.ns", uint64(gcStats.PauseQuantiles[2].Nanoseconds()))
+	addUint64("golang.heap.gc.pause.percentile.75.ns", uint64(gcStats.PauseQuantiles[3].Nanoseconds()))
 }
 
 func (g *builtinMetricsGatherer) gatherTracerStatsMetrics(m *Metrics) {
@@ -78,11 +66,11 @@ func (g *builtinMetricsGatherer) gatherTracerStatsMetrics(m *Metrics) {
 	stats := g.tracer.stats
 	g.tracer.statsMu.Unlock()
 
-	const p = "elasticapm"
-	m.AddCounter(p+".transactions.sent", "", nil, float64(stats.TransactionsSent))
-	m.AddCounter(p+".transactions.dropped", "", nil, float64(stats.TransactionsDropped))
-	m.AddCounter(p+".transactions.send_errors", "", nil, float64(stats.Errors.SendTransactions))
-	m.AddCounter(p+".errors.sent", "", nil, float64(stats.ErrorsSent))
-	m.AddCounter(p+".errors.dropped", "", nil, float64(stats.ErrorsDropped))
-	m.AddCounter(p+".errors.send_errors", "", nil, float64(stats.Errors.SendErrors))
+	const p = "agent"
+	m.Add(p+".transactions.sent", nil, float64(stats.TransactionsSent))
+	m.Add(p+".transactions.dropped", nil, float64(stats.TransactionsDropped))
+	m.Add(p+".transactions.send_errors", nil, float64(stats.Errors.SendTransactions))
+	m.Add(p+".errors.sent", nil, float64(stats.ErrorsSent))
+	m.Add(p+".errors.dropped", nil, float64(stats.ErrorsDropped))
+	m.Add(p+".errors.send_errors", nil, float64(stats.Errors.SendErrors))
 }
