@@ -15,7 +15,9 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -26,6 +28,7 @@ import (
 
 func init() {
 	// Don't let the environment influence tests.
+	os.Setenv("ELASTIC_APM_SERVER_TIMEOUT", "")
 	os.Setenv("ELASTIC_APM_SERVER_URL", "")
 	os.Setenv("ELASTIC_APM_SECRET_TOKEN", "")
 	os.Setenv("ELASTIC_APM_VERIFY_SERVER_CERT", "")
@@ -227,6 +230,28 @@ func TestHTTPTransportLargeCompressed(t *testing.T) {
 	var decoded bytes.Buffer
 	io.Copy(&decoded, r)
 	assert.Equal(t, string(jw.Bytes()), decoded.String())
+}
+
+func TestHTTPTransportServerTimeout(t *testing.T) {
+	done := make(chan struct{})
+	blockingHandler := func(w http.ResponseWriter, req *http.Request) { <-done }
+	server := httptest.NewServer(http.HandlerFunc(blockingHandler))
+	defer server.Close()
+	defer close(done)
+	defer patchEnv("ELASTIC_APM_SERVER_TIMEOUT", "50ms")()
+
+	before := time.Now()
+	transport, err := transport.NewHTTPTransport(server.URL, "")
+	assert.NoError(t, err)
+	err = transport.SendTransactions(context.Background(), &model.TransactionsPayload{})
+	taken := time.Since(before)
+	assert.Error(t, err)
+	err = errors.Cause(err)
+	assert.Implements(t, new(net.Error), err)
+	assert.True(t, err.(net.Error).Timeout())
+	assert.Condition(t, func() bool {
+		return taken >= 50*time.Millisecond
+	})
 }
 
 func newHTTPTransport(t *testing.T, handler http.Handler) (*transport.HTTPTransport, *httptest.Server) {

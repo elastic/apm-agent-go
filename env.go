@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+
+	"github.com/elastic/apm-agent-go/internal/apmconfig"
 )
 
 const (
@@ -51,11 +53,11 @@ var (
 )
 
 func initialFlushInterval() (time.Duration, error) {
-	return parseEnvDuration(envFlushInterval, "s", defaultFlushInterval)
+	return apmconfig.ParseDurationEnv(envFlushInterval, "s", defaultFlushInterval)
 }
 
 func initialMetricsInterval() (time.Duration, error) {
-	return parseEnvDuration(envMetricsInterval, "s", defaultMetricsInterval)
+	return apmconfig.ParseDurationEnv(envMetricsInterval, "s", defaultMetricsInterval)
 }
 
 func initialMaxTransactionQueueSize() (int, error) {
@@ -148,7 +150,7 @@ func initialService() (name, version, environment string) {
 }
 
 func initialSpanFramesMinDuration() (time.Duration, error) {
-	return parseEnvDuration(envSpanFramesMinDuration, "", defaultSpanFramesMinDuration)
+	return apmconfig.ParseDurationEnv(envSpanFramesMinDuration, "", defaultSpanFramesMinDuration)
 }
 
 func initialActive() (bool, error) {
@@ -161,26 +163,4 @@ func initialActive() (bool, error) {
 		return false, errors.Wrapf(err, "failed to parse %s", envActive)
 	}
 	return active, nil
-}
-
-func parseEnvDuration(envKey, defaultSuffix string, defaultDuration time.Duration) (time.Duration, error) {
-	value := os.Getenv(envKey)
-	if value == "" {
-		return defaultDuration, nil
-	}
-	d, err := time.ParseDuration(value)
-	if err != nil && defaultSuffix != "" {
-		// We allow the value to have no suffix, in which case we append
-		// defaultSuffix ("s" for flush interval) for compatibility with
-		// configuration for other Elastic APM agents.
-		var err2 error
-		d, err2 = time.ParseDuration(value + defaultSuffix)
-		if err2 == nil {
-			err = nil
-		}
-	}
-	if err != nil {
-		return 0, errors.Wrapf(err, "failed to parse %s", envKey)
-	}
-	return d, nil
 }

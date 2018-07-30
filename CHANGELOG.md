@@ -11,6 +11,7 @@
  - module/apmhttprouter: added a wrapper type for httprouter.Router to simplify adding routes (#140)
  - Add Transaction.Context methods for setting user IDs (#144)
  - module/apmgocql: new instrumentation module, providing an observer for gocql (#148)
+ - Add ELASTIC\_APM\_SERVER\_TIMEOUT config (#157)
 
 ## [v0.4.0](https://github.com/elastic/apm-agent-go/releases/tag/v0.4.0)
 
