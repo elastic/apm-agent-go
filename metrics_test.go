@@ -64,11 +64,6 @@ func TestTracerMetricsBuiltin(t *testing.T) {
 		"golang.heap.gc.total_count",
 		"golang.heap.gc.total_pause.ns",
 		"golang.heap.gc.cpu_fraction",
-		"golang.heap.gc.pause.min.ns",
-		"golang.heap.gc.pause.max.ns",
-		"golang.heap.gc.pause.percentile.25.ns",
-		"golang.heap.gc.pause.percentile.50.ns",
-		"golang.heap.gc.pause.percentile.75.ns",
 
 		"system.cpu.total.norm.pct",
 		"system.memory.total",
