@@ -252,7 +252,7 @@ func newTracer(opts options) *Tracer {
 		cfg.sanitizedFieldNames = opts.sanitizedFieldNames
 		cfg.preContext = defaultPreContext
 		cfg.postContext = defaultPostContext
-		cfg.metricsGatherers = []MetricsGatherer{&builtinMetricsGatherer{tracer: t}}
+		cfg.metricsGatherers = []MetricsGatherer{newBuiltinMetricsGatherer(t)}
 	}
 	return t
 }

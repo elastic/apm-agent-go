@@ -10,7 +10,7 @@ check-goimports:
 
 .PHONY: check-lint
 check-lint:
-	golint -set_exit_status ./...
+	go list ./... | grep -v vendor | xargs golint -set_exit_status
 
 .PHONY: check-vet
 check-vet:

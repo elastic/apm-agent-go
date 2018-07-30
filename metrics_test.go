@@ -1,9 +1,15 @@
 package elasticapm_test
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"runtime"
+	"sort"
+	"strconv"
 	"testing"
+	"text/tabwriter"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,6 +23,7 @@ func TestTracerMetricsBuiltin(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
+	busyWork(10 * time.Millisecond)
 	tracer.SendMetrics(nil)
 
 	payloads := transport.Payloads()
@@ -63,6 +70,13 @@ func TestTracerMetricsBuiltin(t *testing.T) {
 		"golang.heap.gc.pause.percentile.50.ns",
 		"golang.heap.gc.pause.percentile.75.ns",
 
+		"system.cpu.total.norm.pct",
+		"system.memory.total",
+		"system.memory.actual.free",
+		"system.process.cpu.total.norm.pct",
+		"system.process.memory.size",
+		"system.process.memory.rss.bytes",
+
 		"agent.transactions.sent",
 		"agent.transactions.dropped",
 		"agent.transactions.send_errors",
@@ -70,12 +84,21 @@ func TestTracerMetricsBuiltin(t *testing.T) {
 		"agent.errors.dropped",
 		"agent.errors.send_errors",
 	}
-	for _, name := range expected {
-		assert.Contains(t, builtinMetrics.Samples, name)
-	}
+	sort.Strings(expected)
 	for name := range builtinMetrics.Samples {
 		assert.Contains(t, expected, name)
 	}
+
+	var buf bytes.Buffer
+	tw := tabwriter.NewWriter(&buf, 10, 4, 2, ' ', 0)
+	fmt.Fprintln(tw, "NAME\tVALUE")
+	for _, name := range expected {
+		assert.Contains(t, builtinMetrics.Samples, name)
+		metric := builtinMetrics.Samples[name]
+		fmt.Fprintf(tw, "%s\t%s\n", name, strconv.FormatFloat(metric.Value, 'f', -1, 64))
+	}
+	tw.Flush()
+	t.Logf("\n\n%s\n", buf.String())
 }
 
 func TestTracerMetricsGatherer(t *testing.T) {
@@ -134,4 +157,19 @@ func TestTracerMetricsDeregister(t *testing.T) {
 
 	metrics := payloads[0].Metrics()
 	require.Len(t, metrics, 1) // just the builtin/unlabeled metrics
+}
+
+// busyWork does meaningless work for the specified duration,
+// so we can observe CPU usage.
+func busyWork(d time.Duration) int {
+	var n int
+	afterCh := time.After(d)
+	for {
+		select {
+		case <-afterCh:
+			return n
+		default:
+			n++
+		}
+	}
 }
