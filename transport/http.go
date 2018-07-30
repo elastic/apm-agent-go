@@ -12,9 +12,11 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 
+	"github.com/elastic/apm-agent-go/internal/apmconfig"
 	"github.com/elastic/apm-agent-go/internal/fastjson"
 	"github.com/elastic/apm-agent-go/model"
 )
@@ -26,6 +28,7 @@ const (
 
 	envSecretToken      = "ELASTIC_APM_SECRET_TOKEN"
 	envServerURL        = "ELASTIC_APM_SERVER_URL"
+	envServerTimeout    = "ELASTIC_APM_SERVER_TIMEOUT"
 	envVerifyServerCert = "ELASTIC_APM_VERIFY_SERVER_CERT"
 
 	// gzipThresholdBytes is the minimum size of the uncompressed
@@ -38,7 +41,8 @@ var (
 	// in case another package replaces the value later.
 	defaultHTTPTransport = http.DefaultTransport.(*http.Transport)
 
-	defaultServerURL = "http://localhost:8200"
+	defaultServerURL     = "http://localhost:8200"
+	defaultServerTimeout = 30 * time.Second
 )
 
 // HTTPTransport is an implementation of Transport, sending payloads via
@@ -103,6 +107,14 @@ func NewHTTPTransport(serverURL, secretToken string) (*HTTPTransport, error) {
 			ExpectContinueTimeout: defaultHTTPTransport.ExpectContinueTimeout,
 			TLSClientConfig:       tlsConfig,
 		}
+	}
+
+	timeout, err := apmconfig.ParseDurationEnv(envServerTimeout, "s", defaultServerTimeout)
+	if err != nil {
+		return nil, err
+	}
+	if timeout > 0 {
+		client.Timeout = timeout
 	}
 
 	headers := make(http.Header)
@@ -187,11 +199,12 @@ func (t *HTTPTransport) sendPayload(req *http.Request, op string) error {
 	if err != nil {
 		return errors.Wrapf(err, "sending request for %s failed", op)
 	}
-	defer resp.Body.Close()
 	switch resp.StatusCode {
 	case http.StatusOK, http.StatusAccepted:
+		resp.Body.Close()
 		return nil
 	}
+	defer resp.Body.Close()
 
 	// apm-server will return 503 Service Unavailable
 	// if the data cannot be published to Elasticsearch,
