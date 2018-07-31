@@ -12,6 +12,7 @@
  - Add Transaction.Context methods for setting user IDs (#144)
  - module/apmgocql: new instrumentation module, providing an observer for gocql (#148)
  - Add ELASTIC\_APM\_SERVER\_TIMEOUT config (#157)
+ - Add ELASTIC\_APM\_IGNORE\_URLS config (#158)
 
 ## [v0.4.0](https://github.com/elastic/apm-agent-go/releases/tag/v0.4.0)
 

@@ -19,7 +19,10 @@ import (
 // By default, the middleware will use elasticapm.DefaultTracer.
 // Use WithTracer to specify an alternative tracer.
 func Middleware(o ...Option) mux.MiddlewareFunc {
-	opts := options{tracer: elasticapm.DefaultTracer}
+	opts := options{
+		tracer:         elasticapm.DefaultTracer,
+		requestIgnorer: apmhttp.DefaultServerRequestIgnorer(),
+	}
 	for _, o := range o {
 		o(&opts)
 	}
@@ -28,6 +31,7 @@ func Middleware(o ...Option) mux.MiddlewareFunc {
 			h,
 			apmhttp.WithTracer(opts.tracer),
 			apmhttp.WithServerRequestName(routeRequestName),
+			apmhttp.WithServerRequestIgnorer(opts.requestIgnorer),
 		)
 	}
 }
@@ -44,7 +48,8 @@ func routeRequestName(req *http.Request) string {
 }
 
 type options struct {
-	tracer *elasticapm.Tracer
+	tracer         *elasticapm.Tracer
+	requestIgnorer apmhttp.RequestIgnorerFunc
 }
 
 // Option sets options for tracing.
@@ -58,5 +63,17 @@ func WithTracer(t *elasticapm.Tracer) Option {
 	}
 	return func(o *options) {
 		o.tracer = t
+	}
+}
+
+// WithRequestIgnorer returns a Option which sets r as the
+// function to use to determine whether or not a request should
+// be ignored. If r is nil, all requests will be reported.
+func WithRequestIgnorer(r apmhttp.RequestIgnorerFunc) Option {
+	if r == nil {
+		r = apmhttp.IgnoreNone
+	}
+	return func(o *options) {
+		o.requestIgnorer = r
 	}
 }
