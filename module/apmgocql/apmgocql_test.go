@@ -81,11 +81,11 @@ func TestBatchObserver(t *testing.T) {
 
 	require.Len(t, tx.Spans, 3)
 	assert.Equal(t, "db.cassandra.batch", tx.Spans[0].Type)
-	assert.Equal(t, "db.cassandra.query", tx.Spans[1].Type)
-	assert.Equal(t, "db.cassandra.query", tx.Spans[2].Type)
-	assert.Nil(t, tx.Spans[0].Parent)
-	assert.Equal(t, tx.Spans[0].ID, tx.Spans[1].Parent)
-	assert.Equal(t, tx.Spans[0].ID, tx.Spans[2].Parent)
+	for _, span := range tx.Spans[1:] {
+		assert.Equal(t, tx.Spans[0].ID, span.ParentID)
+		assert.Equal(t, tx.Spans[0].TraceID, span.TraceID)
+		assert.Equal(t, "db.cassandra.query", span.Type)
+	}
 
 	assert.Equal(t, "BATCH", tx.Spans[0].Name)
 	assert.Equal(t, "INSERT INTO foo.bar", tx.Spans[1].Name)
@@ -161,11 +161,13 @@ func TestBatchObserverIntegration(t *testing.T) {
 
 	require.Len(t, tx.Spans, 3)
 	assert.Equal(t, "db.cassandra.batch", tx.Spans[0].Type)
-	assert.Equal(t, "db.cassandra.query", tx.Spans[1].Type)
-	assert.Equal(t, "db.cassandra.query", tx.Spans[2].Type)
-	assert.Nil(t, tx.Spans[0].Parent)
-	assert.Equal(t, tx.Spans[0].ID, tx.Spans[1].Parent)
-	assert.Equal(t, tx.Spans[0].ID, tx.Spans[2].Parent)
+	assert.Equal(t, tx.ID.SpanID, tx.Spans[0].ParentID)
+	assert.Equal(t, tx.TraceID, tx.Spans[0].TraceID)
+	for _, span := range tx.Spans[1:] {
+		assert.Equal(t, tx.Spans[0].ID, span.ParentID)
+		assert.Equal(t, tx.Spans[0].TraceID, span.TraceID)
+		assert.Equal(t, "db.cassandra.query", span.Type)
+	}
 
 	assert.Equal(t, "BATCH", tx.Spans[0].Name)
 	assert.Equal(t, "INSERT INTO foo.bar", tx.Spans[1].Name)
