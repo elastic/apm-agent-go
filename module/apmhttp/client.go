@@ -33,7 +33,7 @@ func WrapRoundTripper(r http.RoundTripper, o ...ClientOption) http.RoundTripper 
 	rt := &roundTripper{
 		r:              r,
 		requestName:    ClientRequestName,
-		requestIgnorer: ignoreNone,
+		requestIgnorer: IgnoreNone,
 	}
 	for _, o := range o {
 		o(rt)

@@ -119,6 +119,24 @@ Enable or disable the tracer. If set to false, then the Go agent does not send
 any data to the Elastic APM server, and instrumentation overhead is minimized.
 
 [float]
+[[config-ignore-urls]]
+=== `ELASTIC_APM_IGNORE_URLS`
+
+[options="header"]
+|============
+| Environment               | Default | Example
+| `ELASTIC_APM_IGNORE_URLS` |         | `/heartbeat\|/_internal/.*`
+|============
+
+A regular expression matching the request line of HTTP requests for which
+transactions should not be reported.
+
+The pattern specified in `ELASTIC_APM_IGNORE_URLS` is treated
+case-insensitively by default. To override this behavior and match case-sensitively,
+wrap the value like `(?-i:<value>)`. For a full definition of Go's regular
+expression syntax, see https://golang.org/pkg/regexp/syntax/.
+
+[float]
 [[config-sanitize-field-names]]
 === `ELASTIC_APM_SANITIZE_FIELD_NAMES`
 

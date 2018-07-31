@@ -24,7 +24,7 @@ func Wrap(h http.Handler, o ...ServerOption) http.Handler {
 		handler:        h,
 		tracer:         elasticapm.DefaultTracer,
 		requestName:    ServerRequestName,
-		requestIgnorer: ignoreNone,
+		requestIgnorer: DefaultServerRequestIgnorer(),
 	}
 	for _, o := range o {
 		o(handler)
@@ -212,10 +212,6 @@ type responseWriterHijackerPusher struct {
 	http.Pusher
 }
 
-func ignoreNone(*http.Request) bool {
-	return false
-}
-
 // ServerOption sets options for tracing server requests.
 type ServerOption func(*handler)
 
@@ -265,7 +261,7 @@ type RequestIgnorerFunc func(*http.Request) bool
 // be ignored. If r is nil, all requests will be reported.
 func WithServerRequestIgnorer(r RequestIgnorerFunc) ServerOption {
 	if r == nil {
-		r = ignoreNone
+		r = IgnoreNone
 	}
 	return func(h *handler) {
 		h.requestIgnorer = r
