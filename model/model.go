@@ -268,7 +268,7 @@ type Error struct {
 	Timestamp Time `json:"timestamp"`
 
 	// ID holds a hex-formatted UUID for the error.
-	ID string `json:"id,omitempty"`
+	ID UUID `json:"id,omitempty"`
 
 	// TraceID holds the ID of the trace within which the error occurred.
 	TraceID TraceID `json:"trace_id,omitempty"`

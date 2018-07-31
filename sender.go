@@ -85,7 +85,7 @@ func (s *sender) sendErrors(ctx context.Context, errors []*Error) bool {
 		s.setStacktraceContext(e.modelStacktrace)
 		e.setStacktrace()
 		e.setCulprit()
-		e.model.ID = e.ID
+		e.model.ID = model.UUID(e.ID)
 		e.model.Timestamp = model.Time(e.Timestamp.UTC())
 		e.model.Context = e.Context.build()
 		e.model.Exception.Handled = e.Handled
