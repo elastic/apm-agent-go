@@ -28,6 +28,19 @@ that the server certificate can be verified. You can also disable certificate
 verification with <<config-verify-server-cert>>.
 
 [float]
+[[config-server-timeout]]
+=== `ELASTIC_APM_SERVER_TIMEOUT`
+
+[options="header"]
+|============
+| Environment                  | Default | Example
+| `ELASTIC_APM_SERVER_TIMEOUT` | `30s`   | `30s`
+|============
+
+The timeout for requests made to your Elastic APM server. When set to zero
+or a negative value, timeouts will be disabled.
+
+[float]
 [[config-secret-token]]
 === `ELASTIC_APM_SECRET_TOKEN`
 
