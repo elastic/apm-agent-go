@@ -77,9 +77,8 @@ func (m *middleware) handle(c *gin.Context) {
 	if routeInfo, ok := m.routeMap[c.Request.Method][handlerName]; ok {
 		requestName = routeInfo.transactionName
 	}
-	tx := m.tracer.StartTransaction(requestName, "request")
-	ctx := elasticapm.ContextWithTransaction(c.Request.Context(), tx)
-	c.Request = apmhttp.RequestWithContext(ctx, c.Request)
+	tx, req := apmhttp.StartTransaction(m.tracer, requestName, c.Request)
+	c.Request = req
 	defer tx.End()
 
 	body := m.tracer.CaptureHTTPRequestBody(c.Request)
