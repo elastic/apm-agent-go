@@ -19,7 +19,7 @@ func TestConnect(t *testing.T) {
 
 	// Note: only in Go 1.10 do we have context during connection.
 
-	tx := withTransaction(t, func(ctx context.Context) {
+	tx, _ := withTransaction(t, func(ctx context.Context) {
 		err := db.PingContext(ctx)
 		assert.NoError(t, err)
 	})

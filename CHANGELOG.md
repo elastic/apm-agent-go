@@ -13,6 +13,7 @@
  - module/apmgocql: new instrumentation module, providing an observer for gocql (#148)
  - Add ELASTIC\_APM\_SERVER\_TIMEOUT config (#157)
  - Add ELASTIC\_APM\_IGNORE\_URLS config (#158)
+ - module/apmsql: fix a bug preventing errors from being captured (#160)
 
 ## [v0.4.0](https://github.com/elastic/apm-agent-go/releases/tag/v0.4.0)
 
