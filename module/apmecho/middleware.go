@@ -48,11 +48,9 @@ func (m *middleware) handle(c echo.Context) error {
 		return m.handler(c)
 	}
 	name := req.Method + " " + c.Path()
-	tx := m.tracer.StartTransaction(name, "request")
-	ctx := elasticapm.ContextWithTransaction(req.Context(), tx)
-	req = apmhttp.RequestWithContext(ctx, req)
-	c.SetRequest(req)
+	tx, req := apmhttp.StartTransaction(m.tracer, name, req)
 	defer tx.End()
+	c.SetRequest(req)
 	body := m.tracer.CaptureHTTPRequestBody(req)
 
 	defer func() {
