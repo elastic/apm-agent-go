@@ -57,14 +57,22 @@ type options struct {
 	serviceVersion          string
 	serviceEnvironment      string
 	active                  bool
+	distributedTracing      bool
 }
 
 func (opts *options) init(continueOnError bool) error {
 	var errs []error
-	flushInterval, err := initialFlushInterval()
-	if err != nil {
-		flushInterval = defaultFlushInterval
+	failed := func(err error) bool {
+		if err == nil {
+			return false
+		}
 		errs = append(errs, err)
+		return true
+	}
+
+	flushInterval, err := initialFlushInterval()
+	if failed(err) {
+		flushInterval = defaultFlushInterval
 	}
 
 	metricsInterval, err := initialMetricsInterval()
@@ -74,45 +82,43 @@ func (opts *options) init(continueOnError bool) error {
 	}
 
 	maxTransactionQueueSize, err := initialMaxTransactionQueueSize()
-	if err != nil {
+	if failed(err) {
 		maxTransactionQueueSize = defaultMaxTransactionQueueSize
-		errs = append(errs, err)
 	}
 
 	maxSpans, err := initialMaxSpans()
-	if err != nil {
+	if failed(err) {
 		maxSpans = defaultMaxSpans
-		errs = append(errs, err)
 	}
 
 	sampler, err := initialSampler()
-	if err != nil {
+	if failed(err) {
 		sampler = nil
-		errs = append(errs, err)
 	}
 
 	sanitizedFieldNames, err := initialSanitizedFieldNamesRegexp()
-	if err != nil {
+	if failed(err) {
 		sanitizedFieldNames = defaultSanitizedFieldNames
-		errs = append(errs, err)
 	}
 
 	captureBody, err := initialCaptureBody()
-	if err != nil {
+	if failed(err) {
 		captureBody = CaptureBodyOff
-		errs = append(errs, err)
 	}
 
 	spanFramesMinDuration, err := initialSpanFramesMinDuration()
-	if err != nil {
+	if failed(err) {
 		spanFramesMinDuration = defaultSpanFramesMinDuration
-		errs = append(errs, err)
 	}
 
 	active, err := initialActive()
-	if err != nil {
+	if failed(err) {
 		active = true
-		errs = append(errs, err)
+	}
+
+	distributedTracing, err := initialDistributedTracing()
+	if failed(err) {
+		distributedTracing = false
 	}
 
 	if len(errs) != 0 && !continueOnError {
@@ -132,6 +138,7 @@ func (opts *options) init(continueOnError bool) error {
 	opts.spanFramesMinDuration = spanFramesMinDuration
 	opts.serviceName, opts.serviceVersion, opts.serviceEnvironment = initialService()
 	opts.active = active
+	opts.distributedTracing = distributedTracing
 	return nil
 }
 
@@ -165,14 +172,15 @@ type Tracer struct {
 	process *model.Process
 	system  *model.System
 
-	active           bool
-	closing          chan struct{}
-	closed           chan struct{}
-	forceFlush       chan chan<- struct{}
-	forceSendMetrics chan chan<- struct{}
-	configCommands   chan tracerConfigCommand
-	transactions     chan *Transaction
-	errors           chan *Error
+	active             bool
+	distributedTracing bool
+	closing            chan struct{}
+	closed             chan struct{}
+	forceFlush         chan chan<- struct{}
+	forceSendMetrics   chan chan<- struct{}
+	configCommands     chan tracerConfigCommand
+	transactions       chan *Transaction
+	errors             chan *Error
 
 	statsMu sync.Mutex
 	stats   TracerStats
@@ -233,6 +241,7 @@ func newTracer(opts options) *Tracer {
 		captureBody:           opts.captureBody,
 		spanFramesMinDuration: opts.spanFramesMinDuration,
 		active:                opts.active,
+		distributedTracing:    opts.distributedTracing,
 	}
 	t.Service.Name = opts.serviceName
 	t.Service.Version = opts.serviceVersion

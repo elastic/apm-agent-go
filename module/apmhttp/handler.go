@@ -53,9 +53,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		h.handler.ServeHTTP(w, req)
 		return
 	}
-	tx := h.tracer.StartTransaction(h.requestName(req), "request")
-	ctx := elasticapm.ContextWithTransaction(req.Context(), tx)
-	req = RequestWithContext(ctx, req)
+	tx, req := StartTransaction(h.tracer, h.requestName(req), req)
 	defer tx.End()
 
 	finished := false
@@ -70,6 +68,25 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}()
 	h.handler.ServeHTTP(w, req)
 	finished = true
+}
+
+// StartTransaction returns a new Transaction with name,
+// created with tracer, and taking trace context from req.
+//
+// If the transaction is not ignored, the request will be
+// returned with the transaction added to its context.
+func StartTransaction(tracer *elasticapm.Tracer, name string, req *http.Request) (*elasticapm.Transaction, *http.Request) {
+	var traceContext elasticapm.TraceContext
+	if v := req.Header.Get(traceparentHeader); v != "" {
+		c, err := ParseTraceparentHeader(v)
+		if err == nil {
+			traceContext = c
+		}
+	}
+	tx := tracer.StartTransaction(name, "request", elasticapm.WithTraceContext(traceContext))
+	ctx := elasticapm.ContextWithTransaction(req.Context(), tx)
+	req = RequestWithContext(ctx, req)
+	return tx, req
 }
 
 // SetTransactionContext sets tx.Result and, if the transaction is being

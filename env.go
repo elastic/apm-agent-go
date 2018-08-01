@@ -29,6 +29,7 @@ const (
 	envEnvironment           = "ELASTIC_APM_ENVIRONMENT"
 	envSpanFramesMinDuration = "ELASTIC_APM_SPAN_FRAMES_MIN_DURATION"
 	envActive                = "ELASTIC_APM_ACTIVE"
+	envDistributedTracing    = "ELASTIC_APM_DISTRIBUTED_TRACING"
 
 	defaultFlushInterval           = 10 * time.Second
 	defaultMetricsInterval         = 0 // disabled by default
@@ -154,13 +155,9 @@ func initialSpanFramesMinDuration() (time.Duration, error) {
 }
 
 func initialActive() (bool, error) {
-	value := os.Getenv(envActive)
-	if value == "" {
-		return true, nil
-	}
-	active, err := strconv.ParseBool(value)
-	if err != nil {
-		return false, errors.Wrapf(err, "failed to parse %s", envActive)
-	}
-	return active, nil
+	return apmconfig.ParseBoolEnv(envActive, true)
+}
+
+func initialDistributedTracing() (bool, error) {
+	return apmconfig.ParseBoolEnv(envDistributedTracing, false)
 }

@@ -1,6 +1,7 @@
 package elasticapm
 
 import (
+	"crypto/rand"
 	"fmt"
 	"net"
 	"os"
@@ -10,7 +11,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/elastic/apm-agent-go/internal/uuid"
+	"github.com/elastic/apm-agent-go/internal/fastjson"
 	"github.com/elastic/apm-agent-go/model"
 	"github.com/elastic/apm-agent-go/stacktrace"
 )
@@ -82,9 +83,7 @@ func (t *Tracer) NewError(err error) *Error {
 		panic("NewError must be called with a non-nil error")
 	}
 	e := t.newError()
-	if uuid, err := uuid.NewV4(); err == nil {
-		e.ID = uuid.String()
-	}
+	rand.Read(e.ID[:]) // ignore error, can't do anything about it
 	e.model.Exception.Message = err.Error()
 	if e.model.Exception.Message == "" {
 		e.model.Exception.Message = "[EMPTY]"
@@ -140,8 +139,8 @@ type Error struct {
 	modelStacktrace []model.StacktraceFrame
 
 	// ID is the unique ID of the error. This is set by NewError,
-	// and can be used for correlating errors and logs records.
-	ID string
+	// and can be used for correlating errors and log records.
+	ID ErrorID
 
 	// Culprit is the name of the function that caused the error.
 	//
@@ -359,4 +358,15 @@ type ErrorLogRecord struct {
 	//
 	// This is optional.
 	LoggerName string
+}
+
+// ErrorID uniquely identifies an error.
+type ErrorID [16]byte
+
+// String returns id in the canonical v4 UUID hex-encoded format.
+func (id ErrorID) String() string {
+	var jw fastjson.Writer
+	uuid := model.UUID(id)
+	uuid.MarshalFastJSON(&jw)
+	return string(jw.Bytes())
 }
