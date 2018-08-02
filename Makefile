@@ -2,11 +2,15 @@
 check: precheck test
 
 .PHONY: precheck
-precheck: check-goimports check-lint check-vet
+precheck: check-goimports check-lint check-vet check-dockerfile-testing
 
 .PHONY: check-goimports
 check-goimports:
 	sh scripts/check_goimports.sh
+
+.PHONY: check-dockerfile-testing
+check-dockerfile-testing:
+	go run ./scripts/gendockerfile.go -d
 
 .PHONY: check-lint
 check-lint:
@@ -24,12 +28,13 @@ install:
 test:
 	go test -v ./...
 
-coverage.txt:
-	sh scripts/test_coverage.sh
+.PHONY: coverage
+coverage:
+	@sh scripts/test_coverage.sh
 
 .PHONY: clean
 clean:
-	rm -fr coverage.txt docs/html
+	rm -fr docs/html
 
 .PHONY: docs
 docs:

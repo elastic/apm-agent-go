@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 
 set -e
-rm -f coverage.txt
 
 for pkg in $(go list ./...); do
-    go test -coverprofile=profile.out -covermode=atomic $pkg
+    go test -coverprofile=profile.out -covermode=atomic $pkg 1>&2
     if [ -f profile.out ]; then
-        cat profile.out >> coverage.txt
+        cat profile.out
         rm profile.out
     fi
 done
