@@ -31,7 +31,7 @@ func (t *Tracer) StartTransaction(name, transactionType string, opts ...Transact
 
 	txOpts := transactionOptions{tx: tx}
 	for _, o := range opts {
-		o(&txOpts)
+		o(txOpts)
 	}
 
 	if tx.traceContext.Trace.isZero() {
@@ -162,7 +162,7 @@ func (tx *Transaction) enqueue() {
 }
 
 // TransactionOption sets options when starting a transaction.
-type TransactionOption func(*transactionOptions)
+type TransactionOption func(transactionOptions)
 
 type transactionOptions struct {
 	tx *Transaction
@@ -173,7 +173,7 @@ type transactionOptions struct {
 // and trace options. If distributed tracing is disabled, this
 // option is ignored.
 func WithTraceContext(c TraceContext) TransactionOption {
-	return func(opts *transactionOptions) {
+	return func(opts transactionOptions) {
 		if !opts.tx.tracer.distributedTracing {
 			return
 		}
