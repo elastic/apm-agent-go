@@ -29,5 +29,5 @@ jobs:
         - docker
       script:
         - scripts/docker-compose-testing up -d --build
-        - scripts/docker-compose-testing run --rm go-agent-tests make coverage > coverage.txt
+        - scripts/docker-compose-testing run -T --rm go-agent-tests make coverage > coverage.txt
         - bash <(curl -s https://codecov.io/bash)
