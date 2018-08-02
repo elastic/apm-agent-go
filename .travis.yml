@@ -12,9 +12,6 @@ matrix:
   allow_failures:
     - os: osx
     - go: "1.x"
-  include:
-    - go: stable
-      os: osx
 
 before_install:
   - go get -v golang.org/x/tools/cmd/goimports
@@ -25,8 +22,12 @@ script:
 
 jobs:
   include:
+    - os: osx     
     - stage: coverage
-      go: stable
+      sudo: required
+      services:
+        - docker
       script:
-       - make install coverage.txt
-       - bash <(curl -s https://codecov.io/bash)
+        - scripts/docker-compose-testing up -d --build
+        - scripts/docker-compose-testing run --rm go-agent-tests make coverage > coverage.txt
+        - bash <(curl -s https://codecov.io/bash)

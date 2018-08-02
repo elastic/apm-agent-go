@@ -28,12 +28,13 @@ install:
 test:
 	go test -v ./...
 
-coverage.txt:
-	sh scripts/test_coverage.sh
+.PHONY: coverage
+coverage:
+	@sh scripts/test_coverage.sh
 
 .PHONY: clean
 clean:
-	rm -fr coverage.txt docs/html
+	rm -fr docs/html
 
 .PHONY: docs
 docs:
