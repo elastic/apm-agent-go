@@ -2,11 +2,15 @@
 check: precheck test
 
 .PHONY: precheck
-precheck: check-goimports check-lint check-vet
+precheck: check-goimports check-lint check-vet check-dockerfile-testing
 
 .PHONY: check-goimports
 check-goimports:
 	sh scripts/check_goimports.sh
+
+.PHONY: check-dockerfile-testing
+check-dockerfile-testing:
+	go run ./scripts/gendockerfile.go -d
 
 .PHONY: check-lint
 check-lint:

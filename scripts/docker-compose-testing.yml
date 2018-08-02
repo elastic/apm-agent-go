@@ -1,0 +1,52 @@
+# Use scripts/docker-compose-testing, which will set the project name
+# and docker-compose file path (i.e. path to this file).
+#
+# After "docker-compose-testing up", tests can be run like this:
+#     scripts/docker-compose-testing run --rm go-agent-tests make test
+
+version: '3'
+services:
+  go-agent-tests:
+    build:
+      context: ..
+      dockerfile: scripts/Dockerfile-testing
+    environment:
+      CASSANDRA_HOST: cassandra
+      MYSQL_HOST: mysql
+      PGHOST: postgres
+    depends_on:
+      - cassandra
+      - mysql
+      - postgres
+
+  mysql:
+    image: mysql:latest
+    environment:
+      - MYSQL_ROOT_PASSWORD=hunter2
+      - MYSQL_DATABASE=test_db
+    volumes:
+      - mysqldata:/var/lib/mysql
+
+  postgres:
+    image: postgres:latest
+    environment:
+      - POSTGRES_PASSWORD=hunter2
+      - POSTGRES_DB=test_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  cassandra:
+    image: cassandra:latest
+    volumes:
+      - cassandradata:/var/lib/cassandra
+    environment:
+      MAX_HEAP_SIZE: "1G"
+      HEAP_NEWSIZE: 400m
+
+volumes:
+  mysqldata:
+    driver: local
+  pgdata:
+    driver: local
+  cassandradata:
+    driver: local
