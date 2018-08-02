@@ -8,12 +8,13 @@
  - Support for the experimental metrics API added (#94)
  - module/apmsql: SQL is parsed to generate more useful span names (#129)
  - Basic vgo module added (#136)
- - module/apmhttprouter: added a wrapper type for httprouter.Router to simplify adding routes (#140)
- - Add Transaction.Context methods for setting user IDs (#144)
+ - module/apmhttprouter: added a wrapper type for `httprouter.Router` to simplify adding routes (#140)
+ - Add `Transaction.Context` methods for setting user IDs (#144)
  - module/apmgocql: new instrumentation module, providing an observer for gocql (#148)
- - Add ELASTIC\_APM\_SERVER\_TIMEOUT config (#157)
- - Add ELASTIC\_APM\_IGNORE\_URLS config (#158)
+ - Add `ELASTIC_APM_SERVER_TIMEOUT` config (#157)
+ - Add `ELASTIC_APM_IGNORE_URLS` config (#158)
  - module/apmsql: fix a bug preventing errors from being captured (#160)
+ - Introduce `Tracer.StartTransactionOptions`, drop variadic args from `Tracer.StartTransaction` (#165)
 
 ## [v0.4.0](https://github.com/elastic/apm-agent-go/releases/tag/v0.4.0)
 
