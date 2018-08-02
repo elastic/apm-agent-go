@@ -8,11 +8,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/apm-agent-go"
+	"github.com/elastic/apm-agent-go/apmtest"
 	"github.com/elastic/apm-agent-go/model"
 	"github.com/elastic/apm-agent-go/module/apmsql"
 	_ "github.com/elastic/apm-agent-go/module/apmsql/sqlite3"
-	"github.com/elastic/apm-agent-go/transport/transporttest"
 )
 
 func TestPingContext(t *testing.T) {
@@ -21,7 +20,7 @@ func TestPingContext(t *testing.T) {
 	defer db.Close()
 
 	db.Ping() // connect
-	tx, _ := withTransaction(t, func(ctx context.Context) {
+	tx, _ := apmtest.WithTransaction(func(ctx context.Context) {
 		err := db.PingContext(ctx)
 		assert.NoError(t, err)
 	})
@@ -36,7 +35,7 @@ func TestExecContext(t *testing.T) {
 	defer db.Close()
 
 	db.Ping() // connect
-	tx, _ := withTransaction(t, func(ctx context.Context) {
+	tx, _ := apmtest.WithTransaction(func(ctx context.Context) {
 		_, err := db.ExecContext(ctx, "CREATE TABLE foo (bar INT)")
 		require.NoError(t, err)
 	})
@@ -53,7 +52,7 @@ func TestQueryContext(t *testing.T) {
 	_, err = db.Exec("CREATE TABLE foo (bar INT)")
 	require.NoError(t, err)
 
-	tx, _ := withTransaction(t, func(ctx context.Context) {
+	tx, _ := apmtest.WithTransaction(func(ctx context.Context) {
 		rows, err := db.QueryContext(ctx, "SELECT * FROM foo")
 		require.NoError(t, err)
 		rows.Close()
@@ -78,7 +77,7 @@ func TestPrepareContext(t *testing.T) {
 	defer db.Close()
 
 	db.Ping() // connect
-	tx, _ := withTransaction(t, func(ctx context.Context) {
+	tx, _ := apmtest.WithTransaction(func(ctx context.Context) {
 		stmt, err := db.PrepareContext(ctx, "CREATE TABLE foo (bar INT)")
 		require.NoError(t, err)
 		defer stmt.Close()
@@ -102,7 +101,7 @@ func TestStmtExecContext(t *testing.T) {
 	require.NoError(t, err)
 	defer stmt.Close()
 
-	tx, _ := withTransaction(t, func(ctx context.Context) {
+	tx, _ := apmtest.WithTransaction(func(ctx context.Context) {
 		_, err = stmt.ExecContext(ctx, sql.Named("ceil", 999))
 		require.NoError(t, err)
 	})
@@ -123,7 +122,7 @@ func TestStmtQueryContext(t *testing.T) {
 	require.NoError(t, err)
 	defer stmt.Close()
 
-	tx, _ := withTransaction(t, func(ctx context.Context) {
+	tx, _ := apmtest.WithTransaction(func(ctx context.Context) {
 		rows, err := stmt.QueryContext(ctx)
 		require.NoError(t, err)
 		rows.Close()
@@ -145,7 +144,7 @@ func TestTxStmtQueryContext(t *testing.T) {
 	require.NoError(t, err)
 	defer stmt.Close()
 
-	tx, _ := withTransaction(t, func(ctx context.Context) {
+	tx, _ := apmtest.WithTransaction(func(ctx context.Context) {
 		tx, err := db.BeginTx(ctx, nil)
 		require.NoError(t, err)
 		defer tx.Rollback()
@@ -166,7 +165,7 @@ func TestCaptureErrors(t *testing.T) {
 	defer db.Close()
 
 	db.Ping() // connect
-	tx, errors := withTransaction(t, func(ctx context.Context) {
+	tx, errors := apmtest.WithTransaction(func(ctx context.Context) {
 		_, err := db.QueryContext(ctx, "SELECT * FROM thin_air")
 		require.Error(t, err)
 	})
@@ -175,24 +174,4 @@ func TestCaptureErrors(t *testing.T) {
 	assert.Equal(t, "SELECT FROM thin_air", tx.Spans[0].Name)
 	assert.Equal(t, "db.sqlite3.query", tx.Spans[0].Type)
 	assert.Equal(t, "no such table: thin_air", errors[0].Exception.Message)
-}
-
-func withTransaction(t *testing.T, f func(ctx context.Context)) (model.Transaction, []*model.Error) {
-	tracer, transport := transporttest.NewRecorderTracer()
-	defer tracer.Close()
-
-	tx := tracer.StartTransaction("name", "type")
-	ctx := elasticapm.ContextWithTransaction(context.Background(), tx)
-	f(ctx)
-
-	tx.End()
-	tracer.Flush(nil)
-	payloads := transport.Payloads()
-	var errors []*model.Error
-	if len(payloads) == 2 {
-		errors = payloads[0].Errors()
-	}
-	transactions := payloads[len(payloads)-1].Transactions()
-	require.Len(t, transactions, 1)
-	return transactions[0], errors
 }

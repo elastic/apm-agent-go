@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/elastic/apm-agent-go/apmtest"
 	"github.com/elastic/apm-agent-go/module/apmsql"
 )
 
@@ -19,7 +20,7 @@ func TestConnect(t *testing.T) {
 
 	// Note: only in Go 1.10 do we have context during connection.
 
-	tx, _ := withTransaction(t, func(ctx context.Context) {
+	tx, _ := apmtest.WithTransaction(func(ctx context.Context) {
 		err := db.PingContext(ctx)
 		assert.NoError(t, err)
 	})

@@ -11,10 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/apm-agent-go"
+	"github.com/elastic/apm-agent-go/apmtest"
 	"github.com/elastic/apm-agent-go/model"
 	"github.com/elastic/apm-agent-go/module/apmgocql"
-	"github.com/elastic/apm-agent-go/transport/transporttest"
 )
 
 const (
@@ -31,7 +30,7 @@ var cassandraHost = os.Getenv("CASSANDRA_HOST")
 func TestQueryObserver(t *testing.T) {
 	var start time.Time
 	observer := apmgocql.NewObserver()
-	tx, errors := withTransaction(t, func(ctx context.Context) {
+	tx, errors := apmtest.WithTransaction(func(ctx context.Context) {
 		start = time.Now()
 		observer.ObserveQuery(ctx, gocql.ObservedQuery{
 			Start:     start,
@@ -65,7 +64,7 @@ func TestQueryObserver(t *testing.T) {
 func TestBatchObserver(t *testing.T) {
 	var start time.Time
 	observer := apmgocql.NewObserver()
-	tx, errors := withTransaction(t, func(ctx context.Context) {
+	tx, errors := apmtest.WithTransaction(func(ctx context.Context) {
 		start = time.Now()
 		observer.ObserveBatch(ctx, gocql.ObservedBatch{
 			Start:    start,
@@ -114,7 +113,7 @@ func TestQueryObserverIntegration(t *testing.T) {
 	session := newSession(t)
 	defer session.Close()
 
-	tx, _ := withTransaction(t, func(ctx context.Context) {
+	tx, _ := apmtest.WithTransaction(func(ctx context.Context) {
 		err := execQuery(ctx, session, createKeyspaceStatement)
 		assert.NoError(t, err)
 
@@ -151,7 +150,7 @@ func TestBatchObserverIntegration(t *testing.T) {
 	err = execQuery(context.Background(), session, `CREATE TABLE IF NOT EXISTS foo.bar (id int, PRIMARY KEY(id));`)
 	assert.NoError(t, err)
 
-	tx, _ := withTransaction(t, func(ctx context.Context) {
+	tx, _ := apmtest.WithTransaction(func(ctx context.Context) {
 		batch := session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
 		batch.Query("INSERT INTO foo.bar(id) VALUES(1)")
 		batch.Query("INSERT INTO foo.bar(id) VALUES(2)")
@@ -192,7 +191,7 @@ func TestQueryObserverErrorIntegration(t *testing.T) {
 	defer session.Close()
 
 	var queryError error
-	tx, errors := withTransaction(t, func(ctx context.Context) {
+	tx, errors := apmtest.WithTransaction(func(ctx context.Context) {
 		queryError = execQuery(ctx, session, "ZINGA")
 	})
 	require.Len(t, errors, 1)
@@ -216,23 +215,4 @@ func newSession(t *testing.T) *gocql.Session {
 	session, err := config.CreateSession()
 	require.NoError(t, err)
 	return session
-}
-
-func withTransaction(t *testing.T, f func(context.Context)) (model.Transaction, []*model.Error) {
-	tracer, transport := transporttest.NewRecorderTracer()
-	defer tracer.Close()
-
-	tx := tracer.StartTransaction("name", "type")
-	f(elasticapm.ContextWithTransaction(context.Background(), tx))
-	tx.End()
-
-	tracer.Flush(nil)
-	payloads := transport.Payloads()
-	var errors []*model.Error
-	if len(payloads) == 2 {
-		errors = payloads[0].Errors()
-	}
-	transactions := payloads[len(payloads)-1].Transactions()
-	require.Len(t, transactions, 1)
-	return transactions[0], errors
 }
