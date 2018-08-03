@@ -77,7 +77,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 // returned with the transaction added to its context.
 func StartTransaction(tracer *elasticapm.Tracer, name string, req *http.Request) (*elasticapm.Transaction, *http.Request) {
 	var opts elasticapm.TransactionOptions
-	if v := req.Header.Get(traceparentHeader); v != "" {
+	if v := req.Header.Get(TraceparentHeader); v != "" {
 		c, err := ParseTraceparentHeader(v)
 		if err == nil {
 			opts.TraceContext = c

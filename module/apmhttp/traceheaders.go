@@ -11,10 +11,12 @@ import (
 )
 
 const (
-	// NOTE: at this time, the W3c Trace-Context headers are not finalised.
+	// TraceparentHeader is the HTTP header for trace propagation.
+	//
+	// NOTE: at this time, the W3C Trace-Context headers are not finalised.
 	// To avoid producing possibly invalid traceparent headers, we will
 	// use an alternative name until the format is frozen.
-	traceparentHeader = "Elastic-Apm-Traceparent"
+	TraceparentHeader = "Elastic-Apm-Traceparent"
 )
 
 // FormatTraceparentHeader formats the given trace context as a

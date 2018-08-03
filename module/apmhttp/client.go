@@ -74,7 +74,7 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	distributedTracing := traceContext.Span != (elasticapm.SpanID{})
 	if !tx.Sampled() {
 		if distributedTracing {
-			req.Header.Set(traceparentHeader, FormatTraceparentHeader(traceContext))
+			req.Header.Set(TraceparentHeader, FormatTraceparentHeader(traceContext))
 		}
 		return r.r.RoundTrip(req)
 	}
@@ -89,7 +89,7 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	if distributedTracing {
-		req.Header.Set(traceparentHeader, FormatTraceparentHeader(traceContext))
+		req.Header.Set(TraceparentHeader, FormatTraceparentHeader(traceContext))
 	}
 	ctx = elasticapm.ContextWithSpan(ctx, span)
 	req = RequestWithContext(ctx, req)
