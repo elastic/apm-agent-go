@@ -10,7 +10,15 @@ import (
 
 // StartTransaction returns a new Transaction with the specified
 // name and type, and with the start time set to the current time.
-func (t *Tracer) StartTransaction(name, transactionType string, opts ...TransactionOption) *Transaction {
+// This is equivalent to calling StartTransactionOptions with a
+// zero TransactionOptions.
+func (t *Tracer) StartTransaction(name, transactionType string) *Transaction {
+	return t.StartTransactionOptions(name, transactionType, TransactionOptions{})
+}
+
+// StartTransactionOptions returns a new Transaction with the
+// specified name, type, and options.
+func (t *Tracer) StartTransactionOptions(name, transactionType string, opts TransactionOptions) *Transaction {
 	tx, _ := t.transactionPool.Get().(*Transaction)
 	if tx == nil {
 		tx = &Transaction{
@@ -29,11 +37,13 @@ func (t *Tracer) StartTransaction(name, transactionType string, opts ...Transact
 	tx.Name = name
 	tx.Type = transactionType
 
-	txOpts := transactionOptions{tx: tx}
-	for _, o := range opts {
-		o(&txOpts)
+	if tx.tracer.distributedTracing {
+		if opts.TraceContext.Trace.Validate() == nil && opts.TraceContext.Span.Validate() == nil {
+			tx.traceContext.Trace = opts.TraceContext.Trace
+			tx.parentSpan = opts.TraceContext.Span
+		}
+		tx.traceContext.Options = opts.TraceContext.Options
 	}
-
 	if tx.traceContext.Trace.isZero() {
 		// In any case, we fill out the trace ID; this will be used for
 		// either the transaction's trace ID, or for its UUID in case
@@ -72,7 +82,10 @@ func (t *Tracer) StartTransaction(name, transactionType string, opts ...Transact
 			tx.traceContext.Options = tx.traceContext.Options.WithSampled(true)
 		}
 	}
-	tx.Timestamp = time.Now()
+	tx.Timestamp = opts.Start
+	if tx.Timestamp.IsZero() {
+		tx.Timestamp = time.Now()
+	}
 	return tx
 }
 
@@ -161,26 +174,15 @@ func (tx *Transaction) enqueue() {
 	}
 }
 
-// TransactionOption sets options when starting a transaction.
-type TransactionOption func(*transactionOptions)
+// TransactionOptions holds options for Tracer.StartTransactionOptions.
+type TransactionOptions struct {
+	// TraceContext holds the TraceContext for a new transaction. If this is
+	// zero, and distributed tracing is enabled, a new trace will be started.
+	//
+	// TraceContext is ignored if distributed tracing is disabled.
+	TraceContext TraceContext
 
-type transactionOptions struct {
-	tx *Transaction
-}
-
-// WithTraceContext returns a TransactionOption which sets the
-// transaction's TraceContext: its trace ID, parent span ID,
-// and trace options. If distributed tracing is disabled, this
-// option is ignored.
-func WithTraceContext(c TraceContext) TransactionOption {
-	return func(opts *transactionOptions) {
-		if !opts.tx.tracer.distributedTracing {
-			return
-		}
-		if c.Trace.Validate() == nil && c.Span.Validate() == nil {
-			opts.tx.traceContext.Trace = c.Trace
-			opts.tx.parentSpan = c.Span
-		}
-		opts.tx.traceContext.Options = c.Options
-	}
+	// Start is the start time of the transaction. If this has the
+	// zero value, time.Now() will be used instead.
+	Start time.Time
 }
