@@ -6,7 +6,7 @@ import (
 	"github.com/elastic/apm-agent-go/internal/sqlscanner"
 )
 
-// genericQuerySignature returns the "signature" for a query:
+// QuerySignature returns the "signature" for a query:
 // a high level description of the operation.
 //
 // For DDL statements (CREATE, DROP, ALTER, etc.), we we only
@@ -15,7 +15,7 @@ import (
 // an application. For SELECT, INSERT, and UPDATE, and DELETE,
 // we attempt to extract the first table name. If we are unable
 // to identify the table name, we simply omit it.
-func genericQuerySignature(query string) string {
+func QuerySignature(query string) string {
 	s := sqlscanner.NewScanner(query)
 	for s.Scan() {
 		if s.Token() != sqlscanner.COMMENT {

@@ -97,7 +97,7 @@ func (d *tracingDriver) formatSpanType(suffix string) string {
 // querySignature returns the value to use in Span.Name for
 // a database query.
 func (d *tracingDriver) querySignature(query string) string {
-	return genericQuerySignature(query)
+	return QuerySignature(query)
 }
 
 func (d *tracingDriver) Open(name string) (driver.Conn, error) {

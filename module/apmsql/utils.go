@@ -16,3 +16,16 @@ func namedValueToValue(named []driver.NamedValue) ([]driver.Value, error) {
 	}
 	return dargs, nil
 }
+
+// namedValueChecker is identical to driver.NamedValueChecker, existing
+// for compatibility with Go 1.8.
+type namedValueChecker interface {
+	CheckNamedValue(*driver.NamedValue) error
+}
+
+func checkNamedValue(nv *driver.NamedValue, next namedValueChecker) error {
+	if next != nil {
+		return next.CheckNamedValue(nv)
+	}
+	return driver.ErrSkip
+}

@@ -17,20 +17,23 @@ func newStmt(in driver.Stmt, conn *conn, query string) driver.Stmt {
 	stmt.columnConverter, _ = in.(driver.ColumnConverter)
 	stmt.stmtExecContext, _ = in.(driver.StmtExecContext)
 	stmt.stmtQueryContext, _ = in.(driver.StmtQueryContext)
-	stmt.stmtGo19.init(in)
+	stmt.namedValueChecker, _ = in.(namedValueChecker)
+	if stmt.namedValueChecker == nil {
+		stmt.namedValueChecker = conn.namedValueChecker
+	}
 	return stmt
 }
 
 type stmt struct {
 	driver.Stmt
-	stmtGo19
 	conn      *conn
 	signature string
 	query     string
 
-	columnConverter  driver.ColumnConverter
-	stmtExecContext  driver.StmtExecContext
-	stmtQueryContext driver.StmtQueryContext
+	columnConverter   driver.ColumnConverter
+	namedValueChecker namedValueChecker
+	stmtExecContext   driver.StmtExecContext
+	stmtQueryContext  driver.StmtQueryContext
 }
 
 func (s *stmt) startSpan(ctx context.Context, spanType string) (*elasticapm.Span, context.Context) {
@@ -78,4 +81,8 @@ func (s *stmt) QueryContext(ctx context.Context, args []driver.NamedValue) (_ dr
 		return nil, ctx.Err()
 	}
 	return s.Query(dargs)
+}
+
+func (s *stmt) CheckNamedValue(nv *driver.NamedValue) error {
+	return checkNamedValue(nv, s.namedValueChecker)
 }
