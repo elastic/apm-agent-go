@@ -1,4 +1,4 @@
-package apmsql
+package sqlutil
 
 import (
 	"strings"
