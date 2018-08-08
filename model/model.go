@@ -208,6 +208,9 @@ type SpanContext struct {
 	// Database holds contextual information for database
 	// operation spans.
 	Database *DatabaseSpanContext `json:"db,omitempty"`
+
+	// HTTP holds contextual information for HTTP client request spans.
+	HTTP *HTTPSpanContext `json:"http,omitempty"`
 }
 
 // DatabaseSpanContext holds contextual information for database
@@ -226,6 +229,12 @@ type DatabaseSpanContext struct {
 
 	// User holds the username used for database access.
 	User string `json:"user,omitempty"`
+}
+
+// HTTPSpanContext holds contextual information for HTTP client request spans.
+type HTTPSpanContext struct {
+	// URL is the request URL.
+	URL *url.URL
 }
 
 // Context holds contextual information relating to a transaction or error.
@@ -459,7 +468,8 @@ type RequestSocket struct {
 	RemoteAddress string `json:"remote_address,omitempty"`
 }
 
-// URL represents a request URL.
+// URL represents a server-side (transaction) request URL,
+// broken down into its constituent parts.
 type URL struct {
 	// Full is the full URL, e.g.
 	// "https://example.com:443/search/?q=elasticsearch#top".

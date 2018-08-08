@@ -42,6 +42,61 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// UnmarshalJSON unmarshals the JSON data into v.
+func (v *HTTPSpanContext) UnmarshalJSON(data []byte) error {
+	var httpSpanContext struct {
+		URL string
+	}
+	if err := json.Unmarshal(data, &httpSpanContext); err != nil {
+		return err
+	}
+	u, err := url.Parse(httpSpanContext.URL)
+	if err != nil {
+		return err
+	}
+	v.URL = u
+	return nil
+}
+
+// MarshalFastJSON writes the JSON representation of v to w.
+func (v *HTTPSpanContext) MarshalFastJSON(w *fastjson.Writer) {
+	w.RawByte('{')
+	beforeURL := w.Size()
+	w.RawString(`"url":"`)
+	if v.marshalURL(w) {
+		w.RawByte('"')
+	} else {
+		w.Rewind(beforeURL)
+	}
+	w.RawByte('}')
+}
+
+func (v *HTTPSpanContext) marshalURL(w *fastjson.Writer) bool {
+	if v.URL.Scheme != "" {
+		if !marshalScheme(w, v.URL.Scheme) {
+			return false
+		}
+		w.RawString("://")
+	} else {
+		w.RawString("http://")
+	}
+	w.StringContents(v.URL.Host)
+	if v.URL.Path == "" {
+		w.RawByte('/')
+	} else {
+		w.StringContents(v.URL.Path)
+	}
+	if v.URL.RawQuery != "" {
+		w.RawByte('?')
+		w.StringContents(v.URL.RawQuery)
+	}
+	if v.URL.Fragment != "" {
+		w.RawByte('#')
+		w.StringContents(v.URL.Fragment)
+	}
+	return true
+}
+
 // MarshalFastJSON writes the JSON representation of v to w.
 func (v *URL) MarshalFastJSON(w *fastjson.Writer) {
 	w.RawByte('{')
@@ -118,7 +173,7 @@ func (v *URL) MarshalFastJSON(w *fastjson.Writer) {
 	if schemeEnd != -1 && v.Hostname != "" && v.Path != "" {
 		before := w.Size()
 		w.RawString(",\"full\":")
-		if !v.marshalFullURL(w, schemeBegin, schemeEnd) {
+		if !v.marshalFullURL(w, w.Bytes()[schemeBegin:schemeEnd]) {
 			w.Rewind(before)
 		}
 	}
@@ -150,10 +205,10 @@ func marshalScheme(w *fastjson.Writer, scheme string) bool {
 	return true
 }
 
-func (v *URL) marshalFullURL(w *fastjson.Writer, schemeBegin, schemeEnd int) bool {
+func (v *URL) marshalFullURL(w *fastjson.Writer, scheme []byte) bool {
 	w.RawByte('"')
 	before := w.Size()
-	w.RawBytes(w.Bytes()[schemeBegin:schemeEnd])
+	w.RawBytes(scheme)
 	w.RawString("://")
 	if strings.IndexByte(v.Hostname, ':') == -1 {
 		w.StringContents(v.Hostname)
