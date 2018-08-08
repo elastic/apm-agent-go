@@ -16,6 +16,7 @@
  - module/apmsql: fix a bug preventing errors from being captured (#160)
  - Introduce `Tracer.StartTransactionOptions`, drop variadic args from `Tracer.StartTransaction` (#165)
  - module/apmgorm: introduce GORM instrumentation module (#169, #170)
+ - module/apmhttp: record outgoing request URLs in span context (#172)
 
 ## [v0.4.0](https://github.com/elastic/apm-agent-go/releases/tag/v0.4.0)
 

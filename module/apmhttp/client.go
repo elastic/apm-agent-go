@@ -82,6 +82,7 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	name := r.requestName(req)
 	spanType := "ext.http"
 	span := tx.StartSpan(name, spanType, elasticapm.SpanFromContext(ctx))
+	span.Context.SetHTTPRequest(req)
 	defer span.End()
 	if !span.Dropped() {
 		traceContext = span.TraceContext()

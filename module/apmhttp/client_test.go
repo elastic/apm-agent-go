@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"testing"
 
@@ -36,10 +37,18 @@ func TestClient(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
+	serverURL, err := url.Parse(server.URL)
+	require.NoError(t, err)
+	serverURL.Path = "/foo"
+
+	// Add user info to the URL; it should be stripped off.
+	requestURL := *serverURL
+	requestURL.User = url.UserPassword("root", "hunter2")
+
 	tx := tracer.StartTransaction("name", "type")
 	ctx := elasticapm.ContextWithTransaction(context.Background(), tx)
 	client := apmhttp.WrapClient(http.DefaultClient)
-	resp, err := ctxhttp.Get(ctx, client, server.URL+"/foo")
+	resp, err := ctxhttp.Get(ctx, client, requestURL.String())
 	assert.NoError(t, err)
 	resp.Body.Close()
 	assert.Equal(t, http.StatusTeapot, resp.StatusCode)
@@ -56,7 +65,12 @@ func TestClient(t *testing.T) {
 	span := transaction.Spans[0]
 	assert.Equal(t, "GET "+server.Listener.Addr().String(), span.Name)
 	assert.Equal(t, "ext.http", span.Type)
-	assert.Nil(t, span.Context)
+	assert.Equal(t, &model.SpanContext{
+		HTTP: &model.HTTPSpanContext{
+			// Note no user info included in server.URL.
+			URL: serverURL,
+		},
+	}, span.Context)
 }
 
 func TestClientTraceparentHeader(t *testing.T) {
@@ -93,13 +107,9 @@ func TestClientTraceparentHeader(t *testing.T) {
 	transaction := transactions[0]
 	require.Len(t, transaction.Spans, 1)
 
-	span := transaction.Spans[0]
-	assert.Equal(t, "GET "+server.Listener.Addr().String(), span.Name)
-	assert.Equal(t, "ext.http", span.Type)
-	assert.Nil(t, span.Context)
-
 	clientTraceContext, err := apmhttp.ParseTraceparentHeader(string(responseBody))
 	assert.NoError(t, err)
+	span := transaction.Spans[0]
 	assert.Equal(t, span.TraceID, model.TraceID(clientTraceContext.Trace))
 	assert.Equal(t, span.ID, model.SpanID(clientTraceContext.Span))
 	assert.Equal(t, transaction.ID.SpanID, span.ParentID)
