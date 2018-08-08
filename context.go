@@ -77,10 +77,9 @@ func (c *Context) SetTag(key, value string) {
 
 // SetHTTPRequest sets details of the HTTP request in the context.
 //
-// This function may be used for either clients or servers. For
-// server-side requests, various proxy forwarding headers are taken
-// into account to reconstruct the URL, and determining the client
-// address.
+// This function relates to server-side requests. Various proxy
+// forwarding headers are taken into account to reconstruct the URL,
+// and determining the client address.
 //
 // If the request URL contains user info, it will be removed and
 // excluded from the URL's "full" field.
