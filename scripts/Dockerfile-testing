@@ -18,6 +18,10 @@ RUN go get -v github.com/julienschmidt/httprouter
 RUN go get -v github.com/labstack/echo
 RUN go get -v github.com/lib/pq
 RUN go get -v github.com/mattn/go-sqlite3
+RUN go get -v github.com/opentracing/opentracing-go
+RUN go get -v github.com/opentracing/opentracing-go/ext
+RUN go get -v github.com/opentracing/opentracing-go/harness
+RUN go get -v github.com/opentracing/opentracing-go/log
 RUN go get -v github.com/pkg/errors
 RUN go get -v github.com/prometheus/client_golang/prometheus
 RUN go get -v github.com/prometheus/client_model/go
