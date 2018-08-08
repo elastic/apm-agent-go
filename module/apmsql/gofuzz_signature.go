@@ -1,12 +1,16 @@
 // +build gofuzz
 
-package apmsql
+package apmsql_test
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/elastic/apm-agent-go/module/apmsql"
+)
 
 func Fuzz(data []byte) int {
 	sql := string(data)
-	sig := genericQuerySignature(sql)
+	sig := apmsql.QuerySignature(sql)
 	if sig == "" {
 		return -1
 	}

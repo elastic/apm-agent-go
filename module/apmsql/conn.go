@@ -11,6 +11,7 @@ import (
 func newConn(in driver.Conn, d *tracingDriver, dsnInfo DSNInfo) driver.Conn {
 	conn := &conn{Conn: in, driver: d}
 	conn.dsnInfo = dsnInfo
+	conn.namedValueChecker, _ = in.(namedValueChecker)
 	conn.pinger, _ = in.(driver.Pinger)
 	conn.queryer, _ = in.(driver.Queryer)
 	conn.queryerContext, _ = in.(driver.QueryerContext)
@@ -31,6 +32,7 @@ type conn struct {
 	driver  *tracingDriver
 	dsnInfo DSNInfo
 
+	namedValueChecker  namedValueChecker
 	pinger             driver.Pinger
 	queryer            driver.Queryer
 	queryerContext     driver.QueryerContext
@@ -155,6 +157,10 @@ func (c *conn) ExecContext(ctx context.Context, query string, args []driver.Name
 
 func (*conn) Exec(query string, args []driver.Value) (driver.Result, error) {
 	return nil, errors.New("Exec should never be called")
+}
+
+func (c *conn) CheckNamedValue(nv *driver.NamedValue) error {
+	return checkNamedValue(nv, c.namedValueChecker)
 }
 
 type connBeginTx struct {

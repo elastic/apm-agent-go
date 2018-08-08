@@ -1,14 +1,16 @@
-package apmsql
+package sqlutil_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/elastic/apm-agent-go/internal/sqlutil"
 )
 
 func TestQuerySignature(t *testing.T) {
 	assertSignatureEqual := func(expect, stmt string) {
-		out := genericQuerySignature(stmt)
+		out := sqlutil.QuerySignature(stmt)
 		assert.Equal(t, expect, out, "%s", stmt)
 	}
 
@@ -55,7 +57,7 @@ func TestQuerySignature(t *testing.T) {
 func BenchmarkQuerySignature(b *testing.B) {
 	sql := "SELECT *,(SELECT COUNT(*) FROM table2 WHERE table2.field1 = table1.id) AS count FROM table1 WHERE table1.field1 = 'value'"
 	for i := 0; i < b.N; i++ {
-		signature := genericQuerySignature(sql)
+		signature := sqlutil.QuerySignature(sql)
 		if signature != "SELECT FROM table1" {
 			panic("unexpected result: " + signature)
 		}

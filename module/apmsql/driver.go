@@ -4,13 +4,19 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
-	"reflect"
-	"strings"
+	"sync"
+
+	"github.com/elastic/apm-agent-go/internal/sqlutil"
 )
 
 // DriverPrefix should be used as a driver name prefix when
 // registering via sql.Register.
 const DriverPrefix = "elasticapm/"
+
+var (
+	driversMu sync.RWMutex
+	drivers   = make(map[string]*tracingDriver)
+)
 
 // Register registers a traced version of the given driver.
 //
@@ -18,8 +24,12 @@ const DriverPrefix = "elasticapm/"
 // sql.Register: the name of the driver (e.g. "postgres"), and
 // the driver (e.g. &github.com/lib/pq.Driver{}).
 func Register(name string, driver driver.Driver, opts ...WrapOption) {
-	wrapped := Wrap(driver, opts...)
+	driversMu.Lock()
+	defer driversMu.Unlock()
+
+	wrapped := newTracingDriver(driver, opts...)
 	sql.Register(DriverPrefix+name, wrapped)
+	drivers[name] = wrapped
 }
 
 // Open opens a database with the given driver and data source names,
@@ -34,6 +44,10 @@ func Open(driverName, dataSourceName string) (*sql.DB, error) {
 // will be obtained from the context supplied to methods
 // that accept it.
 func Wrap(driver driver.Driver, opts ...WrapOption) driver.Driver {
+	return newTracingDriver(driver, opts...)
+}
+
+func newTracingDriver(driver driver.Driver, opts ...WrapOption) *tracingDriver {
 	d := &tracingDriver{
 		Driver: driver,
 	}
@@ -41,7 +55,7 @@ func Wrap(driver driver.Driver, opts ...WrapOption) driver.Driver {
 		opt(d)
 	}
 	if d.driverName == "" {
-		d.driverName = driverName(driver)
+		d.driverName = sqlutil.DriverName(driver)
 	}
 	if d.dsnParser == nil {
 		d.dsnParser = genericDSNParser
@@ -53,6 +67,20 @@ func Wrap(driver driver.Driver, opts ...WrapOption) driver.Driver {
 	d.querySpanType = d.formatSpanType("query")
 	d.execSpanType = d.formatSpanType("exec")
 	return d
+}
+
+// DriverDSNParser returns the DSNParserFunc for the registered driver.
+// If there is no such registered driver, the parser function that is
+// returned will return empty DSNInfo structures.
+func DriverDSNParser(driverName string) DSNParserFunc {
+	driversMu.RLock()
+	driver := drivers[driverName]
+	defer driversMu.RUnlock()
+
+	if driver == nil {
+		return genericDSNParser
+	}
+	return driver.dsnParser
 }
 
 // WrapOption is an option that can be supplied to Wrap.
@@ -97,7 +125,7 @@ func (d *tracingDriver) formatSpanType(suffix string) string {
 // querySignature returns the value to use in Span.Name for
 // a database query.
 func (d *tracingDriver) querySignature(query string) string {
-	return genericQuerySignature(query)
+	return sqlutil.QuerySignature(query)
 }
 
 func (d *tracingDriver) Open(name string) (driver.Conn, error) {
@@ -106,26 +134,4 @@ func (d *tracingDriver) Open(name string) (driver.Conn, error) {
 		return nil, err
 	}
 	return newConn(conn, d, d.dsnParser(name)), nil
-}
-
-func driverName(d driver.Driver) string {
-	t := reflect.TypeOf(d)
-	if t.Kind() == reflect.Ptr {
-		t = t.Elem()
-	}
-	switch t.Name() {
-	case "SQLiteDriver":
-		return "sqlite3"
-	case "MySQLDriver":
-		return "mysql"
-	case "Driver":
-		// Check suffix in case of vendoring.
-		if strings.HasSuffix(t.PkgPath(), "github.com/lib/pq") {
-			return "postgresql"
-		}
-	}
-	// TODO include the package path of the driver in context
-	// so we can easily determine how the rules above should
-	// be updated.
-	return "generic"
 }

@@ -264,6 +264,31 @@ func main() {
 Spans will be created for queries and other statement executions if the context methods are
 used, and the context includes a transaction.
 
+===== module/apmgorm
+Package apmgorm provides a means of instrumenting [gorm](http://gorm.io) database operations.
+
+To trace GORM operations, import the appropriate `apmgorm/dialects` package (instead of the
+`gorm/dialects` package), and use `apmgorm.Open` (instead of `gorm.Open`). The parameters are
+exactly the same.
+
+Once you have a `*gorm.DB` from `apmgorm.Open`, you can call `apmgorm.WithContext` to
+propagate a context containing a transaction to the operations:
+
+[source,go]
+----
+import (
+	"github.com/elastic/apm-agent-go/module/apmgorm"
+	_ "github.com/elastic/apm-agent-go/module/apmgorm/dialects/postgres"
+)
+
+func main() {
+	db, err := apmgorm.Open("postgres", "")
+	...
+	db = apmgorm.WithContext(ctx, db)
+	db.Find(...) // creates a "SELECT FROM <foo>" span
+}
+----
+
 ===== module/apmgocql
 Package apmgocql provides a means of instrumenting https://github.com/gocql/gocql[gocql] so
 that queries are reported as spans within the current transaction.
