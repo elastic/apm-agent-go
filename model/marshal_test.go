@@ -101,6 +101,17 @@ func TestMarshalTransaction(t *testing.T) {
 					},
 				},
 			},
+			map[string]interface{}{
+				"name":     "GET testing.invalid:8000",
+				"start":    float64(3),
+				"duration": float64(4),
+				"type":     "ext.http",
+				"context": map[string]interface{}{
+					"http": map[string]interface{}{
+						"url": "http://testing.invalid:8000/path?query#fragment",
+					},
+				},
+			},
 		},
 	}
 
@@ -581,6 +592,16 @@ func fakeTransaction() model.Transaction {
 					Statement: `SELECT foo FROM bar WHERE baz LIKE 'qu%x'`,
 					Type:      "sql",
 					User:      "barb",
+				},
+			},
+		}, {
+			Name:     "GET testing.invalid:8000",
+			Start:    3,
+			Duration: 4,
+			Type:     "ext.http",
+			Context: &model.SpanContext{
+				HTTP: &model.HTTPSpanContext{
+					URL: mustParseURL("http://testing.invalid:8000/path?query#fragment"),
 				},
 			},
 		}},

@@ -243,9 +243,26 @@ func (v *Span) MarshalFastJSON(w *fastjson.Writer) {
 
 func (v *SpanContext) MarshalFastJSON(w *fastjson.Writer) {
 	w.RawByte('{')
+	first := true
 	if v.Database != nil {
-		w.RawString("\"db\":")
+		const prefix = ",\"db\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
 		v.Database.MarshalFastJSON(w)
+	}
+	if v.HTTP != nil {
+		const prefix = ",\"http\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		v.HTTP.MarshalFastJSON(w)
 	}
 	w.RawByte('}')
 }
