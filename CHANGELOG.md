@@ -2,7 +2,7 @@
 
 ## [Unreleased](https://github.com/elastic/apm-agent-go/compare/v0.4.0...master)
 
- - `ELASTIC_APM_TRANSPORT` now defaults to "http://localhost:8200" (#122)
+ - `ELASTIC_APM_SERVER_URL` now defaults to "http://localhost:8200" (#122)
  - `Transport.SetUserAgent` method added, enabling the User-Agent to be set programatically (#124)
  - Inlined functions are now properly reported in stacktraces (#127)
  - Support for the experimental metrics API added (#94)
