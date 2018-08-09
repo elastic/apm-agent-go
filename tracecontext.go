@@ -11,7 +11,8 @@ var (
 )
 
 const (
-	traceOptionsSampledFlag = 0x00000001
+	traceOptionsRequestedFlag = 0x01
+	traceOptionsRecordedFlag  = 0x02
 )
 
 // TraceContext holds trace context for an incoming or outgoing request.
@@ -73,16 +74,32 @@ func (id SpanID) String() string {
 // TraceOptions describes the options for a trace.
 type TraceOptions uint8
 
-// Sampled reports whether or not the request should be traced.
-func (o TraceOptions) Sampled() bool {
-	return (o & traceOptionsSampledFlag) == traceOptionsSampledFlag
+// Requested reports whether or not it has been requested that this
+// transaction/span be recorded.
+func (o TraceOptions) Requested() bool {
+	return (o & traceOptionsRequestedFlag) == traceOptionsRequestedFlag
 }
 
-// WithSampled changes the "sampled" flag, and returns the new options without
+// MaybeRecorded reports whether or not the transaction/span may have been
+// (or may be) recorded.
+func (o TraceOptions) MaybeRecorded() bool {
+	return (o & traceOptionsRecordedFlag) == traceOptionsRecordedFlag
+}
+
+// WithRequested changes the "requested" flag, and returns the new options without
 // modifying the original value.
-func (o TraceOptions) WithSampled(sampled bool) TraceOptions {
-	if sampled {
-		return o | traceOptionsSampledFlag
+func (o TraceOptions) WithRequested(requested bool) TraceOptions {
+	if requested {
+		return o | traceOptionsRequestedFlag
 	}
-	return o & (0xFF ^ traceOptionsSampledFlag)
+	return o & (0xFF ^ traceOptionsRequestedFlag)
+}
+
+// WithMaybeRecorded changes the "recorded" flag, and returns the new options
+// without modifying the original value.
+func (o TraceOptions) WithMaybeRecorded(maybeRecorded bool) TraceOptions {
+	if maybeRecorded {
+		return o | traceOptionsRecordedFlag
+	}
+	return o & (0xFF ^ traceOptionsRecordedFlag)
 }

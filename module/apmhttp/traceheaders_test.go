@@ -32,4 +32,6 @@ func TestParseTraceparentHeader(t *testing.T) {
 	assert.Equal(t, "\x0a\xf7\x65\x19\x16\xcd\x43\xdd\x84\x48\xeb\x21\x1c\x80\x31\x9c", string(out.Trace[:]))
 	assert.Equal(t, "\xb7\xad\x6b\x71\x69\x20\x33\x31", string(out.Span[:]))
 	assert.Equal(t, elasticapm.TraceOptions(1), out.Options)
+	assert.True(t, out.Options.Requested())
+	assert.False(t, out.Options.MaybeRecorded())
 }

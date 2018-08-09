@@ -74,12 +74,13 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 	// it may open up the application to DoS by forced sampling.
 	// Even ignoring bad actors, a service that has many feeder
 	// applications may end up being sampled at a very high rate.
-	if !tx.traceContext.Options.Sampled() {
+	if !tx.traceContext.Options.Requested() {
 		t.samplerMu.RLock()
 		sampler := t.sampler
 		t.samplerMu.RUnlock()
 		if sampler == nil || sampler.Sample(tx) {
-			tx.traceContext.Options = tx.traceContext.Options.WithSampled(true)
+			o := tx.traceContext.Options.WithRequested(true).WithMaybeRecorded(true)
+			tx.traceContext.Options = o
 		}
 	}
 	tx.Timestamp = opts.Start
@@ -136,7 +137,7 @@ func (tx *Transaction) Discard() {
 
 // Sampled reports whether or not the transaction is sampled.
 func (tx *Transaction) Sampled() bool {
-	return tx.traceContext.Options.Sampled()
+	return tx.traceContext.Options.MaybeRecorded()
 }
 
 // TraceContext returns the transaction's TraceContext: its trace ID,
