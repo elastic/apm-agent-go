@@ -10,7 +10,9 @@ check-goimports:
 
 .PHONY: check-dockerfile-testing
 check-dockerfile-testing:
+ifeq ($(shell go run ./scripts/mingoversion.go -print 1.9),true)
 	go run ./scripts/gendockerfile.go -d
+endif
 
 .PHONY: check-lint
 check-lint:
