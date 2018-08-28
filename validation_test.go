@@ -1,8 +1,11 @@
 package elasticapm_test
 
 import (
+	"bufio"
 	"bytes"
+	"compress/zlib"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/internal/fastjson"
+	"github.com/elastic/apm-agent-go/internal/apmschema"
 )
 
 func TestValidateServiceName(t *testing.T) {
@@ -249,19 +252,50 @@ func validatePayloads(t *testing.T, f func(tracer *elasticapm.Tracer)) {
 
 type validatingTransport struct {
 	t *testing.T
-	w fastjson.Writer
 }
 
 func (t *validatingTransport) SendStream(ctx context.Context, r io.Reader) error {
-	//t.validate(p, apmschema.Transactions)
-	return nil
-}
-
-func (t *validatingTransport) validate(payload fastjson.Marshaler, schema *jsonschema.Schema) {
-	t.w.Reset()
-	payload.MarshalFastJSON(&t.w)
-	err := schema.Validate(bytes.NewReader(t.w.Bytes()))
+	zr, err := zlib.NewReader(r)
 	require.NoError(t.t, err)
+
+	first := true
+	s := bufio.NewScanner(zr)
+	lineno := 0
+	for s.Scan() {
+		lineno++
+		m := make(map[string]json.RawMessage)
+		err := json.Unmarshal(s.Bytes(), &m)
+		require.NoError(t.t, err)
+		require.Len(t.t, m, 1) // 1 object per line
+
+		var schema *jsonschema.Schema
+		for k, v := range m {
+			if first {
+				require.Equal(t.t, "metadata", k)
+				first = false
+				schema = apmschema.Metadata
+			} else {
+				switch k {
+				case "error":
+					schema = apmschema.Error
+				case "metrics":
+					schema = apmschema.Metrics
+				case "transaction":
+					schema = apmschema.Transaction
+				default:
+					t.t.Errorf("invalid object %q on line %d", k, lineno)
+					continue
+				}
+			}
+			err := schema.Validate(bytes.NewReader([]byte(v)))
+			require.NoError(t.t, err)
+		}
+	}
+	require.NoError(t.t, s.Err())
+	if first {
+		t.t.Errorf("metadata missing from stream")
+	}
+	return nil
 }
 
 type testError struct {
