@@ -1,13 +1,22 @@
 package elasticapm_test
 
 import (
+	"context"
 	"errors"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/apm-agent-go"
+	"github.com/elastic/apm-agent-go/transport"
 	"github.com/elastic/apm-agent-go/transport/transporttest"
 )
 
@@ -37,14 +46,18 @@ func TestTracerClosedSendNonblocking(t *testing.T) {
 	assert.Equal(t, uint64(1), tracer.Stats().TransactionsDropped)
 }
 
+func TestTracerCloseImmediately(t *testing.T) {
+	tracer, err := elasticapm.NewTracer("tracer_testing", "")
+	assert.NoError(t, err)
+	tracer.Close()
+}
+
 func TestTracerFlushEmpty(t *testing.T) {
 	tracer, err := elasticapm.NewTracer("tracer_testing", "")
 	assert.NoError(t, err)
 	defer tracer.Close()
 	tracer.Flush(nil)
 }
-
-// TODO(axw) test request size, buffer size
 
 func TestTracerMaxSpans(t *testing.T) {
 	tracer, r := transporttest.NewRecorderTracer()
@@ -151,4 +164,105 @@ func TestSpanStackTrace(t *testing.T) {
 	span2 := transaction.Spans[2]
 	assert.NotNil(t, span2.Stacktrace)
 	assert.Equal(t, span2.Stacktrace[0].Function, "TestSpanStackTrace")
+}
+
+func TestTracerRequestSize(t *testing.T) {
+	os.Setenv("ELASTIC_APM_API_REQUEST_SIZE", "1024")
+	defer os.Unsetenv("ELASTIC_APM_API_REQUEST_SIZE")
+
+	requestHandled := make(chan struct{}, 1)
+	var serverStart, serverEnd time.Time
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		serverStart = time.Now()
+		io.Copy(ioutil.Discard, req.Body)
+		serverEnd = time.Now()
+		select {
+		case requestHandled <- struct{}{}:
+		case <-req.Context().Done():
+		}
+	}))
+	defer server.Close()
+
+	tracer, err := elasticapm.NewTracer("tracer_testing", "")
+	require.NoError(t, err)
+	defer tracer.Close()
+	httpTransport, err := transport.NewHTTPTransport(server.URL, "")
+	require.NoError(t, err)
+	tracer.Transport = httpTransport
+
+	// Send through a bunch of requests, filling up the API request
+	// size, causing the request to be immediately completed.
+	clientStart := time.Now()
+	for i := 0; i < 1000; i++ {
+		tracer.StartTransaction("name", "type").End()
+	}
+	<-requestHandled
+	clientEnd := time.Now()
+	assert.WithinDuration(t, clientStart, clientEnd, 100*time.Millisecond)
+	assert.WithinDuration(t, clientStart, serverStart, 100*time.Millisecond)
+	assert.WithinDuration(t, clientEnd, serverEnd, 100*time.Millisecond)
+}
+
+func TestTracerBufferSize(t *testing.T) {
+	os.Setenv("ELASTIC_APM_API_REQUEST_SIZE", "1024")
+	os.Setenv("ELASTIC_APM_API_BUFFER_SIZE", "10240")
+	defer os.Unsetenv("ELASTIC_APM_API_REQUEST_SIZE")
+	defer os.Unsetenv("ELASTIC_APM_API_BUFFER_SIZE")
+
+	tracer, recorder := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+	unblocks := make(chan chan struct{})
+	tracer.Transport = blockedTransport{
+		Transport: tracer.Transport,
+		C:         unblocks,
+	}
+	for i := 0; i < 1000; i++ {
+		tracer.StartTransaction(fmt.Sprint(i), "type").End()
+	}
+	// Don't allow anything through until all transactions are
+	// buffered. This will cause some of the transactions to be
+	// dropped in favour of new ones.
+	(<-unblocks) <- struct{}{}
+	tracer.Flush(nil)
+
+	// The first request should have all its transactions in order,
+	// since they get encoded into the request buffer immediately.
+	p := recorder.Payloads()
+	assert.NotEmpty(t, p.Transactions)
+	for i, tx := range p.Transactions {
+		assert.Equal(t, fmt.Sprint(i), tx.Name)
+	}
+
+	// Let through the next request, which will have been filled
+	// from the buffer _after_ dropping some objects. There should
+	// be a gap in the transaction names.
+	(<-unblocks) <- struct{}{}
+	tracer.Flush(nil)
+	p2 := recorder.Payloads()
+	assert.NotEqual(t, len(p.Transactions), len(p2.Transactions))
+	assert.NotEqual(t, fmt.Sprint(len(p.Transactions)), p2.Transactions[len(p.Transactions)].Name)
+
+	// BUG(axw) we should be keeping track of which entities
+	// we drop from the buffer and reflecting those in stats.
+	assert.Equal(t, uint64(0), tracer.Stats().TransactionsDropped)
+}
+
+type blockedTransport struct {
+	transport.Transport
+	C chan chan struct{}
+}
+
+func (bt blockedTransport) SendStream(ctx context.Context, r io.Reader) error {
+	ch := make(chan struct{})
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case bt.C <- ch:
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ch:
+		}
+		return bt.Transport.SendStream(ctx, r)
+	}
 }
