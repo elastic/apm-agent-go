@@ -2,7 +2,6 @@ package transport
 
 import (
 	"bytes"
-	"compress/gzip"
 	"context"
 	"crypto/tls"
 	"fmt"
@@ -17,23 +16,15 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/apm-agent-go/internal/apmconfig"
-	"github.com/elastic/apm-agent-go/internal/fastjson"
-	"github.com/elastic/apm-agent-go/model"
 )
 
 const (
-	transactionsPath = "/v1/transactions"
-	errorsPath       = "/v1/errors"
-	metricsPath      = "/v1/metrics"
+	intakePath = "/v2/intake"
 
 	envSecretToken      = "ELASTIC_APM_SECRET_TOKEN"
 	envServerURL        = "ELASTIC_APM_SERVER_URL"
 	envServerTimeout    = "ELASTIC_APM_SERVER_TIMEOUT"
 	envVerifyServerCert = "ELASTIC_APM_VERIFY_SERVER_CERT"
-
-	// gzipThresholdBytes is the minimum size of the uncompressed
-	// payload before we'll consider gzip-compressing it.
-	gzipThresholdBytes = 1024
 )
 
 var (
@@ -48,21 +39,15 @@ var (
 // HTTPTransport is an implementation of Transport, sending payloads via
 // a net/http client.
 type HTTPTransport struct {
-	Client          *http.Client
-	baseURL         *url.URL
-	transactionsURL *url.URL
-	errorsURL       *url.URL
-	metricsURL      *url.URL
-	headers         http.Header
-	gzipHeaders     http.Header
-	jsonWriter      fastjson.Writer
-	gzipWriter      *gzip.Writer
-	gzipBuffer      bytes.Buffer
+	Client    *http.Client
+	baseURL   *url.URL
+	intakeURL *url.URL
+	headers   http.Header
 }
 
-// NewHTTPTransport returns a new HTTPTransport, which can be used for sending
-// transactions and errors to the APM server at the specified URL, with the
-// given secret token.
+// NewHTTPTransport returns a new HTTPTransport, which can be used for
+// streaming data to the APM server at the specified URL, with the given
+// secret token.
 //
 // If the URL specified is the empty string, then NewHTTPTransport will use the
 // value of the ELASTIC_APM_SERVER_URL environment variable, if defined; if
@@ -93,22 +78,23 @@ func NewHTTPTransport(serverURL, secretToken string) (*HTTPTransport, error) {
 		return nil, err
 	}
 
-	client := &http.Client{}
+	httpTransport := &http.Transport{
+		Proxy:                 defaultHTTPTransport.Proxy,
+		DialContext:           defaultHTTPTransport.DialContext,
+		MaxIdleConns:          defaultHTTPTransport.MaxIdleConns,
+		IdleConnTimeout:       defaultHTTPTransport.IdleConnTimeout,
+		TLSHandshakeTimeout:   defaultHTTPTransport.TLSHandshakeTimeout,
+		ExpectContinueTimeout: defaultHTTPTransport.ExpectContinueTimeout,
+	}
 	if req.URL.Scheme == "https" && os.Getenv(envVerifyServerCert) == "false" {
-		tlsConfig := &tls.Config{
+		httpTransport.TLSClientConfig = &tls.Config{
 			InsecureSkipVerify: true,
 		}
-		client.Transport = &http.Transport{
-			Proxy:                 defaultHTTPTransport.Proxy,
-			DialContext:           defaultHTTPTransport.DialContext,
-			MaxIdleConns:          defaultHTTPTransport.MaxIdleConns,
-			IdleConnTimeout:       defaultHTTPTransport.IdleConnTimeout,
-			TLSHandshakeTimeout:   defaultHTTPTransport.TLSHandshakeTimeout,
-			ExpectContinueTimeout: defaultHTTPTransport.ExpectContinueTimeout,
-			TLSClientConfig:       tlsConfig,
-		}
 	}
+	client := &http.Client{Transport: httpTransport}
 
+	// TODO(axw) need to redefine meaning of the timeout
+	// for streaming. Should be an idle timeout?
 	timeout, err := apmconfig.ParseDurationEnv(envServerTimeout, "s", defaultServerTimeout)
 	if err != nil {
 		return nil, err
@@ -118,7 +104,9 @@ func NewHTTPTransport(serverURL, secretToken string) (*HTTPTransport, error) {
 	}
 
 	headers := make(http.Header)
-	headers.Set("Content-Type", "application/json")
+	headers.Set("Content-Type", "application/x-ndjson")
+	headers.Set("Content-Encoding", "deflate")
+	headers.Set("Transfer-Encoding", "chunked")
 	if secretToken == "" {
 		secretToken = os.Getenv(envSecretToken)
 	}
@@ -126,22 +114,12 @@ func NewHTTPTransport(serverURL, secretToken string) (*HTTPTransport, error) {
 		headers.Set("Authorization", "Bearer "+secretToken)
 	}
 
-	gzipHeaders := make(http.Header)
-	for k, v := range headers {
-		gzipHeaders[k] = v
-	}
-	gzipHeaders.Set("Content-Encoding", "gzip")
-
 	t := &HTTPTransport{
-		Client:          client,
-		baseURL:         req.URL,
-		transactionsURL: urlWithPath(req.URL, transactionsPath),
-		errorsURL:       urlWithPath(req.URL, errorsPath),
-		metricsURL:      urlWithPath(req.URL, metricsPath),
-		headers:         headers,
-		gzipHeaders:     gzipHeaders,
+		Client:    client,
+		baseURL:   req.URL,
+		intakeURL: urlWithPath(req.URL, intakePath),
+		headers:   headers,
 	}
-	t.gzipWriter = gzip.NewWriter(&t.gzipBuffer)
 	return t, nil
 }
 
@@ -149,55 +127,16 @@ func NewHTTPTransport(serverURL, secretToken string) (*HTTPTransport, error) {
 // sent with each request.
 func (t *HTTPTransport) SetUserAgent(ua string) {
 	t.headers.Set("User-Agent", ua)
-	t.gzipHeaders.Set("User-Agent", ua)
 }
 
-// SendTransactions sends the transactions payload over HTTP.
-func (t *HTTPTransport) SendTransactions(ctx context.Context, p *model.TransactionsPayload) error {
-	t.jsonWriter.Reset()
-	p.MarshalFastJSON(&t.jsonWriter)
-	req := requestWithContext(ctx, t.newTransactionsRequest())
-	return t.sendPayload(req, "SendTransactions")
-}
-
-// SendErrors sends the errors payload over HTTP.
-func (t *HTTPTransport) SendErrors(ctx context.Context, p *model.ErrorsPayload) error {
-	t.jsonWriter.Reset()
-	p.MarshalFastJSON(&t.jsonWriter)
-	req := requestWithContext(ctx, t.newErrorsRequest())
-	return t.sendPayload(req, "SendErrors")
-}
-
-// SendMetrics sends the metrics payload over HTTP.
-func (t *HTTPTransport) SendMetrics(ctx context.Context, p *model.MetricsPayload) error {
-	t.jsonWriter.Reset()
-	p.MarshalFastJSON(&t.jsonWriter)
-	req := requestWithContext(ctx, t.newMetricsRequest())
-	return t.sendPayload(req, "SendMetrics")
-}
-
-func (t *HTTPTransport) sendPayload(req *http.Request, op string) error {
-	buf := t.jsonWriter.Bytes()
-	var body io.Reader = bytes.NewReader(buf)
-	req.ContentLength = int64(len(buf))
-	if req.ContentLength >= gzipThresholdBytes {
-		t.gzipBuffer.Reset()
-		t.gzipWriter.Reset(&t.gzipBuffer)
-		if _, err := io.Copy(t.gzipWriter, body); err != nil {
-			return err
-		}
-		if err := t.gzipWriter.Flush(); err != nil {
-			return err
-		}
-		req.ContentLength = int64(t.gzipBuffer.Len())
-		body = &t.gzipBuffer
-		req.Header = t.gzipHeaders
-	}
-	req.Body = ioutil.NopCloser(body)
+// SendStream sends the stream over HTTP.
+func (t *HTTPTransport) SendStream(ctx context.Context, r io.Reader) error {
+	req := t.newRequest(t.intakeURL)
+	req.Body = ioutil.NopCloser(r)
 
 	resp, err := t.Client.Do(req)
 	if err != nil {
-		return errors.Wrapf(err, "sending request for %s failed", op)
+		return errors.Wrap(err, "sending stream failed")
 	}
 	switch resp.StatusCode {
 	case http.StatusOK, http.StatusAccepted:
@@ -215,22 +154,9 @@ func (t *HTTPTransport) sendPayload(req *http.Request, op string) error {
 		resp.Body = ioutil.NopCloser(bytes.NewReader(bodyContents))
 	}
 	return &HTTPError{
-		Op:       op,
 		Response: resp,
 		Message:  strings.TrimSpace(string(bodyContents)),
 	}
-}
-
-func (t *HTTPTransport) newTransactionsRequest() *http.Request {
-	return t.newRequest(t.transactionsURL)
-}
-
-func (t *HTTPTransport) newErrorsRequest() *http.Request {
-	return t.newRequest(t.errorsURL)
-}
-
-func (t *HTTPTransport) newMetricsRequest() *http.Request {
-	return t.newRequest(t.metricsURL)
 }
 
 func (t *HTTPTransport) newRequest(url *url.URL) *http.Request {
@@ -257,13 +183,12 @@ func urlWithPath(url *url.URL, p string) *url.URL {
 
 // HTTPError is an error returned by HTTPTransport methods when requests fail.
 type HTTPError struct {
-	Op       string
 	Response *http.Response
 	Message  string
 }
 
 func (e *HTTPError) Error() string {
-	msg := fmt.Sprintf("%s failed with %s", e.Op, e.Response.Status)
+	msg := fmt.Sprintf("request failed with %s", e.Response.Status)
 	if e.Message != "" {
 		msg += ": " + e.Message
 	}

@@ -41,8 +41,7 @@ func TestHandler(t *testing.T) {
 	tracer.Flush(nil)
 
 	payloads := transport.Payloads()
-	transactions := payloads[0].Transactions()
-	transaction := transactions[0]
+	transaction := payloads.Transactions[0]
 	assert.Equal(t, "GET /foo", transaction.Name)
 	assert.Equal(t, "request", transaction.Type)
 	assert.Equal(t, "HTTP 4xx", transaction.Result)
@@ -104,7 +103,7 @@ func TestHandlerHTTP2(t *testing.T) {
 	tracer.Flush(nil)
 
 	payloads := transport.Payloads()
-	transaction := payloads[0].Transactions()[0]
+	transaction := payloads.Transactions[0]
 
 	true_ := true
 	assert.Equal(t, &model.Context{
@@ -199,16 +198,16 @@ func testPostTransaction(h http.Handler, tracer *elasticapm.Tracer, transport *t
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	h.ServeHTTP(w, req)
 	tracer.Flush(nil)
-	return transport.Payloads()[0].Transactions()[0]
+	return transport.Payloads().Transactions[0]
 }
 
-func testPostError(h http.Handler, tracer *elasticapm.Tracer, transport *transporttest.RecorderTransport, body io.Reader) *model.Error {
+func testPostError(h http.Handler, tracer *elasticapm.Tracer, transport *transporttest.RecorderTransport, body io.Reader) model.Error {
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("POST", "http://server.testing/foo", body)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	h.ServeHTTP(w, req)
 	tracer.Flush(nil)
-	return transport.Payloads()[0].Errors()[0]
+	return transport.Payloads().Errors[0]
 }
 
 func TestHandlerRecovery(t *testing.T) {
@@ -226,8 +225,8 @@ func TestHandlerRecovery(t *testing.T) {
 	tracer.Flush(nil)
 
 	payloads := transport.Payloads()
-	error0 := payloads[0].Errors()[0]
-	transaction := payloads[1].Transactions()[0]
+	error0 := payloads.Errors[0]
+	transaction := payloads.Transactions[0]
 
 	assert.Equal(t, "panicHandler", error0.Culprit)
 	assert.Equal(t, "foo", error0.Exception.Message)
@@ -281,8 +280,7 @@ func TestHandlerTraceparentHeader(t *testing.T) {
 	tracer.Flush(nil)
 
 	payloads := transport.Payloads()
-	transactions := payloads[0].Transactions()
-	transaction := transactions[0]
+	transaction := payloads.Transactions[0]
 	assert.Equal(t, "0af7651916cd43dd8448eb211c80319c", elasticapm.TraceID(transaction.TraceID).String())
 	assert.Equal(t, "b7ad6b7169203331", elasticapm.SpanID(transaction.ParentID).String())
 	assert.NotZero(t, transaction.ID.SpanID)

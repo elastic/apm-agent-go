@@ -35,8 +35,8 @@ func TestTransactionType(t *testing.T) {
 	}
 
 	apmtracer.Flush(nil)
-	require.Len(t, recorder.Payloads(), 1)
-	transactions := recorder.Payloads()[0].Transactions()
+	payloads := recorder.Payloads()
+	transactions := payloads.Transactions
 	require.Len(t, transactions, len(tests))
 	for i, test := range tests {
 		assert.Equal(t, test.Type, transactions[i].Type)
@@ -54,10 +54,9 @@ func TestHTTPTransaction(t *testing.T) {
 	span.Finish()
 
 	apmtracer.Flush(nil)
-	require.Len(t, recorder.Payloads(), 1)
-	transactions := recorder.Payloads()[0].Transactions()
-	require.Len(t, transactions, 1)
-	transaction := transactions[0]
+	payloads := recorder.Payloads()
+	require.Len(t, payloads.Transactions, 1)
+	transaction := payloads.Transactions[0]
 	assert.Equal(t, "request", transaction.Type)
 	assert.Equal(t, "HTTP 4xx", transaction.Result)
 	assert.Equal(t, &model.Request{
@@ -96,12 +95,12 @@ func TestSpanType(t *testing.T) {
 	txSpan.Finish()
 
 	apmtracer.Flush(nil)
-	require.Len(t, recorder.Payloads(), 1)
-	transactions := recorder.Payloads()[0].Transactions()
-	require.Len(t, transactions, 1)
-	require.Len(t, transactions[0].Spans, len(tests))
+	payloads := recorder.Payloads()
+	require.Len(t, payloads.Transactions, 1)
+	transaction := payloads.Transactions[0]
+	require.Len(t, transaction.Spans, len(tests))
 	for i, test := range tests {
-		assert.Equal(t, test.Type, transactions[0].Spans[i].Type)
+		assert.Equal(t, test.Type, transaction.Spans[i].Type)
 	}
 }
 
@@ -119,11 +118,11 @@ func TestDBSpan(t *testing.T) {
 	txSpan.Finish()
 
 	apmtracer.Flush(nil)
-	require.Len(t, recorder.Payloads(), 1)
-	transactions := recorder.Payloads()[0].Transactions()
-	require.Len(t, transactions, 1)
-	require.Len(t, transactions[0].Spans, 1)
-	modelSpan := transactions[0].Spans[0]
+	payloads := recorder.Payloads()
+	require.Len(t, payloads.Transactions, 1)
+	transaction := payloads.Transactions[0]
+	require.Len(t, transaction.Spans, 1)
+	modelSpan := transaction.Spans[0]
 	assert.Equal(t, "db.hbase.query", modelSpan.Type)
 	assert.Equal(t, &model.SpanContext{
 		Database: &model.DatabaseSpanContext{
@@ -152,11 +151,11 @@ func TestHTTPSpan(t *testing.T) {
 	txSpan.Finish()
 
 	apmtracer.Flush(nil)
-	require.Len(t, recorder.Payloads(), 1)
-	transactions := recorder.Payloads()[0].Transactions()
-	require.Len(t, transactions, 1)
-	require.Len(t, transactions[0].Spans, 1)
-	modelSpan := transactions[0].Spans[0]
+	payloads := recorder.Payloads()
+	require.Len(t, payloads.Transactions, 1)
+	transaction := payloads.Transactions[0]
+	require.Len(t, transaction.Spans, 1)
+	modelSpan := transaction.Spans[0]
 	assert.Equal(t, "ext.http", modelSpan.Type)
 	assert.Equal(t, &model.SpanContext{
 		HTTP: &model.HTTPSpanContext{URL: url},
@@ -176,8 +175,8 @@ func TestStartSpanRemoteParent(t *testing.T) {
 
 	apmtracer1.Flush(nil)
 	apmtracer2.Flush(nil)
-	require.Len(t, recorder1.Payloads(), 1)
-	require.Len(t, recorder2.Payloads(), 1)
+	require.Len(t, recorder1.Payloads().Transactions, 1)
+	require.Len(t, recorder2.Payloads().Transactions, 1)
 }
 
 func newTestTracer() (opentracing.Tracer, *elasticapm.Tracer, *transporttest.RecorderTransport) {

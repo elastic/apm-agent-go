@@ -81,7 +81,7 @@ func (m *middleware) handle(c echo.Context) error {
 		e := m.tracer.NewError(handlerErr)
 		e.Context.SetHTTPRequest(req)
 		e.Context.SetHTTPRequestBody(body)
-		e.Transaction = tx
+		e.Parent = tx.TraceContext()
 		e.Handled = true
 		e.Send()
 		return handlerErr

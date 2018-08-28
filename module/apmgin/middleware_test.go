@@ -34,8 +34,7 @@ func TestMiddleware(t *testing.T) {
 	tracer.Flush(nil)
 
 	payloads := transport.Payloads()
-	transactions := payloads[0].Transactions()
-	transaction := transactions[0]
+	transaction := payloads.Transactions[0]
 	assert.Equal(t, "GET /hello/:name", transaction.Name)
 	assert.Equal(t, "request", transaction.Type)
 	assert.Equal(t, "HTTP 2xx", transaction.Result)

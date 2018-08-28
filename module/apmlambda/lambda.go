@@ -74,7 +74,7 @@ func (f *Function) Invoke(req *messages.InvokeRequest, response *messages.Invoke
 	if err != nil {
 		e := f.tracer.NewError(err)
 		e.Context.SetCustom("lambda", &lambdaContext)
-		e.Transaction = tx
+		e.Parent = tx.TraceContext()
 		e.Send()
 		return err
 	}
@@ -85,7 +85,7 @@ func (f *Function) Invoke(req *messages.InvokeRequest, response *messages.Invoke
 	if response.Error != nil {
 		e := f.tracer.NewError(invokeResponseError{response.Error})
 		e.Context.SetCustom("lambda", &lambdaContext)
-		e.Transaction = tx
+		e.Parent = tx.TraceContext()
 		e.Send()
 	}
 	return nil

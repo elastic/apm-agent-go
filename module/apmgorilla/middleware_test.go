@@ -28,7 +28,7 @@ func TestMuxMiddleware(t *testing.T) {
 	tracer.Flush(nil)
 
 	payloads := transport.Payloads()
-	transaction := payloads[0].Transactions()[0]
+	transaction := payloads.Transactions[0]
 
 	assert.Equal(t, "GET /prefix/articles/{category}/{id}", transaction.Name)
 	assert.Equal(t, "request", transaction.Type)

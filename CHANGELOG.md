@@ -1,6 +1,8 @@
 # Changelog
 
-## [Unreleased](https://github.com/elastic/apm-agent-go/compare/v0.4.0...master)
+## [Unreleased](https://github.com/elastic/apm-agent-go/compare/v0.5.0...master)
+
+## [v0.5.0](https://github.com/elastic/apm-agent-go/releases/tag/v0.5.0)
 
  - `ELASTIC_APM_SERVER_URL` now defaults to "http://localhost:8200" (#122)
  - `Transport.SetUserAgent` method added, enabling the User-Agent to be set programatically (#124)

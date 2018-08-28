@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -12,9 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/internal/apmschema"
 	"github.com/elastic/apm-agent-go/internal/fastjson"
-	"github.com/elastic/apm-agent-go/model"
 )
 
 func TestValidateServiceName(t *testing.T) {
@@ -253,18 +252,8 @@ type validatingTransport struct {
 	w fastjson.Writer
 }
 
-func (t *validatingTransport) SendTransactions(ctx context.Context, p *model.TransactionsPayload) error {
-	t.validate(p, apmschema.Transactions)
-	return nil
-}
-
-func (t *validatingTransport) SendErrors(ctx context.Context, p *model.ErrorsPayload) error {
-	t.validate(p, apmschema.Errors)
-	return nil
-}
-
-func (t *validatingTransport) SendMetrics(ctx context.Context, p *model.MetricsPayload) error {
-	t.validate(p, apmschema.Metrics)
+func (t *validatingTransport) SendStream(ctx context.Context, r io.Reader) error {
+	//t.validate(p, apmschema.Transactions)
 	return nil
 }
 

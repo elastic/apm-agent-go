@@ -1,7 +1,8 @@
 package elasticapm_test
 
 import (
-	"context"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -16,42 +17,85 @@ import (
 	"github.com/elastic/apm-agent-go"
 	"github.com/elastic/apm-agent-go/model"
 	"github.com/elastic/apm-agent-go/module/apmhttp"
+	"github.com/elastic/apm-agent-go/transport"
 	"github.com/elastic/apm-agent-go/transport/transporttest"
 )
 
-func TestTracerFlushIntervalEnv(t *testing.T) {
-	t.Run("suffix", func(t *testing.T) {
-		testTracerFlushIntervalEnv(t, "1s", time.Second)
-	})
-	t.Run("no_suffix", func(t *testing.T) {
-		testTracerFlushIntervalEnv(t, "1", time.Second)
-	})
-}
+func TestTracerRequestTimeEnv(t *testing.T) {
+	os.Setenv("ELASTIC_APM_API_REQUEST_TIME", "1s")
+	defer os.Unsetenv("ELASTIC_APM_API_REQUEST_TIME")
 
-func TestTracerFlushIntervalEnvInvalid(t *testing.T) {
-	os.Setenv("ELASTIC_APM_FLUSH_INTERVAL", "aeon")
-	defer os.Unsetenv("ELASTIC_APM_FLUSH_INTERVAL")
-
-	_, err := elasticapm.NewTracer("tracer_testing", "")
-	assert.EqualError(t, err, "failed to parse ELASTIC_APM_FLUSH_INTERVAL: time: invalid duration aeon")
-}
-
-func testTracerFlushIntervalEnv(t *testing.T, envValue string, expectedInterval time.Duration) {
-	os.Setenv("ELASTIC_APM_FLUSH_INTERVAL", envValue)
-	defer os.Unsetenv("ELASTIC_APM_FLUSH_INTERVAL")
+	requestHandled := make(chan struct{}, 1)
+	var serverStart, serverEnd time.Time
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		serverStart = time.Now()
+		io.Copy(ioutil.Discard, req.Body)
+		serverEnd = time.Now()
+		requestHandled <- struct{}{}
+	}))
+	defer server.Close()
 
 	tracer, err := elasticapm.NewTracer("tracer_testing", "")
 	require.NoError(t, err)
 	defer tracer.Close()
-	tracer.Transport = transporttest.Discard
+	httpTransport, err := transport.NewHTTPTransport(server.URL, "")
+	require.NoError(t, err)
+	tracer.Transport = httpTransport
 
-	before := time.Now()
-	tracer.StartTransaction("name", "type").End()
-	assert.Equal(t, elasticapm.TracerStats{TransactionsSent: 0}, tracer.Stats())
-	for tracer.Stats().TransactionsSent == 0 {
-		time.Sleep(10 * time.Millisecond)
+	clientStart := time.Now()
+	for i := 0; i < 1000; i++ {
+		tracer.StartTransaction("name", "type").End()
 	}
-	assert.WithinDuration(t, before.Add(expectedInterval), time.Now(), 100*time.Millisecond)
+	<-requestHandled
+	clientEnd := time.Now()
+	assert.WithinDuration(t, clientStart.Add(time.Second), clientEnd, 100*time.Millisecond)
+	assert.WithinDuration(t, clientStart, serverStart, 100*time.Millisecond)
+	assert.WithinDuration(t, clientEnd, serverEnd, 100*time.Millisecond)
+}
+
+func TestTracerRequestTimeEnvInvalid(t *testing.T) {
+	t.Run("invalid_duration", func(t *testing.T) {
+		os.Setenv("ELASTIC_APM_API_REQUEST_TIME", "aeon")
+		defer os.Unsetenv("ELASTIC_APM_API_REQUEST_TIME")
+		_, err := elasticapm.NewTracer("tracer_testing", "")
+		assert.EqualError(t, err, "failed to parse ELASTIC_APM_API_REQUEST_TIME: time: invalid duration aeon")
+	})
+	t.Run("missing_suffix", func(t *testing.T) {
+		os.Setenv("ELASTIC_APM_API_REQUEST_TIME", "1")
+		defer os.Unsetenv("ELASTIC_APM_API_REQUEST_TIME")
+		_, err := elasticapm.NewTracer("tracer_testing", "")
+		assert.EqualError(t, err, "failed to parse ELASTIC_APM_API_REQUEST_TIME: time: missing unit in duration 1")
+	})
+}
+
+func TestTracerRequestSizeEnvInvalid(t *testing.T) {
+	t.Run("too_small", func(t *testing.T) {
+		os.Setenv("ELASTIC_APM_API_REQUEST_SIZE", "1")
+		defer os.Unsetenv("ELASTIC_APM_API_REQUEST_SIZE")
+		_, err := elasticapm.NewTracer("tracer_testing", "")
+		assert.EqualError(t, err, "ELASTIC_APM_API_REQUEST_SIZE must be at least 1024 and less than 5242880, got 1")
+	})
+	t.Run("too_large", func(t *testing.T) {
+		os.Setenv("ELASTIC_APM_API_REQUEST_SIZE", "99999999999")
+		defer os.Unsetenv("ELASTIC_APM_API_REQUEST_SIZE")
+		_, err := elasticapm.NewTracer("tracer_testing", "")
+		assert.EqualError(t, err, "ELASTIC_APM_API_REQUEST_SIZE must be at least 1024 and less than 5242880, got 99999999999")
+	})
+}
+
+func TestTracerBufferSizeEnvInvalid(t *testing.T) {
+	t.Run("too_small", func(t *testing.T) {
+		os.Setenv("ELASTIC_APM_API_BUFFER_SIZE", "1")
+		defer os.Unsetenv("ELASTIC_APM_API_BUFFER_SIZE")
+		_, err := elasticapm.NewTracer("tracer_testing", "")
+		assert.EqualError(t, err, "ELASTIC_APM_API_BUFFER_SIZE must be at least 10240 and less than 104857600, got 1")
+	})
+	t.Run("too_large", func(t *testing.T) {
+		os.Setenv("ELASTIC_APM_API_BUFFER_SIZE", "99999999999")
+		defer os.Unsetenv("ELASTIC_APM_API_BUFFER_SIZE")
+		_, err := elasticapm.NewTracer("tracer_testing", "")
+		assert.EqualError(t, err, "ELASTIC_APM_API_BUFFER_SIZE must be at least 10240 and less than 104857600, got 99999999999")
+	})
 }
 
 func TestTracerTransactionRateEnv(t *testing.T) {
@@ -122,7 +166,7 @@ func testTracerSanitizeFieldNamesEnv(t *testing.T, envValue, expect string) {
 	h.ServeHTTP(w, req)
 	tracer.Flush(nil)
 
-	tx := transport.Payloads()[0].Transactions()[0]
+	tx := transport.Payloads().Transactions[0]
 	assert.Equal(t, tx.Context.Request.Cookies, model.Cookies{
 		{Name: "secret", Value: expect},
 	})
@@ -145,28 +189,24 @@ func testTracerServiceNameSanitization(t *testing.T, sanitizedServiceName string
 		cmd := exec.Command(os.Args[0], "-test.run=^"+t.Name()+"$")
 		cmd.Env = append(os.Environ(), "_INSIDE_TEST=1")
 		cmd.Env = append(cmd.Env, env...)
-		err := cmd.Run()
-		assert.NoError(t, err)
+		output, err := cmd.CombinedOutput()
+		if !assert.NoError(t, err) {
+			t.Logf("output:\n%s", output)
+		}
 		return
 	}
 
-	tracer, err := elasticapm.NewTracer("", "")
-	require.NoError(t, err)
+	var transport transporttest.RecorderTransport
+	tracer, _ := elasticapm.NewTracer("", "")
+	tracer.Transport = &transport
 	defer tracer.Close()
-
-	var called bool
-	tracer.Transport = transporttest.CallbackTransport{
-		Transactions: func(_ context.Context, payload *model.TransactionsPayload) error {
-			assert.Equal(t, sanitizedServiceName, payload.Service.Name)
-			called = true
-			return nil
-		},
-	}
 
 	tx := tracer.StartTransaction("name", "type")
 	tx.End()
 	tracer.Flush(nil)
-	assert.True(t, called)
+
+	_, _, service := transport.Metadata()
+	assert.Equal(t, sanitizedServiceName, service.Name)
 }
 
 func TestTracerCaptureBodyEnv(t *testing.T) {
@@ -211,7 +251,7 @@ func testTracerCaptureBodyEnv(t *testing.T, envValue string, expectBody bool) {
 	tx.End()
 	tracer.Flush(nil)
 
-	out := transport.Payloads()[0].Transactions()[0]
+	out := transport.Payloads().Transactions[0]
 	if os.Getenv("_EXPECT_BODY") == "1" {
 		assert.NotNil(t, out.Context.Request.Body)
 		assert.Equal(t, "foo_bar", out.Context.Request.Body.Raw)
@@ -237,7 +277,7 @@ func TestTracerSpanFramesMinDurationEnv(t *testing.T) {
 	tx.End()
 	tracer.Flush(nil)
 
-	transaction := transport.Payloads()[0].Transactions()[0]
+	transaction := transport.Payloads().Transactions[0]
 	assert.Len(t, transaction.Spans, 2)
 
 	// Span 0 took only 9ms, so we don't set its stacktrace.
@@ -269,7 +309,7 @@ func TestTracerActive(t *testing.T) {
 	tx.End()
 
 	tracer.Flush(nil)
-	assert.Empty(t, transport.Payloads())
+	assert.Zero(t, transport.Payloads())
 }
 
 func TestTracerActiveInvalid(t *testing.T) {

@@ -108,7 +108,7 @@ func (m *middleware) handle(c *gin.Context) {
 			e.Context.SetHTTPRequest(c.Request)
 			e.Context.SetHTTPRequestBody(body)
 			e.Context.SetCustom("gin", ginContext)
-			e.Transaction = tx
+			e.Parent = tx.TraceContext()
 			e.Handled = true
 			e.Send()
 		}

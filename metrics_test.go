@@ -27,11 +27,7 @@ func TestTracerMetricsBuiltin(t *testing.T) {
 	tracer.SendMetrics(nil)
 
 	payloads := transport.Payloads()
-	require.Len(t, payloads, 1)
-
-	metrics := payloads[0].Metrics()
-	require.Len(t, metrics, 1)
-	builtinMetrics := metrics[0]
+	builtinMetrics := payloads.Metrics[0]
 
 	assert.Nil(t, builtinMetrics.Labels)
 	assert.NotEmpty(t, builtinMetrics.Timestamp)
@@ -72,12 +68,11 @@ func TestTracerMetricsBuiltin(t *testing.T) {
 		"system.process.memory.size",
 		"system.process.memory.rss.bytes",
 
+		"agent.send_errors",
 		"agent.transactions.sent",
 		"agent.transactions.dropped",
-		"agent.transactions.send_errors",
 		"agent.errors.sent",
 		"agent.errors.dropped",
-		"agent.errors.send_errors",
 	}
 	sort.Strings(expected)
 	for name := range builtinMetrics.Samples {
@@ -94,6 +89,24 @@ func TestTracerMetricsBuiltin(t *testing.T) {
 	}
 	tw.Flush()
 	t.Logf("\n\n%s\n", buf.String())
+}
+
+func TestTracerMetricsInterval(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	interval := 500 * time.Millisecond
+	tracer.SetMetricsInterval(interval)
+	before := time.Now()
+	deadline := before.Add(time.Second)
+	for len(transport.Payloads().Metrics) == 0 {
+		if time.Now().After(deadline) {
+			t.Fatal("timed out waiting for metrics")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	after := time.Now()
+	assert.WithinDuration(t, before.Add(interval), after, 100*time.Millisecond)
 }
 
 func TestTracerMetricsGatherer(t *testing.T) {
@@ -115,19 +128,17 @@ func TestTracerMetricsGatherer(t *testing.T) {
 	tracer.SendMetrics(nil)
 
 	payloads := transport.Payloads()
-	require.Len(t, payloads, 1)
+	metrics1 := payloads.Metrics[1]
+	metrics2 := payloads.Metrics[2]
 
-	metrics := payloads[0].Metrics()
-	require.Len(t, metrics, 3)
-
-	assert.Equal(t, model.StringMap{{Key: "code", Value: "200"}}, metrics[1].Labels)
-	assert.Equal(t, map[string]model.Metric{"http.request": {Value: 4}}, metrics[1].Samples)
+	assert.Equal(t, model.StringMap{{Key: "code", Value: "200"}}, metrics1.Labels)
+	assert.Equal(t, map[string]model.Metric{"http.request": {Value: 4}}, metrics1.Samples)
 
 	assert.Equal(t, model.StringMap{
 		{Key: "code", Value: "400"},
 		{Key: "path", Value: "/"},
-	}, metrics[2].Labels)
-	assert.Equal(t, map[string]model.Metric{"http.request": {Value: 3}}, metrics[2].Samples)
+	}, metrics2.Labels)
+	assert.Equal(t, map[string]model.Metric{"http.request": {Value: 3}}, metrics2.Samples)
 }
 
 func TestTracerMetricsDeregister(t *testing.T) {
@@ -148,9 +159,7 @@ func TestTracerMetricsDeregister(t *testing.T) {
 	tracer.SendMetrics(nil)
 
 	payloads := transport.Payloads()
-	require.Len(t, payloads, 1)
-
-	metrics := payloads[0].Metrics()
+	metrics := payloads.Metrics
 	require.Len(t, metrics, 1) // just the builtin/unlabeled metrics
 }
 

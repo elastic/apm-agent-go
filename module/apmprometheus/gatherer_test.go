@@ -81,7 +81,7 @@ func TestLabels(t *testing.T) {
 	assert.Contains(t, metrics[0].Samples, "golang.heap.allocations.mallocs")
 	metrics = metrics[1:]
 
-	assert.Equal(t, []*model.Metrics{{
+	assert.Equal(t, []model.Metrics{{
 		Labels: model.StringMap{
 			{Key: "code", Value: "200"},
 			{Key: "method", Value: "GET"},
@@ -117,14 +117,14 @@ func TestLabels(t *testing.T) {
 	}}, metrics)
 }
 
-func gatherMetrics(g elasticapm.MetricsGatherer) []*model.Metrics {
+func gatherMetrics(g elasticapm.MetricsGatherer) []model.Metrics {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 	tracer.RegisterMetricsGatherer(g)
 	tracer.SendMetrics(nil)
-	metrics := transport.Payloads()[0].Metrics()
-	for _, s := range metrics {
-		s.Timestamp = model.Time{}
+	metrics := transport.Payloads().Metrics
+	for i := range metrics {
+		metrics[i].Timestamp = model.Time{}
 	}
 	return metrics
 }

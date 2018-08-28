@@ -1,19 +1,16 @@
 package transport_test
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"io"
 	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"sync"
+	"strings"
 	"testing"
 	"time"
 
@@ -21,8 +18,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/apm-agent-go/internal/fastjson"
-	"github.com/elastic/apm-agent-go/model"
 	"github.com/elastic/apm-agent-go/transport"
 )
 
@@ -49,7 +44,7 @@ func TestNewHTTPTransportDefaultURL(t *testing.T) {
 
 	transport, err := transport.NewHTTPTransport("", "")
 	assert.NoError(t, err)
-	err = transport.SendTransactions(context.Background(), &model.TransactionsPayload{})
+	err = transport.SendStream(context.Background(), strings.NewReader(""))
 	assert.NoError(t, err)
 	assert.Len(t, h.requests, 1)
 }
@@ -62,30 +57,17 @@ func TestHTTPTransportUserAgent(t *testing.T) {
 
 	transport, err := transport.NewHTTPTransport("", "")
 	assert.NoError(t, err)
-	err = transport.SendTransactions(context.Background(), &model.TransactionsPayload{})
+	err = transport.SendStream(context.Background(), strings.NewReader(""))
 	assert.NoError(t, err)
 	assert.Len(t, h.requests, 1)
 
 	transport.SetUserAgent("foo")
-	err = transport.SendTransactions(context.Background(), &model.TransactionsPayload{})
+	err = transport.SendStream(context.Background(), strings.NewReader(""))
 	assert.NoError(t, err)
 	assert.Len(t, h.requests, 2)
 
 	assert.Regexp(t, "Go-http-client/.*", h.requests[0].UserAgent())
 	assert.Equal(t, "foo", h.requests[1].UserAgent())
-}
-
-func TestHTTPTransportDefaultUserAgent(t *testing.T) {
-	var h recordingHandler
-	server := httptest.NewServer(&h)
-	defer server.Close()
-	defer patchEnv("ELASTIC_APM_SERVER_URL", server.URL)()
-
-	transport, err := transport.NewHTTPTransport("", "")
-	assert.NoError(t, err)
-	err = transport.SendTransactions(context.Background(), &model.TransactionsPayload{})
-	assert.NoError(t, err)
-	assert.Len(t, h.requests, 1)
 }
 
 func TestHTTPTransportSecretToken(t *testing.T) {
@@ -95,7 +77,7 @@ func TestHTTPTransportSecretToken(t *testing.T) {
 
 	transport, err := transport.NewHTTPTransport(server.URL, "hunter2")
 	assert.NoError(t, err)
-	transport.SendTransactions(context.Background(), &model.TransactionsPayload{})
+	transport.SendStream(context.Background(), strings.NewReader(""))
 
 	assert.Len(t, h.requests, 1)
 	assertAuthorization(t, h.requests[0], "hunter2")
@@ -109,7 +91,7 @@ func TestHTTPTransportEnvSecretToken(t *testing.T) {
 
 	transport, err := transport.NewHTTPTransport(server.URL, "")
 	assert.NoError(t, err)
-	transport.SendTransactions(context.Background(), &model.TransactionsPayload{})
+	transport.SendStream(context.Background(), strings.NewReader(""))
 
 	assert.Len(t, h.requests, 1)
 	assertAuthorization(t, h.requests[0], "hunter2")
@@ -120,7 +102,7 @@ func TestHTTPTransportNoSecretToken(t *testing.T) {
 	transport, server := newHTTPTransport(t, &h)
 	defer server.Close()
 
-	transport.SendTransactions(context.Background(), &model.TransactionsPayload{})
+	transport.SendStream(context.Background(), strings.NewReader(""))
 
 	assert.Len(t, h.requests, 1)
 	assertAuthorization(t, h.requests[0], "")
@@ -136,12 +118,12 @@ func TestHTTPTransportTLS(t *testing.T) {
 	transport, err := transport.NewHTTPTransport(server.URL, "")
 	assert.NoError(t, err)
 
-	p := &model.TransactionsPayload{}
+	p := strings.NewReader("")
 
 	// Send should fail, because we haven't told the client
 	// about the CA certificate, nor configured it to disable
 	// certificate verification.
-	err = transport.SendTransactions(context.Background(), p)
+	err = transport.SendStream(context.Background(), p)
 	assert.Error(t, err)
 
 	// Reconfigure the transport so that it knows about the
@@ -156,7 +138,7 @@ func TestHTTPTransportTLS(t *testing.T) {
 			RootCAs: certpool,
 		},
 	}
-	err = transport.SendTransactions(context.Background(), p)
+	err = transport.SendStream(context.Background(), p)
 	assert.NoError(t, err)
 }
 
@@ -176,7 +158,7 @@ func TestHTTPTransportEnvVerifyServerCert(t *testing.T) {
 	assert.NotNil(t, httpTransport.TLSClientConfig)
 	assert.True(t, httpTransport.TLSClientConfig.InsecureSkipVerify)
 
-	err = transport.SendTransactions(context.Background(), &model.TransactionsPayload{})
+	err = transport.SendStream(context.Background(), strings.NewReader(""))
 	assert.NoError(t, err)
 }
 
@@ -187,49 +169,22 @@ func TestHTTPError(t *testing.T) {
 	tr, server := newHTTPTransport(t, h)
 	defer server.Close()
 
-	err := tr.SendTransactions(context.Background(), &model.TransactionsPayload{})
-	assert.EqualError(t, err, "SendTransactions failed with 500 Internal Server Error: error-message")
+	err := tr.SendStream(context.Background(), strings.NewReader(""))
+	assert.EqualError(t, err, "request failed with 500 Internal Server Error: error-message")
 }
 
-func TestHTTPTransportSmallUncompressed(t *testing.T) {
+func TestHTTPTransportContent(t *testing.T) {
 	var h recordingHandler
 	server := httptest.NewServer(&h)
 	defer server.Close()
 
 	transport, err := transport.NewHTTPTransport(server.URL, "")
 	assert.NoError(t, err)
-	transport.SendTransactions(context.Background(), &model.TransactionsPayload{})
-
-	assert.Len(t, h.requests, 1)
-	assert.Empty(t, h.requests[0].Header.Get("Content-Encoding"))
-}
-
-func TestHTTPTransportLargeCompressed(t *testing.T) {
-	var h recordingHandler
-	server := httptest.NewServer(&h)
-	defer server.Close()
-
-	transport, err := transport.NewHTTPTransport(server.URL, "")
-	assert.NoError(t, err)
-
-	payload := &model.TransactionsPayload{
-		Transactions: make([]model.Transaction, 1024),
-	}
-	transport.SendTransactions(context.Background(), payload)
+	transport.SendStream(context.Background(), strings.NewReader("request-body"))
 
 	require.Len(t, h.requests, 1)
-	assert.Equal(t, "gzip", h.requests[0].Header.Get("Content-Encoding"))
-
-	var jw fastjson.Writer
-	payload.MarshalFastJSON(&jw)
-
-	r, err := gzip.NewReader(h.requests[0].Body)
-	require.NoError(t, err)
-	defer r.Close()
-
-	var decoded bytes.Buffer
-	io.Copy(&decoded, r)
-	assert.Equal(t, string(jw.Bytes()), decoded.String())
+	assert.Equal(t, "deflate", h.requests[0].Header.Get("Content-Encoding"))
+	assert.Equal(t, "application/x-ndjson", h.requests[0].Header.Get("Content-Type"))
 }
 
 func TestHTTPTransportServerTimeout(t *testing.T) {
@@ -243,7 +198,7 @@ func TestHTTPTransportServerTimeout(t *testing.T) {
 	before := time.Now()
 	transport, err := transport.NewHTTPTransport(server.URL, "")
 	assert.NoError(t, err)
-	err = transport.SendTransactions(context.Background(), &model.TransactionsPayload{})
+	err = transport.SendStream(context.Background(), strings.NewReader(""))
 	taken := time.Since(before)
 	assert.Error(t, err)
 	err = errors.Cause(err)
@@ -262,60 +217,4 @@ func newHTTPTransport(t *testing.T, handler http.Handler) (*transport.HTTPTransp
 		t.FailNow()
 	}
 	return transport, server
-}
-
-type nopHandler struct{}
-
-func (nopHandler) ServeHTTP(http.ResponseWriter, *http.Request) {}
-
-type recordingHandler struct {
-	mu       sync.Mutex
-	requests []*http.Request
-}
-
-func (h *recordingHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	var buf bytes.Buffer
-	_, err := io.Copy(&buf, req.Body)
-	if err != nil {
-		panic(err)
-	}
-	req.Body = ioutil.NopCloser(&buf)
-	h.requests = append(h.requests, req)
-}
-
-func assertAuthorization(t *testing.T, req *http.Request, token string) {
-	values, ok := req.Header["Authorization"]
-	if !ok {
-		if token == "" {
-			return
-		}
-		t.Errorf("missing Authorization header")
-		return
-	}
-	var expect []string
-	if token != "" {
-		expect = []string{"Bearer " + token}
-	}
-	assert.Equal(t, expect, values)
-}
-
-func patchEnv(key, value string) func() {
-	old, had := os.LookupEnv(key)
-	if err := os.Setenv(key, value); err != nil {
-		panic(err)
-	}
-	return func() {
-		var err error
-		if !had {
-			err = os.Unsetenv(key)
-		} else {
-			err = os.Setenv(key, old)
-		}
-		if err != nil {
-			panic(err)
-		}
-	}
 }

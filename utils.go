@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -95,4 +96,16 @@ func sanitizeServiceName(name string) string {
 func truncateString(s string) string {
 	// At the time of writing, all length limits are 1024.
 	return apmstrings.Truncate(s, 1024)
+}
+
+func nextGracePeriod(p time.Duration) time.Duration {
+	if p == -1 {
+		return 0
+	}
+	for i := time.Duration(0); i < 6; i++ {
+		if p == (i * i * time.Second) {
+			return (i + 1) * (i + 1) * time.Second
+		}
+	}
+	return p
 }

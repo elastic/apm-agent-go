@@ -83,12 +83,11 @@ func (g *builtinMetricsGatherer) gatherTracerStatsMetrics(m *Metrics) {
 	g.tracer.statsMu.Unlock()
 
 	const p = "agent"
+	m.Add(p+".send_errors", nil, float64(stats.Errors.SendStream))
 	m.Add(p+".transactions.sent", nil, float64(stats.TransactionsSent))
 	m.Add(p+".transactions.dropped", nil, float64(stats.TransactionsDropped))
-	m.Add(p+".transactions.send_errors", nil, float64(stats.Errors.SendTransactions))
 	m.Add(p+".errors.sent", nil, float64(stats.ErrorsSent))
 	m.Add(p+".errors.dropped", nil, float64(stats.ErrorsDropped))
-	m.Add(p+".errors.send_errors", nil, float64(stats.Errors.SendErrors))
 }
 
 func calculateCPUUsage(current, last cpuMetrics) (systemUsage, processUsage float64) {

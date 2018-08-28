@@ -73,7 +73,7 @@ func testServerTransactionHappy(t *testing.T, p testParams) {
 	assert.Equal(t, resp, &pb.HelloReply{Message: "hello, birita"})
 
 	p.tracer.Flush(nil)
-	tx := p.transport.Payloads()[0].Transactions()[0]
+	tx := p.transport.Payloads().Transactions[0]
 	assert.Equal(t, "/helloworld.Greeter/SayHello", tx.Name)
 	assert.Equal(t, "grpc", tx.Type)
 	assert.Equal(t, "OK", tx.Result)
@@ -98,8 +98,7 @@ func testServerTransactionUnknownError(t *testing.T, p testParams) {
 
 	p.tracer.Flush(nil)
 	payloads := p.transport.Payloads()
-	require.Len(t, payloads, 1)
-	tx := payloads[0].Transactions()[0]
+	tx := payloads.Transactions[0]
 	assert.Equal(t, "/helloworld.Greeter/SayHello", tx.Name)
 	assert.Equal(t, "grpc", tx.Type)
 	assert.Equal(t, "Unknown", tx.Result)
@@ -112,8 +111,7 @@ func testServerTransactionStatusError(t *testing.T, p testParams) {
 
 	p.tracer.Flush(nil)
 	payloads := p.transport.Payloads()
-	require.Len(t, payloads, 1)
-	tx := payloads[0].Transactions()[0]
+	tx := payloads.Transactions[0]
 	assert.Equal(t, "/helloworld.Greeter/SayHello", tx.Name)
 	assert.Equal(t, "grpc", tx.Type)
 	assert.Equal(t, "DataLoss", tx.Result)
@@ -127,8 +125,7 @@ func testServerTransactionPanic(t *testing.T, p testParams) {
 
 	p.tracer.Flush(nil)
 	payloads := p.transport.Payloads()
-	require.Len(t, payloads, 2)
-	e := payloads[0].Errors()[0]
+	e := payloads.Errors[0]
 	assert.NotEmpty(t, e.Transaction.ID)
 	assert.Equal(t, false, e.Exception.Handled)
 	assert.Equal(t, "(*helloworldServer).SayHello", e.Culprit)
@@ -152,8 +149,7 @@ func TestServerRecovery(t *testing.T) {
 
 	tracer.Flush(nil)
 	payloads := transport.Payloads()
-	require.Len(t, payloads, 2)
-	e := payloads[0].Errors()[0]
+	e := payloads.Errors[0]
 	assert.NotEmpty(t, e.Transaction.ID)
 
 	// Panic was recovered by the recovery interceptor and translated

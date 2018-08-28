@@ -45,7 +45,7 @@ func (t *Tracer) Recovered(v interface{}, tx *Transaction) *Error {
 	default:
 		e = t.NewError(fmt.Errorf("%v", v))
 	}
-	e.Transaction = tx
+	e.Parent = tx.traceContext
 	return e
 }
 
@@ -150,11 +150,6 @@ type Error struct {
 	// culprit.
 	Culprit string
 
-	// Transaction is the transaction to which the error correspoonds,
-	// if any. If this is set, the error's Send method must be called
-	// before the transaction's End method.
-	Transaction *Transaction
-
 	// Timestamp records the time at which the error occurred.
 	// This is set when the Error object is created, but may
 	// be overridden any time before the Send method is called.
@@ -164,6 +159,10 @@ type Error struct {
 	// only applies to "exception" errors (errors created with
 	// NewError, or Recovered), and is ignored by "log" errors.
 	Handled bool
+
+	// Parent holds the TraceContext of the error's parent span
+	// or transaction.
+	Parent TraceContext
 
 	// Context holds the context for this error.
 	Context Context
@@ -177,6 +176,7 @@ func (e *Error) reset() {
 		Context:         e.Context,
 	}
 	e.Context.reset()
+	e.tracer.errorPool.Put(e)
 }
 
 // Send enqueues the error for sending to the Elastic APM server.
@@ -190,7 +190,6 @@ func (e *Error) Send() {
 		e.tracer.stats.ErrorsDropped++
 		e.tracer.statsMu.Unlock()
 		e.reset()
-		e.tracer.errorPool.Put(e)
 	}
 }
 

@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/apm-agent-go"
 	"github.com/elastic/apm-agent-go/model"
@@ -42,8 +41,5 @@ func testSendTransaction(t *testing.T, f func(tx *elasticapm.Transaction)) model
 	tracer.Flush(nil)
 
 	payloads := r.Payloads()
-	require.Len(t, payloads, 1)
-	transactions := payloads[0].Transactions()
-	require.Len(t, transactions, 1)
-	return transactions[0]
+	return payloads.Transactions[0]
 }
