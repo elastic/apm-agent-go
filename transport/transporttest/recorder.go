@@ -69,8 +69,8 @@ func (r *RecorderTransport) record(stream io.Reader) error {
 	if err := decoder.Decode(&metadataPayload); err != nil {
 		panic(err)
 	}
+	r.recordMetadata(&metadataPayload.Metadata)
 
-	var payloads Payloads
 	for {
 		var payload struct {
 			Transaction *model.Transaction `json:"transaction"`
@@ -83,30 +83,31 @@ func (r *RecorderTransport) record(stream io.Reader) error {
 		} else if err != nil {
 			panic(err)
 		}
+		r.mu.Lock()
 		switch {
 		case payload.Transaction != nil:
-			payloads.Transactions = append(payloads.Transactions, *payload.Transaction)
+			r.payloads.Transactions = append(r.payloads.Transactions, *payload.Transaction)
 		case payload.Error != nil:
-			payloads.Errors = append(payloads.Errors, *payload.Error)
+			r.payloads.Errors = append(r.payloads.Errors, *payload.Error)
 		case payload.Metrics != nil:
-			payloads.Metrics = append(payloads.Metrics, *payload.Metrics)
+			r.payloads.Metrics = append(r.payloads.Metrics, *payload.Metrics)
 		}
+		r.mu.Unlock()
 	}
+	return nil
+}
 
+func (r *RecorderTransport) recordMetadata(m *metadata) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.metadata == nil {
-		r.metadata = &metadataPayload.Metadata
+		r.metadata = m
 	} else {
 		// Make sure the metadata doesn't change between requests.
-		if diff := cmp.Diff(*r.metadata, metadataPayload.Metadata); diff != "" {
+		if diff := cmp.Diff(r.metadata, m); diff != "" {
 			panic(fmt.Errorf("metadata changed\n%s", diff))
 		}
 	}
-	r.payloads.Transactions = append(r.payloads.Transactions, payloads.Transactions...)
-	r.payloads.Errors = append(r.payloads.Errors, payloads.Errors...)
-	r.payloads.Metrics = append(r.payloads.Metrics, payloads.Metrics...)
-	return nil
 }
 
 // Payloads holds the recorded payloads.

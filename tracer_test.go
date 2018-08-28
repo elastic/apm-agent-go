@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -101,6 +102,55 @@ func TestTracerErrors(t *testing.T) {
 	assert.Equal(t, "errorString", exception.Type)
 	assert.NotEmpty(t, stacktrace)
 	assert.Equal(t, "TestTracerErrors", stacktrace[0].Function)
+}
+
+func TestTracerErrorFlushes(t *testing.T) {
+	tracer, recorder := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	payloads := make(chan transporttest.Payloads, 1)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	done := make(chan struct{})
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-time.After(10 * time.Millisecond):
+				p := recorder.Payloads()
+				if len(p.Errors)+len(p.Transactions) > 0 {
+					payloads <- p
+					return
+				}
+			case <-done:
+			}
+		}
+	}()
+	defer wg.Wait()
+	defer close(done)
+
+	// Sending a transaction should not cause a request
+	// to be sent immediately.
+	tracer.StartTransaction("name", "type").End()
+	select {
+	case <-time.After(200 * time.Millisecond):
+	case p := <-payloads:
+		t.Fatalf("unexpected payloads: %+v", p)
+	}
+
+	// Sending an error flushes the request body.
+	tracer.NewError(errors.New("zing")).Send()
+	select {
+	case <-time.After(2 * time.Second):
+		t.Fatalf("timed out waiting for request")
+	case p := <-payloads:
+		assert.Len(t, p.Transactions, 1)
+		assert.Len(t, p.Errors, 1)
+	}
+
+	// TODO(axw) tracer.Close should wait for the current request
+	// to complete, at least for a short amount of time.
+	tracer.Flush(nil)
 }
 
 func TestTracerRecover(t *testing.T) {
