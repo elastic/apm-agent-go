@@ -99,6 +99,13 @@ func TestValidateContextCustom(t *testing.T) {
 			tx.Context.SetCustom("x.y", "z")
 		})
 	})
+	t.Run("newline_value", func(t *testing.T) {
+		validateTransaction(t, func(tx *elasticapm.Transaction) {
+			// Newlines should be escaped by the JSON encoder,
+			// so they don't interfere with NDJSON encoding.
+			tx.Context.SetCustom("key", "value\nwith\nnewlines")
+		})
+	})
 }
 
 func TestValidateContextTags(t *testing.T) {
