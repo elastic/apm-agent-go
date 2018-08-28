@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -245,6 +246,31 @@ func TestTracerBufferSize(t *testing.T) {
 	// BUG(axw) we should be keeping track of which entities
 	// we drop from the buffer and reflecting those in stats.
 	assert.Equal(t, uint64(0), tracer.Stats().TransactionsDropped)
+}
+
+func TestTracerBodyUnread(t *testing.T) {
+	os.Setenv("ELASTIC_APM_API_REQUEST_SIZE", "1024")
+	defer os.Unsetenv("ELASTIC_APM_API_REQUEST_SIZE")
+
+	// Don't consume the request body in the handler; close the connection.
+	var requests int64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		atomic.AddInt64(&requests, 1)
+		w.Header().Set("Connection", "close")
+	}))
+	defer server.Close()
+
+	tracer, err := elasticapm.NewTracer("tracer_testing", "")
+	require.NoError(t, err)
+	defer tracer.Close()
+	httpTransport, err := transport.NewHTTPTransport(server.URL, "")
+	require.NoError(t, err)
+	tracer.Transport = httpTransport
+
+	for atomic.LoadInt64(&requests) <= 1 {
+		tracer.StartTransaction("name", "type").End()
+	}
+	tracer.Flush(nil)
 }
 
 type blockedTransport struct {

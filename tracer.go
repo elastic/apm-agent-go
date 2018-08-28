@@ -608,6 +608,7 @@ func (t *Tracer) loop() {
 				flushed = nil
 			}
 			if req.Buf != nil {
+				// req will be canceled by CloseRead below.
 				req.Buf = nil
 			}
 			iochanReader.CloseRead(io.EOF)
