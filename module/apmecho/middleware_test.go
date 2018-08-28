@@ -29,7 +29,7 @@ func TestEchoMiddleware(t *testing.T) {
 	tracer.Flush(nil)
 
 	payloads := transport.Payloads()
-	transaction := payloads[0].Transactions()[0]
+	transaction := payloads.Transactions[0]
 
 	assert.Equal(t, "GET /hello/:name", transaction.Name)
 	assert.Equal(t, "request", transaction.Type)
@@ -92,7 +92,7 @@ func TestEchoMiddlewareError(t *testing.T) {
 }
 
 func assertError(t *testing.T, payloads transporttest.Payloads, culprit, message string, handled bool) {
-	error0 := payloads[0].Errors()[0]
+	error0 := payloads.Errors[0]
 
 	require.NotNil(t, error0.Context)
 	require.NotNil(t, error0.Exception)

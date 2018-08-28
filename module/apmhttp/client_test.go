@@ -56,10 +56,7 @@ func TestClient(t *testing.T) {
 	tracer.Flush(nil)
 
 	payloads := transport.Payloads()
-	require.Len(t, payloads, 1)
-	transactions := payloads[0].Transactions()
-	require.Len(t, transactions, 1)
-	transaction := transactions[0]
+	transaction := payloads.Transactions[0]
 	require.Len(t, transaction.Spans, 1)
 
 	span := transaction.Spans[0]
@@ -101,10 +98,7 @@ func TestClientTraceparentHeader(t *testing.T) {
 	tracer.Flush(nil)
 
 	payloads := transport.Payloads()
-	require.Len(t, payloads, 1)
-	transactions := payloads[0].Transactions()
-	require.Len(t, transactions, 1)
-	transaction := transactions[0]
+	transaction := payloads.Transactions[0]
 	require.Len(t, transaction.Spans, 1)
 
 	clientTraceContext, err := apmhttp.ParseTraceparentHeader(string(responseBody))

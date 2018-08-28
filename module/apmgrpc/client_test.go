@@ -27,7 +27,7 @@ func TestClientSpan(t *testing.T) {
 
 	// The client interceptor starts no transactions, only spans.
 	tracer.Flush(nil)
-	require.Len(t, transport.Payloads(), 0)
+	require.Zero(t, transport.Payloads())
 
 	tx := tracer.StartTransaction("name", "type")
 	ctx := elasticapm.ContextWithTransaction(context.Background(), tx)
@@ -37,7 +37,7 @@ func TestClientSpan(t *testing.T) {
 	tx.End()
 
 	tracer.Flush(nil)
-	out := transport.Payloads()[0].Transactions()[0]
+	out := transport.Payloads().Transactions[0]
 	require.Len(t, out.Spans, 1)
 	assert.Equal(t, "/helloworld.Greeter/SayHello", out.Spans[0].Name)
 }

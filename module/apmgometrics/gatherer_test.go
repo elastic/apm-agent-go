@@ -30,7 +30,7 @@ func TestGatherer(t *testing.T) {
 		}
 	}
 
-	assert.Equal(t, []*model.Metrics{{
+	assert.Equal(t, []model.Metrics{{
 		Samples: map[string]model.Metric{
 			"http.requests_total": {
 				Value: 123,
@@ -70,14 +70,14 @@ func TestHistogram(t *testing.T) {
 	}, metrics[0].Samples)
 }
 
-func gatherMetrics(g elasticapm.MetricsGatherer) []*model.Metrics {
+func gatherMetrics(g elasticapm.MetricsGatherer) []model.Metrics {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 	tracer.RegisterMetricsGatherer(g)
 	tracer.SendMetrics(nil)
-	metrics := transport.Payloads()[0].Metrics()
-	for _, m := range metrics {
-		m.Timestamp = model.Time{}
+	metrics := transport.Payloads().Metrics
+	for i := range metrics {
+		metrics[i].Timestamp = model.Time{}
 	}
 	return metrics
 }
