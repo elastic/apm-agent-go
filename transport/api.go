@@ -2,19 +2,15 @@ package transport
 
 import (
 	"context"
-
-	"github.com/elastic/apm-agent-go/model"
+	"io"
 )
 
-// Transport provides an interface for sending data to the Elastic APM
-// server. Methods are not required to be safe for concurrent use.
+// Transport provides an interface for sending streams of encoded model
+// entities to the Elastic APM server. Methods are not required to be safe
+// for concurrent use.
 type Transport interface {
-	// SendErrors sends the errors payload to the server.
-	SendErrors(context.Context, *model.ErrorsPayload) error
-
-	// SendMetrics sends the metrics payload to the server.
-	SendMetrics(context.Context, *model.MetricsPayload) error
-
-	// SendTransactions sends the transactions payload to the server.
-	SendTransactions(context.Context, *model.TransactionsPayload) error
+	// SendStream sends a data stream to the server, returning when the
+	// stream has been closed (Read returns io.EOF) or the HTTP request
+	// terminates.
+	SendStream(context.Context, io.Reader) error
 }
