@@ -10,13 +10,16 @@ import (
 )
 
 var (
-	// Transactions is the compiled JSON Schema for a transactions payload.
-	Transactions *jsonschema.Schema
+	// Transaction is the compiled JSON Schema for a transaction.
+	Transaction *jsonschema.Schema
 
-	// Errors is the compiled JSON Schema for an errors payload.
-	Errors *jsonschema.Schema
+	// Error is the compiled JSON Schema for an error.
+	Error *jsonschema.Schema
 
-	// Metrics is the compiled JSON Schema for a metrics payload.
+	// Metadata is the compiled JSON Schema for metadata.
+	Metadata *jsonschema.Schema
+
+	// Metrics is the compiled JSON Schema for a set of metrics.
 	Metrics *jsonschema.Schema
 )
 
@@ -35,7 +38,8 @@ func init() {
 		}
 		*out = schema
 	}
-	compile("transactions/payload.json", &Transactions)
-	compile("errors/payload.json", &Errors)
-	compile("metrics/payload.json", &Metrics)
+	compile("transactions/transaction.json", &Transaction)
+	compile("errors/error.json", &Error)
+	compile("metrics/metric.json", &Metrics)
+	compile("metadata.json", &Metadata)
 }
