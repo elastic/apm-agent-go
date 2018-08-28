@@ -111,8 +111,8 @@ type Transaction struct {
 	rand         *rand.Rand // for ID generation
 }
 
-// reset resets the Transaction back to its zero state, so it can be reused
-// in the transaction pool.
+// reset resets the Transaction back to its zero state and places it back
+// into the transaction pool.
 func (tx *Transaction) reset() {
 	for _, s := range tx.spans {
 		s.reset()
@@ -126,13 +126,13 @@ func (tx *Transaction) reset() {
 		rand:     tx.rand,
 	}
 	tx.Context.reset()
+	tx.tracer.transactionPool.Put(tx)
 }
 
 // Discard discards a previously started transaction. The Transaction
 // must not be used after this.
 func (tx *Transaction) Discard() {
 	tx.reset()
-	tx.tracer.transactionPool.Put(tx)
 }
 
 // Sampled reports whether or not the transaction is sampled.
@@ -171,7 +171,6 @@ func (tx *Transaction) enqueue() {
 		tx.tracer.stats.TransactionsDropped++
 		tx.tracer.statsMu.Unlock()
 		tx.reset()
-		tx.tracer.transactionPool.Put(tx)
 	}
 }
 

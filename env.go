@@ -17,9 +17,7 @@ import (
 )
 
 const (
-	envFlushInterval         = "ELASTIC_APM_FLUSH_INTERVAL"
 	envMetricsInterval       = "ELASTIC_APM_METRICS_INTERVAL"
-	envMaxQueueSize          = "ELASTIC_APM_MAX_QUEUE_SIZE"
 	envMaxSpans              = "ELASTIC_APM_TRANSACTION_MAX_SPANS"
 	envTransactionSampleRate = "ELASTIC_APM_TRANSACTION_SAMPLE_RATE"
 	envSanitizeFieldNames    = "ELASTIC_APM_SANITIZE_FIELD_NAMES"
@@ -30,13 +28,22 @@ const (
 	envSpanFramesMinDuration = "ELASTIC_APM_SPAN_FRAMES_MIN_DURATION"
 	envActive                = "ELASTIC_APM_ACTIVE"
 	envDistributedTracing    = "ELASTIC_APM_DISTRIBUTED_TRACING"
+	envAPIRequestSize        = "ELASTIC_APM_API_REQUEST_SIZE"
+	envAPIRequestTime        = "ELASTIC_APM_API_REQUEST_TIME"
+	envAPIBufferSize         = "ELASTIC_APM_API_BUFFER_SIZE"
 
-	defaultFlushInterval           = 10 * time.Second
-	defaultMetricsInterval         = 0 // disabled by default
-	defaultMaxTransactionQueueSize = 500
-	defaultMaxSpans                = 500
-	defaultCaptureBody             = CaptureBodyOff
-	defaultSpanFramesMinDuration   = 5 * time.Millisecond
+	defaultAPIRequestSize        = 768 * 1024 // 768 KiB / 0.75 MiB
+	defaultAPIRequestTime        = 10 * time.Second
+	defaultAPIBufferSize         = 10 * 1024 * 1024 // 10 MiB
+	defaultMetricsInterval       = 0                // disabled by default
+	defaultMaxSpans              = 500
+	defaultCaptureBody           = CaptureBodyOff
+	defaultSpanFramesMinDuration = 5 * time.Millisecond
+
+	minAPIBufferSize  = 10 * 1024         // 10 KiB
+	maxAPIBufferSize  = 100 * 1024 * 1024 // 100 MiB
+	minAPIRequestSize = 1024              // 1 KiB
+	maxAPIRequestSize = 5 * 1024 * 1024   // 5 MiB
 )
 
 var (
@@ -53,22 +60,46 @@ var (
 	}, "|")))
 )
 
-func initialFlushInterval() (time.Duration, error) {
-	return apmconfig.ParseDurationEnv(envFlushInterval, "s", defaultFlushInterval)
+func initialRequestDuration() (time.Duration, error) {
+	return apmconfig.ParseDurationEnv(envAPIRequestTime, "", defaultAPIRequestTime)
 }
 
 func initialMetricsInterval() (time.Duration, error) {
 	return apmconfig.ParseDurationEnv(envMetricsInterval, "s", defaultMetricsInterval)
 }
 
-func initialMaxTransactionQueueSize() (int, error) {
-	value := os.Getenv(envMaxQueueSize)
+func initialAPIBufferSize() (int, error) {
+	value := os.Getenv(envAPIBufferSize)
 	if value == "" {
-		return defaultMaxTransactionQueueSize, nil
+		return defaultAPIBufferSize, nil
 	}
 	size, err := strconv.Atoi(value)
 	if err != nil {
-		return 0, errors.Wrapf(err, "failed to parse %s", envMaxQueueSize)
+		return 0, errors.Wrapf(err, "failed to parse %s", envAPIBufferSize)
+	}
+	if size < minAPIBufferSize || size > maxAPIBufferSize {
+		return 0, errors.Errorf(
+			"%s must be at least %d and less than %d, got %d",
+			envAPIBufferSize, minAPIBufferSize, maxAPIBufferSize, size,
+		)
+	}
+	return size, nil
+}
+
+func initialAPIRequestSize() (int, error) {
+	value := os.Getenv(envAPIRequestSize)
+	if value == "" {
+		return defaultAPIRequestSize, nil
+	}
+	size, err := strconv.Atoi(value)
+	if err != nil {
+		return 0, errors.Wrapf(err, "failed to parse %s", envAPIRequestSize)
+	}
+	if size < minAPIRequestSize || size > maxAPIRequestSize {
+		return 0, errors.Errorf(
+			"%s must be at least %d and less than %d, got %d",
+			envAPIRequestSize, minAPIRequestSize, maxAPIRequestSize, size,
+		)
 	}
 	return size, nil
 }

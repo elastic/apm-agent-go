@@ -7,7 +7,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/apm-agent-go"
 	"github.com/elastic/apm-agent-go/model"
@@ -59,7 +58,7 @@ func TestInternalStackTrace(t *testing.T) {
 	}}, stacktrace)
 }
 
-func sendError(t *testing.T, err error, f ...func(*elasticapm.Error)) *model.Error {
+func sendError(t *testing.T, err error, f ...func(*elasticapm.Error)) model.Error {
 	var r transporttest.RecorderTransport
 	tracer, newTracerErr := elasticapm.NewTracer("tracer_testing", "")
 	assert.NoError(t, newTracerErr)
@@ -75,10 +74,7 @@ func sendError(t *testing.T, err error, f ...func(*elasticapm.Error)) *model.Err
 	tracer.Flush(nil)
 
 	payloads := r.Payloads()
-	require.Len(t, payloads, 1)
-	errors := payloads[0].Errors()
-	require.Len(t, errors, 1)
-	return errors[0]
+	return payloads.Errors[0]
 }
 
 type errorsStackTracer struct {

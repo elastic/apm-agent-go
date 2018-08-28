@@ -1,6 +1,10 @@
 package elasticapm
 
-import "context"
+import (
+	"context"
+
+	"github.com/elastic/apm-agent-go/model"
+)
 
 // ContextWithSpan returns a copy of parent in which the given span
 // is stored, associated with the key ContextSpanKey.
@@ -63,7 +67,14 @@ func CaptureError(ctx context.Context, err error) *Error {
 	}
 	e := tx.tracer.NewError(err)
 	e.Handled = true
-	e.Transaction = tx
+
+	// TODO(axw) set parent to span, if span is in context
+	if !tx.traceContext.Span.isZero() {
+		e.model.TraceID = model.TraceID(tx.traceContext.Trace)
+		e.model.ParentID = model.SpanID(tx.traceContext.Span)
+	} else {
+		e.model.Transaction.ID = model.UUID(tx.traceContext.Trace)
+	}
 	return e
 }
 

@@ -1,7 +1,7 @@
 package elasticapm_test
 
 import (
-	"compress/gzip"
+	"compress/zlib"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -47,59 +47,60 @@ func ExampleTracer() {
 	api.handleOrder(context.Background(), "fish fingers")
 	api.handleOrder(context.Background(), "detergent")
 
-	// The tracer will queue transactions to be sent at a later time,
-	// or when the queue becomes full. The interval and queue size
-	// can both be configured by setting the environment variables
-	// ELASTIC_APM_FLUSH_INTERVAL and ELASTIC_APM_MAX_QUEUE_SIZE
-	// respectively. Alternatively, the tracer's SetFlushInterval
-	// and SetMaxQueueSize methods can be used.
+	// The tracer will stream events to the APM server, and will
+	// close the request when it reaches a given size in bytes
+	// (ELASTIC_APM_API_REQUEST_SIZE) or a given duration has
+	// elapsed (ELASTIC_APM_API_REQUEST_TIME). Even so, we flush
+	// here to ensure the data reaches the server.
 	tracer.Flush(nil)
 
 	fmt.Println("number of payloads:", len(r.payloads))
-	p0 := r.payloads[0]
-	service := p0["service"].(map[string]interface{})
+	metadata := r.payloads[0]["metadata"].(map[string]interface{})
+	service := metadata["service"].(map[string]interface{})
 	agent := service["agent"].(map[string]interface{})
 	language := service["language"].(map[string]interface{})
 	runtime := service["runtime"].(map[string]interface{})
-	transactions := p0["transactions"].([]interface{})
 	fmt.Println("  service name:", service["name"])
 	fmt.Println("  service version:", service["version"])
 	fmt.Println("  agent name:", agent["name"])
 	fmt.Println("  language name:", language["name"])
 	fmt.Println("  runtime name:", runtime["name"])
-	fmt.Println("  number of transactions:", len(transactions))
-	for i := range transactions {
-		t := transactions[i].(map[string]interface{})
-		fmt.Println("    transaction name:", t["name"])
-		fmt.Println("    transaction type:", t["type"])
-		fmt.Println("    transaction context:", t["context"])
+	for i, p := range r.payloads[1:] {
+		t := p["transaction"].(map[string]interface{})
+		fmt.Printf("  transaction %d:\n", i)
+		fmt.Println("    name:", t["name"])
+		fmt.Println("    type:", t["type"])
+		fmt.Println("    context:", t["context"])
 		spans := t["spans"].([]interface{})
-		fmt.Println("    number of spans:", len(spans))
-		s0 := spans[0].(map[string]interface{})
-		fmt.Println("      span name:", s0["name"])
-		fmt.Println("      span type:", s0["type"])
+		for i := range spans {
+			s := spans[i].(map[string]interface{})
+			fmt.Printf("    span %d:\n", i)
+			fmt.Println("      name:", s["name"])
+			fmt.Println("      type:", s["type"])
+		}
 	}
 
 	// Output:
-	// number of payloads: 1
+	// number of payloads: 3
 	//   service name: service-name
 	//   service version: 1.0.0
 	//   agent name: go
 	//   language name: go
 	//   runtime name: gc
-	//   number of transactions: 2
-	//     transaction name: order
-	//     transaction type: request
-	//     transaction context: map[custom:map[product:fish fingers]]
-	//     number of spans: 1
-	//       span name: store_order
-	//       span type: rpc
-	//     transaction name: order
-	//     transaction type: request
-	//     transaction context: map[custom:map[product:detergent]]
-	//     number of spans: 1
-	//       span name: store_order
-	//       span type: rpc
+	//   transaction 0:
+	//     name: order
+	//     type: request
+	//     context: map[custom:map[product:fish fingers]]
+	//     span 0:
+	//       name: store_order
+	//       type: rpc
+	//   transaction 1:
+	//     name: order
+	//     type: request
+	//     context: map[custom:map[product:detergent]]
+	//     span 0:
+	//       name: store_order
+	//       type: rpc
 }
 
 type api struct {
@@ -137,19 +138,24 @@ func (r *recorder) count() int {
 }
 
 func (r *recorder) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	var body io.Reader = req.Body
-	if req.Header.Get("Content-Encoding") == "gzip" {
-		r, err := gzip.NewReader(body)
-		if err != nil {
-			panic(err)
-		}
-		body = r
+	body, err := zlib.NewReader(req.Body)
+	if err != nil {
+		panic(err)
 	}
-	var m map[string]interface{}
-	if err := json.NewDecoder(body).Decode(&m); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	decoder := json.NewDecoder(body)
+	var payloads []map[string]interface{}
+	for {
+		var m map[string]interface{}
+		if err := decoder.Decode(&m); err != nil {
+			if err == io.EOF {
+				break
+			}
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		payloads = append(payloads, m)
 	}
 	r.mu.Lock()
-	r.payloads = append(r.payloads, m)
+	r.payloads = append(r.payloads, payloads...)
 	r.mu.Unlock()
 }

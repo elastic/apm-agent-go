@@ -1,14 +1,20 @@
 package elasticapm
 
 import (
+	"bytes"
+	"compress/zlib"
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/elastic/apm-agent-go/internal/fastjson"
+	"github.com/elastic/apm-agent-go/internal/iochan"
+	"github.com/elastic/apm-agent-go/internal/ringbuffer"
 	"github.com/elastic/apm-agent-go/model"
 	"github.com/elastic/apm-agent-go/stacktrace"
 	"github.com/elastic/apm-agent-go/transport"
@@ -19,12 +25,6 @@ const (
 	defaultPostContext     = 3
 	transactionsChannelCap = 1000
 	errorsChannelCap       = 1000
-
-	// defaultMaxErrorQueueSize is the default maximum number
-	// of errors to enqueue in the tracer. When this fills up,
-	// errors will start being dropped (when the channel is
-	// also full).
-	defaultMaxErrorQueueSize = 1000
 )
 
 var (
@@ -45,19 +45,20 @@ func init() {
 }
 
 type options struct {
-	flushInterval           time.Duration
-	metricsInterval         time.Duration
-	maxTransactionQueueSize int
-	maxSpans                int
-	sampler                 Sampler
-	sanitizedFieldNames     *regexp.Regexp
-	captureBody             CaptureBodyMode
-	spanFramesMinDuration   time.Duration
-	serviceName             string
-	serviceVersion          string
-	serviceEnvironment      string
-	active                  bool
-	distributedTracing      bool
+	requestDuration       time.Duration
+	metricsInterval       time.Duration
+	maxSpans              int
+	requestSize           int
+	bufferSize            int
+	sampler               Sampler
+	sanitizedFieldNames   *regexp.Regexp
+	captureBody           CaptureBodyMode
+	spanFramesMinDuration time.Duration
+	serviceName           string
+	serviceVersion        string
+	serviceEnvironment    string
+	active                bool
+	distributedTracing    bool
 }
 
 func (opts *options) init(continueOnError bool) error {
@@ -70,9 +71,9 @@ func (opts *options) init(continueOnError bool) error {
 		return true
 	}
 
-	flushInterval, err := initialFlushInterval()
+	requestDuration, err := initialRequestDuration()
 	if failed(err) {
-		flushInterval = defaultFlushInterval
+		requestDuration = defaultAPIRequestTime
 	}
 
 	metricsInterval, err := initialMetricsInterval()
@@ -81,9 +82,16 @@ func (opts *options) init(continueOnError bool) error {
 		errs = append(errs, err)
 	}
 
-	maxTransactionQueueSize, err := initialMaxTransactionQueueSize()
-	if failed(err) {
-		maxTransactionQueueSize = defaultMaxTransactionQueueSize
+	requestSize, err := initialAPIRequestSize()
+	if err != nil {
+		requestSize = defaultAPIRequestSize
+		errs = append(errs, err)
+	}
+
+	bufferSize, err := initialAPIBufferSize()
+	if err != nil {
+		bufferSize = defaultAPIBufferSize
+		errs = append(errs, err)
 	}
 
 	maxSpans, err := initialMaxSpans()
@@ -128,9 +136,10 @@ func (opts *options) init(continueOnError bool) error {
 		log.Printf("[elasticapm]: %s", err)
 	}
 
-	opts.flushInterval = flushInterval
+	opts.requestDuration = requestDuration
 	opts.metricsInterval = metricsInterval
-	opts.maxTransactionQueueSize = maxTransactionQueueSize
+	opts.requestSize = requestSize
+	opts.bufferSize = bufferSize
 	opts.maxSpans = maxSpans
 	opts.sampler = sampler
 	opts.sanitizedFieldNames = sanitizedFieldNames
@@ -174,6 +183,7 @@ type Tracer struct {
 
 	active             bool
 	distributedTracing bool
+	bufferSize         int
 	closing            chan struct{}
 	closed             chan struct{}
 	forceFlush         chan chan<- struct{}
@@ -242,6 +252,7 @@ func newTracer(opts options) *Tracer {
 		spanFramesMinDuration: opts.spanFramesMinDuration,
 		active:                opts.active,
 		distributedTracing:    opts.distributedTracing,
+		bufferSize:            opts.bufferSize,
 	}
 	t.Service.Name = opts.serviceName
 	t.Service.Version = opts.serviceVersion
@@ -255,9 +266,8 @@ func newTracer(opts options) *Tracer {
 	go t.loop()
 	t.configCommands <- func(cfg *tracerConfig) {
 		cfg.metricsInterval = opts.metricsInterval
-		cfg.flushInterval = opts.flushInterval
-		cfg.maxTransactionQueueSize = opts.maxTransactionQueueSize
-		cfg.maxErrorQueueSize = defaultMaxErrorQueueSize
+		cfg.requestDuration = opts.requestDuration
+		cfg.requestSize = opts.requestSize
 		cfg.sanitizedFieldNames = opts.sanitizedFieldNames
 		cfg.preContext = defaultPreContext
 		cfg.postContext = defaultPostContext
@@ -265,6 +275,21 @@ func newTracer(opts options) *Tracer {
 	}
 	return t
 }
+
+// tracerConfig holds the tracer's runtime configuration, which may be modified
+// by sending a tracerConfigCommand to the tracer's configCommands channel.
+type tracerConfig struct {
+	requestSize             int
+	requestDuration         time.Duration
+	metricsInterval         time.Duration
+	logger                  Logger
+	metricsGatherers        []MetricsGatherer
+	contextSetter           stacktrace.ContextSetter
+	preContext, postContext int
+	sanitizedFieldNames     *regexp.Regexp
+}
+
+type tracerConfigCommand func(*tracerConfig)
 
 // Close closes the Tracer, preventing transactions from being
 // sent to the APM server.
@@ -299,11 +324,12 @@ func (t *Tracer) Active() bool {
 	return t.active
 }
 
-// SetFlushInterval sets the flush interval -- the amount of time
-// to wait before flushing enqueued transactions to the APM server.
-func (t *Tracer) SetFlushInterval(d time.Duration) {
+// SetRequestDuration sets the maximum amount of time to keep a request open
+// to the APM server for streaming data before closing the stream and starting
+// a new request.
+func (t *Tracer) SetRequestDuration(d time.Duration) {
 	t.sendConfigCommand(func(cfg *tracerConfig) {
-		cfg.flushInterval = d
+		cfg.requestDuration = d
 	})
 }
 
@@ -312,24 +338,6 @@ func (t *Tracer) SetFlushInterval(d time.Duration) {
 func (t *Tracer) SetMetricsInterval(d time.Duration) {
 	t.sendConfigCommand(func(cfg *tracerConfig) {
 		cfg.metricsInterval = d
-	})
-}
-
-// SetMaxTransactionQueueSize sets the maximum transaction queue size -- the
-// maximum number of transactions to buffer before flushing to the APM server.
-// If set to a non-positive value, the queue size is unlimited.
-func (t *Tracer) SetMaxTransactionQueueSize(n int) {
-	t.sendConfigCommand(func(cfg *tracerConfig) {
-		cfg.maxTransactionQueueSize = n
-	})
-}
-
-// SetMaxErrorQueueSize sets the maximum error queue size -- the
-// maximum number of errors to buffer before they will start getting
-// dropped. If set to a non-positive value, the queue size is unlimited.
-func (t *Tracer) SetMaxErrorQueueSize(n int) {
-	t.sendConfigCommand(func(cfg *tracerConfig) {
-		cfg.maxErrorQueueSize = n
 	})
 }
 
@@ -463,224 +471,263 @@ func (t *Tracer) Stats() TracerStats {
 }
 
 func (t *Tracer) loop() {
-	defer close(t.closed)
-
 	ctx, cancelContext := context.WithCancel(context.Background())
 	defer cancelContext()
+	defer close(t.closed)
+
+	var req iochan.ReadRequest
+	var requestBuf bytes.Buffer
+	var metadata []byte
+	var gracePeriod time.Duration = -1
+	var flushed chan<- struct{}
+	zlibWriter, _ := zlib.NewWriterLevel(&requestBuf, zlib.BestSpeed)
+	buffer := ringbuffer.New(t.bufferSize)
+	zlibFlushed := true
+	zlibClosed := false
+	iochanReader := iochan.NewReader()
+	requestBytesRead := 0
+	requestActive := false
+	closeRequest := false
+	flushRequest := false
+	requestResult := make(chan error, 1)
+	requestTimer := time.NewTimer(0)
+	requestTimerActive := false
+	if !requestTimer.Stop() {
+		<-requestTimer.C
+	}
+
+	// Run another goroutine to perform the blocking requests,
+	// communicating with the tracer loop to obtain stream data.
+	sendStreamRequest := make(chan time.Duration)
+	defer close(sendStreamRequest)
 	go func() {
-		select {
-		case <-t.closing:
-			cancelContext()
+		for gracePeriod := range sendStreamRequest {
+			if gracePeriod > 0 {
+				select {
+				case <-time.After(gracePeriod):
+				case <-ctx.Done():
+				}
+			}
+			requestResult <- t.Transport.SendStream(ctx, iochanReader)
 		}
 	}()
 
-	var cfg tracerConfig
-	var flushed chan<- struct{}
-	var forceSentMetrics chan<- struct{}
-	var sendMetricsC <-chan time.Time
+	var metrics Metrics
+	var sentMetrics chan<- struct{}
 	var gatheringMetrics bool
-	var flushC <-chan time.Time
-	var transactions []*Transaction
-	var errors []*Error
-	var statsUpdates TracerStats
-	sender := sender{
-		tracer: t,
-		cfg:    &cfg,
-		stats:  &statsUpdates,
-	}
-
-	errorsC := t.errors
-	forceFlush := t.forceFlush
-	forceSendMetrics := t.forceSendMetrics
 	gatheredMetrics := make(chan struct{}, 1)
-	flushTimer := time.NewTimer(0)
-	if !flushTimer.Stop() {
-		<-flushTimer.C
-	}
 	metricsTimer := time.NewTimer(0)
+	metricsTimerActive := false
 	if !metricsTimer.Stop() {
 		<-metricsTimer.C
 	}
-	startTimer := func(ch *<-chan time.Time, timer *time.Timer, interval time.Duration) {
-		if *ch != nil {
-			// Timer already started.
-			return
-		}
-		if !timer.Stop() {
-			select {
-			case <-timer.C:
-			default:
-			}
-		}
-		if interval <= 0 {
-			// Non-positive interval disables the timer.
-			return
-		}
-		timer.Reset(interval)
-		*ch = timer.C
-	}
-	startFlushTimer := func() {
-		startTimer(&flushC, flushTimer, cfg.flushInterval)
-	}
-	startMetricsTimer := func() {
-		startTimer(&sendMetricsC, metricsTimer, cfg.metricsInterval)
-	}
 
-	receivedTransaction := func(tx *Transaction, stats *TracerStats) {
-		if cfg.maxTransactionQueueSize > 0 && len(transactions) >= cfg.maxTransactionQueueSize {
-			// The queue is full, so pop the oldest item.
-			// TODO(axw) use container/ring? implement
-			// ring buffer on top of slice? profile
-			n := uint64(len(transactions) - cfg.maxTransactionQueueSize + 1)
-			for _, tx := range transactions[:n] {
-				tx.reset()
-				t.transactionPool.Put(tx)
-			}
-			transactions = transactions[n:]
-			stats.TransactionsDropped += n
-		}
-		transactions = append(transactions, tx)
+	var stats TracerStats
+	var cfg tracerConfig
+	modelWriter := modelWriter{
+		buffer: buffer,
+		cfg:    &cfg,
+		stats:  &stats,
 	}
-
 	for {
 		var gatherMetrics bool
-		var sendMetrics bool
-		var sendTransactions bool
-		statsUpdates = TracerStats{}
-
 		select {
 		case <-t.closing:
+			if req.Buf != nil {
+				// Unblock the reader first.
+				req.Respond(0, io.EOF)
+			}
 			return
 		case cmd := <-t.configCommands:
+			oldMetricsInterval := cfg.metricsInterval
 			cmd(&cfg)
-			if cfg.maxErrorQueueSize <= 0 || len(errors) < cfg.maxErrorQueueSize {
-				errorsC = t.errors
+			if !gatheringMetrics && oldMetricsInterval <= 0 && cfg.metricsInterval > 0 {
+				metricsTimer.Reset(cfg.metricsInterval)
+				metricsTimerActive = true
 			}
-			startMetricsTimer()
 			continue
-		case e := <-errorsC:
-			errors = append(errors, e)
 		case tx := <-t.transactions:
-			beforeLen := len(transactions)
-			receivedTransaction(tx, &statsUpdates)
-			if len(transactions) == beforeLen && flushC != nil {
-				// The queue was already full, and a retry
-				// timer is running; wait for it to fire.
-				t.statsMu.Lock()
-				t.stats.accumulate(statsUpdates)
-				t.statsMu.Unlock()
-				continue
-			}
-			if cfg.maxTransactionQueueSize <= 0 || len(transactions) < cfg.maxTransactionQueueSize {
-				startFlushTimer()
-				continue
-			}
-			sendTransactions = true
-		case <-flushC:
-			flushC = nil
-			sendTransactions = true
-		case flushed = <-forceFlush:
-			// The caller has explicitly requested a flush, so
-			// drain any transactions buffered in the channel.
-			for n := len(t.transactions); n > 0; n-- {
-				tx := <-t.transactions
-				receivedTransaction(tx, &statsUpdates)
-			}
-			// flushed will be signaled, and forceFlush set back to
-			// t.forceFlush, when the queued transactions and/or
-			// errors are successfully sent.
-			forceFlush = nil
-			flushC = nil
-			sendTransactions = true
-		case <-sendMetricsC:
-			sendMetricsC = nil
+			modelWriter.writeTransaction(tx)
+		case e := <-t.errors:
+			// Flush the buffer to transmit the error immediately.
+			modelWriter.writeError(e)
+			flushRequest = true
+		case <-requestTimer.C:
+			requestTimerActive = false
+			closeRequest = true
+		case <-metricsTimer.C:
+			metricsTimerActive = false
 			gatherMetrics = !gatheringMetrics
-		case forceSentMetrics = <-forceSendMetrics:
-			// forceSentMetrics will be signaled, and forceSendMetrics
-			// set back to t.forceSendMetrics, when metrics have been
-			// gathered and an attempt to send them has been made.
-			forceSendMetrics = nil
-			sendMetricsC = nil
+		case sentMetrics = <-t.forceSendMetrics:
+			if metricsTimerActive {
+				if !metricsTimer.Stop() {
+					<-metricsTimer.C
+				}
+				metricsTimerActive = false
+			}
 			gatherMetrics = !gatheringMetrics
 		case <-gatheredMetrics:
+			modelWriter.writeMetrics(&metrics)
 			gatheringMetrics = false
-			sendMetrics = true
+			closeRequest = true
+			if cfg.metricsInterval > 0 {
+				metricsTimerActive = true
+				metricsTimer.Reset(cfg.metricsInterval)
+			}
+		case flushed = <-t.forceFlush:
+			// Drain any objects buffered in the channels.
+			for n := len(t.errors); n > 0; n-- {
+				modelWriter.writeError(<-t.errors)
+			}
+			for n := len(t.transactions); n > 0; n-- {
+				modelWriter.writeTransaction(<-t.transactions)
+			}
+			if !requestActive && buffer.Len() == 0 {
+				flushed <- struct{}{}
+				continue
+			}
+			closeRequest = true
+		case req = <-iochanReader.C:
+		case err := <-requestResult:
+			if err != nil {
+				stats.Errors.SendStream++
+				gracePeriod = nextGracePeriod(gracePeriod)
+				if cfg.logger != nil {
+					cfg.logger.Debugf("request failed: %s (next request in %s)", err, gracePeriod)
+				}
+			} else {
+				// Reset grace period after success.
+				gracePeriod = -1
+			}
+			if sentMetrics != nil {
+				sentMetrics <- struct{}{}
+				sentMetrics = nil
+			}
+			if flushed != nil {
+				flushed <- struct{}{}
+				flushed = nil
+			}
+			if req.Buf != nil {
+				req.Buf = nil
+			}
+			iochanReader.CloseRead(io.EOF)
+			iochanReader = iochan.NewReader()
+			flushRequest = false
+			closeRequest = false
+			requestActive = false
+			requestBytesRead = 0
+			requestBuf.Reset()
+			if requestTimerActive {
+				if !requestTimer.Stop() {
+					<-requestTimer.C
+				}
+				requestTimerActive = false
+			}
 		}
 
-		if remainder := cfg.maxErrorQueueSize - len(errors); remainder > 0 {
-			// Drain any errors in the channel, up to the maximum queue size.
-			for n := len(t.errors); n > 0 && remainder > 0; n-- {
-				errors = append(errors, <-t.errors)
-				remainder--
-			}
-		}
-		if sender.sendErrors(ctx, errors) {
-			for _, e := range errors {
-				e.reset()
-				t.errorPool.Put(e)
-			}
-			errors = errors[:0]
-			errorsC = t.errors
-		} else if len(errors) == cfg.maxErrorQueueSize {
-			errorsC = nil
-		}
-		if sendTransactions {
-			if sender.sendTransactions(ctx, transactions) {
-				for _, tx := range transactions {
-					tx.reset()
-					t.transactionPool.Put(tx)
-				}
-				transactions = transactions[:0]
-			}
-		}
-		if !statsUpdates.isZero() {
+		if !stats.isZero() {
 			t.statsMu.Lock()
-			t.stats.accumulate(statsUpdates)
+			t.stats.accumulate(stats)
 			t.statsMu.Unlock()
+			stats = TracerStats{}
 		}
+
 		if gatherMetrics {
 			gatheringMetrics = true
-			sender.gatherMetrics(ctx, gatheredMetrics)
-		}
-		if sendMetrics {
-			sender.sendMetrics(ctx)
-			// We don't retry sending metrics on failure;
-			// inform the caller that an attempt was made
-			// regardless of the outcome, and restart the
-			// timer.
-			if forceSentMetrics != nil {
-				forceSentMetrics <- struct{}{}
-				forceSentMetrics = nil
-				forceSendMetrics = t.forceSendMetrics
-			}
-			startMetricsTimer()
+			t.gatherMetrics(ctx, cfg.metricsGatherers, &metrics, cfg.logger, gatheredMetrics)
 		}
 
-		if statsUpdates.Errors.SendTransactions != 0 || statsUpdates.Errors.SendErrors != 0 {
-			// Sending transactions or errors failed, start a new timer to resend.
-			startFlushTimer()
+		if !requestActive {
+			if buffer.Len() == 0 {
+				continue
+			}
+			sendStreamRequest <- gracePeriod
+			if metadata == nil {
+				metadata = t.jsonRequestMetadata()
+			}
+			zlibWriter.Reset(&requestBuf)
+			zlibWriter.Write(metadata)
+			zlibFlushed = false
+			zlibClosed = false
+			requestActive = true
+			requestTimer.Reset(cfg.requestDuration)
+			requestTimerActive = true
+		}
+
+		if !closeRequest || !zlibClosed {
+			for requestBytesRead+requestBuf.Len() < cfg.requestSize && buffer.Len() > 0 {
+				buffer.WriteTo(zlibWriter)
+				zlibWriter.Write([]byte("\n"))
+				zlibFlushed = false
+			}
+			if !closeRequest {
+				closeRequest = requestBytesRead+requestBuf.Len() >= cfg.requestSize
+			}
+		}
+		if closeRequest {
+			if !zlibClosed {
+				zlibWriter.Close()
+				zlibClosed = true
+			}
+		} else if flushRequest && !zlibFlushed {
+			zlibWriter.Flush()
+			flushRequest = false
+			zlibFlushed = true
+		}
+
+		if req.Buf == nil || requestBuf.Len() == 0 {
 			continue
 		}
-		if sendTransactions && flushed != nil {
-			forceFlush = t.forceFlush
-			flushed <- struct{}{}
-			flushed = nil
+		const zlibHeaderLen = 2
+		if requestBytesRead+requestBuf.Len() > zlibHeaderLen {
+			n, err := requestBuf.Read(req.Buf)
+			if closeRequest && err == nil && requestBuf.Len() == 0 {
+				err = io.EOF
+			}
+			req.Respond(n, err)
+			req.Buf = nil
+			if n > 0 {
+				requestBytesRead += n
+			}
 		}
 	}
 }
 
-// tracerConfig holds the tracer's runtime configuration, which may be modified
-// by sending a tracerConfigCommand to the tracer's configCommands channel.
-type tracerConfig struct {
-	flushInterval           time.Duration
-	metricsInterval         time.Duration
-	maxTransactionQueueSize int
-	maxErrorQueueSize       int
-	logger                  Logger
-	metricsGatherers        []MetricsGatherer
-	contextSetter           stacktrace.ContextSetter
-	preContext, postContext int
-	sanitizedFieldNames     *regexp.Regexp
+// jsonRequestMetadata returns a JSON-encoded metadata object that features
+// at the head of every request body. This is called exactly once, when the
+// first request is made.
+func (t *Tracer) jsonRequestMetadata() []byte {
+	var json fastjson.Writer
+	service := makeService(t.Service.Name, t.Service.Version, t.Service.Environment)
+	json.RawString(`{"metadata":{`)
+	json.RawString(`"system":`)
+	t.system.MarshalFastJSON(&json)
+	json.RawString(`,"process":`)
+	t.process.MarshalFastJSON(&json)
+	json.RawString(`,"service":`)
+	service.MarshalFastJSON(&json)
+	json.RawString("}}\n")
+	return json.Bytes()
 }
 
-type tracerConfigCommand func(*tracerConfig)
+// gatherMetrics gathers metrics from each of the registered
+// metrics gatherers. Once all gatherers have returned, a value
+// will be sent on the "gathered" channel.
+func (t *Tracer) gatherMetrics(ctx context.Context, gatherers []MetricsGatherer, m *Metrics, l Logger, gathered chan<- struct{}) {
+	timestamp := model.Time(time.Now().UTC())
+	var group sync.WaitGroup
+	for _, g := range gatherers {
+		group.Add(1)
+		go func(g MetricsGatherer) {
+			defer group.Done()
+			gatherMetrics(ctx, g, m, l)
+		}(g)
+	}
+	go func() {
+		group.Wait()
+		for _, m := range m.metrics {
+			m.Timestamp = timestamp
+		}
+		gathered <- struct{}{}
+	}()
+}
