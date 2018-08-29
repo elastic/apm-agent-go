@@ -293,9 +293,8 @@ func TestTracerBufferSize(t *testing.T) {
 	assert.NotEqual(t, len(p.Transactions), len(p2.Transactions))
 	assert.NotEqual(t, fmt.Sprint(len(p.Transactions)), p2.Transactions[len(p.Transactions)].Name)
 
-	// BUG(axw) we should be keeping track of which entities
-	// we drop from the buffer and reflecting those in stats.
-	assert.Equal(t, uint64(0), tracer.Stats().TransactionsDropped)
+	// We record the type of event in the buffer, in order to keep the dropped stats accurate.
+	assert.Equal(t, uint64(1000-len(p2.Transactions)), tracer.Stats().TransactionsDropped)
 }
 
 func TestTracerBodyUnread(t *testing.T) {

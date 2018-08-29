@@ -481,7 +481,6 @@ func (t *Tracer) loop() {
 	var gracePeriod time.Duration = -1
 	var flushed chan<- struct{}
 	zlibWriter, _ := zlib.NewWriterLevel(&requestBuf, zlib.BestSpeed)
-	buffer := ringbuffer.New(t.bufferSize)
 	zlibFlushed := true
 	zlibClosed := false
 	iochanReader := iochan.NewReader()
@@ -524,11 +523,21 @@ func (t *Tracer) loop() {
 
 	var stats TracerStats
 	var cfg tracerConfig
+	buffer := ringbuffer.New(t.bufferSize)
+	buffer.Evicted = func(h ringbuffer.BlockHeader) {
+		switch h.Tag {
+		case transactionBlockTag:
+			stats.TransactionsDropped++
+		case errorBlockTag:
+			stats.ErrorsDropped++
+		}
+	}
 	modelWriter := modelWriter{
 		buffer: buffer,
 		cfg:    &cfg,
 		stats:  &stats,
 	}
+
 	for {
 		var gatherMetrics bool
 		select {
@@ -657,9 +666,16 @@ func (t *Tracer) loop() {
 
 		if !closeRequest || !zlibClosed {
 			for requestBytesRead+requestBuf.Len() < cfg.requestSize && buffer.Len() > 0 {
-				buffer.WriteTo(zlibWriter)
-				zlibWriter.Write([]byte("\n"))
-				zlibFlushed = false
+				if h, _, err := buffer.WriteBlockTo(zlibWriter); err == nil {
+					switch h.Tag {
+					case transactionBlockTag:
+						stats.TransactionsSent++
+					case errorBlockTag:
+						stats.ErrorsSent++
+					}
+					zlibWriter.Write([]byte("\n"))
+					zlibFlushed = false
+				}
 			}
 			if !closeRequest {
 				closeRequest = requestBytesRead+requestBuf.Len() >= cfg.requestSize

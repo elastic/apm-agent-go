@@ -7,22 +7,39 @@ import (
 	"io/ioutil"
 )
 
-// BlockOverhead is the number of additional writes per block of data
-// written to the buffer for block accounting.
-const BlockOverhead = 4
+// BlockHeaderSize is the size of the block header, in bytes.
+const BlockHeaderSize = 5
+
+// BlockTag is a block tag, which can be used for classification.
+type BlockTag uint8
+
+// BlockHeader holds a fixed-size block header.
+type BlockHeader struct {
+	// Tag is the block's tag.
+	Tag BlockTag
+
+	// Size is the size of the block data, in bytes.
+	Size uint32
+}
 
 // Buffer is a ring buffer of byte blocks.
 type Buffer struct {
-	buf     []byte
-	sizebuf [4]byte
-	len     int
-	write   int
-	read    int
+	buf       []byte
+	headerbuf [BlockHeaderSize]byte
+	len       int
+	write     int
+	read      int
+
+	// Evicted will be called when an old block is evicted to make place for a new one.
+	Evicted func(BlockHeader)
 }
 
 // New returns a new Buffer with the given size in bytes.
 func New(size int) *Buffer {
-	return &Buffer{buf: make([]byte, size)}
+	return &Buffer{
+		buf:     make([]byte, size),
+		Evicted: func(BlockHeader) {},
+	}
 }
 
 // Len returns the number of bytes currently in the buffer, including
@@ -36,26 +53,28 @@ func (b *Buffer) Cap() int {
 	return len(b.buf)
 }
 
-// WriteTo writes the oldest block in b to w, and returns its size in bytes.
-func (b *Buffer) WriteTo(w io.Writer) (written int64, err error) {
+// WriteBlockTo writes the oldest block in b to w, returning the block header and the number of bytes written to w.
+func (b *Buffer) WriteBlockTo(w io.Writer) (header BlockHeader, written int64, err error) {
 	if b.len == 0 {
-		return 0, io.EOF
+		return header, 0, io.EOF
 	}
-	if n := copy(b.sizebuf[:], b.buf[b.read:]); n < len(b.sizebuf) {
-		b.read = copy(b.sizebuf[n:], b.buf[:])
+	if n := copy(b.headerbuf[:], b.buf[b.read:]); n < len(b.headerbuf) {
+		b.read = copy(b.headerbuf[n:], b.buf[:])
 	} else {
 		b.read = (b.read + n) % b.Cap()
 	}
-	b.len -= len(b.sizebuf)
-	size := int(binary.LittleEndian.Uint32(b.sizebuf[:]))
+	b.len -= len(b.headerbuf)
+	header.Tag = BlockTag(b.headerbuf[0])
+	header.Size = binary.LittleEndian.Uint32(b.headerbuf[1:])
+	size := int(header.Size)
 
 	if b.read+size > b.Cap() {
 		tail := b.buf[b.read:]
 		n, err := w.Write(tail)
 		if err != nil {
 			b.read = (b.read + size) % b.Cap()
-			b.len -= size + len(b.sizebuf)
-			return int64(n), err
+			b.len -= size + len(b.headerbuf)
+			return header, int64(n), err
 		}
 		size -= n
 		written = int64(n)
@@ -64,30 +83,35 @@ func (b *Buffer) WriteTo(w io.Writer) (written int64, err error) {
 	}
 	n, err := w.Write(b.buf[b.read : b.read+size])
 	if err != nil {
-		return written + int64(n), err
+		return header, written + int64(n), err
 	}
 	written += int64(n)
 	b.read = (b.read + size) % b.Cap()
 	b.len -= size
-	return written, nil
+	return header, written, nil
 }
 
-// Write writes p as a block to b.
+// WriteBlock writes p as a block to b, with tag t.
 //
-// If len(p)+BlockOverhead > b.Cap(), bytes.ErrTooLarge will be returned.
+// If len(p)+BlockHeaderSize > b.Cap(), bytes.ErrTooLarge will be returned.
 // If the buffer does not currently have room for the block, then the
 // oldest blocks will be evicted until enough room is available.
-func (b *Buffer) Write(p []byte) (int, error) {
+func (b *Buffer) WriteBlock(p []byte, tag BlockTag) (int, error) {
 	lenp := len(p)
-	if lenp+BlockOverhead > b.Cap() {
+	if lenp+BlockHeaderSize > b.Cap() {
 		return 0, bytes.ErrTooLarge
 	}
-	for lenp+BlockOverhead > b.Cap()-b.Len() {
-		b.WriteTo(ioutil.Discard)
+	for lenp+BlockHeaderSize > b.Cap()-b.Len() {
+		header, _, err := b.WriteBlockTo(ioutil.Discard)
+		if err != nil {
+			return 0, err
+		}
+		b.Evicted(header)
 	}
-	binary.LittleEndian.PutUint32(b.sizebuf[:], uint32(lenp))
-	if n := copy(b.buf[b.write:], b.sizebuf[:]); n < len(b.sizebuf) {
-		b.write = copy(b.buf, b.sizebuf[n:])
+	b.headerbuf[0] = uint8(tag)
+	binary.LittleEndian.PutUint32(b.headerbuf[1:], uint32(lenp))
+	if n := copy(b.buf[b.write:], b.headerbuf[:]); n < len(b.headerbuf) {
+		b.write = copy(b.buf, b.headerbuf[n:])
 	} else {
 		b.write = (b.write + n) % b.Cap()
 	}
@@ -96,6 +120,6 @@ func (b *Buffer) Write(p []byte) (int, error) {
 	} else {
 		b.write = (b.write + n) % b.Cap()
 	}
-	b.len += lenp + BlockOverhead
+	b.len += lenp + BlockHeaderSize
 	return lenp, nil
 }
