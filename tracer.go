@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/elastic/apm-agent-go/internal/apmdebug"
 	"github.com/elastic/apm-agent-go/internal/fastjson"
 	"github.com/elastic/apm-agent-go/internal/iochan"
 	"github.com/elastic/apm-agent-go/internal/ringbuffer"
@@ -272,6 +273,9 @@ func newTracer(opts options) *Tracer {
 		cfg.preContext = defaultPreContext
 		cfg.postContext = defaultPostContext
 		cfg.metricsGatherers = []MetricsGatherer{newBuiltinMetricsGatherer(t)}
+		if apmdebug.DebugLog {
+			cfg.logger = apmdebug.LogLogger{}
+		}
 	}
 	return t
 }
@@ -353,6 +357,13 @@ func (t *Tracer) SetContextSetter(setter stacktrace.ContextSetter) {
 // SetLogger sets the Logger to be used for logging the operation of
 // the tracer.
 func (t *Tracer) SetLogger(logger Logger) {
+	if apmdebug.DebugLog {
+		if logger == nil {
+			logger = apmdebug.LogLogger{}
+		} else {
+			logger = apmdebug.ChainedLogger{apmdebug.LogLogger{}, logger}
+		}
+	}
 	t.sendConfigCommand(func(cfg *tracerConfig) {
 		cfg.logger = logger
 	})
@@ -480,6 +491,7 @@ func (t *Tracer) loop() {
 	var metadata []byte
 	var gracePeriod time.Duration = -1
 	var flushed chan<- struct{}
+	var requestBufTransactions, requestBufErrors, requestBufMetrics uint64
 	zlibWriter, _ := zlib.NewWriterLevel(&requestBuf, zlib.BestSpeed)
 	zlibFlushed := true
 	zlibClosed := false
@@ -605,8 +617,23 @@ func (t *Tracer) loop() {
 					cfg.logger.Debugf("request failed: %s (next request in %s)", err, gracePeriod)
 				}
 			} else {
-				// Reset grace period after success.
-				gracePeriod = -1
+				gracePeriod = -1 // Reset grace period after success.
+				stats.TransactionsSent += requestBufTransactions
+				stats.ErrorsSent += requestBufErrors
+				if cfg.logger != nil {
+					s := func(n uint64) string {
+						if n != 1 {
+							return "s"
+						}
+						return ""
+					}
+					cfg.logger.Debugf(
+						"sent request with %d transaction%s, %d error%s, %d metric%s",
+						requestBufTransactions, s(requestBufTransactions),
+						requestBufErrors, s(requestBufErrors),
+						requestBufMetrics, s(requestBufMetrics),
+					)
+				}
 			}
 			if sentMetrics != nil {
 				sentMetrics <- struct{}{}
@@ -627,6 +654,9 @@ func (t *Tracer) loop() {
 			requestActive = false
 			requestBytesRead = 0
 			requestBuf.Reset()
+			requestBufTransactions = 0
+			requestBufErrors = 0
+			requestBufMetrics = 0
 			if requestTimerActive {
 				if !requestTimer.Stop() {
 					<-requestTimer.C
@@ -645,6 +675,9 @@ func (t *Tracer) loop() {
 		if gatherMetrics {
 			gatheringMetrics = true
 			t.gatherMetrics(ctx, cfg.metricsGatherers, &metrics, cfg.logger, gatheredMetrics)
+			if cfg.logger != nil {
+				cfg.logger.Debugf("gathering metrics")
+			}
 		}
 
 		if !requestActive {
@@ -669,9 +702,11 @@ func (t *Tracer) loop() {
 				if h, _, err := buffer.WriteBlockTo(zlibWriter); err == nil {
 					switch h.Tag {
 					case transactionBlockTag:
-						stats.TransactionsSent++
+						requestBufTransactions++
 					case errorBlockTag:
-						stats.ErrorsSent++
+						requestBufErrors++
+					case metricsBlockTag:
+						requestBufMetrics++
 					}
 					zlibWriter.Write([]byte("\n"))
 					zlibFlushed = false
