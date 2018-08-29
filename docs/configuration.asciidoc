@@ -293,8 +293,8 @@ changing this setting to `false`.
 
 `ELASTIC_APM_DEBUG` can be used to debug issues with the Elastic APM Go agent
 or your instrumentation. The value should be a comma-separated list of key=value
-debug directives. Currently we support just one: `tracetransport=1`.
+debug directives. Currently we support just one: `log=1`.
 
-By setting `ELASTIC_APM_DEBUG="tracetransport=1"`, the Go agent will log all
-transport calls to the terminal.
+By setting `ELASTIC_APM_DEBUG="log=1"`, the Go agent will log messages to the
+terminal, as well as to the tracer's programatically configured logger, if any.
 

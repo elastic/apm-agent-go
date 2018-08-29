@@ -78,9 +78,7 @@ func (g *builtinMetricsGatherer) gatherMemStatsMetrics(m *Metrics) {
 }
 
 func (g *builtinMetricsGatherer) gatherTracerStatsMetrics(m *Metrics) {
-	g.tracer.statsMu.Lock()
-	stats := g.tracer.stats
-	g.tracer.statsMu.Unlock()
+	stats := g.tracer.Stats()
 
 	const p = "agent"
 	m.Add(p+".send_errors", nil, float64(stats.Errors.SendStream))
