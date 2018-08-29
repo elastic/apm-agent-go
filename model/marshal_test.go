@@ -88,10 +88,14 @@ func TestMarshalTransaction(t *testing.T) {
 		},
 		"spans": []interface{}{
 			map[string]interface{}{
-				"name":     "SELECT FROM bar",
-				"start":    float64(2),
-				"duration": float64(3),
-				"type":     "db.postgresql.query",
+				"trace_id":       "000102030405060708090a0b0c0d0e0f",
+				"id":             "0001020304050607",
+				"parent_id":      "0001020304050607",
+				"transaction_id": "0001020304050607",
+				"name":           "SELECT FROM bar",
+				"timestamp":      "1970-01-01T00:02:03Z",
+				"duration":       float64(3),
+				"type":           "db.postgresql.query",
 				"context": map[string]interface{}{
 					"db": map[string]interface{}{
 						"instance":  "wat",
@@ -102,10 +106,13 @@ func TestMarshalTransaction(t *testing.T) {
 				},
 			},
 			map[string]interface{}{
-				"name":     "GET testing.invalid:8000",
-				"start":    float64(3),
-				"duration": float64(4),
-				"type":     "ext.http",
+				"trace_id":       "000102030405060708090a0b0c0d0e0f",
+				"id":             "0001020304050607",
+				"transaction_id": "0001020304050607",
+				"name":           "GET testing.invalid:8000",
+				"timestamp":      "1970-01-01T00:02:03Z",
+				"duration":       float64(4),
+				"type":           "ext.http",
 				"context": map[string]interface{}{
 					"http": map[string]interface{}{
 						"url": "http://testing.invalid:8000/path?query#fragment",
@@ -235,25 +242,19 @@ func TestMarshalError(t *testing.T) {
 	assert.NoError(t, err)
 	e.Timestamp = model.Time(time)
 
+	// All error IDs are optional
 	var w fastjson.Writer
 	e.MarshalFastJSON(&w)
 	assert.Equal(t, `{"timestamp":"1970-01-01T00:02:03Z"}`, string(w.Bytes()))
 
-	e.Transaction.ID = model.UUID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
-	w.Reset()
-	e.MarshalFastJSON(&w)
-	assert.Equal(t,
-		`{"timestamp":"1970-01-01T00:02:03Z","transaction":{"id":"01020304-0506-0708-090a-0b0c0d0e0f10"}}`,
-		string(w.Bytes()),
-	)
-
-	e.Transaction.ID = model.UUID{}
+	e.ID = model.SpanID{1, 2, 3, 4, 5, 6, 7, 8}
+	e.TransactionID = model.SpanID{1, 2, 3, 4, 5, 6, 7, 8}
 	e.TraceID = model.TraceID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	e.ParentID = model.SpanID{1, 2, 3, 4, 5, 6, 7, 8}
 	w.Reset()
 	e.MarshalFastJSON(&w)
 	assert.Equal(t,
-		`{"timestamp":"1970-01-01T00:02:03Z","parent_id":"0102030405060708","trace_id":"0102030405060708090a0b0c0d0e0f10"}`,
+		`{"timestamp":"1970-01-01T00:02:03Z","id":"0102030405060708","parent_id":"0102030405060708","trace_id":"0102030405060708090a0b0c0d0e0f10","transaction_id":"0102030405060708"}`,
 		string(w.Bytes()),
 	)
 }
@@ -505,8 +506,7 @@ func TestMarshalURL(t *testing.T) {
 
 func TestUnmarshalJSON(t *testing.T) {
 	tp := fakeTransactionsPayload(2)
-	tp.Transactions[1].ID.SpanID = model.SpanID{}
-	tp.Transactions[1].ID.UUID = model.UUID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+	tp.Transactions[1].ID = model.SpanID{1, 2, 3, 4, 5, 6, 7, 8}
 	var w fastjson.Writer
 	tp.MarshalFastJSON(&w)
 
@@ -518,10 +518,8 @@ func TestUnmarshalJSON(t *testing.T) {
 
 func fakeTransaction() model.Transaction {
 	return model.Transaction{
-		TraceID: model.TraceID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
-		ID: model.TransactionID{
-			SpanID: model.SpanID{1, 2, 3, 4, 5, 6, 7, 8},
-		},
+		TraceID:   model.TraceID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
+		ID:        model.SpanID{1, 2, 3, 4, 5, 6, 7, 8},
 		ParentID:  model.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
 		Name:      "GET /foo/bar",
 		Type:      "request",
@@ -582,10 +580,14 @@ func fakeTransaction() model.Transaction {
 			},
 		},
 		Spans: []model.Span{{
-			Name:     "SELECT FROM bar",
-			Start:    2,
-			Duration: 3,
-			Type:     "db.postgresql.query",
+			Name:          "SELECT FROM bar",
+			ID:            model.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
+			ParentID:      model.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
+			TransactionID: model.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
+			TraceID:       model.TraceID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+			Timestamp:     model.Time(time.Unix(123, 0).UTC()),
+			Duration:      3,
+			Type:          "db.postgresql.query",
 			Context: &model.SpanContext{
 				Database: &model.DatabaseSpanContext{
 					Instance:  "wat",
@@ -595,10 +597,13 @@ func fakeTransaction() model.Transaction {
 				},
 			},
 		}, {
-			Name:     "GET testing.invalid:8000",
-			Start:    3,
-			Duration: 4,
-			Type:     "ext.http",
+			Name:          "GET testing.invalid:8000",
+			ID:            model.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
+			TransactionID: model.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
+			TraceID:       model.TraceID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+			Timestamp:     model.Time(time.Unix(123, 0).UTC()),
+			Duration:      4,
+			Type:          "ext.http",
 			Context: &model.SpanContext{
 				HTTP: &model.HTTPSpanContext{
 					URL: mustParseURL("http://testing.invalid:8000/path?query#fragment"),

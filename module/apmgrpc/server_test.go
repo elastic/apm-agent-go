@@ -126,7 +126,7 @@ func testServerTransactionPanic(t *testing.T, p testParams) {
 	p.tracer.Flush(nil)
 	payloads := p.transport.Payloads()
 	e := payloads.Errors[0]
-	assert.NotEmpty(t, e.Transaction.ID)
+	assert.NotEmpty(t, e.TransactionID)
 	assert.Equal(t, false, e.Exception.Handled)
 	assert.Equal(t, "(*helloworldServer).SayHello", e.Culprit)
 	assert.Equal(t, "boom", e.Exception.Message)
@@ -150,7 +150,7 @@ func TestServerRecovery(t *testing.T) {
 	tracer.Flush(nil)
 	payloads := transport.Payloads()
 	e := payloads.Errors[0]
-	assert.NotEmpty(t, e.Transaction.ID)
+	assert.NotEmpty(t, e.TransactionID)
 
 	// Panic was recovered by the recovery interceptor and translated
 	// into an Internal error.

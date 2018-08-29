@@ -59,7 +59,6 @@ type options struct {
 	serviceVersion        string
 	serviceEnvironment    string
 	active                bool
-	distributedTracing    bool
 }
 
 func (opts *options) init(continueOnError bool) error {
@@ -125,11 +124,6 @@ func (opts *options) init(continueOnError bool) error {
 		active = true
 	}
 
-	distributedTracing, err := initialDistributedTracing()
-	if failed(err) {
-		distributedTracing = false
-	}
-
 	if len(errs) != 0 && !continueOnError {
 		return errs[0]
 	}
@@ -148,7 +142,6 @@ func (opts *options) init(continueOnError bool) error {
 	opts.spanFramesMinDuration = spanFramesMinDuration
 	opts.serviceName, opts.serviceVersion, opts.serviceEnvironment = initialService()
 	opts.active = active
-	opts.distributedTracing = distributedTracing
 	return nil
 }
 
@@ -182,16 +175,15 @@ type Tracer struct {
 	process *model.Process
 	system  *model.System
 
-	active             bool
-	distributedTracing bool
-	bufferSize         int
-	closing            chan struct{}
-	closed             chan struct{}
-	forceFlush         chan chan<- struct{}
-	forceSendMetrics   chan chan<- struct{}
-	configCommands     chan tracerConfigCommand
-	transactions       chan *Transaction
-	errors             chan *Error
+	active           bool
+	bufferSize       int
+	closing          chan struct{}
+	closed           chan struct{}
+	forceFlush       chan chan<- struct{}
+	forceSendMetrics chan chan<- struct{}
+	configCommands   chan tracerConfigCommand
+	transactions     chan *Transaction
+	errors           chan *Error
 
 	statsMu sync.Mutex
 	stats   TracerStats
@@ -252,7 +244,6 @@ func newTracer(opts options) *Tracer {
 		captureBody:           opts.captureBody,
 		spanFramesMinDuration: opts.spanFramesMinDuration,
 		active:                opts.active,
-		distributedTracing:    opts.distributedTracing,
 		bufferSize:            opts.bufferSize,
 	}
 	t.Service.Name = opts.serviceName

@@ -2,8 +2,6 @@ package elasticapm
 
 import (
 	"context"
-
-	"github.com/elastic/apm-agent-go/model"
 )
 
 // ContextWithSpan returns a copy of parent in which the given span
@@ -50,31 +48,28 @@ func StartSpan(ctx context.Context, name, spanType string) (*Span, context.Conte
 }
 
 // CaptureError returns a new Error related to the sampled transaction
-// present in the context, if any, and calls its SetException method
-// with the given error. The Error.Handled field will be set to true,
-// and a stacktrace set.
+// and span present in the context, if any, and sets its exception info
+// from err. The Error.Handled field will be set to true, and a stacktrace
+// set either from err, or from the caller.
 //
-// If there is no transaction in the context, or it is not being sampled,
-// CaptureError returns nil. As a convenience, if the provided error is
-// nil, then CaptureError will also return nil.
+// If there is no span or transaction in the context, or the transaction
+// is not being sampled, CaptureError returns nil. As a convenience, if
+// the provided error is nil, then CaptureError will also return nil.
 func CaptureError(ctx context.Context, err error) *Error {
 	if err == nil {
 		return nil
 	}
-	tx := TransactionFromContext(ctx)
-	if tx == nil || !tx.Sampled() {
+	var e *Error
+	if span := SpanFromContext(ctx); span != nil {
+		e = span.tracer.NewError(err)
+		e.SetSpan(span)
+	} else if tx := TransactionFromContext(ctx); tx != nil && tx.Sampled() {
+		e = tx.tracer.NewError(err)
+		e.SetTransaction(tx)
+	} else {
 		return nil
 	}
-	e := tx.tracer.NewError(err)
 	e.Handled = true
-
-	// TODO(axw) set parent to span, if span is in context
-	if !tx.traceContext.Span.isZero() {
-		e.model.TraceID = model.TraceID(tx.traceContext.Trace)
-		e.model.ParentID = model.SpanID(tx.traceContext.Span)
-	} else {
-		e.model.Transaction.ID = model.UUID(tx.traceContext.Trace)
-	}
 	return e
 }
 

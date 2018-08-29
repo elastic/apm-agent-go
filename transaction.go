@@ -37,25 +37,16 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 	tx.Name = name
 	tx.Type = transactionType
 
-	if tx.tracer.distributedTracing {
-		if opts.TraceContext.Trace.Validate() == nil && opts.TraceContext.Span.Validate() == nil {
-			tx.traceContext.Trace = opts.TraceContext.Trace
-			tx.parentSpan = opts.TraceContext.Span
-		}
+	if opts.TraceContext.Trace.Validate() == nil && opts.TraceContext.Span.Validate() == nil {
+		tx.traceContext.Trace = opts.TraceContext.Trace
 		tx.traceContext.Options = opts.TraceContext.Options
-	}
-	if tx.traceContext.Trace.isZero() {
-		// In any case, we fill out the trace ID; this will be used for
-		// either the transaction's trace ID, or for its UUID in case
-		// distributed tracing is disabled. If distributed tracing is
-		// enabled, we also set the span ID.
+		tx.parentSpan = opts.TraceContext.Span
+		binary.LittleEndian.PutUint64(tx.traceContext.Span[:], tx.rand.Uint64())
+	} else {
+		// Start a new trace. We reuse the trace ID for the root transaction's ID.
 		binary.LittleEndian.PutUint64(tx.traceContext.Trace[:8], tx.rand.Uint64())
 		binary.LittleEndian.PutUint64(tx.traceContext.Trace[8:], tx.rand.Uint64())
-		if tx.tracer.distributedTracing {
-			copy(tx.traceContext.Span[:], tx.traceContext.Trace[:])
-		}
-	} else {
-		binary.LittleEndian.PutUint64(tx.traceContext.Span[:], tx.rand.Uint64())
+		copy(tx.traceContext.Span[:], tx.traceContext.Trace[:])
 	}
 
 	// Take a snapshot of the max spans config to ensure

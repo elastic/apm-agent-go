@@ -257,8 +257,8 @@ type NumberCoder interface {
 }
 ----
 
-Errors created by with NewError will have their ID field populated with a UUID. This can be
-used in your application for correlation.
+Errors created by with NewError will have their ID field populated with a unique ID.
+This can be used in your application for correlation.
 
 [float]
 [[tracer-new-error-log]]

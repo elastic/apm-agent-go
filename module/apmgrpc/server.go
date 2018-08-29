@@ -59,7 +59,8 @@ func NewUnaryServerInterceptor(o ...ServerOption) grpc.UnaryServerInterceptor {
 		defer func() {
 			r := recover()
 			if r != nil {
-				e := opts.tracer.Recovered(r, tx)
+				e := opts.tracer.Recovered(r)
+				e.SetTransaction(tx)
 				e.Handled = opts.recover
 				e.Send()
 				if opts.recover {

@@ -145,6 +145,8 @@ func (v *Transaction) MarshalFastJSON(w *fastjson.Writer) {
 	w.String(v.Name)
 	w.RawString(",\"timestamp\":")
 	v.Timestamp.MarshalFastJSON(w)
+	w.RawString(",\"trace_id\":")
+	v.TraceID.MarshalFastJSON(w)
 	w.RawString(",\"type\":")
 	w.String(v.Type)
 	if v.Context != nil {
@@ -178,10 +180,6 @@ func (v *Transaction) MarshalFastJSON(w *fastjson.Writer) {
 		}
 		w.RawByte(']')
 	}
-	if !v.TraceID.isZero() {
-		w.RawString(",\"trace_id\":")
-		v.TraceID.MarshalFastJSON(w)
-	}
 	w.RawByte('}')
 }
 
@@ -205,19 +203,21 @@ func (v *Span) MarshalFastJSON(w *fastjson.Writer) {
 	w.RawByte('{')
 	w.RawString("\"duration\":")
 	w.Float64(v.Duration)
+	w.RawString(",\"id\":")
+	v.ID.MarshalFastJSON(w)
 	w.RawString(",\"name\":")
 	w.String(v.Name)
-	w.RawString(",\"start\":")
-	w.Float64(v.Start)
+	w.RawString(",\"timestamp\":")
+	v.Timestamp.MarshalFastJSON(w)
+	w.RawString(",\"trace_id\":")
+	v.TraceID.MarshalFastJSON(w)
+	w.RawString(",\"transaction_id\":")
+	v.TransactionID.MarshalFastJSON(w)
 	w.RawString(",\"type\":")
 	w.String(v.Type)
 	if v.Context != nil {
 		w.RawString(",\"context\":")
 		v.Context.MarshalFastJSON(w)
-	}
-	if !v.ID.isZero() {
-		w.RawString(",\"id\":")
-		v.ID.MarshalFastJSON(w)
 	}
 	if !v.ParentID.isZero() {
 		w.RawString(",\"parent_id\":")
@@ -233,10 +233,6 @@ func (v *Span) MarshalFastJSON(w *fastjson.Writer) {
 			v.MarshalFastJSON(w)
 		}
 		w.RawByte(']')
-	}
-	if !v.TraceID.isZero() {
-		w.RawString(",\"trace_id\":")
-		v.TraceID.MarshalFastJSON(w)
 	}
 	w.RawByte('}')
 }
@@ -451,17 +447,10 @@ func (v *Error) MarshalFastJSON(w *fastjson.Writer) {
 		w.RawString(",\"trace_id\":")
 		v.TraceID.MarshalFastJSON(w)
 	}
-	if !v.Transaction.isZero() {
-		w.RawString(",\"transaction\":")
-		v.Transaction.MarshalFastJSON(w)
+	if !v.TransactionID.isZero() {
+		w.RawString(",\"transaction_id\":")
+		v.TransactionID.MarshalFastJSON(w)
 	}
-	w.RawByte('}')
-}
-
-func (v *TransactionReference) MarshalFastJSON(w *fastjson.Writer) {
-	w.RawByte('{')
-	w.RawString("\"id\":")
-	v.ID.MarshalFastJSON(w)
 	w.RawByte('}')
 }
 

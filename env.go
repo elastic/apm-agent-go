@@ -27,7 +27,6 @@ const (
 	envEnvironment           = "ELASTIC_APM_ENVIRONMENT"
 	envSpanFramesMinDuration = "ELASTIC_APM_SPAN_FRAMES_MIN_DURATION"
 	envActive                = "ELASTIC_APM_ACTIVE"
-	envDistributedTracing    = "ELASTIC_APM_DISTRIBUTED_TRACING"
 	envAPIRequestSize        = "ELASTIC_APM_API_REQUEST_SIZE"
 	envAPIRequestTime        = "ELASTIC_APM_API_REQUEST_TIME"
 	envAPIBufferSize         = "ELASTIC_APM_API_BUFFER_SIZE"
@@ -187,8 +186,4 @@ func initialSpanFramesMinDuration() (time.Duration, error) {
 
 func initialActive() (bool, error) {
 	return apmconfig.ParseBoolEnv(envActive, true)
-}
-
-func initialDistributedTracing() (bool, error) {
-	return apmconfig.ParseBoolEnv(envDistributedTracing, false)
 }

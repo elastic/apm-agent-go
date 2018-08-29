@@ -153,7 +153,7 @@ func TestTracerErrorFlushes(t *testing.T) {
 	tracer.Flush(nil)
 }
 
-func TestTracerRecover(t *testing.T) {
+func TestTracerRecovered(t *testing.T) {
 	tracer, r := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
@@ -163,14 +163,24 @@ func TestTracerRecover(t *testing.T) {
 	payloads := r.Payloads()
 	error0 := payloads.Errors[0]
 	transaction := payloads.Transactions[0]
+	span := transaction.Spans[0]
 	assert.Equal(t, "blam", error0.Exception.Message)
-	assert.Equal(t, transaction.ID.UUID, error0.Transaction.ID)
+	assert.Equal(t, transaction.ID, error0.TransactionID)
+	assert.Equal(t, span.ID, error0.ParentID)
 }
 
 func capturePanic(tracer *elasticapm.Tracer, v interface{}) {
 	tx := tracer.StartTransaction("name", "type")
 	defer tx.End()
-	defer tracer.Recover(tx)
+	span := tx.StartSpan("name", "type", nil)
+	defer span.End()
+	defer func() {
+		if v := recover(); v != nil {
+			e := tracer.Recovered(v)
+			e.SetSpan(span)
+			e.Send()
+		}
+	}()
 	panic(v)
 }
 

@@ -11,33 +11,15 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/elastic/apm-agent-go/internal/fastjson"
 	"github.com/elastic/apm-agent-go/model"
 	"github.com/elastic/apm-agent-go/stacktrace"
 )
-
-// Recover recovers panics, sending them as errors to
-// the Elastic APM server. Recover is expected to be
-// used in a deferred call.
-//
-// Recover simply calls t.Recovered(v, tx),
-// where v is the recovered value, and then calls the
-// resulting Error's Send method.
-func (t *Tracer) Recover(tx *Transaction) {
-	v := recover()
-	if v == nil {
-		return
-	}
-	t.Recovered(v, tx).Send()
-}
 
 // Recovered creates an Error with t.NewError(err), where
 // err is either v (if v implements error), or otherwise
 // fmt.Errorf("%v", v). The value v is expected to have
 // come from a panic.
-//
-// The resulting error's Transaction will be set to tx,
-func (t *Tracer) Recovered(v interface{}, tx *Transaction) *Error {
+func (t *Tracer) Recovered(v interface{}) *Error {
 	var e *Error
 	switch v := v.(type) {
 	case error:
@@ -45,7 +27,6 @@ func (t *Tracer) Recovered(v interface{}, tx *Transaction) *Error {
 	default:
 		e = t.NewError(fmt.Errorf("%v", v))
 	}
-	e.Parent = tx.traceContext
 	return e
 }
 
@@ -138,9 +119,25 @@ type Error struct {
 	stacktrace      []stacktrace.Frame
 	modelStacktrace []model.StacktraceFrame
 
-	// ID is the unique ID of the error. This is set by NewError,
-	// and can be used for correlating errors and log records.
+	// ID is the unique identifier of the error. This is set by
+	// the various error constructors, and is exposed only so
+	// the error ID can be logged or displayed to the user.
 	ID ErrorID
+
+	// TraceID is the unique identifier of the trace in which
+	// this error occurred. If the error is not associated with
+	// a trace, this will be the zero value.
+	TraceID TraceID
+
+	// TransactionID is the unique identifier of the transaction
+	// in which this error occurred. If the error is not associated
+	// with a transaction, this will be the zero value.
+	TransactionID SpanID
+
+	// ParentID is the unique identifier of the transaction or span
+	// in which this error occurred. If the error is not associated
+	// with a transaction or span, this will be the zero value.
+	ParentID SpanID
 
 	// Culprit is the name of the function that caused the error.
 	//
@@ -160,12 +157,29 @@ type Error struct {
 	// NewError, or Recovered), and is ignored by "log" errors.
 	Handled bool
 
-	// Parent holds the TraceContext of the error's parent span
-	// or transaction.
-	Parent TraceContext
-
 	// Context holds the context for this error.
 	Context Context
+}
+
+// SetTransaction sets TraceID, TransactionID, and ParentID to the transaction's IDs.
+//
+// This must be called before tx.End(). After SetTransaction returns, e may be sent
+// and tx ended in either order.
+func (e *Error) SetTransaction(tx *Transaction) {
+	e.TraceID = tx.traceContext.Trace
+	e.ParentID = tx.traceContext.Span
+	e.TransactionID = e.ParentID
+}
+
+// SetSpan sets TraceID, TransactionID, and ParentID to the span's IDs. If you call
+// this, it is not necessary to call SetTransaction.
+//
+// This must be called before s.End(). After SetSpanreturns, e may be sent and e ended
+// in either order.
+func (e *Error) SetSpan(s *Span) {
+	e.TraceID = s.traceContext.Trace
+	e.ParentID = s.traceContext.Span
+	e.TransactionID = s.transactionID
 }
 
 func (e *Error) reset() {
@@ -360,12 +374,9 @@ type ErrorLogRecord struct {
 }
 
 // ErrorID uniquely identifies an error.
-type ErrorID [16]byte
+type ErrorID SpanID
 
-// String returns id in the canonical v4 UUID hex-encoded format.
+// String returns id in its hex-encoded format.
 func (id ErrorID) String() string {
-	var jw fastjson.Writer
-	uuid := model.UUID(id)
-	uuid.MarshalFastJSON(&jw)
-	return string(jw.Bytes())
+	return SpanID(id).String()
 }
