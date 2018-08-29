@@ -95,10 +95,10 @@ func TestTracerMetricsInterval(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
-	interval := 500 * time.Millisecond
+	interval := 1 * time.Second
 	tracer.SetMetricsInterval(interval)
 	before := time.Now()
-	deadline := before.Add(time.Second)
+	deadline := before.Add(5 * time.Second)
 	for len(transport.Payloads().Metrics) == 0 {
 		if time.Now().After(deadline) {
 			t.Fatal("timed out waiting for metrics")
@@ -106,7 +106,7 @@ func TestTracerMetricsInterval(t *testing.T) {
 		time.Sleep(time.Millisecond)
 	}
 	after := time.Now()
-	assert.WithinDuration(t, before.Add(interval), after, 100*time.Millisecond)
+	assert.WithinDuration(t, before.Add(interval), after, 200*time.Millisecond)
 }
 
 func TestTracerMetricsGatherer(t *testing.T) {
