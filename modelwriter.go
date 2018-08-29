@@ -7,6 +7,12 @@ import (
 	"github.com/elastic/apm-agent-go/stacktrace"
 )
 
+const (
+	transactionBlockTag ringbuffer.BlockTag = iota + 1
+	errorBlockTag
+	metricsBlockTag
+)
+
 // notSampled is used as the pointee for the model.Transaction.Sampled field
 // of non-sampled transactions.
 var notSampled = false
@@ -27,10 +33,9 @@ func (w *modelWriter) writeTransaction(tx *Transaction) {
 	w.json.RawString(`{"transaction":`)
 	modelTx.MarshalFastJSON(&w.json)
 	w.json.RawByte('}')
-	w.buffer.Write(w.json.Bytes())
+	w.buffer.WriteBlock(w.json.Bytes(), transactionBlockTag)
 	w.json.Reset()
 	tx.reset()
-	w.stats.TransactionsSent++
 }
 
 // writeError encodes e as JSON to the buffer, and then resets e.
@@ -39,10 +44,9 @@ func (w *modelWriter) writeError(e *Error) {
 	w.json.RawString(`{"error":`)
 	e.model.MarshalFastJSON(&w.json)
 	w.json.RawByte('}')
-	w.buffer.Write(w.json.Bytes())
+	w.buffer.WriteBlock(w.json.Bytes(), errorBlockTag)
 	w.json.Reset()
 	e.reset()
-	w.stats.ErrorsSent++
 }
 
 // writeMetrics encodes m as JSON to the buffer, and then resets m.
@@ -51,7 +55,7 @@ func (w *modelWriter) writeMetrics(m *Metrics) {
 		w.json.RawString(`{"metrics":`)
 		m.MarshalFastJSON(&w.json)
 		w.json.RawByte('}')
-		w.buffer.Write(w.json.Bytes())
+		w.buffer.WriteBlock(w.json.Bytes(), metricsBlockTag)
 		w.json.Reset()
 	}
 	m.reset()
