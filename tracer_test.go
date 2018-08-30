@@ -140,7 +140,6 @@ func TestTracerErrorFlushes(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatalf("timed out waiting for request")
 	case p := <-payloads:
-		assert.Len(t, p.Transactions, 1)
 		assert.Len(t, p.Errors, 1)
 	}
 
