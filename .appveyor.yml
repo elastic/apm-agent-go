@@ -1,10 +1,11 @@
 version: build-{build}-{branch}
-clone_folder: C:\Go\src\github.com\elastic\apm-agent-go
+clone_folder: C:\gopath\src\github.com\elastic\apm-agent-go
 shallow_clone: true
 deploy: off
 
 environment:
   PATH: C:\msys64\mingw64\bin;%PATH%
+  GOPATH: C:\gopath
 
 build_script:
 - cmd: go get -t ./...
