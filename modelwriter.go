@@ -65,13 +65,9 @@ func (w *modelWriter) buildModelTransaction(out *model.Transaction, tx *Transact
 	// TODO(axw) need to start sending spans independently.
 	w.modelSpans = w.modelSpans[:0]
 	w.modelStacktrace = w.modelStacktrace[:0]
-	if !tx.traceContext.Span.isZero() {
-		out.TraceID = model.TraceID(tx.traceContext.Trace)
-		out.ParentID = model.SpanID(tx.parentSpan)
-		out.ID.SpanID = model.SpanID(tx.traceContext.Span)
-	} else {
-		out.ID.UUID = model.UUID(tx.traceContext.Trace)
-	}
+	out.TraceID = model.TraceID(tx.traceContext.Trace)
+	out.ParentID = model.SpanID(tx.parentSpan)
+	out.ID = model.SpanID(tx.traceContext.Span)
 
 	out.Name = truncateString(tx.Name)
 	out.Type = truncateString(tx.Type)
@@ -99,15 +95,14 @@ func (w *modelWriter) buildModelTransaction(out *model.Transaction, tx *Transact
 }
 
 func (w *modelWriter) buildModelSpan(out *model.Span, span *Span) {
-	if !span.tx.traceContext.Span.isZero() {
-		out.ID = model.SpanID(span.id)
-		out.ParentID = model.SpanID(span.parent)
-		out.TraceID = model.TraceID(span.tx.traceContext.Trace)
-	}
+	out.ID = model.SpanID(span.traceContext.Span)
+	out.TraceID = model.TraceID(span.traceContext.Trace)
+	out.ParentID = model.SpanID(span.parentID)
+	out.TransactionID = model.SpanID(span.transactionID)
 
 	out.Name = truncateString(span.Name)
 	out.Type = truncateString(span.Type)
-	out.Start = span.Timestamp.Sub(span.tx.Timestamp).Seconds() * 1000
+	out.Timestamp = model.Time(span.Timestamp.UTC())
 	out.Duration = span.Duration.Seconds() * 1000
 	out.Context = span.Context.build()
 
@@ -119,19 +114,17 @@ func (w *modelWriter) buildModelSpan(out *model.Span, span *Span) {
 
 func (w *modelWriter) buildModelError(e *Error) {
 	// TODO(axw) move the model type outside of Error
-	if !e.Parent.Span.isZero() {
-		e.model.TraceID = model.TraceID(e.Parent.Trace)
-		e.model.ParentID = model.SpanID(e.Parent.Span)
-	} else {
-		e.model.Transaction.ID = model.UUID(e.Parent.Trace)
-	}
-	w.setStacktraceContext(e.modelStacktrace)
-	e.setStacktrace()
-	e.setCulprit()
-	e.model.ID = model.UUID(e.ID)
+	e.model.TraceID = model.TraceID(e.TraceID)
+	e.model.ParentID = model.SpanID(e.ParentID)
+	e.model.TransactionID = model.SpanID(e.TransactionID)
+	e.model.ID = model.SpanID(e.ID)
 	e.model.Timestamp = model.Time(e.Timestamp.UTC())
 	e.model.Context = e.Context.build()
 	e.model.Exception.Handled = e.Handled
+
+	w.setStacktraceContext(e.modelStacktrace)
+	e.setStacktrace()
+	e.setCulprit()
 }
 
 func (w *modelWriter) setStacktraceContext(stack []model.StacktraceFrame) {

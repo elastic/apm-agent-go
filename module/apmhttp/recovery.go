@@ -31,7 +31,8 @@ func NewTraceRecovery(t *elasticapm.Tracer) RecoveryFunc {
 		tx *elasticapm.Transaction,
 		recovered interface{},
 	) {
-		e := t.Recovered(recovered, tx)
+		e := t.Recovered(recovered)
+		e.SetTransaction(tx)
 		e.Context.SetHTTPRequest(req)
 		e.Context.SetHTTPRequestBody(body)
 		e.Send()

@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -258,9 +257,6 @@ func TestHandlerRequestIgnorer(t *testing.T) {
 }
 
 func TestHandlerTraceparentHeader(t *testing.T) {
-	os.Setenv("ELASTIC_APM_DISTRIBUTED_TRACING", "true")
-	defer os.Unsetenv("ELASTIC_APM_DISTRIBUTED_TRACING")
-
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
@@ -283,8 +279,7 @@ func TestHandlerTraceparentHeader(t *testing.T) {
 	transaction := payloads.Transactions[0]
 	assert.Equal(t, "0af7651916cd43dd8448eb211c80319c", elasticapm.TraceID(transaction.TraceID).String())
 	assert.Equal(t, "b7ad6b7169203331", elasticapm.SpanID(transaction.ParentID).String())
-	assert.NotZero(t, transaction.ID.SpanID)
-	assert.Zero(t, transaction.ID.UUID)
+	assert.NotZero(t, transaction.ID)
 	assert.Equal(t, "GET /foo", transaction.Name)
 	assert.Equal(t, "request", transaction.Type)
 	assert.Equal(t, "HTTP 4xx", transaction.Result)

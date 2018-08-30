@@ -55,7 +55,8 @@ func (m *middleware) handle(c echo.Context) error {
 
 	defer func() {
 		if v := recover(); v != nil {
-			e := m.tracer.Recovered(v, tx)
+			e := m.tracer.Recovered(v)
+			e.SetTransaction(tx)
 			e.Context.SetHTTPRequest(req)
 			e.Context.SetHTTPRequestBody(body)
 			err, ok := v.(error)
@@ -81,7 +82,7 @@ func (m *middleware) handle(c echo.Context) error {
 		e := m.tracer.NewError(handlerErr)
 		e.Context.SetHTTPRequest(req)
 		e.Context.SetHTTPRequestBody(body)
-		e.Parent = tx.TraceContext()
+		e.SetTransaction(tx)
 		e.Handled = true
 		e.Send()
 		return handlerErr

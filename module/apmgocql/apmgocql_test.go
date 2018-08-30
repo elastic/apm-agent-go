@@ -45,7 +45,7 @@ func TestQueryObserver(t *testing.T) {
 	assert.Equal(t, "db.cassandra.query", tx.Spans[0].Type)
 	assert.Equal(t, "SELECT FROM foo.bar", tx.Spans[0].Name)
 	assert.WithinDuration(t,
-		time.Time(tx.Timestamp).Add(time.Duration((tx.Spans[0].Start+tx.Spans[0].Duration)*1000000)),
+		time.Time(tx.Spans[0].Timestamp).Add(time.Duration(tx.Spans[0].Duration*1000000)),
 		start.Add(3*time.Second),
 		100*time.Millisecond, // allow some leeway for slow systems
 	)
@@ -160,7 +160,7 @@ func TestBatchObserverIntegration(t *testing.T) {
 
 	require.Len(t, tx.Spans, 3)
 	assert.Equal(t, "db.cassandra.batch", tx.Spans[0].Type)
-	assert.Equal(t, tx.ID.SpanID, tx.Spans[0].ParentID)
+	assert.Equal(t, tx.ID, tx.Spans[0].ParentID)
 	assert.Equal(t, tx.TraceID, tx.Spans[0].TraceID)
 	for _, span := range tx.Spans[1:] {
 		assert.Equal(t, tx.Spans[0].ID, span.ParentID)

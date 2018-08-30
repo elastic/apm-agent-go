@@ -96,7 +96,7 @@ func assertError(t *testing.T, payloads transporttest.Payloads, culprit, message
 
 	require.NotNil(t, error0.Context)
 	require.NotNil(t, error0.Exception)
-	assert.NotEmpty(t, error0.Transaction.ID)
+	assert.NotEmpty(t, error0.TransactionID)
 	assert.Equal(t, culprit, error0.Culprit)
 	assert.Equal(t, message, error0.Exception.Message)
 	assert.Equal(t, handled, error0.Exception.Handled)

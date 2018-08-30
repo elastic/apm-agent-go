@@ -300,11 +300,6 @@ func (c *Cookies) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// isZero is used by fastjson to implement omitempty.
-func (t *TransactionReference) isZero() bool {
-	return t.ID.isZero()
-}
-
 // MarshalFastJSON writes the JSON representation of c to w.
 func (c *ExceptionCode) MarshalFastJSON(w *fastjson.Writer) {
 	if c.String != "" {
@@ -493,23 +488,6 @@ func (*StringMapItem) MarshalFastJSON(*fastjson.Writer) {
 	panic("unreachable")
 }
 
-// MarshalFastJSON writes the JSON representation of id to w.
-func (id *TransactionID) MarshalFastJSON(w *fastjson.Writer) {
-	if !id.SpanID.isZero() {
-		id.SpanID.MarshalFastJSON(w)
-		return
-	}
-	id.UUID.MarshalFastJSON(w)
-}
-
-// UnmarshalJSON unmarshals the JSON data into id.
-func (id *TransactionID) UnmarshalJSON(data []byte) error {
-	if len(data) == len(id.SpanID)*2+2 {
-		return id.SpanID.UnmarshalJSON(data)
-	}
-	return id.UUID.UnmarshalJSON(data)
-}
-
 func (id *TraceID) isZero() bool {
 	return *id == TraceID{}
 }
@@ -541,43 +519,6 @@ func (id *SpanID) UnmarshalJSON(data []byte) error {
 func (id *SpanID) MarshalFastJSON(w *fastjson.Writer) {
 	w.RawByte('"')
 	writeHex(w, id[:])
-	w.RawByte('"')
-}
-
-func (id *UUID) isZero() bool {
-	return *id == UUID{}
-}
-
-// UnmarshalJSON unmarshals the JSON data into id.
-func (id *UUID) UnmarshalJSON(data []byte) error {
-	// NOTE(axw) UnmarshalJSON is provided only for tests;
-	// it should only ever be fed valid data, hence panics.
-	hexDecode := func(out, in []byte) {
-		if _, err := hex.Decode(out, in); err != nil {
-			panic(err)
-		}
-	}
-	data = data[1 : len(data)-1]
-	hexDecode(id[:4], data[:8])
-	hexDecode(id[4:6], data[9:13])
-	hexDecode(id[6:8], data[14:18])
-	hexDecode(id[8:10], data[19:23])
-	hexDecode(id[10:], data[24:])
-	return nil
-}
-
-// MarshalFastJSON writes the JSON representation of id to w.
-func (id *UUID) MarshalFastJSON(w *fastjson.Writer) {
-	w.RawByte('"')
-	writeHex(w, id[:4])
-	w.RawByte('-')
-	writeHex(w, id[4:6])
-	w.RawByte('-')
-	writeHex(w, id[6:8])
-	w.RawByte('-')
-	writeHex(w, id[8:10])
-	w.RawByte('-')
-	writeHex(w, id[10:])
 	w.RawByte('"')
 }
 

@@ -86,7 +86,8 @@ func (m *middleware) handle(c *gin.Context) {
 	defer func() {
 		if v := recover(); v != nil {
 			c.AbortWithStatus(http.StatusInternalServerError)
-			e := m.tracer.Recovered(v, tx)
+			e := m.tracer.Recovered(v)
+			e.SetTransaction(tx)
 			e.Context.SetHTTPRequest(c.Request)
 			e.Context.SetHTTPRequestBody(body)
 			e.Send()
@@ -105,10 +106,10 @@ func (m *middleware) handle(c *gin.Context) {
 
 		for _, err := range c.Errors {
 			e := m.tracer.NewError(err.Err)
+			e.SetTransaction(tx)
 			e.Context.SetHTTPRequest(c.Request)
 			e.Context.SetHTTPRequestBody(body)
 			e.Context.SetCustom("gin", ginContext)
-			e.Parent = tx.TraceContext()
 			e.Handled = true
 			e.Send()
 		}

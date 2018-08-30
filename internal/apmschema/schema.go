@@ -38,8 +38,8 @@ func init() {
 		}
 		*out = schema
 	}
-	compile("transactions/transaction.json", &Transaction)
-	compile("errors/error.json", &Error)
+	compile("transactions/v2_transaction.json", &Transaction)
+	compile("errors/v2_error.json", &Error)
 	compile("metrics/metric.json", &Metrics)
 	compile("metadata.json", &Metadata)
 }

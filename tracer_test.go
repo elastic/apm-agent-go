@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -71,14 +72,10 @@ func TestTracerMaxSpans(t *testing.T) {
 	// after the call.
 	tracer.SetMaxSpans(99)
 
-	s0 := tx.StartSpan("name", "type", nil)
-	s1 := tx.StartSpan("name", "type", nil)
-	s2 := tx.StartSpan("name", "type", nil)
+	assert.False(t, tx.StartSpan("name", "type", nil).Dropped())
+	assert.False(t, tx.StartSpan("name", "type", nil).Dropped())
+	assert.True(t, tx.StartSpan("name", "type", nil).Dropped())
 	tx.End()
-
-	assert.False(t, s0.Dropped())
-	assert.False(t, s1.Dropped())
-	assert.True(t, s2.Dropped())
 
 	tracer.Flush(nil)
 	payloads := r.Payloads()
@@ -144,7 +141,6 @@ func TestTracerErrorFlushes(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatalf("timed out waiting for request")
 	case p := <-payloads:
-		assert.Len(t, p.Transactions, 1)
 		assert.Len(t, p.Errors, 1)
 	}
 
@@ -153,7 +149,7 @@ func TestTracerErrorFlushes(t *testing.T) {
 	tracer.Flush(nil)
 }
 
-func TestTracerRecover(t *testing.T) {
+func TestTracerRecovered(t *testing.T) {
 	tracer, r := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
@@ -163,14 +159,24 @@ func TestTracerRecover(t *testing.T) {
 	payloads := r.Payloads()
 	error0 := payloads.Errors[0]
 	transaction := payloads.Transactions[0]
+	span := transaction.Spans[0]
 	assert.Equal(t, "blam", error0.Exception.Message)
-	assert.Equal(t, transaction.ID.UUID, error0.Transaction.ID)
+	assert.Equal(t, transaction.ID, error0.TransactionID)
+	assert.Equal(t, span.ID, error0.ParentID)
 }
 
 func capturePanic(tracer *elasticapm.Tracer, v interface{}) {
 	tx := tracer.StartTransaction("name", "type")
 	defer tx.End()
-	defer tracer.Recover(tx)
+	span := tx.StartSpan("name", "type", nil)
+	defer span.End()
+	defer func() {
+		if v := recover(); v != nil {
+			e := tracer.Recovered(v)
+			e.SetSpan(span)
+			e.Send()
+		}
+	}()
 	panic(v)
 }
 
@@ -262,39 +268,49 @@ func TestTracerBufferSize(t *testing.T) {
 
 	tracer, recorder := transporttest.NewRecorderTracer()
 	defer tracer.Close()
-	unblocks := make(chan chan struct{})
+	unblock := make(chan struct{})
 	tracer.Transport = blockedTransport{
 		Transport: tracer.Transport,
-		C:         unblocks,
+		unblocked: unblock,
 	}
-	for i := 0; i < 1000; i++ {
+
+	// Send a bunch of transactions, which will be buffered. Because the
+	// buffer cannot hold all of them we should expect to see some of the
+	// older ones discarded.
+	const N = 1000
+	for i := 0; i < N; i++ {
 		tracer.StartTransaction(fmt.Sprint(i), "type").End()
 	}
-	// Don't allow anything through until all transactions are
-	// buffered. This will cause some of the transactions to be
-	// dropped in favour of new ones.
-	(<-unblocks) <- struct{}{}
-	tracer.Flush(nil)
-
-	// The first request should have all its transactions in order,
-	// since they get encoded into the request buffer immediately.
-	p := recorder.Payloads()
-	assert.NotEmpty(t, p.Transactions)
-	for i, tx := range p.Transactions {
-		assert.Equal(t, fmt.Sprint(i), tx.Name)
+	close(unblock) // allow requests through now
+	for {
+		stats := tracer.Stats()
+		if stats.TransactionsSent+stats.TransactionsDropped == N {
+			require.NotZero(t, stats.TransactionsSent)
+			require.NotZero(t, stats.TransactionsDropped)
+			break
+		}
+		tracer.Flush(nil)
 	}
 
-	// Let through the next request, which will have been filled
-	// from the buffer _after_ dropping some objects. There should
-	// be a gap in the transaction names.
-	(<-unblocks) <- struct{}{}
-	tracer.Flush(nil)
-	p2 := recorder.Payloads()
-	assert.NotEqual(t, len(p.Transactions), len(p2.Transactions))
-	assert.NotEqual(t, fmt.Sprint(len(p.Transactions)), p2.Transactions[len(p.Transactions)].Name)
+	stats := tracer.Stats()
+	p := recorder.Payloads()
+	assert.Equal(t, int(stats.TransactionsSent), len(p.Transactions))
 
-	// We record the type of event in the buffer, in order to keep the dropped stats accurate.
-	assert.Equal(t, uint64(1000-len(p2.Transactions)), tracer.Stats().TransactionsDropped)
+	// The first however-many requests should go straight into the first request.
+	// After that there should be a gap, and the remainder should be contiguous.
+	assert.Equal(t, "0", p.Transactions[0].Name)
+	offset := 0
+	for i := 1; i < len(p.Transactions); i++ {
+		tx := p.Transactions[i]
+		if tx.Name != fmt.Sprint(i+offset) {
+			require.Equal(t, 0, offset)
+			n, err := strconv.Atoi(tx.Name)
+			require.NoError(t, err)
+			offset = n - i
+			t.Logf("found gap of %d after first %d transactions", offset, i)
+		}
+	}
+	assert.NotEqual(t, 0, offset)
 }
 
 func TestTracerBodyUnread(t *testing.T) {
@@ -324,20 +340,14 @@ func TestTracerBodyUnread(t *testing.T) {
 
 type blockedTransport struct {
 	transport.Transport
-	C chan chan struct{}
+	unblocked chan struct{}
 }
 
 func (bt blockedTransport) SendStream(ctx context.Context, r io.Reader) error {
-	ch := make(chan struct{})
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case bt.C <- ch:
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-ch:
-		}
+	case <-bt.unblocked:
 		return bt.Transport.SendStream(ctx, r)
 	}
 }

@@ -6,13 +6,14 @@ set -ex
 BRANCH=v2
 
 FILES=( \
-    "errors/error.json" \
-    "errors/payload.json" \
+    "errors/common_error.json" \
+    "errors/v2_error.json" \
     "sourcemaps/payload.json" \
-    "spans/span.json" \
+    "spans/common_span.json" \
+    "spans/v2_span.json" \
     "transactions/mark.json" \
-    "transactions/payload.json" \
-    "transactions/transaction.json" \
+    "transactions/common_transaction.json" \
+    "transactions/v2_transaction.json" \
     "metrics/payload.json" \
     "metrics/metric.json" \
     "metrics/sample.json" \

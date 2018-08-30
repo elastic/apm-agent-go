@@ -35,30 +35,43 @@ func (tx *Transaction) StartSpan(name, spanType string, parent *Span) *Span {
 	span, _ = tx.tracer.spanPool.Get().(*Span)
 	if span == nil {
 		span = &Span{
+			tracer:   tx.tracer,
 			Duration: -1,
 		}
 	}
-	span.tx = tx
-	binary.LittleEndian.PutUint64(span.id[:], tx.rand.Uint64())
+	var spanID SpanID
+	binary.LittleEndian.PutUint64(spanID[:], tx.rand.Uint64())
 	tx.spans = append(tx.spans, span)
+	// TODO(axw) profile whether it's worthwhile threading and
+	// storing spanFramesMinDuration through to the transaction
+	// and span, or if we can instead unconditionally capture
+	// the stack trace, and make the rendering in the model
+	// writer conditional.
+	span.stackFramesMinDuration = tx.spanFramesMinDuration
 	tx.mu.Unlock()
 
 	span.Name = name
 	span.Type = spanType
 	span.Timestamp = time.Now()
 	if parent != nil {
-		span.parent = parent.id
+		span.traceContext = parent.traceContext
 	} else {
-		span.parent = tx.traceContext.Span
+		span.traceContext = tx.traceContext
 	}
+	span.parentID = span.traceContext.Span
+	span.transactionID = tx.traceContext.Span
+	span.traceContext.Span = spanID
 	return span
 }
 
 // Span describes an operation within a transaction.
 type Span struct {
-	tx        *Transaction // nil if span is dropped
-	id        SpanID
-	parent    SpanID
+	tracer                 *Tracer // nil if span is dropped
+	traceContext           TraceContext
+	parentID               SpanID
+	transactionID          SpanID
+	stackFramesMinDuration time.Duration
+
 	Name      string
 	Type      string
 	Timestamp time.Time
@@ -79,6 +92,7 @@ func newDroppedSpan() *Span {
 
 func (s *Span) reset() {
 	*s = Span{
+		tracer:     s.tracer,
 		Context:    s.Context,
 		Duration:   -1,
 		stacktrace: s.stacktrace[:0],
@@ -91,12 +105,7 @@ func (s *Span) reset() {
 // is disabled. If the span is dropped, the trace ID and options will
 // be zero.
 func (s *Span) TraceContext() TraceContext {
-	traceContext := TraceContext{Span: s.id}
-	if s.tx != nil {
-		traceContext.Trace = s.tx.traceContext.Trace
-		traceContext.Options = s.tx.traceContext.Options
-	}
-	return traceContext
+	return s.traceContext
 }
 
 // SetStacktrace sets the stacktrace for the span,
@@ -117,7 +126,7 @@ func (s *Span) SetStacktrace(skip int) {
 // Dropped may be used to avoid any expensive computation required to set
 // the span's context.
 func (s *Span) Dropped() bool {
-	return s.tx == nil
+	return s.tracer == nil
 }
 
 // End marks the s as being complete; s must not be used after this.
@@ -133,7 +142,7 @@ func (s *Span) End() {
 	if s.Duration < 0 {
 		s.Duration = time.Since(s.Timestamp)
 	}
-	if len(s.stacktrace) == 0 && s.Duration >= s.tx.spanFramesMinDuration {
+	if len(s.stacktrace) == 0 && s.Duration >= s.stackFramesMinDuration {
 		s.SetStacktrace(1)
 	}
 	s.mu.Unlock()
