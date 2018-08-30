@@ -1,3 +1,5 @@
+TEST_TIMEOUT?=5m
+
 .PHONY: check
 check: precheck test
 
@@ -28,7 +30,7 @@ install:
 
 .PHONY: test
 test:
-	go test -v ./...
+	go test -v -timeout=$(TEST_TIMEOUT) ./...
 
 .PHONY: coverage
 coverage:
