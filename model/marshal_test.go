@@ -22,11 +22,7 @@ func TestMarshalTransaction(t *testing.T) {
 	var w fastjson.Writer
 	tx.MarshalFastJSON(&w)
 
-	var in map[string]interface{}
-	if err := json.Unmarshal(w.Bytes(), &in); err != nil {
-		t.Fatalf("unmarshalling result failed: %v", err)
-	}
-
+	decoded := mustUnmarshalJSON(w)
 	expect := map[string]interface{}{
 		"trace_id":  "0102030405060708090a0b0c0d0e0f10",
 		"id":        "0102030405060708",
@@ -86,43 +82,61 @@ func TestMarshalTransaction(t *testing.T) {
 				"total": float64(4),
 			},
 		},
-		"spans": []interface{}{
-			map[string]interface{}{
-				"trace_id":       "000102030405060708090a0b0c0d0e0f",
-				"id":             "0001020304050607",
-				"parent_id":      "0001020304050607",
-				"transaction_id": "0001020304050607",
-				"name":           "SELECT FROM bar",
-				"timestamp":      "1970-01-01T00:02:03Z",
-				"duration":       float64(3),
-				"type":           "db.postgresql.query",
-				"context": map[string]interface{}{
-					"db": map[string]interface{}{
-						"instance":  "wat",
-						"statement": `SELECT foo FROM bar WHERE baz LIKE 'qu%x'`,
-						"type":      "sql",
-						"user":      "barb",
-					},
-				},
-			},
-			map[string]interface{}{
-				"trace_id":       "000102030405060708090a0b0c0d0e0f",
-				"id":             "0001020304050607",
-				"transaction_id": "0001020304050607",
-				"name":           "GET testing.invalid:8000",
-				"timestamp":      "1970-01-01T00:02:03Z",
-				"duration":       float64(4),
-				"type":           "ext.http",
-				"context": map[string]interface{}{
-					"http": map[string]interface{}{
-						"url": "http://testing.invalid:8000/path?query#fragment",
-					},
-				},
+	}
+	assert.Equal(t, expect, decoded)
+}
+
+func TestMarshalSpan(t *testing.T) {
+	var w fastjson.Writer
+	span := fakeSpan()
+	span.Context = fakeDatabaseSpanContext()
+	span.MarshalFastJSON(&w)
+
+	decoded := mustUnmarshalJSON(w)
+	assert.Equal(t, map[string]interface{}{
+		"trace_id":       "000102030405060708090a0b0c0d0e0f",
+		"id":             "0001020304050607",
+		"parent_id":      "0001020304050607",
+		"transaction_id": "0001020304050607",
+		"start":          float64(123),
+		"name":           "SELECT FROM bar",
+		"timestamp":      "1970-01-01T00:02:03Z",
+		"duration":       float64(3),
+		"type":           "db.postgresql.query",
+		"context": map[string]interface{}{
+			"db": map[string]interface{}{
+				"instance":  "wat",
+				"statement": `SELECT foo FROM bar WHERE baz LIKE 'qu%x'`,
+				"type":      "sql",
+				"user":      "barb",
 			},
 		},
-	}
+	}, decoded)
 
-	assert.Equal(t, expect, in)
+	w.Reset()
+	span.Duration = 4
+	span.Name = "GET testing.invalid:8000"
+	span.Type = "ext.http"
+	span.ParentID = model.SpanID{} // parent_id is optional
+	span.Context = fakeHTTPSpanContext()
+	span.MarshalFastJSON(&w)
+
+	decoded = mustUnmarshalJSON(w)
+	assert.Equal(t, map[string]interface{}{
+		"trace_id":       "000102030405060708090a0b0c0d0e0f",
+		"id":             "0001020304050607",
+		"transaction_id": "0001020304050607",
+		"name":           "GET testing.invalid:8000",
+		"timestamp":      "1970-01-01T00:02:03Z",
+		"start":          float64(123),
+		"duration":       float64(4),
+		"type":           "ext.http",
+		"context": map[string]interface{}{
+			"http": map[string]interface{}{
+				"url": "http://testing.invalid:8000/path?query#fragment",
+			},
+		},
+	}, decoded)
 }
 
 func TestMarshalMetrics(t *testing.T) {
@@ -131,11 +145,7 @@ func TestMarshalMetrics(t *testing.T) {
 	var w fastjson.Writer
 	metrics.MarshalFastJSON(&w)
 
-	var in map[string]interface{}
-	if err := json.Unmarshal(w.Bytes(), &in); err != nil {
-		t.Fatalf("unmarshalling result failed: %v", err)
-	}
-
+	decoded := mustUnmarshalJSON(w)
 	expect := map[string]interface{}{
 		"timestamp": "1970-01-01T00:02:03Z",
 		"labels": map[string]interface{}{
@@ -150,20 +160,10 @@ func TestMarshalMetrics(t *testing.T) {
 			},
 		},
 	}
-
-	assert.Equal(t, expect, in)
+	assert.Equal(t, expect, decoded)
 }
 
-func TestMarshalPayloads(t *testing.T) {
-	tp := fakeTransactionsPayload(0)
-	var w fastjson.Writer
-	tp.MarshalFastJSON(&w)
-
-	var in map[string]interface{}
-	if err := json.Unmarshal(w.Bytes(), &in); err != nil {
-		t.Fatalf("unmarshalling result failed: %v", err)
-	}
-
+/*
 	expect := map[string]interface{}{
 		"process": map[string]interface{}{
 			"pid":   float64(1234),
@@ -199,42 +199,7 @@ func TestMarshalPayloads(t *testing.T) {
 		},
 		"transactions": []interface{}{},
 	}
-	assert.Equal(t, expect, in)
-
-	ep := &model.ErrorsPayload{
-		Service: tp.Service,
-		Process: tp.Process,
-		System:  tp.System,
-		Errors:  []*model.Error{},
-	}
-	w.Reset()
-	ep.MarshalFastJSON(&w)
-
-	in = make(map[string]interface{})
-	if err := json.Unmarshal(w.Bytes(), &in); err != nil {
-		t.Fatalf("unmarshalling result failed: %v", err)
-	}
-	delete(expect, "transactions")
-	expect["errors"] = []interface{}{}
-	assert.Equal(t, expect, in)
-
-	mp := &model.MetricsPayload{
-		Service: tp.Service,
-		Process: tp.Process,
-		System:  tp.System,
-		Metrics: []*model.Metrics{},
-	}
-	w.Reset()
-	mp.MarshalFastJSON(&w)
-
-	in = make(map[string]interface{})
-	if err := json.Unmarshal(w.Bytes(), &in); err != nil {
-		t.Fatalf("unmarshalling result failed: %v", err)
-	}
-	delete(expect, "errors")
-	expect["metrics"] = []interface{}{}
-	assert.Equal(t, expect, in)
-}
+*/
 
 func TestMarshalError(t *testing.T) {
 	var e model.Error
@@ -286,16 +251,13 @@ func TestMarshalRequestBody(t *testing.T) {
 	w.Reset()
 	body.MarshalFastJSON(&w)
 
-	var in map[string]interface{}
-	if err := json.Unmarshal(w.Bytes(), &in); err != nil {
-		t.Fatalf("unmarshalling result failed: %v", err)
-	}
+	decoded := mustUnmarshalJSON(w)
 	expect := map[string]interface{}{
 		"first":    "jackie",
 		"last":     "brown",
 		"keywords": []interface{}{"rum", "punch"},
 	}
-	assert.Equal(t, expect, in)
+	assert.Equal(t, expect, decoded)
 }
 
 func TestMarshalLog(t *testing.T) {
@@ -504,16 +466,15 @@ func TestMarshalURL(t *testing.T) {
 	assert.Equal(t, in, out)
 }
 
-func TestUnmarshalJSON(t *testing.T) {
-	tp := fakeTransactionsPayload(2)
-	tp.Transactions[1].ID = model.SpanID{1, 2, 3, 4, 5, 6, 7, 8}
+func TestTransactionUnmarshalJSON(t *testing.T) {
+	tx := fakeTransaction()
 	var w fastjson.Writer
-	tp.MarshalFastJSON(&w)
+	tx.MarshalFastJSON(&w)
 
-	var out model.TransactionsPayload
+	var out model.Transaction
 	err := json.Unmarshal(w.Bytes(), &out)
 	require.NoError(t, err)
-	assert.Equal(t, &tp, &out)
+	assert.Equal(t, tx, out)
 }
 
 func fakeTransaction() model.Transaction {
@@ -579,37 +540,40 @@ func fakeTransaction() model.Transaction {
 				Total: 4,
 			},
 		},
-		Spans: []model.Span{{
-			Name:          "SELECT FROM bar",
-			ID:            model.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
-			ParentID:      model.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
-			TransactionID: model.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
-			TraceID:       model.TraceID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
-			Timestamp:     model.Time(time.Unix(123, 0).UTC()),
-			Duration:      3,
-			Type:          "db.postgresql.query",
-			Context: &model.SpanContext{
-				Database: &model.DatabaseSpanContext{
-					Instance:  "wat",
-					Statement: `SELECT foo FROM bar WHERE baz LIKE 'qu%x'`,
-					Type:      "sql",
-					User:      "barb",
-				},
-			},
-		}, {
-			Name:          "GET testing.invalid:8000",
-			ID:            model.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
-			TransactionID: model.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
-			TraceID:       model.TraceID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
-			Timestamp:     model.Time(time.Unix(123, 0).UTC()),
-			Duration:      4,
-			Type:          "ext.http",
-			Context: &model.SpanContext{
-				HTTP: &model.HTTPSpanContext{
-					URL: mustParseURL("http://testing.invalid:8000/path?query#fragment"),
-				},
-			},
-		}},
+	}
+}
+
+func fakeSpan() model.Span {
+	return model.Span{
+		Name:          "SELECT FROM bar",
+		ID:            model.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
+		ParentID:      model.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
+		TransactionID: model.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
+		TraceID:       model.TraceID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+		Timestamp:     model.Time(time.Unix(123, 0).UTC()),
+		Start:         123,
+		Duration:      3,
+		Type:          "db.postgresql.query",
+		Context:       fakeDatabaseSpanContext(),
+	}
+}
+
+func fakeDatabaseSpanContext() *model.SpanContext {
+	return &model.SpanContext{
+		Database: &model.DatabaseSpanContext{
+			Instance:  "wat",
+			Statement: `SELECT foo FROM bar WHERE baz LIKE 'qu%x'`,
+			Type:      "sql",
+			User:      "barb",
+		},
+	}
+}
+
+func fakeHTTPSpanContext() *model.SpanContext {
+	return &model.SpanContext{
+		HTTP: &model.HTTPSpanContext{
+			URL: mustParseURL("http://testing.invalid:8000/path?query#fragment"),
+		},
 	}
 }
 
@@ -666,20 +630,6 @@ func fakeProcess() *model.Process {
 	}
 }
 
-func fakeTransactionsPayload(n int) model.TransactionsPayload {
-	transactions := make([]model.Transaction, n)
-	tx := fakeTransaction()
-	for i := range transactions {
-		transactions[i] = tx
-	}
-	return model.TransactionsPayload{
-		Service:      fakeService(),
-		Process:      fakeProcess(),
-		System:       fakeSystem(),
-		Transactions: transactions,
-	}
-}
-
 func mustParseURL(s string) *url.URL {
 	u, err := url.Parse(s)
 	if err != nil {
@@ -694,4 +644,13 @@ func newUint64(v uint64) *uint64 {
 
 func newFloat64(v float64) *float64 {
 	return &v
+}
+
+func mustUnmarshalJSON(w fastjson.Writer) interface{} {
+	var out interface{}
+	err := json.Unmarshal(w.Bytes(), &out)
+	if err != nil {
+		panic(err)
+	}
+	return out
 }
