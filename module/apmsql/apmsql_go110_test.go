@@ -20,13 +20,13 @@ func TestConnect(t *testing.T) {
 
 	// Note: only in Go 1.10 do we have context during connection.
 
-	tx, _ := apmtest.WithTransaction(func(ctx context.Context) {
+	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
 		err := db.PingContext(ctx)
 		assert.NoError(t, err)
 	})
-	require.Len(t, tx.Spans, 2)
-	assert.Equal(t, "connect", tx.Spans[0].Name)
-	assert.Equal(t, "db.sqlite3.connect", tx.Spans[0].Type)
-	assert.Equal(t, "ping", tx.Spans[1].Name)
-	assert.Equal(t, "db.sqlite3.ping", tx.Spans[1].Type)
+	require.Len(t, spans, 2)
+	assert.Equal(t, "connect", spans[0].Name)
+	assert.Equal(t, "db.sqlite3.connect", spans[0].Type)
+	assert.Equal(t, "ping", spans[1].Name)
+	assert.Equal(t, "db.sqlite3.ping", spans[1].Type)
 }

@@ -9,6 +9,7 @@ import (
 
 const (
 	transactionBlockTag ringbuffer.BlockTag = iota + 1
+	spanBlockTag
 	errorBlockTag
 	metricsBlockTag
 )
@@ -22,7 +23,6 @@ type modelWriter struct {
 	cfg             *tracerConfig
 	stats           *TracerStats
 	json            fastjson.Writer
-	modelSpans      []model.Span
 	modelStacktrace []model.StacktraceFrame
 }
 
@@ -36,6 +36,18 @@ func (w *modelWriter) writeTransaction(tx *Transaction) {
 	w.buffer.WriteBlock(w.json.Bytes(), transactionBlockTag)
 	w.json.Reset()
 	tx.reset()
+}
+
+// writeSpan encodes s as JSON to the buffer, and then resets s.
+func (w *modelWriter) writeSpan(s *Span) {
+	var modelSpan model.Span
+	w.buildModelSpan(&modelSpan, s)
+	w.json.RawString(`{"span":`)
+	modelSpan.MarshalFastJSON(&w.json)
+	w.json.RawByte('}')
+	w.buffer.WriteBlock(w.json.Bytes(), spanBlockTag)
+	w.json.Reset()
+	s.reset()
 }
 
 // writeError encodes e as JSON to the buffer, and then resets e.
@@ -62,12 +74,9 @@ func (w *modelWriter) writeMetrics(m *Metrics) {
 }
 
 func (w *modelWriter) buildModelTransaction(out *model.Transaction, tx *Transaction) {
-	// TODO(axw) need to start sending spans independently.
-	w.modelSpans = w.modelSpans[:0]
-	w.modelStacktrace = w.modelStacktrace[:0]
+	out.ID = model.SpanID(tx.traceContext.Span)
 	out.TraceID = model.TraceID(tx.traceContext.Trace)
 	out.ParentID = model.SpanID(tx.parentSpan)
-	out.ID = model.SpanID(tx.traceContext.Span)
 
 	out.Name = truncateString(tx.Name)
 	out.Type = truncateString(tx.Type)
@@ -84,17 +93,10 @@ func (w *modelWriter) buildModelTransaction(out *model.Transaction, tx *Transact
 	if w.cfg.sanitizedFieldNames != nil && out.Context != nil && out.Context.Request != nil {
 		sanitizeRequest(out.Context.Request, w.cfg.sanitizedFieldNames)
 	}
-
-	spanOffset := len(w.modelSpans)
-	for _, span := range tx.spans {
-		w.modelSpans = append(w.modelSpans, model.Span{})
-		modelSpan := &w.modelSpans[len(w.modelSpans)-1]
-		w.buildModelSpan(modelSpan, span)
-	}
-	out.Spans = w.modelSpans[spanOffset:]
 }
 
 func (w *modelWriter) buildModelSpan(out *model.Span, span *Span) {
+	w.modelStacktrace = w.modelStacktrace[:0]
 	out.ID = model.SpanID(span.traceContext.Span)
 	out.TraceID = model.TraceID(span.traceContext.Trace)
 	out.ParentID = model.SpanID(span.parentID)
@@ -106,25 +108,24 @@ func (w *modelWriter) buildModelSpan(out *model.Span, span *Span) {
 	out.Duration = span.Duration.Seconds() * 1000
 	out.Context = span.Context.build()
 
-	stacktraceOffset := len(w.modelStacktrace)
 	w.modelStacktrace = appendModelStacktraceFrames(w.modelStacktrace, span.stacktrace)
-	out.Stacktrace = w.modelStacktrace[stacktraceOffset:]
+	out.Stacktrace = w.modelStacktrace
 	w.setStacktraceContext(out.Stacktrace)
 }
 
 func (w *modelWriter) buildModelError(e *Error) {
 	// TODO(axw) move the model type outside of Error
+	e.model.ID = model.SpanID(e.ID)
 	e.model.TraceID = model.TraceID(e.TraceID)
 	e.model.ParentID = model.SpanID(e.ParentID)
 	e.model.TransactionID = model.SpanID(e.TransactionID)
-	e.model.ID = model.SpanID(e.ID)
 	e.model.Timestamp = model.Time(e.Timestamp.UTC())
 	e.model.Context = e.Context.build()
 	e.model.Exception.Handled = e.Handled
 
-	w.setStacktraceContext(e.modelStacktrace)
 	e.setStacktrace()
 	e.setCulprit()
+	w.setStacktraceContext(e.modelStacktrace)
 }
 
 func (w *modelWriter) setStacktraceContext(stack []model.StacktraceFrame) {

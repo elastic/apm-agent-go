@@ -58,7 +58,7 @@ func TestWithContext(t *testing.T) {
 }
 
 func testWithContext(t *testing.T, dsnInfo apmsql.DSNInfo, dialect string, args ...interface{}) {
-	tx, errors := apmtest.WithTransaction(func(ctx context.Context) {
+	_, spans, errors := apmtest.WithTransaction(func(ctx context.Context) {
 		db, err := apmgorm.Open(dialect, args...)
 		require.NoError(t, err)
 		defer db.Close()
@@ -73,11 +73,11 @@ func testWithContext(t *testing.T, dsnInfo apmsql.DSNInfo, dialect string, args 
 		assert.NoError(t, db.Delete(&product).Error)            // soft
 		assert.NoError(t, db.Unscoped().Delete(&product).Error) // hard
 	})
-	require.NotEmpty(t, tx.Spans)
+	require.NotEmpty(t, spans)
 	assert.Empty(t, errors)
 
-	spanNames := make([]string, len(tx.Spans))
-	for i, span := range tx.Spans {
+	spanNames := make([]string, len(spans))
+	for i, span := range spans {
 		spanNames[i] = span.Name
 		require.NotNil(t, span.Context)
 		require.NotNil(t, span.Context.Database)
@@ -119,11 +119,11 @@ func TestWithContextNonSampled(t *testing.T) {
 	defer db.Close()
 	db.AutoMigrate(&Product{})
 
-	tx, _ := apmtest.WithTransaction(func(ctx context.Context) {
+	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
 		db = apmgorm.WithContext(ctx, db)
 		db.Create(&Product{Code: "L1212", Price: 1000})
 	})
-	require.Empty(t, tx.Spans)
+	require.Empty(t, spans)
 }
 
 func TestCaptureErrors(t *testing.T) {
@@ -133,7 +133,7 @@ func TestCaptureErrors(t *testing.T) {
 	db.SetLogger(nopLogger{})
 	db.AutoMigrate(&Product{})
 
-	tx, errors := apmtest.WithTransaction(func(ctx context.Context) {
+	_, spans, errors := apmtest.WithTransaction(func(ctx context.Context) {
 		db = apmgorm.WithContext(ctx, db)
 
 		// record not found should not cause an error
@@ -142,7 +142,7 @@ func TestCaptureErrors(t *testing.T) {
 		// invalid SQL should
 		db.Where("bananas").First(&Product{})
 	})
-	assert.Len(t, tx.Spans, 2)
+	assert.Len(t, spans, 2)
 	require.Len(t, errors, 1)
 	assert.Regexp(t, "no such column: bananas", errors[0].Exception.Message)
 }
@@ -153,12 +153,12 @@ func TestOpenWithDriver(t *testing.T) {
 	defer db.Close()
 	db.AutoMigrate(&Product{})
 
-	tx, _ := apmtest.WithTransaction(func(ctx context.Context) {
+	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
 		db = apmgorm.WithContext(ctx, db)
 		db.Create(&Product{Code: "L1212", Price: 1000})
 	})
-	require.Len(t, tx.Spans, 1)
-	assert.Equal(t, ":memory:", tx.Spans[0].Context.Database.Instance)
+	require.Len(t, spans, 1)
+	assert.Equal(t, ":memory:", spans[0].Context.Database.Instance)
 }
 
 func TestOpenWithDB(t *testing.T) {
@@ -171,12 +171,12 @@ func TestOpenWithDB(t *testing.T) {
 	defer db.Close()
 	db.AutoMigrate(&Product{})
 
-	tx, _ := apmtest.WithTransaction(func(ctx context.Context) {
+	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
 		db = apmgorm.WithContext(ctx, db)
 		db.Create(&Product{Code: "L1212", Price: 1000})
 	})
-	require.Len(t, tx.Spans, 1)
-	assert.Empty(t, tx.Spans[0].Context.Database.Instance) // no DSN info
+	require.Len(t, spans, 1)
+	assert.Empty(t, spans[0].Context.Database.Instance) // no DSN info
 }
 
 type nopLogger struct{}

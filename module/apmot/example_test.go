@@ -29,19 +29,18 @@ func Example() {
 	if len(payloads.Transactions) != 1 {
 		panic(fmt.Errorf("expected 1 transaction, got %d", len(payloads.Transactions)))
 	}
-	transaction := payloads.Transactions[0]
-	fmt.Printf("transaction: %s/%s\n", transaction.Name, transaction.Type)
-	fmt.Println("spans:")
-	for _, span := range transaction.Spans {
-		fmt.Printf(" - %s/%s\n", span.Name, span.Type)
+	for _, transaction := range payloads.Transactions {
+		fmt.Printf("transaction: %s/%s\n", transaction.Name, transaction.Type)
+	}
+	for _, span := range payloads.Spans {
+		fmt.Printf("span: %s/%s\n", span.Name, span.Type)
 	}
 
 	// Output:
 	// transaction: Parent/unknown
-	// spans:
-	//  - span_0/unknown
-	//  - span_1/unknown
-	//  - span_2/unknown
-	//  - span_3/unknown
-	//  - span_4/unknown
+	// span: span_0/unknown
+	// span: span_1/unknown
+	// span: span_2/unknown
+	// span: span_3/unknown
+	// span: span_4/unknown
 }

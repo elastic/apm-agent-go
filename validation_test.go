@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/santhosh-tekuri/jsonschema"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/apm-agent-go"
@@ -287,6 +288,8 @@ func (t *validatingTransport) SendStream(ctx context.Context, r io.Reader) error
 					schema = apmschema.Error
 				case "metrics":
 					schema = apmschema.Metrics
+				case "span":
+					schema = apmschema.Span
 				case "transaction":
 					schema = apmschema.Transaction
 				default:
@@ -295,10 +298,10 @@ func (t *validatingTransport) SendStream(ctx context.Context, r io.Reader) error
 				}
 			}
 			err := schema.Validate(bytes.NewReader([]byte(v)))
-			require.NoError(t.t, err)
+			assert.NoError(t.t, err)
 		}
 	}
-	require.NoError(t.t, s.Err())
+	assert.NoError(t.t, s.Err())
 	if first {
 		t.t.Errorf("metadata missing from stream")
 	}

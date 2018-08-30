@@ -97,7 +97,7 @@ type Transaction struct {
 	spanFramesMinDuration time.Duration
 
 	mu           sync.Mutex
-	spans        []*Span
+	spansCreated int
 	spansDropped int
 	rand         *rand.Rand // for ID generation
 }
@@ -105,13 +105,8 @@ type Transaction struct {
 // reset resets the Transaction back to its zero state and places it back
 // into the transaction pool.
 func (tx *Transaction) reset() {
-	for _, s := range tx.spans {
-		s.reset()
-		tx.tracer.spanPool.Put(s)
-	}
 	*tx = Transaction{
 		tracer:   tx.tracer,
-		spans:    tx.spans[:0],
 		Context:  tx.Context,
 		Duration: -1,
 		rand:     tx.rand,
@@ -146,9 +141,6 @@ func (tx *Transaction) TraceContext() TraceContext {
 func (tx *Transaction) End() {
 	if tx.Duration < 0 {
 		tx.Duration = time.Since(tx.Timestamp)
-	}
-	for _, s := range tx.spans {
-		s.finalize(tx.Timestamp.Add(tx.Duration))
 	}
 	tx.enqueue()
 }

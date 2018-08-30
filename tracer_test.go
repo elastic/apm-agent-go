@@ -72,15 +72,20 @@ func TestTracerMaxSpans(t *testing.T) {
 	// after the call.
 	tracer.SetMaxSpans(99)
 
-	assert.False(t, tx.StartSpan("name", "type", nil).Dropped())
-	assert.False(t, tx.StartSpan("name", "type", nil).Dropped())
-	assert.True(t, tx.StartSpan("name", "type", nil).Dropped())
+	s0 := tx.StartSpan("name", "type", nil)
+	s1 := tx.StartSpan("name", "type", nil)
+	s2 := tx.StartSpan("name", "type", nil)
 	tx.End()
 
+	assert.False(t, s0.Dropped())
+	assert.False(t, s1.Dropped())
+	assert.True(t, s2.Dropped())
+	s0.End()
+	s1.End()
+	s2.End()
+
 	tracer.Flush(nil)
-	payloads := r.Payloads()
-	transaction := payloads.Transactions[0]
-	assert.Len(t, transaction.Spans, 2)
+	assert.Len(t, r.Payloads().Spans, 2)
 }
 
 func TestTracerErrors(t *testing.T) {
@@ -159,7 +164,7 @@ func TestTracerRecovered(t *testing.T) {
 	payloads := r.Payloads()
 	error0 := payloads.Errors[0]
 	transaction := payloads.Transactions[0]
-	span := transaction.Spans[0]
+	span := payloads.Spans[0]
 	assert.Equal(t, "blam", error0.Exception.Message)
 	assert.Equal(t, transaction.ID, error0.TransactionID)
 	assert.Equal(t, span.ID, error0.ParentID)
@@ -204,23 +209,20 @@ func TestSpanStackTrace(t *testing.T) {
 	tx.End()
 	tracer.Flush(nil)
 
-	transaction := r.Payloads().Transactions[0]
-	assert.Len(t, transaction.Spans, 3)
+	spans := r.Payloads().Spans
+	assert.Len(t, spans, 3)
 
 	// Span 0 took only 9ms, so we don't set its stacktrace.
-	span0 := transaction.Spans[0]
-	assert.Nil(t, span0.Stacktrace)
+	assert.Nil(t, spans[0].Stacktrace)
 
 	// Span 1 took the required 10ms, so we set its stacktrace.
-	span1 := transaction.Spans[1]
-	assert.NotNil(t, span1.Stacktrace)
-	assert.NotEqual(t, span1.Stacktrace[0].Function, "TestSpanStackTrace")
+	assert.NotNil(t, spans[1].Stacktrace)
+	assert.NotEqual(t, spans[1].Stacktrace[0].Function, "TestSpanStackTrace")
 
 	// Span 2 took more than the required 10ms, but its stacktrace
 	// was already set; we don't replace it.
-	span2 := transaction.Spans[2]
-	assert.NotNil(t, span2.Stacktrace)
-	assert.Equal(t, span2.Stacktrace[0].Function, "TestSpanStackTrace")
+	assert.NotNil(t, spans[2].Stacktrace)
+	assert.Equal(t, spans[2].Stacktrace[0].Function, "TestSpanStackTrace")
 }
 
 func TestTracerRequestSize(t *testing.T) {

@@ -25,14 +25,13 @@ func (tx *Transaction) StartSpan(name, spanType string, parent *Span) *Span {
 		return newDroppedSpan()
 	}
 
-	var span *Span
 	tx.mu.Lock()
-	if tx.maxSpans > 0 && len(tx.spans) >= tx.maxSpans {
+	if tx.maxSpans > 0 && tx.spansCreated >= tx.maxSpans {
 		tx.spansDropped++
 		tx.mu.Unlock()
 		return newDroppedSpan()
 	}
-	span, _ = tx.tracer.spanPool.Get().(*Span)
+	span, _ := tx.tracer.spanPool.Get().(*Span)
 	if span == nil {
 		span = &Span{
 			tracer:   tx.tracer,
@@ -41,13 +40,13 @@ func (tx *Transaction) StartSpan(name, spanType string, parent *Span) *Span {
 	}
 	var spanID SpanID
 	binary.LittleEndian.PutUint64(spanID[:], tx.rand.Uint64())
-	tx.spans = append(tx.spans, span)
 	// TODO(axw) profile whether it's worthwhile threading and
 	// storing spanFramesMinDuration through to the transaction
 	// and span, or if we can instead unconditionally capture
 	// the stack trace, and make the rendering in the model
 	// writer conditional.
 	span.stackFramesMinDuration = tx.spanFramesMinDuration
+	tx.spansCreated++
 	tx.mu.Unlock()
 
 	span.Name = name
@@ -78,7 +77,6 @@ type Span struct {
 	Duration  time.Duration
 	Context   SpanContext
 
-	mu         sync.Mutex
 	stacktrace []stacktrace.Frame
 }
 
@@ -98,6 +96,7 @@ func (s *Span) reset() {
 		stacktrace: s.stacktrace[:0],
 	}
 	s.Context.reset()
+	s.tracer.spanPool.Put(s)
 }
 
 // TraceContext returns the span's TraceContext: its trace ID, span ID,
@@ -138,23 +137,23 @@ func (s *Span) End() {
 		droppedSpanPool.Put(s)
 		return
 	}
-	s.mu.Lock()
 	if s.Duration < 0 {
 		s.Duration = time.Since(s.Timestamp)
 	}
 	if len(s.stacktrace) == 0 && s.Duration >= s.stackFramesMinDuration {
 		s.SetStacktrace(1)
 	}
-	s.mu.Unlock()
+	s.enqueue()
 }
 
-func (s *Span) finalize(end time.Time) {
-	s.mu.Lock()
-	if s.Duration < 0 {
-		// s.End was never called, so mark it as truncated and
-		// truncate its duration to the end of the transaction.
-		s.Type += ".truncated"
-		s.Duration = end.Sub(s.Timestamp)
+func (s *Span) enqueue() {
+	select {
+	case s.tracer.spans <- s:
+	default:
+		// Enqueuing a span should never block.
+		s.tracer.statsMu.Lock()
+		s.tracer.stats.SpansDropped++
+		s.tracer.statsMu.Unlock()
+		s.reset()
 	}
-	s.mu.Unlock()
 }

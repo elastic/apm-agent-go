@@ -37,7 +37,7 @@ func TestClientSpan(t *testing.T) {
 	tx.End()
 
 	tracer.Flush(nil)
-	out := transport.Payloads().Transactions[0]
-	require.Len(t, out.Spans, 1)
-	assert.Equal(t, "/helloworld.Greeter/SayHello", out.Spans[0].Name)
+	spans := transport.Payloads().Spans
+	require.Len(t, spans, 1)
+	assert.Equal(t, "/helloworld.Greeter/SayHello", spans[0].Name)
 }
