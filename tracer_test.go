@@ -71,14 +71,10 @@ func TestTracerMaxSpans(t *testing.T) {
 	// after the call.
 	tracer.SetMaxSpans(99)
 
-	s0 := tx.StartSpan("name", "type", nil)
-	s1 := tx.StartSpan("name", "type", nil)
-	s2 := tx.StartSpan("name", "type", nil)
+	assert.False(t, tx.StartSpan("name", "type", nil).Dropped())
+	assert.False(t, tx.StartSpan("name", "type", nil).Dropped())
+	assert.True(t, tx.StartSpan("name", "type", nil).Dropped())
 	tx.End()
-
-	assert.False(t, s0.Dropped())
-	assert.False(t, s1.Dropped())
-	assert.True(t, s2.Dropped())
 
 	tracer.Flush(nil)
 	payloads := r.Payloads()
