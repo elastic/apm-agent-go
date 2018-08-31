@@ -229,15 +229,17 @@ func TestTracerRequestSize(t *testing.T) {
 	os.Setenv("ELASTIC_APM_API_REQUEST_SIZE", "1024")
 	defer os.Unsetenv("ELASTIC_APM_API_REQUEST_SIZE")
 
-	requestHandled := make(chan struct{}, 1)
-	var serverStart, serverEnd time.Time
+	type times struct {
+		start, end time.Time
+	}
+	requestHandled := make(chan times, 1)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		serverStart = time.Now()
+		serverStart := time.Now()
 		io.Copy(ioutil.Discard, req.Body)
-		serverEnd = time.Now()
+		serverEnd := time.Now()
 		select {
-		case requestHandled <- struct{}{}:
-		case <-req.Context().Done():
+		case requestHandled <- times{start: serverStart, end: serverEnd}:
+		default:
 		}
 	}))
 	defer server.Close()
@@ -249,17 +251,17 @@ func TestTracerRequestSize(t *testing.T) {
 	require.NoError(t, err)
 	tracer.Transport = httpTransport
 
-	// Send through a bunch of requests, filling up the API request
+	// Send through a bunch of transactions, filling up the API request
 	// size, causing the request to be immediately completed.
 	clientStart := time.Now()
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 500; i++ {
 		tracer.StartTransaction("name", "type").End()
 	}
-	<-requestHandled
+	serverTimes := <-requestHandled
 	clientEnd := time.Now()
 	assert.WithinDuration(t, clientStart, clientEnd, 100*time.Millisecond)
-	assert.WithinDuration(t, clientStart, serverStart, 100*time.Millisecond)
-	assert.WithinDuration(t, clientEnd, serverEnd, 100*time.Millisecond)
+	assert.WithinDuration(t, clientStart, serverTimes.start, 100*time.Millisecond)
+	assert.WithinDuration(t, clientEnd, serverTimes.end, 100*time.Millisecond)
 }
 
 func TestTracerBufferSize(t *testing.T) {

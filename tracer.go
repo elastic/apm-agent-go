@@ -550,10 +550,7 @@ func (t *Tracer) loop() {
 		var gatherMetrics bool
 		select {
 		case <-t.closing:
-			if req.Buf != nil {
-				// Unblock the reader first.
-				req.Respond(0, io.EOF)
-			}
+			iochanReader.CloseRead(io.EOF)
 			return
 		case cmd := <-t.configCommands:
 			oldMetricsInterval := cfg.metricsInterval
