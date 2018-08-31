@@ -317,3 +317,17 @@ func TestTracerActiveInvalid(t *testing.T) {
 	_, err := elasticapm.NewTracer("tracer_testing", "")
 	assert.EqualError(t, err, "failed to parse ELASTIC_APM_ACTIVE: strconv.ParseBool: parsing \"yep\": invalid syntax")
 }
+
+func TestTracerEnvironmentEnv(t *testing.T) {
+	os.Setenv("ELASTIC_APM_ENVIRONMENT", "friendly")
+	defer os.Unsetenv("ELASTIC_APM_ENVIRONMENT")
+
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	tracer.StartTransaction("name", "type").End()
+	tracer.Flush(nil)
+
+	_, _, service := transport.Metadata()
+	assert.Equal(t, "friendly", service.Environment)
+}
