@@ -10,9 +10,6 @@ import (
 )
 
 var (
-	// Transaction is the compiled JSON Schema for a transaction.
-	Transaction *jsonschema.Schema
-
 	// Error is the compiled JSON Schema for an error.
 	Error *jsonschema.Schema
 
@@ -21,6 +18,12 @@ var (
 
 	// Metrics is the compiled JSON Schema for a set of metrics.
 	Metrics *jsonschema.Schema
+
+	// Span is the compiled JSON Schema for a span.
+	Span *jsonschema.Schema
+
+	// Transaction is the compiled JSON Schema for a transaction.
+	Transaction *jsonschema.Schema
 )
 
 func init() {
@@ -38,8 +41,9 @@ func init() {
 		}
 		*out = schema
 	}
-	compile("transactions/v2_transaction.json", &Transaction)
 	compile("errors/v2_error.json", &Error)
-	compile("metrics/metric.json", &Metrics)
 	compile("metadata.json", &Metadata)
+	compile("metrics/metric.json", &Metrics)
+	compile("spans/v2_span.json", &Span)
+	compile("transactions/v2_transaction.json", &Transaction)
 }
