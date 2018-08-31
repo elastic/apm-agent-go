@@ -298,12 +298,13 @@ func TestTracerBufferSize(t *testing.T) {
 	p := recorder.Payloads()
 	assert.Equal(t, int(stats.TransactionsSent), len(p.Transactions))
 
-	// The first however-many requests should go straight into the first request.
-	// After that there should be a gap, and the remainder should be contiguous.
-	assert.Equal(t, "0", p.Transactions[0].Name)
+	// It's possible that the tracer loop receives the flush request after
+	// all transactions are in the channel buffer, before any individual
+	// transactions make their way through. In most cases we would expect
+	// to see the "0" transaction in the request, but that won't be the
+	// case if the flush comes first.
 	offset := 0
-	for i := 1; i < len(p.Transactions); i++ {
-		tx := p.Transactions[i]
+	for i, tx := range p.Transactions {
 		if tx.Name != fmt.Sprint(i+offset) {
 			require.Equal(t, 0, offset)
 			n, err := strconv.Atoi(tx.Name)
