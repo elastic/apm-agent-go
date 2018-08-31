@@ -393,14 +393,19 @@ the `Span.Dropped` method.
 ===== Panic recovery and errors
 
 If you want to recover panics, and report them along with your transaction, you can use the
-<<tracer-recover, Tracer.Recover>> or <<tracer-recovered, Tracer.Recovered>> methods. The former should be
-used as a deferred call, while the latter can be used if you have your own recovery logic. There are also
-methods for reporting non-panic errors: <<tracer-new-error, Tracer.NewError>>,
-<<tracer-new-error-log, Tracer.NewErrorLog>>, and <<elasticapm-captureerror, elasticapm.CaptureError>>.
+<<tracer-recovered, Tracer.Recovered>> method in a recovery function. There are also methods for reporting
+non-panic errors: <<tracer-new-error, Tracer.NewError>>, <<tracer-new-error-log, Tracer.NewErrorLog>>, and
+<<elasticapm-captureerror, elasticapm.CaptureError>>.
 
 [source,go]
 ----
-defer elasticapm.DefaultTracer.Recover(tx)
+defer func() {
+	if v := recover(); v != nil {
+		e := elasticapm.DefaultTracer.Recovered()
+		e.SetTransaction(tx) // or e.SetSpan(span)
+		e.Send()
+	}
+}()
 ----
 
 See the <<error-api, Error API>> for details and examples of the other methods.

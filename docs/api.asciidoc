@@ -101,13 +101,12 @@ application.
 ==== `func (*Transaction) StartSpan(name, spanType string, parent *Span) *Span`
 
 StartSpan starts and returns a new Span within the transaction, with the specified name,
-type, and optional parent span, and with the start time set to the current time relative
-to the transaction's timestamp.
+type, and optional parent span, and with the start time set to the current time.
 
 If the transaction is sampled, then the span's ID will be set, and its stacktrace will
 be set if the tracer is configured accordingly. If the transaction is not sampled, then
 the returned span will be silently discarded when its End method is called. You can
-avoid any unnecessary computation for these dropped spans by calling its <<span-dropped, Dropped>>
+avoid any unnecessary computation for these dropped spans by calling the <<span-dropped, Dropped>>
 method.
 
 As a convenience, it is valid to create a span on a nil Transaction; the resulting span
@@ -305,29 +304,28 @@ e.Send()
 ----
 
 [float]
+[[error-set-transaction]]
+==== `func (*Error) SetTransaction(*Transaction)`
+
+SetTransaction associates the error with the given transaction. The transaction's End method must
+not yet have been called.
+
+[float]
+[[error-set-span]]
+==== `func (*Error) SetSpan(*Span)`
+
+SetSpan associates the error with the given span, and the span's transaction. When calling SetSpan,
+it is not necessary to also call SetTransaction. The span's End method must not yet have been called.
+
+[float]
 [[error-send]]
 ==== `func (*Error) Send()`
 
 Send enqueues the error for sending to the Elastic APM server. The Error must not be used after this.
 
 [float]
-[[tracer-recover]]
-==== `func (*Tracer) Recover(*Transaction)`
-
-Recover recovers panics, sending them as errors to the Elastic APM server. Recover is expected to be
-used in a deferred call. Recover calls the tracer's `Recovered` method with the recovered value and
-transaction provided to Recover, and calls the resulting Error's Send method.
-
-[source,go]
-----
-tx := elasticapm.DefaultTracer.StartTransaction(...)
-defer tx.End()
-defer elasticapm.DefaultTracer.Recover(tx)
-----
-
-[float]
 [[tracer-recovered]]
-==== `func (*Tracer) Recovered(interface{}, *Transaction) *Error`
+==== `func (*Tracer) Recovered(interface{}) *Error`
 
 Recovered returns an Error from the recovered value, optionally associating it with a transaction.
 The error is not sent; it is the responsibility of the caller to set the error's context as desired,
@@ -337,16 +335,22 @@ and then call its `Send` method.
 ----
 tx := elasticapm.DefaultTracer.StartTransaction(...)
 defer tx.End()
-defer elasticapm.DefaultTracer.Recover(tx)
+defer func() {
+	if v := recover(); v != nil {
+		e := elasticapm.DefaultTracer.Recovered(v)
+		e.SetTransaction(tx)
+		e.Send()
+	}
+}()
 ----
 
 [float]
 [[elasticapm-captureerror]]
 ==== `func CaptureError(context.Context, error) *Error`
 
-CaptureError returns a new Error related to the sampled transaction present in the context, if any,
-and calls its SetException method with the given error. The Error.Handled field will be set to true,
-and a stacktrace set.
+CaptureError returns a new Error related to the sampled transaction and span present in the context,
+if any, and sets its exception details using the given error. The Error.Handled field will be set to
+true, and a stacktrace set.
 
 If there is no transaction in the context, or it is not being sampled, CaptureError returns nil.
 As a convenience, if the provided error is nil, then CaptureError will also return nil.
@@ -364,14 +368,14 @@ if err != nil {
 ==== Error Context
 
 Errors can be associated with context just like transactions. See <<context-api>> for details.
-In addition, errors can be associated with a transaction by setting the `Transaction` field to
-an active Transaction object:
+In addition, errors can be associated with an active transaction or span using
+<<error-set-transaction, SetTransaction>> or <<error-set-span, SetSpan>>, respectively.
 
 [source,go]
 ----
 tx := elasticapm.DefaultTracer.StartTransaction("GET /foo", "request")
 defer tx.End()
 e := elasticapm.DefaultTracer.NewError(err)
-e.Transaction = tx
+e.SetTransaction(tx)
 e.Send()
 ----
