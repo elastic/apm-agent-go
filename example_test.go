@@ -65,23 +65,38 @@ func ExampleTracer() {
 	fmt.Println("  agent name:", agent["name"])
 	fmt.Println("  language name:", language["name"])
 	fmt.Println("  runtime name:", runtime["name"])
-	for i, p := range r.payloads[1:] {
-		t := p["transaction"].(map[string]interface{})
+
+	var transactions []map[string]interface{}
+	var spans []map[string]interface{}
+	for _, p := range r.payloads[1:] {
+		t, ok := p["transaction"].(map[string]interface{})
+		if ok {
+			transactions = append(transactions, t)
+			continue
+		}
+		s, ok := p["span"].(map[string]interface{})
+		if ok {
+			spans = append(spans, s)
+			continue
+		}
+	}
+	if len(transactions) != len(spans) {
+		fmt.Printf("%d transaction(s), %d span(s)\n", len(transactions), len(spans))
+		return
+	}
+	for i, t := range transactions {
+		s := spans[i]
 		fmt.Printf("  transaction %d:\n", i)
 		fmt.Println("    name:", t["name"])
 		fmt.Println("    type:", t["type"])
 		fmt.Println("    context:", t["context"])
-		spans := t["spans"].([]interface{})
-		for i := range spans {
-			s := spans[i].(map[string]interface{})
-			fmt.Printf("    span %d:\n", i)
-			fmt.Println("      name:", s["name"])
-			fmt.Println("      type:", s["type"])
-		}
+		fmt.Printf("    span %d:\n", i)
+		fmt.Println("      name:", s["name"])
+		fmt.Println("      type:", s["type"])
 	}
 
 	// Output:
-	// number of payloads: 3
+	// number of payloads: 5
 	//   service name: service-name
 	//   service version: 1.0.0
 	//   agent name: go
@@ -98,7 +113,7 @@ func ExampleTracer() {
 	//     name: order
 	//     type: request
 	//     context: map[custom:map[product:detergent]]
-	//     span 0:
+	//     span 1:
 	//       name: store_order
 	//       type: rpc
 }

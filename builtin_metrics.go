@@ -82,6 +82,8 @@ func (g *builtinMetricsGatherer) gatherTracerStatsMetrics(m *Metrics) {
 
 	const p = "agent"
 	m.Add(p+".send_errors", nil, float64(stats.Errors.SendStream))
+	m.Add(p+".spans.sent", nil, float64(stats.SpansSent))
+	m.Add(p+".spans.dropped", nil, float64(stats.SpansDropped))
 	m.Add(p+".transactions.sent", nil, float64(stats.TransactionsSent))
 	m.Add(p+".transactions.dropped", nil, float64(stats.TransactionsDropped))
 	m.Add(p+".errors.sent", nil, float64(stats.ErrorsSent))

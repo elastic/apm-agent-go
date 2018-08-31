@@ -73,9 +73,10 @@ func (r *RecorderTransport) record(stream io.Reader) error {
 
 	for {
 		var payload struct {
-			Transaction *model.Transaction `json:"transaction"`
 			Error       *model.Error       `json:"error"`
 			Metrics     *model.Metrics     `json:"metrics"`
+			Span        *model.Span        `json:"span"`
+			Transaction *model.Transaction `json:"transaction"`
 		}
 		err := decoder.Decode(&payload)
 		if err == io.EOF {
@@ -85,12 +86,14 @@ func (r *RecorderTransport) record(stream io.Reader) error {
 		}
 		r.mu.Lock()
 		switch {
-		case payload.Transaction != nil:
-			r.payloads.Transactions = append(r.payloads.Transactions, *payload.Transaction)
 		case payload.Error != nil:
 			r.payloads.Errors = append(r.payloads.Errors, *payload.Error)
 		case payload.Metrics != nil:
 			r.payloads.Metrics = append(r.payloads.Metrics, *payload.Metrics)
+		case payload.Span != nil:
+			r.payloads.Spans = append(r.payloads.Spans, *payload.Span)
+		case payload.Transaction != nil:
+			r.payloads.Transactions = append(r.payloads.Transactions, *payload.Transaction)
 		}
 		r.mu.Unlock()
 	}
@@ -112,9 +115,10 @@ func (r *RecorderTransport) recordMetadata(m *metadata) {
 
 // Payloads holds the recorded payloads.
 type Payloads struct {
-	Transactions []model.Transaction
 	Errors       []model.Error
 	Metrics      []model.Metrics
+	Spans        []model.Span
+	Transactions []model.Transaction
 }
 
 // Len returns the number of recorded payloads.

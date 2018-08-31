@@ -7,6 +7,8 @@ type TracerStats struct {
 	ErrorsDropped       uint64
 	TransactionsSent    uint64
 	TransactionsDropped uint64
+	SpansSent           uint64
+	SpansDropped        uint64
 }
 
 // TracerStatsErrors holds error statistics for a Tracer.
@@ -26,6 +28,8 @@ func (s *TracerStats) accumulate(rhs TracerStats) {
 	s.Errors.SendStream += rhs.Errors.SendStream
 	s.ErrorsSent += rhs.ErrorsSent
 	s.ErrorsDropped += rhs.ErrorsDropped
+	s.SpansSent += rhs.SpansSent
+	s.SpansDropped += rhs.SpansDropped
 	s.TransactionsSent += rhs.TransactionsSent
 	s.TransactionsDropped += rhs.TransactionsDropped
 }

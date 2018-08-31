@@ -51,10 +51,11 @@ func TestClient(t *testing.T) {
 	tracer.Flush(nil)
 
 	payloads := transport.Payloads()
+	require.Len(t, payloads.Transactions, 1)
+	require.Len(t, payloads.Spans, 1)
 	transaction := payloads.Transactions[0]
-	require.Len(t, transaction.Spans, 1)
+	span := payloads.Spans[0]
 
-	span := transaction.Spans[0]
 	assert.Equal(t, "GET "+server.Listener.Addr().String(), span.Name)
 	assert.Equal(t, "ext.http", span.Type)
 	assert.Equal(t, &model.SpanContext{

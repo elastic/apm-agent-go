@@ -277,16 +277,14 @@ func TestTracerSpanFramesMinDurationEnv(t *testing.T) {
 	tx.End()
 	tracer.Flush(nil)
 
-	transaction := transport.Payloads().Transactions[0]
-	assert.Len(t, transaction.Spans, 2)
+	spans := transport.Payloads().Spans
+	assert.Len(t, spans, 2)
 
 	// Span 0 took only 9ms, so we don't set its stacktrace.
-	span0 := transaction.Spans[0]
-	assert.Nil(t, span0.Stacktrace)
+	assert.Nil(t, spans[0].Stacktrace)
 
 	// Span 1 took the required 10ms, so we set its stacktrace.
-	span1 := transaction.Spans[1]
-	assert.NotNil(t, span1.Stacktrace)
+	assert.NotNil(t, spans[1].Stacktrace)
 }
 
 func TestTracerSpanFramesMinDurationEnvInvalid(t *testing.T) {

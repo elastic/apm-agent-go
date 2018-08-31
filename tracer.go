@@ -25,6 +25,7 @@ const (
 	defaultPreContext      = 3
 	defaultPostContext     = 3
 	transactionsChannelCap = 1000
+	spansChannelCap        = 1000
 	errorsChannelCap       = 1000
 )
 
@@ -183,6 +184,7 @@ type Tracer struct {
 	forceSendMetrics chan chan<- struct{}
 	configCommands   chan tracerConfigCommand
 	transactions     chan *Transaction
+	spans            chan *Span
 	errors           chan *Error
 
 	statsMu sync.Mutex
@@ -238,6 +240,7 @@ func newTracer(opts options) *Tracer {
 		forceSendMetrics:      make(chan chan<- struct{}),
 		configCommands:        make(chan tracerConfigCommand),
 		transactions:          make(chan *Transaction, transactionsChannelCap),
+		spans:                 make(chan *Span, spansChannelCap),
 		errors:                make(chan *Error, errorsChannelCap),
 		maxSpans:              opts.maxSpans,
 		sampler:               opts.sampler,
@@ -424,8 +427,8 @@ func (t *Tracer) SetSampler(s Sampler) {
 }
 
 // SetMaxSpans sets the maximum number of spans that will be added
-// to a transaction before dropping. If set to a non-positive value,
-// the number of spans is unlimited.
+// to a transaction before dropping spans. If set to a non-positive
+// value, the number of spans is unlimited.
 func (t *Tracer) SetMaxSpans(n int) {
 	t.maxSpansMu.Lock()
 	t.maxSpans = n
@@ -482,7 +485,7 @@ func (t *Tracer) loop() {
 	var metadata []byte
 	var gracePeriod time.Duration = -1
 	var flushed chan<- struct{}
-	var requestBufTransactions, requestBufErrors, requestBufMetrics uint64
+	var requestBufTransactions, requestBufSpans, requestBufErrors, requestBufMetrics uint64
 	zlibWriter, _ := zlib.NewWriterLevel(&requestBuf, zlib.BestSpeed)
 	zlibFlushed := true
 	zlibClosed := false
@@ -529,10 +532,12 @@ func (t *Tracer) loop() {
 	buffer := ringbuffer.New(t.bufferSize)
 	buffer.Evicted = func(h ringbuffer.BlockHeader) {
 		switch h.Tag {
-		case transactionBlockTag:
-			stats.TransactionsDropped++
 		case errorBlockTag:
 			stats.ErrorsDropped++
+		case spanBlockTag:
+			stats.SpansDropped++
+		case transactionBlockTag:
+			stats.TransactionsDropped++
 		}
 	}
 	modelWriter := modelWriter{
@@ -545,10 +550,7 @@ func (t *Tracer) loop() {
 		var gatherMetrics bool
 		select {
 		case <-t.closing:
-			if req.Buf != nil {
-				// Unblock the reader first.
-				req.Respond(0, io.EOF)
-			}
+			iochanReader.CloseRead(io.EOF)
 			return
 		case cmd := <-t.configCommands:
 			oldMetricsInterval := cfg.metricsInterval
@@ -560,6 +562,8 @@ func (t *Tracer) loop() {
 			continue
 		case tx := <-t.transactions:
 			modelWriter.writeTransaction(tx)
+		case s := <-t.spans:
+			modelWriter.writeSpan(s)
 		case e := <-t.errors:
 			// Flush the buffer to transmit the error immediately.
 			modelWriter.writeError(e)
@@ -588,11 +592,14 @@ func (t *Tracer) loop() {
 			}
 		case flushed = <-t.forceFlush:
 			// Drain any objects buffered in the channels.
-			for n := len(t.errors); n > 0; n-- {
-				modelWriter.writeError(<-t.errors)
+			for n := len(t.spans); n > 0; n-- {
+				modelWriter.writeSpan(<-t.spans)
 			}
 			for n := len(t.transactions); n > 0; n-- {
 				modelWriter.writeTransaction(<-t.transactions)
+			}
+			for n := len(t.errors); n > 0; n-- {
+				modelWriter.writeError(<-t.errors)
 			}
 			if !requestActive && buffer.Len() == 0 {
 				flushed <- struct{}{}
@@ -610,6 +617,7 @@ func (t *Tracer) loop() {
 			} else {
 				gracePeriod = -1 // Reset grace period after success.
 				stats.TransactionsSent += requestBufTransactions
+				stats.SpansSent += requestBufSpans
 				stats.ErrorsSent += requestBufErrors
 				if cfg.logger != nil {
 					s := func(n uint64) string {
@@ -619,12 +627,19 @@ func (t *Tracer) loop() {
 						return ""
 					}
 					cfg.logger.Debugf(
-						"sent request with %d transaction%s, %d error%s, %d metric%s",
+						"sent request with %d transaction%s, %d span%s, %d error%s, %d metric%s",
 						requestBufTransactions, s(requestBufTransactions),
+						requestBufSpans, s(requestBufSpans),
 						requestBufErrors, s(requestBufErrors),
 						requestBufMetrics, s(requestBufMetrics),
 					)
 				}
+			}
+			if !stats.isZero() {
+				t.statsMu.Lock()
+				t.stats.accumulate(stats)
+				t.statsMu.Unlock()
+				stats = TracerStats{}
 			}
 			if sentMetrics != nil {
 				sentMetrics <- struct{}{}
@@ -646,6 +661,7 @@ func (t *Tracer) loop() {
 			requestBytesRead = 0
 			requestBuf.Reset()
 			requestBufTransactions = 0
+			requestBufSpans = 0
 			requestBufErrors = 0
 			requestBufMetrics = 0
 			if requestTimerActive {
@@ -694,6 +710,8 @@ func (t *Tracer) loop() {
 					switch h.Tag {
 					case transactionBlockTag:
 						requestBufTransactions++
+					case spanBlockTag:
+						requestBufSpans++
 					case errorBlockTag:
 						requestBufErrors++
 					case metricsBlockTag:

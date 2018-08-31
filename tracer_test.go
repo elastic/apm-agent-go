@@ -72,15 +72,20 @@ func TestTracerMaxSpans(t *testing.T) {
 	// after the call.
 	tracer.SetMaxSpans(99)
 
-	assert.False(t, tx.StartSpan("name", "type", nil).Dropped())
-	assert.False(t, tx.StartSpan("name", "type", nil).Dropped())
-	assert.True(t, tx.StartSpan("name", "type", nil).Dropped())
+	s0 := tx.StartSpan("name", "type", nil)
+	s1 := tx.StartSpan("name", "type", nil)
+	s2 := tx.StartSpan("name", "type", nil)
 	tx.End()
 
+	assert.False(t, s0.Dropped())
+	assert.False(t, s1.Dropped())
+	assert.True(t, s2.Dropped())
+	s0.End()
+	s1.End()
+	s2.End()
+
 	tracer.Flush(nil)
-	payloads := r.Payloads()
-	transaction := payloads.Transactions[0]
-	assert.Len(t, transaction.Spans, 2)
+	assert.Len(t, r.Payloads().Spans, 2)
 }
 
 func TestTracerErrors(t *testing.T) {
@@ -159,7 +164,7 @@ func TestTracerRecovered(t *testing.T) {
 	payloads := r.Payloads()
 	error0 := payloads.Errors[0]
 	transaction := payloads.Transactions[0]
-	span := transaction.Spans[0]
+	span := payloads.Spans[0]
 	assert.Equal(t, "blam", error0.Exception.Message)
 	assert.Equal(t, transaction.ID, error0.TransactionID)
 	assert.Equal(t, span.ID, error0.ParentID)
@@ -204,38 +209,37 @@ func TestSpanStackTrace(t *testing.T) {
 	tx.End()
 	tracer.Flush(nil)
 
-	transaction := r.Payloads().Transactions[0]
-	assert.Len(t, transaction.Spans, 3)
+	spans := r.Payloads().Spans
+	assert.Len(t, spans, 3)
 
 	// Span 0 took only 9ms, so we don't set its stacktrace.
-	span0 := transaction.Spans[0]
-	assert.Nil(t, span0.Stacktrace)
+	assert.Nil(t, spans[0].Stacktrace)
 
 	// Span 1 took the required 10ms, so we set its stacktrace.
-	span1 := transaction.Spans[1]
-	assert.NotNil(t, span1.Stacktrace)
-	assert.NotEqual(t, span1.Stacktrace[0].Function, "TestSpanStackTrace")
+	assert.NotNil(t, spans[1].Stacktrace)
+	assert.NotEqual(t, spans[1].Stacktrace[0].Function, "TestSpanStackTrace")
 
 	// Span 2 took more than the required 10ms, but its stacktrace
 	// was already set; we don't replace it.
-	span2 := transaction.Spans[2]
-	assert.NotNil(t, span2.Stacktrace)
-	assert.Equal(t, span2.Stacktrace[0].Function, "TestSpanStackTrace")
+	assert.NotNil(t, spans[2].Stacktrace)
+	assert.Equal(t, spans[2].Stacktrace[0].Function, "TestSpanStackTrace")
 }
 
 func TestTracerRequestSize(t *testing.T) {
 	os.Setenv("ELASTIC_APM_API_REQUEST_SIZE", "1024")
 	defer os.Unsetenv("ELASTIC_APM_API_REQUEST_SIZE")
 
-	requestHandled := make(chan struct{}, 1)
-	var serverStart, serverEnd time.Time
+	type times struct {
+		start, end time.Time
+	}
+	requestHandled := make(chan times, 1)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		serverStart = time.Now()
+		serverStart := time.Now()
 		io.Copy(ioutil.Discard, req.Body)
-		serverEnd = time.Now()
+		serverEnd := time.Now()
 		select {
-		case requestHandled <- struct{}{}:
-		case <-req.Context().Done():
+		case requestHandled <- times{start: serverStart, end: serverEnd}:
+		default:
 		}
 	}))
 	defer server.Close()
@@ -247,17 +251,17 @@ func TestTracerRequestSize(t *testing.T) {
 	require.NoError(t, err)
 	tracer.Transport = httpTransport
 
-	// Send through a bunch of requests, filling up the API request
+	// Send through a bunch of transactions, filling up the API request
 	// size, causing the request to be immediately completed.
 	clientStart := time.Now()
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 500; i++ {
 		tracer.StartTransaction("name", "type").End()
 	}
-	<-requestHandled
+	serverTimes := <-requestHandled
 	clientEnd := time.Now()
 	assert.WithinDuration(t, clientStart, clientEnd, 100*time.Millisecond)
-	assert.WithinDuration(t, clientStart, serverStart, 100*time.Millisecond)
-	assert.WithinDuration(t, clientEnd, serverEnd, 100*time.Millisecond)
+	assert.WithinDuration(t, clientStart, serverTimes.start, 100*time.Millisecond)
+	assert.WithinDuration(t, clientEnd, serverTimes.end, 100*time.Millisecond)
 }
 
 func TestTracerBufferSize(t *testing.T) {
@@ -296,12 +300,13 @@ func TestTracerBufferSize(t *testing.T) {
 	p := recorder.Payloads()
 	assert.Equal(t, int(stats.TransactionsSent), len(p.Transactions))
 
-	// The first however-many requests should go straight into the first request.
-	// After that there should be a gap, and the remainder should be contiguous.
-	assert.Equal(t, "0", p.Transactions[0].Name)
+	// It's possible that the tracer loop receives the flush request after
+	// all transactions are in the channel buffer, before any individual
+	// transactions make their way through. In most cases we would expect
+	// to see the "0" transaction in the request, but that won't be the
+	// case if the flush comes first.
 	offset := 0
-	for i := 1; i < len(p.Transactions); i++ {
-		tx := p.Transactions[i]
+	for i, tx := range p.Transactions {
 		if tx.Name != fmt.Sprint(i+offset) {
 			require.Equal(t, 0, offset)
 			n, err := strconv.Atoi(tx.Name)

@@ -69,6 +69,8 @@ func TestTracerMetricsBuiltin(t *testing.T) {
 		"system.process.memory.rss.bytes",
 
 		"agent.send_errors",
+		"agent.spans.sent",
+		"agent.spans.dropped",
 		"agent.transactions.sent",
 		"agent.transactions.dropped",
 		"agent.errors.sent",
