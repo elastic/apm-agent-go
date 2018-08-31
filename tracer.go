@@ -638,6 +638,12 @@ func (t *Tracer) loop() {
 					)
 				}
 			}
+			if !stats.isZero() {
+				t.statsMu.Lock()
+				t.stats.accumulate(stats)
+				t.statsMu.Unlock()
+				stats = TracerStats{}
+			}
 			if sentMetrics != nil {
 				sentMetrics <- struct{}{}
 				sentMetrics = nil
