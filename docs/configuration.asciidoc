@@ -184,22 +184,49 @@ If your service handles data like this, enable this feature with care.
 The host name to use when sending error and transaction data to the APM server.
 
 [float]
-[[config-flush-interval]]
-=== `ELASTIC_APM_FLUSH_INTERVAL`
+[[config-api-request-time]]
+=== `ELASTIC_APM_REQUEST_TIME`
 
 [options="header"]
 |============
-| Environment                  | Default
-| `ELASTIC_APM_FLUSH_INTERVAL` | `10s`
+| Environment                | Default
+| `ELASTIC_APM_REQUEST_TIME` | `10s`
 |============
 
-Amount of time to wait before sending transactions to the Elastic APM server.
-Transactions will be batched up and sent periodically. Errors are always sent
-as soon as possible.
+Amount of time to wait before ending a request to the Elastic APM server.
+When you report transactions, spans and errors, the agent will initiate a
+request and send them to the server when there is enough data to send; the
+request will remain open until this time has been exceeded, or until the
+<<config-api-request-size, maximum request size>> has been reached.
 
-A lower value will increase the load on your APM server, while a higher value
-can increase the memory pressure on your app. A higher value also impacts the
-time until transactions are indexed and searchable in Elasticsearch.
+[float]
+[[config-api-request-size]]
+=== `ELASTIC_APM_REQUEST_SIZE`
+
+[options="header"]
+|============
+| Environment                | Default
+| `ELASTIC_APM_REQUEST_SIZE` | `768000`
+|============
+
+The maximum size of request bodies to send to the Elastic APM server.
+The agent will maintain an in-memory buffer of compressed data for streaming
+to the APM server.
+
+[float]
+[[config-api-buffer-size]]
+=== `ELASTIC_APM_BUFFER_SIZE`
+
+[options="header"]           
+|============
+| Environment               | Default
+| `ELASTIC_APM_BUFFER_SIZE` | `10485760`
+|============
+
+The maximum number of bytes of uncompressed, encoded events to store in memory
+while the agent is busy. When the agent is able to, it will transfer buffered
+data to the request buffer, and start streaming it to the server. If the buffer
+fills up, new events will start replacing older ones.
 
 [float]
 [[config-transaction-max-spans]]
@@ -232,25 +259,6 @@ The APM agent will collect a stack trace for every recorded span whose duration
 exceeds this configured value. While this is very helpful to find the exact
 place in your code that causes the span, collecting this stack trace does have
 some processing and storage overhead.
-
-[float]
-[[config-max-queue-size]]
-=== `ELASTIC_APM_MAX_QUEUE_SIZE`
-
-[options="header"]
-|============
-| Environment                  | Default
-| `ELASTIC_APM_MAX_QUEUE_SIZE` | `500`
-|============
-
-Maximum queue length of transactions before sending transactions to the APM server.
-A lower value will increase the load on your APM server, while a higher value can
-increase the memory pressure of your app. A higher value also impacts the time until
-transactions are indexed and searchable in Elasticsearch.
-
-This setting is useful to limit memory consumption if you experience a sudden spike
-of traffic. The queue will not grow beyond the configured size; once it has reached
-capacity, old transactions are dropped in favour of new ones.
 
 [float]
 [[config-transaction-sample-rate]]
