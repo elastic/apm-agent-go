@@ -46,6 +46,7 @@ func (tx *Transaction) StartSpan(name, spanType string, parent *Span) *Span {
 	// the stack trace, and make the rendering in the model
 	// writer conditional.
 	span.stackFramesMinDuration = tx.spanFramesMinDuration
+	span.transactionTimestamp = tx.Timestamp
 	tx.spansCreated++
 	tx.mu.Unlock()
 
@@ -70,6 +71,11 @@ type Span struct {
 	parentID               SpanID
 	transactionID          SpanID
 	stackFramesMinDuration time.Duration
+
+	// TODO(axw) drop this (or update API) when elastic/apm-server#1340 is resolved.
+	// We currently set this based on the value of tx.Timestamp at the time StartSpan
+	// is called. This doesn't allow for tx.Timestamp to be updated, breaking the API.
+	transactionTimestamp time.Time
 
 	Name      string
 	Type      string
