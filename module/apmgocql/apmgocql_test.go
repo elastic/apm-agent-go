@@ -1,3 +1,5 @@
+// +build go1.9
+
 package apmgocql_test
 
 import (
