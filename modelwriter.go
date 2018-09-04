@@ -105,7 +105,9 @@ func (w *modelWriter) buildModelSpan(out *model.Span, span *Span) {
 	out.Name = truncateString(span.Name)
 	out.Type = truncateString(span.Type)
 	out.Timestamp = model.Time(span.Timestamp.UTC())
-	out.Start = span.Timestamp.Sub(span.transactionTimestamp).Seconds() * 1000
+	if !span.transactionTimestamp.IsZero() {
+		out.Start = span.Timestamp.Sub(span.transactionTimestamp).Seconds() * 1000
+	}
 	out.Duration = span.Duration.Seconds() * 1000
 	out.Context = span.Context.build()
 

@@ -126,9 +126,7 @@ func (tx *Transaction) Sampled() bool {
 	return tx.traceContext.Options.MaybeRecorded()
 }
 
-// TraceContext returns the transaction's TraceContext: its trace ID,
-// span ID, and trace options. The values are undefined if distributed
-// tracing is disabled.
+// TraceContext returns the transaction's TraceContext.
 func (tx *Transaction) TraceContext() TraceContext {
 	return tx.traceContext
 }
@@ -160,9 +158,7 @@ func (tx *Transaction) enqueue() {
 // TransactionOptions holds options for Tracer.StartTransactionOptions.
 type TransactionOptions struct {
 	// TraceContext holds the TraceContext for a new transaction. If this is
-	// zero, and distributed tracing is enabled, a new trace will be started.
-	//
-	// TraceContext is ignored if distributed tracing is disabled.
+	// zero, a new trace will be started.
 	TraceContext TraceContext
 
 	// Start is the start time of the transaction. If this has the
