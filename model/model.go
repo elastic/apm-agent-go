@@ -140,13 +140,16 @@ type Transaction struct {
 	Sampled *bool `json:"sampled,omitempty"`
 
 	// SpanCount holds statistics on spans within a transaction.
-	SpanCount SpanCount `json:"span_count,omitempty"`
+	SpanCount SpanCount `json:"span_count"`
 }
 
 // SpanCount holds statistics on spans within a transaction.
 type SpanCount struct {
 	// Dropped holds statistics on dropped spans within a transaction.
 	Dropped SpanCountDropped `json:"dropped,omitempty"`
+
+	// Total holds the number of spans recorded within a transaction.
+	Total int `json:"total"`
 }
 
 // SpanCountDropped holds statistics on dropped spans.

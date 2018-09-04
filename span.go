@@ -73,7 +73,9 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 //
 // In most cases, you should use Transaction.StartSpan or Transaction.StartSpanOptions.
 // This method is provided for corner-cases, such as starting a span after the
-// containing transaction's End method has been called.
+// containing transaction's End method has been called. Spans created in this
+// way will not have the "max spans" configuration applied, nor will they be
+// considered in any transaction's span count.
 func (t *Tracer) StartSpan(name, spanType string, transactionID SpanID, opts SpanOptions) *Span {
 	if opts.Parent.Trace.Validate() != nil || opts.Parent.Span.Validate() != nil || transactionID.Validate() != nil {
 		return newDroppedSpan()

@@ -83,6 +83,7 @@ func (w *modelWriter) buildModelTransaction(out *model.Transaction, tx *Transact
 	out.Result = truncateString(tx.Result)
 	out.Timestamp = model.Time(tx.Timestamp.UTC())
 	out.Duration = tx.Duration.Seconds() * 1000
+	out.SpanCount.Total = tx.spansCreated
 	out.SpanCount.Dropped.Total = tx.spansDropped
 
 	if !tx.Sampled() {
