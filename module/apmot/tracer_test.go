@@ -96,6 +96,7 @@ func TestSpanType(t *testing.T) {
 
 	apmtracer.Flush(nil)
 	payloads := recorder.Payloads()
+	assert.Len(t, payloads.Transactions, 1)
 	require.Len(t, payloads.Spans, len(tests))
 	for i, test := range tests {
 		assert.Equal(t, test.Type, payloads.Spans[i].Type)
@@ -171,6 +172,33 @@ func TestStartSpanRemoteParent(t *testing.T) {
 	apmtracer2.Flush(nil)
 	require.Len(t, recorder1.Payloads().Transactions, 1)
 	require.Len(t, recorder2.Payloads().Transactions, 1)
+}
+
+func TestStartSpanParentFinished(t *testing.T) {
+	tracer, apmtracer, recorder := newTestTracer()
+	defer apmtracer.Close()
+
+	parentSpan := tracer.StartSpan("parent")
+	parentSpan.Finish()
+
+	childSpan := tracer.StartSpan("child", opentracing.ChildOf(parentSpan.Context()))
+	childSpan.Finish()
+
+	grandChildSpan := tracer.StartSpan("grandchild", opentracing.ChildOf(childSpan.Context()))
+	grandChildSpan.Finish()
+
+	apmtracer.Flush(nil)
+	payloads := recorder.Payloads()
+	assert.Len(t, payloads.Transactions, 1)
+	assert.Len(t, payloads.Spans, 2)
+
+	tx := payloads.Transactions[0]
+	assert.Equal(t, tx.ID, payloads.Spans[0].ParentID)
+	assert.Equal(t, payloads.Spans[0].ID, payloads.Spans[1].ParentID)
+	for _, span := range payloads.Spans {
+		assert.Equal(t, tx.ID, span.TransactionID)
+		assert.Equal(t, tx.TraceID, span.TraceID)
+	}
 }
 
 func newTestTracer() (opentracing.Tracer, *elasticapm.Tracer, *transporttest.RecorderTransport) {
