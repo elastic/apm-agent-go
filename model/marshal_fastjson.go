@@ -143,6 +143,8 @@ func (v *Transaction) MarshalFastJSON(w *fastjson.Writer) {
 	v.ID.MarshalFastJSON(w)
 	w.RawString(",\"name\":")
 	w.String(v.Name)
+	w.RawString(",\"span_count\":")
+	v.SpanCount.MarshalFastJSON(w)
 	w.RawString(",\"timestamp\":")
 	v.Timestamp.MarshalFastJSON(w)
 	w.RawString(",\"trace_id\":")
@@ -165,17 +167,15 @@ func (v *Transaction) MarshalFastJSON(w *fastjson.Writer) {
 		w.RawString(",\"sampled\":")
 		w.Bool(*v.Sampled)
 	}
-	if !v.SpanCount.isZero() {
-		w.RawString(",\"span_count\":")
-		v.SpanCount.MarshalFastJSON(w)
-	}
 	w.RawByte('}')
 }
 
 func (v *SpanCount) MarshalFastJSON(w *fastjson.Writer) {
 	w.RawByte('{')
+	w.RawString("\"total\":")
+	w.Int64(int64(v.Total))
 	if !v.Dropped.isZero() {
-		w.RawString("\"dropped\":")
+		w.RawString(",\"dropped\":")
 		v.Dropped.MarshalFastJSON(w)
 	}
 	w.RawByte('}')

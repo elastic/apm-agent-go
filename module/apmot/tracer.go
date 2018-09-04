@@ -38,44 +38,51 @@ func (t *otTracer) StartSpan(name string, opts ...opentracing.StartSpanOption) o
 	return t.StartSpanWithOptions(name, sso)
 }
 
-// StartSpanWithOptions starts a new OpenTracing span with the given
-// name and options.
+// StartSpanWithOptions starts a new OpenTracing span with the given name and options.
 func (t *otTracer) StartSpanWithOptions(name string, opts opentracing.StartSpanOptions) opentracing.Span {
-	ctx := spanContext{tracer: t}
-	parentCtx, _ := parentSpanContext(opts.References)
-	if parentCtx.tracer == t && parentCtx.tx != nil {
-		// tx is non-nil, which means the parent is a process-local
-		// transaction or span. Create a sub-span.
-		ctx.tx = parentCtx.tx
-		ctx.span = ctx.tx.StartSpan(name, "", parentCtx.span)
-		if !opts.StartTime.IsZero() {
-			ctx.span.Timestamp = opts.StartTime
-		}
-		ctx.traceContext = ctx.span.TraceContext()
-	} else {
-		// tx is nil or comes from another tracer, so we must create
-		// a new transaction. It's possible that we have a non-local
-		// parent transaction, so pass in the (possibly-zero) trace
-		// context.
-		ctx.tx = t.tracer.StartTransactionOptions(name, "", elasticapm.TransactionOptions{
-			TraceContext: parentCtx.traceContext,
-			Start:        opts.StartTime,
-		})
-		ctx.traceContext = ctx.tx.TraceContext()
-	}
 	// Because the Context method can be called at any time after
 	// the span is finished, we cannot pool the objects.
-	return &otSpan{
+	otSpan := &otSpan{
 		tracer: t,
-		tx:     ctx.tx,
-		span:   ctx.span,
 		tags:   opts.Tags,
-		ctx:    ctx,
+		ctx:    spanContext{tracer: t},
 	}
+
+	var parentTraceContext elasticapm.TraceContext
+	if parentCtx, ok := parentSpanContext(opts.References); ok {
+		if parentCtx.tracer == t && parentCtx.txSpanContext != nil {
+			parentCtx.txSpanContext.mu.RLock()
+			defer parentCtx.txSpanContext.mu.RUnlock()
+			opts := elasticapm.SpanOptions{
+				Parent: parentCtx.traceContext,
+				Start:  opts.StartTime,
+			}
+			if parentCtx.tx != nil {
+				otSpan.span = parentCtx.tx.StartSpanOptions(name, "", opts)
+			} else {
+				otSpan.span = t.tracer.StartSpan(name, "", parentCtx.transactionID, opts)
+			}
+			otSpan.ctx.traceContext = otSpan.span.TraceContext()
+			otSpan.ctx.transactionID = parentCtx.transactionID
+			otSpan.ctx.txSpanContext = parentCtx.txSpanContext
+			return otSpan
+		}
+		parentTraceContext = parentCtx.traceContext
+	}
+
+	// There's no local parent context created by this tracer.
+	otSpan.ctx.tx = t.tracer.StartTransactionOptions(name, "", elasticapm.TransactionOptions{
+		TraceContext: parentTraceContext,
+		Start:        opts.StartTime,
+	})
+	otSpan.ctx.traceContext = otSpan.ctx.tx.TraceContext()
+	otSpan.ctx.transactionID = otSpan.ctx.traceContext.Span
+	otSpan.ctx.txSpanContext = &otSpan.ctx
+	return otSpan
 }
 
 func (t *otTracer) Inject(sc opentracing.SpanContext, format interface{}, carrier interface{}) error {
-	spanContext, ok := sc.(spanContext)
+	spanContext, ok := sc.(*spanContext)
 	if !ok {
 		return opentracing.ErrInvalidSpanContext
 	}
@@ -124,7 +131,7 @@ func (t *otTracer) Extract(format interface{}, carrier interface{}) (opentracing
 		if err != nil {
 			return nil, err
 		}
-		return spanContext{tracer: t, traceContext: traceContext}, nil
+		return &spanContext{tracer: t, traceContext: traceContext}, nil
 	case opentracing.Binary:
 		reader, ok := carrier.(io.Reader)
 		if !ok {
@@ -134,7 +141,7 @@ func (t *otTracer) Extract(format interface{}, carrier interface{}) (opentracing
 		if err != nil {
 			return nil, err
 		}
-		return spanContext{tracer: t, traceContext: traceContext}, nil
+		return &spanContext{tracer: t, traceContext: traceContext}, nil
 	default:
 		return nil, opentracing.ErrUnsupportedFormat
 	}

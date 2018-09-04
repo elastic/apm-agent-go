@@ -18,7 +18,6 @@ type otSpan struct {
 	tracer *otTracer
 
 	mu   sync.Mutex
-	tx   *elasticapm.Transaction
 	span *elasticapm.Span
 	tags opentracing.Tags
 	ctx  spanContext
@@ -26,10 +25,10 @@ type otSpan struct {
 
 // SetOperationName sets or changes the operation name.
 func (s *otSpan) SetOperationName(operationName string) opentracing.Span {
-	if s.tx != nil {
-		s.tx.Name = operationName
-	} else {
+	if s.span != nil {
 		s.span.Name = operationName
+	} else {
+		s.ctx.tx.Name = operationName
 	}
 	return s
 }
@@ -61,7 +60,7 @@ func (s *otSpan) FinishWithOptions(opts opentracing.FinishOptions) {
 		if s.span != nil {
 			s.span.Duration = opts.FinishTime.Sub(s.span.Timestamp)
 		} else {
-			s.tx.Duration = opts.FinishTime.Sub(s.tx.Timestamp)
+			s.ctx.tx.Duration = opts.FinishTime.Sub(s.ctx.tx.Timestamp)
 		}
 	}
 	if s.span != nil {
@@ -69,7 +68,11 @@ func (s *otSpan) FinishWithOptions(opts opentracing.FinishOptions) {
 		s.span.End()
 	} else {
 		s.setTransactionContext()
-		s.tx.End()
+		s.ctx.mu.Lock()
+		tx := s.ctx.tx
+		s.ctx.tx = nil
+		s.ctx.mu.Unlock()
+		tx.End()
 	}
 }
 
@@ -83,9 +86,7 @@ func (s *otSpan) Tracer() opentracing.Tracer {
 // It is valid to call Context after calling Finish or FinishWithOptions.
 // The resulting context is also valid after the span is finished.
 func (s *otSpan) Context() opentracing.SpanContext {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.ctx
+	return &s.ctx
 }
 
 // SetBaggageItem is a no-op; we do not support baggage.
@@ -213,35 +214,35 @@ func (s *otSpan) setTransactionContext() {
 
 		// Elastic APM-specific tags:
 		case "type":
-			s.tx.Type = fmt.Sprint(v)
+			s.ctx.tx.Type = fmt.Sprint(v)
 		case "result":
-			s.tx.Result = fmt.Sprint(v)
+			s.ctx.tx.Result = fmt.Sprint(v)
 		case "user.id":
-			s.tx.Context.SetUserID(fmt.Sprint(v))
+			s.ctx.tx.Context.SetUserID(fmt.Sprint(v))
 		case "user.email":
-			s.tx.Context.SetUserEmail(fmt.Sprint(v))
+			s.ctx.tx.Context.SetUserEmail(fmt.Sprint(v))
 		case "user.username":
-			s.tx.Context.SetUsername(fmt.Sprint(v))
+			s.ctx.tx.Context.SetUsername(fmt.Sprint(v))
 
 		default:
-			s.tx.Context.SetTag(k, fmt.Sprint(v))
+			s.ctx.tx.Context.SetTag(k, fmt.Sprint(v))
 		}
 	}
-	if s.tx.Type == "" {
+	if s.ctx.tx.Type == "" {
 		if httpURL != "" {
-			s.tx.Type = "request"
+			s.ctx.tx.Type = "request"
 		} else if component != "" {
-			s.tx.Type = component
+			s.ctx.tx.Type = component
 		} else {
-			s.tx.Type = "unknown"
+			s.ctx.tx.Type = "unknown"
 		}
 	}
-	if s.tx.Result == "" {
+	if s.ctx.tx.Result == "" {
 		if httpStatusCode != -1 {
-			s.tx.Result = apmhttp.StatusCodeResult(httpStatusCode)
-			s.tx.Context.SetHTTPStatusCode(httpStatusCode)
+			s.ctx.tx.Result = apmhttp.StatusCodeResult(httpStatusCode)
+			s.ctx.tx.Context.SetHTTPStatusCode(httpStatusCode)
 		} else if isError {
-			s.tx.Result = "error"
+			s.ctx.tx.Result = "error"
 		}
 	}
 	if httpURL != "" {
@@ -252,7 +253,7 @@ func (s *otSpan) setTransactionContext() {
 			req.ProtoMinor = 1
 			req.Method = httpMethod
 			req.URL = uri
-			s.tx.Context.SetHTTPRequest(&req)
+			s.ctx.tx.Context.SetHTTPRequest(&req)
 		}
 	}
 }

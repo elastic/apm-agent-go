@@ -51,11 +51,11 @@ func TestHarness(t *testing.T) {
 type harnessAPIProbe struct{}
 
 func (harnessAPIProbe) SameTrace(first, second opentracing.Span) bool {
-	ctx1, ok := first.Context().(spanContext)
+	ctx1, ok := first.Context().(*spanContext)
 	if !ok {
 		return false
 	}
-	ctx2, ok := second.Context().(spanContext)
+	ctx2, ok := second.Context().(*spanContext)
 	if !ok {
 		return false
 	}
@@ -63,11 +63,11 @@ func (harnessAPIProbe) SameTrace(first, second opentracing.Span) bool {
 }
 
 func (harnessAPIProbe) SameSpanContext(span opentracing.Span, sc opentracing.SpanContext) bool {
-	ctx1, ok := span.Context().(spanContext)
+	ctx1, ok := span.Context().(*spanContext)
 	if !ok {
 		return false
 	}
-	ctx2, ok := sc.(spanContext)
+	ctx2, ok := sc.(*spanContext)
 	if !ok {
 		return false
 	}

@@ -140,13 +140,16 @@ type Transaction struct {
 	Sampled *bool `json:"sampled,omitempty"`
 
 	// SpanCount holds statistics on spans within a transaction.
-	SpanCount SpanCount `json:"span_count,omitempty"`
+	SpanCount SpanCount `json:"span_count"`
 }
 
 // SpanCount holds statistics on spans within a transaction.
 type SpanCount struct {
 	// Dropped holds statistics on dropped spans within a transaction.
 	Dropped SpanCountDropped `json:"dropped,omitempty"`
+
+	// Total holds the number of spans recorded within a transaction.
+	Total int `json:"total"`
 }
 
 // SpanCountDropped holds statistics on dropped spans.
@@ -519,8 +522,7 @@ type Time time.Time
 type TraceID [16]byte
 
 // SpanID holds a 64-bit span ID. Despite its name, this is used for
-// both spans and transactions, but only when distributed tracing is
-// enabled.
+// both spans and transactions.
 type SpanID [8]byte
 
 // Metrics holds a set of metric samples, with an optional set of labels.

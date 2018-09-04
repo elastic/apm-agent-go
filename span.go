@@ -1,6 +1,7 @@
 package elasticapm
 
 import (
+	cryptorand "crypto/rand"
 	"encoding/binary"
 	"sync"
 	"time"
@@ -15,31 +16,45 @@ var droppedSpanPool sync.Pool
 
 // StartSpan starts and returns a new Span within the transaction,
 // with the specified name, type, and optional parent span, and
-// with the start time set to the current time relative to the
-// transaction's timestamp.
+// with the start time set to the current time.
 //
 // StartSpan always returns a non-nil Span. Its End method must
 // be called when the span completes.
+//
+// StartSpan is equivalent to calling StartSpanOptions with
+// SpanOptions.Parent set to the trace context of parent if
+// parent is non-nil.
 func (tx *Transaction) StartSpan(name, spanType string, parent *Span) *Span {
+	var parentTraceContext TraceContext
+	if parent != nil {
+		parentTraceContext = parent.TraceContext()
+	}
+	return tx.StartSpanOptions(name, spanType, SpanOptions{
+		Parent: parentTraceContext,
+	})
+}
+
+// StartSpanOptions starts and returns a new Span within the transaction,
+// with the specified name, type, and options.
+//
+// StartSpan always returns a non-nil Span. Its End method must
+// be called when the span completes.
+func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions) *Span {
 	if tx == nil || !tx.Sampled() {
 		return newDroppedSpan()
 	}
-
 	tx.mu.Lock()
 	if tx.maxSpans > 0 && tx.spansCreated >= tx.maxSpans {
 		tx.spansDropped++
 		tx.mu.Unlock()
 		return newDroppedSpan()
 	}
-	span, _ := tx.tracer.spanPool.Get().(*Span)
-	if span == nil {
-		span = &Span{
-			tracer:   tx.tracer,
-			Duration: -1,
-		}
+	transactionID := tx.traceContext.Span
+	if opts.Parent == (TraceContext{}) {
+		opts.Parent = tx.traceContext
 	}
-	var spanID SpanID
-	binary.LittleEndian.PutUint64(spanID[:], tx.rand.Uint64())
+	span := tx.tracer.startSpan(name, spanType, transactionID, opts)
+	binary.LittleEndian.PutUint64(span.traceContext.Span[:], tx.rand.Uint64())
 	// TODO(axw) profile whether it's worthwhile threading and
 	// storing spanFramesMinDuration through to the transaction
 	// and span, or if we can instead unconditionally capture
@@ -49,18 +64,59 @@ func (tx *Transaction) StartSpan(name, spanType string, parent *Span) *Span {
 	span.transactionTimestamp = tx.Timestamp
 	tx.spansCreated++
 	tx.mu.Unlock()
+	return span
+}
 
+// StartSpan returns a new Span with the specified name, type, transaction ID,
+// and options. The parent transaction context and transaction IDs must have
+// valid, non-zero values, or else the span will be dropped.
+//
+// In most cases, you should use Transaction.StartSpan or Transaction.StartSpanOptions.
+// This method is provided for corner-cases, such as starting a span after the
+// containing transaction's End method has been called. Spans created in this
+// way will not have the "max spans" configuration applied, nor will they be
+// considered in any transaction's span count.
+func (t *Tracer) StartSpan(name, spanType string, transactionID SpanID, opts SpanOptions) *Span {
+	if opts.Parent.Trace.Validate() != nil || opts.Parent.Span.Validate() != nil || transactionID.Validate() != nil {
+		return newDroppedSpan()
+	}
+	if !opts.Parent.Options.MaybeRecorded() {
+		return newDroppedSpan()
+	}
+	var spanID SpanID
+	if _, err := cryptorand.Read(spanID[:]); err != nil {
+		return newDroppedSpan()
+	}
+	span := t.startSpan(name, spanType, transactionID, opts)
+	span.traceContext.Span = spanID
+	// TODO(axw) profile whether it's worthwhile threading and
+	// storing spanFramesMinDuration through to the transaction
+	// and span, or if we can instead unconditionally capture
+	// the stack trace, and make the rendering in the model
+	// writer conditional.
+	t.spanFramesMinDurationMu.RLock()
+	span.stackFramesMinDuration = t.spanFramesMinDuration
+	t.spanFramesMinDurationMu.RUnlock()
+	return span
+}
+
+func (t *Tracer) startSpan(name, spanType string, transactionID SpanID, opts SpanOptions) *Span {
+	span, _ := t.spanPool.Get().(*Span)
+	if span == nil {
+		span = &Span{
+			tracer:   t,
+			Duration: -1,
+		}
+	}
 	span.Name = name
 	span.Type = spanType
-	span.Timestamp = time.Now()
-	if parent != nil {
-		span.traceContext = parent.traceContext
-	} else {
-		span.traceContext = tx.traceContext
+	span.traceContext = opts.Parent
+	span.parentID = opts.Parent.Span
+	span.transactionID = transactionID
+	span.Timestamp = opts.Start
+	if span.Timestamp.IsZero() {
+		span.Timestamp = time.Now()
 	}
-	span.parentID = span.traceContext.Span
-	span.transactionID = tx.traceContext.Span
-	span.traceContext.Span = spanID
 	return span
 }
 
@@ -105,10 +161,7 @@ func (s *Span) reset() {
 	s.tracer.spanPool.Put(s)
 }
 
-// TraceContext returns the span's TraceContext: its trace ID, span ID,
-// and trace options. The values are undefined if distributed tracing
-// is disabled. If the span is dropped, the trace ID and options will
-// be zero.
+// TraceContext returns the span's TraceContext.
 func (s *Span) TraceContext() TraceContext {
 	return s.traceContext
 }
@@ -162,4 +215,14 @@ func (s *Span) enqueue() {
 		s.tracer.statsMu.Unlock()
 		s.reset()
 	}
+}
+
+// SpanOptions holds options for Transaction.StartSpanOptions and Tracer.StartSpan.
+type SpanOptions struct {
+	// Parent, if non-zero, holds the trace context of the parent span.
+	Parent TraceContext
+
+	// Start is the start time of the span. If this has the zero value,
+	// time.Now() will be used instead.
+	Start time.Time
 }
