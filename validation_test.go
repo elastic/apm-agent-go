@@ -286,7 +286,7 @@ func (t *validatingTransport) SendStream(ctx context.Context, r io.Reader) error
 				switch k {
 				case "error":
 					schema = apmschema.Error
-				case "metrics":
+				case "metricset":
 					schema = apmschema.Metrics
 				case "span":
 					schema = apmschema.Span
