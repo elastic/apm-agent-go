@@ -1,6 +1,10 @@
 # Changelog
 
-## [Unreleased](https://github.com/elastic/apm-agent-go/compare/v0.5.0...master)
+## [Unreleased](https://github.com/elastic/apm-agent-go/compare/v0.5.1...master)
+
+## [v0.5.1](https://github.com/elastic/apm-agent-go/releases/tag/v0.5.1)
+
+ - Fixed a bug causing error stacktraces and culprit to sometimes not be set (#204)
 
 ## [v0.5.0](https://github.com/elastic/apm-agent-go/releases/tag/v0.5.0)
 
