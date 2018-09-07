@@ -74,9 +74,9 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 			tx.traceContext.Options = o
 		}
 	}
-	tx.Timestamp = opts.Start
-	if tx.Timestamp.IsZero() {
-		tx.Timestamp = time.Now()
+	tx.timestamp = opts.Start
+	if tx.timestamp.IsZero() {
+		tx.timestamp = time.Now()
 	}
 	return tx
 }
@@ -85,12 +85,12 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 type Transaction struct {
 	Name         string
 	Type         string
-	Timestamp    time.Time
 	Duration     time.Duration
 	Context      Context
 	Result       string
 	traceContext TraceContext
 	parentSpan   SpanID
+	timestamp    time.Time
 
 	tracer                *Tracer
 	maxSpans              int
@@ -134,11 +134,11 @@ func (tx *Transaction) TraceContext() TraceContext {
 // End enqueues tx for sending to the Elastic APM server; tx must not
 // be used after this.
 //
-// If tx.Duration has not been set, End will set it to the elapsed
-// time since tx.Timestamp.
+// If tx.Duration has not been set, End will set it to the elapsed time
+// since the transaction's start time.
 func (tx *Transaction) End() {
 	if tx.Duration < 0 {
-		tx.Duration = time.Since(tx.Timestamp)
+		tx.Duration = time.Since(tx.timestamp)
 	}
 	tx.enqueue()
 }

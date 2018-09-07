@@ -61,7 +61,7 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 	// the stack trace, and make the rendering in the model
 	// writer conditional.
 	span.stackFramesMinDuration = tx.spanFramesMinDuration
-	span.transactionTimestamp = tx.Timestamp
+	span.transactionTimestamp = tx.timestamp
 	tx.spansCreated++
 	tx.mu.Unlock()
 	return span
@@ -76,7 +76,7 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 // containing transaction's End method has been called. Spans created in this
 // way will not have the "max spans" configuration applied, nor will they be
 // considered in any transaction's span count.
-func (t *Tracer) StartSpan(name, spanType string, transactionID SpanID, opts SpanOptions) *Span {
+func (t *Tracer) StartSpan(name, spanType string, transactionID SpanID, transactionTimestamp time.Time, opts SpanOptions) *Span {
 	if opts.Parent.Trace.Validate() != nil || opts.Parent.Span.Validate() != nil || transactionID.Validate() != nil {
 		return newDroppedSpan()
 	}
@@ -89,6 +89,7 @@ func (t *Tracer) StartSpan(name, spanType string, transactionID SpanID, opts Spa
 	}
 	span := t.startSpan(name, spanType, transactionID, opts)
 	span.traceContext.Span = spanID
+	span.transactionTimestamp = transactionTimestamp
 	// TODO(axw) profile whether it's worthwhile threading and
 	// storing spanFramesMinDuration through to the transaction
 	// and span, or if we can instead unconditionally capture
@@ -113,9 +114,9 @@ func (t *Tracer) startSpan(name, spanType string, transactionID SpanID, opts Spa
 	span.traceContext = opts.Parent
 	span.parentID = opts.Parent.Span
 	span.transactionID = transactionID
-	span.Timestamp = opts.Start
-	if span.Timestamp.IsZero() {
-		span.Timestamp = time.Now()
+	span.timestamp = opts.Start
+	if span.timestamp.IsZero() {
+		span.timestamp = time.Now()
 	}
 	return span
 }
@@ -127,17 +128,13 @@ type Span struct {
 	parentID               SpanID
 	transactionID          SpanID
 	stackFramesMinDuration time.Duration
+	transactionTimestamp   time.Time
+	timestamp              time.Time
 
-	// TODO(axw) drop this (or update API) when elastic/apm-server#1340 is resolved.
-	// We currently set this based on the value of tx.Timestamp at the time StartSpan
-	// is called. This doesn't allow for tx.Timestamp to be updated, breaking the API.
-	transactionTimestamp time.Time
-
-	Name      string
-	Type      string
-	Timestamp time.Time
-	Duration  time.Duration
-	Context   SpanContext
+	Name     string
+	Type     string
+	Duration time.Duration
+	Context  SpanContext
 
 	stacktrace []stacktrace.Frame
 }
@@ -190,14 +187,14 @@ func (s *Span) Dropped() bool {
 // End marks the s as being complete; s must not be used after this.
 //
 // If s.Duration has not been set, End will set it to the elapsed time
-// since s.Timestamp.
+// since the span's start time.
 func (s *Span) End() {
 	if s.Dropped() {
 		droppedSpanPool.Put(s)
 		return
 	}
 	if s.Duration < 0 {
-		s.Duration = time.Since(s.Timestamp)
+		s.Duration = time.Since(s.timestamp)
 	}
 	if len(s.stacktrace) == 0 && s.Duration >= s.stackFramesMinDuration {
 		s.SetStacktrace(1)

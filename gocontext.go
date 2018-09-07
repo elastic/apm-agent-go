@@ -32,13 +32,18 @@ func TransactionFromContext(ctx context.Context) *Transaction {
 	return tx
 }
 
-// StartSpan starts and returns a new Span within the sampled transaction
-// and parent span in the context, if any. If the span isn't dropped, it
-// will be stored in the resulting context.
-//
-// StartSpan always returns a non-nil Span. Its End method must be called
-// when the span completes.
+// StartSpan is equivalent to calling StartSpanOptions with a zero SpanOptions struct.
 func StartSpan(ctx context.Context, name, spanType string) (*Span, context.Context) {
+	return StartSpanOptions(ctx, name, spanType, SpanOptions{})
+}
+
+// StartSpanOptions starts and returns a new Span within the sampled transaction
+// and parent span in the context, if any. If the span isn't dropped, it will be
+// stored in the resulting context.
+//
+// StartSpanOptions always returns a non-nil Span. Its End method must be called
+// when the span completes.
+func StartSpanOptions(ctx context.Context, name, spanType string, opts SpanOptions) (*Span, context.Context) {
 	tx := TransactionFromContext(ctx)
 	span := tx.StartSpan(name, spanType, SpanFromContext(ctx))
 	if !span.Dropped() {
