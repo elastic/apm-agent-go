@@ -3,6 +3,7 @@ package elasticapm_test
 import (
 	"math/rand"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -26,7 +27,10 @@ func TestTracerStartSpan(t *testing.T) {
 	tracer, r := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
-	tx := tracer.StartTransaction("name", "type")
+	txTimestamp := time.Now()
+	tx := tracer.StartTransactionOptions("name", "type", elasticapm.TransactionOptions{
+		Start: txTimestamp,
+	})
 	txTraceContext := tx.TraceContext()
 	span0 := tx.StartSpan("name", "type", nil)
 	span0TraceContext := span0.TraceContext()
@@ -35,9 +39,13 @@ func TestTracerStartSpan(t *testing.T) {
 
 	// Even if the transaction and parent span have been ended,
 	// it is possible to report a span with their IDs.
-	tracer.StartSpan("name", "type", txTraceContext.Span, elasticapm.SpanOptions{
-		Parent: span0TraceContext,
-	}).End()
+	tracer.StartSpan("name", "type",
+		txTraceContext.Span, txTimestamp,
+		elasticapm.SpanOptions{
+			Parent: span0TraceContext,
+			Start:  txTimestamp.Add(time.Second),
+		},
+	).End()
 
 	tracer.Flush(nil)
 	payloads := r.Payloads()
@@ -51,6 +59,11 @@ func TestTracerStartSpan(t *testing.T) {
 		assert.Equal(t, payloads.Transactions[0].ID, span.TransactionID)
 	}
 	assert.NotZero(t, payloads.Spans[1].ID)
+
+	// NOTE(axw) the timestamp of the span is set to the same as the
+	// transaction. The span's "start" is relative to that timestamp.
+	assert.Equal(t, payloads.Transactions[0].Timestamp, payloads.Spans[1].Timestamp)
+	assert.Equal(t, float64(1000), payloads.Spans[1].Start)
 
 	// The span created after the transaction (obviously?)
 	// doesn't get included in the transaction's span count.

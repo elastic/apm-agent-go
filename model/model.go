@@ -164,22 +164,11 @@ type Span struct {
 	// Name holds the name of the span.
 	Name string `json:"name"`
 
-	// Timestamp holds the time at which the span started.
-	//
-	// TODO(axw) according to the spec, this should be set to the timestamp
-	// of the transaction, not the span, and "start" is used as an offset.
-	// This requires keeping track of the transaction timestamp, which is
-	// not ideal. We are considering changing to have this be the span's
-	// timestamp instead: https://github.com/elastic/apm-dev/issues/282.
+	// Timestamp holds the time at which the span's transaction started.
 	Timestamp Time `json:"timestamp"`
 
 	// Start is the start time of the span, in milliseconds relative to
 	// the containing transaction's timestamp.
-	//
-	// TODO(axw) we currently never set this, so it's always reported as
-	// zero. We are considering updating the schema, server, and UI to use
-	// @timestamp to mean the span's start time if it is set:
-	// https://github.com/elastic/apm-dev/issues/282.
 	Start float64 `json:"start"`
 
 	// Duration holds the duration of the span, in milliseconds.

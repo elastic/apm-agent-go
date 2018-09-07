@@ -2,6 +2,7 @@ package apmot
 
 import (
 	"sync"
+	"time"
 
 	"github.com/opentracing/opentracing-go"
 
@@ -14,6 +15,7 @@ type spanContext struct {
 	txSpanContext *spanContext // spanContext for OT span which created tx
 	traceContext  elasticapm.TraceContext
 	transactionID elasticapm.SpanID
+	startTime     time.Time
 
 	mu sync.RWMutex
 	tx *elasticapm.Transaction

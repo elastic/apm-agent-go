@@ -81,7 +81,7 @@ func (w *modelWriter) buildModelTransaction(out *model.Transaction, tx *Transact
 	out.Name = truncateString(tx.Name)
 	out.Type = truncateString(tx.Type)
 	out.Result = truncateString(tx.Result)
-	out.Timestamp = model.Time(tx.Timestamp.UTC())
+	out.Timestamp = model.Time(tx.timestamp.UTC())
 	out.Duration = tx.Duration.Seconds() * 1000
 	out.SpanCount.Total = tx.spansCreated
 	out.SpanCount.Dropped.Total = tx.spansDropped
@@ -105,10 +105,8 @@ func (w *modelWriter) buildModelSpan(out *model.Span, span *Span) {
 
 	out.Name = truncateString(span.Name)
 	out.Type = truncateString(span.Type)
-	out.Timestamp = model.Time(span.Timestamp.UTC())
-	if !span.transactionTimestamp.IsZero() {
-		out.Start = span.Timestamp.Sub(span.transactionTimestamp).Seconds() * 1000
-	}
+	out.Timestamp = model.Time(span.transactionTimestamp.UTC())
+	out.Start = span.timestamp.Sub(span.transactionTimestamp).Seconds() * 1000
 	out.Duration = span.Duration.Seconds() * 1000
 	out.Context = span.Context.build()
 

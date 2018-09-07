@@ -57,10 +57,11 @@ func (s *otSpan) FinishWithOptions(opts opentracing.FinishOptions) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if !opts.FinishTime.IsZero() {
+		duration := opts.FinishTime.Sub(s.ctx.startTime)
 		if s.span != nil {
-			s.span.Duration = opts.FinishTime.Sub(s.span.Timestamp)
+			s.span.Duration = duration
 		} else {
-			s.ctx.tx.Duration = opts.FinishTime.Sub(s.ctx.tx.Timestamp)
+			s.ctx.tx.Duration = duration
 		}
 	}
 	if s.span != nil {

@@ -3,6 +3,7 @@
 ## [Unreleased](https://github.com/elastic/apm-agent-go/compare/v0.5.0...master)
 
  - Implement v2 intake protocol (#180)
+ - Unexport Transaction.Timestamp and Span.Timestamp (#207)
 
 ## [v0.5.0](https://github.com/elastic/apm-agent-go/releases/tag/v0.5.0)
 

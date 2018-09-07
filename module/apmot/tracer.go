@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"net/textproto"
+	"time"
 
 	"github.com/opentracing/opentracing-go"
 
@@ -45,7 +46,13 @@ func (t *otTracer) StartSpanWithOptions(name string, opts opentracing.StartSpanO
 	otSpan := &otSpan{
 		tracer: t,
 		tags:   opts.Tags,
-		ctx:    spanContext{tracer: t},
+		ctx: spanContext{
+			tracer:    t,
+			startTime: opts.StartTime,
+		},
+	}
+	if opts.StartTime.IsZero() {
+		otSpan.ctx.startTime = time.Now()
 	}
 
 	var parentTraceContext elasticapm.TraceContext
@@ -55,12 +62,16 @@ func (t *otTracer) StartSpanWithOptions(name string, opts opentracing.StartSpanO
 			defer parentCtx.txSpanContext.mu.RUnlock()
 			opts := elasticapm.SpanOptions{
 				Parent: parentCtx.traceContext,
-				Start:  opts.StartTime,
+				Start:  otSpan.ctx.startTime,
 			}
 			if parentCtx.tx != nil {
 				otSpan.span = parentCtx.tx.StartSpanOptions(name, "", opts)
 			} else {
-				otSpan.span = t.tracer.StartSpan(name, "", parentCtx.transactionID, opts)
+				otSpan.span = t.tracer.StartSpan(name, "",
+					parentCtx.transactionID,
+					parentCtx.txSpanContext.startTime,
+					opts,
+				)
 			}
 			otSpan.ctx.traceContext = otSpan.span.TraceContext()
 			otSpan.ctx.transactionID = parentCtx.transactionID
@@ -73,7 +84,7 @@ func (t *otTracer) StartSpanWithOptions(name string, opts opentracing.StartSpanO
 	// There's no local parent context created by this tracer.
 	otSpan.ctx.tx = t.tracer.StartTransactionOptions(name, "", elasticapm.TransactionOptions{
 		TraceContext: parentTraceContext,
-		Start:        opts.StartTime,
+		Start:        otSpan.ctx.startTime,
 	})
 	otSpan.ctx.traceContext = otSpan.ctx.tx.TraceContext()
 	otSpan.ctx.transactionID = otSpan.ctx.traceContext.Span
