@@ -35,7 +35,6 @@ func TestEchoMiddleware(t *testing.T) {
 	assert.Equal(t, "request", transaction.Type)
 	assert.Equal(t, "HTTP 4xx", transaction.Result)
 
-	true_ := true
 	assert.Equal(t, &model.Context{
 		Request: &model.Request{
 			Socket: &model.RequestSocket{
@@ -54,8 +53,7 @@ func TestEchoMiddleware(t *testing.T) {
 			},
 		},
 		Response: &model.Response{
-			StatusCode:  418,
-			HeadersSent: &true_,
+			StatusCode: 418,
 			Headers: &model.ResponseHeaders{
 				ContentType: "text/plain; charset=UTF-8",
 			},
@@ -77,6 +75,20 @@ func TestEchoMiddlewarePanic(t *testing.T) {
 	assertError(t, transport.Payloads(), "handlePanic", "boom", false)
 }
 
+func TestEchoMiddlewarePanicHeadersSent(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	e := echo.New()
+	e.Use(apmecho.Middleware(apmecho.WithTracer(tracer)))
+	e.GET("/panic", handlePanicAfterHeaders)
+
+	w := doRequest(e, "GET", "http://server.testing/panic")
+	assert.Equal(t, http.StatusOK, w.Code)
+	tracer.Flush(nil)
+	assertError(t, transport.Payloads(), "handlePanicAfterHeaders", "boom", false)
+}
+
 func TestEchoMiddlewareError(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
@@ -91,7 +103,7 @@ func TestEchoMiddlewareError(t *testing.T) {
 	assertError(t, transport.Payloads(), "handleError", "wot", true)
 }
 
-func assertError(t *testing.T, payloads transporttest.Payloads, culprit, message string, handled bool) {
+func assertError(t *testing.T, payloads transporttest.Payloads, culprit, message string, handled bool) model.Error {
 	error0 := payloads.Errors[0]
 
 	require.NotNil(t, error0.Context)
@@ -100,6 +112,7 @@ func assertError(t *testing.T, payloads transporttest.Payloads, culprit, message
 	assert.Equal(t, culprit, error0.Culprit)
 	assert.Equal(t, message, error0.Exception.Message)
 	assert.Equal(t, handled, error0.Exception.Handled)
+	return error0
 }
 
 func handleHello(c echo.Context) error {
@@ -107,6 +120,11 @@ func handleHello(c echo.Context) error {
 }
 
 func handlePanic(c echo.Context) error {
+	panic("boom")
+}
+
+func handlePanicAfterHeaders(c echo.Context) error {
+	c.String(200, "")
 	panic("boom")
 }
 

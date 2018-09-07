@@ -3,6 +3,7 @@ package apmecho
 import (
 	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/labstack/echo"
 
@@ -53,12 +54,12 @@ func (m *middleware) handle(c echo.Context) error {
 	c.SetRequest(req)
 	body := m.tracer.CaptureHTTPRequestBody(req)
 
+	resp := c.Response()
 	defer func() {
 		if v := recover(); v != nil {
 			e := m.tracer.Recovered(v)
 			e.SetTransaction(tx)
-			e.Context.SetHTTPRequest(req)
-			e.Context.SetHTTPRequestBody(body)
+			setContext(&e.Context, req, resp, body)
 			err, ok := v.(error)
 			if !ok {
 				err = errors.New(fmt.Sprint(v))
@@ -68,26 +69,29 @@ func (m *middleware) handle(c echo.Context) error {
 		}
 	}()
 
-	resp := c.Response()
 	handlerErr := m.handler(c)
 	tx.Result = apmhttp.StatusCodeResult(resp.Status)
 	if tx.Sampled() {
-		tx.Context.SetHTTPRequest(req)
-		tx.Context.SetHTTPRequestBody(body)
-		tx.Context.SetHTTPStatusCode(resp.Status)
-		tx.Context.SetHTTPResponseHeaders(resp.Header())
-		tx.Context.SetHTTPResponseHeadersSent(resp.Committed)
+		setContext(&tx.Context, req, resp, body)
 	}
 	if handlerErr != nil {
 		e := m.tracer.NewError(handlerErr)
-		e.Context.SetHTTPRequest(req)
-		e.Context.SetHTTPRequestBody(body)
+		setContext(&e.Context, req, resp, body)
 		e.SetTransaction(tx)
 		e.Handled = true
 		e.Send()
 		return handlerErr
 	}
 	return nil
+}
+
+func setContext(ctx *elasticapm.Context, req *http.Request, resp *echo.Response, body *elasticapm.BodyCapturer) {
+	ctx.SetHTTPRequest(req)
+	ctx.SetHTTPRequestBody(body)
+	if resp.Committed {
+		ctx.SetHTTPStatusCode(resp.Status)
+		ctx.SetHTTPResponseHeaders(resp.Header())
+	}
 }
 
 type options struct {

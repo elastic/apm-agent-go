@@ -37,18 +37,15 @@ func Wrap(h httprouter.Handle, route string, o ...Option) httprouter.Handle {
 		tx, req := apmhttp.StartTransaction(opts.tracer, req.Method+" "+route, req)
 		defer tx.End()
 
-		finished := false
 		body := opts.tracer.CaptureHTTPRequestBody(req)
 		w, resp := apmhttp.WrapResponseWriter(w)
 		defer func() {
 			if v := recover(); v != nil {
-				opts.recovery(w, req, body, tx, v)
-				finished = true
+				opts.recovery(w, req, resp, body, tx, v)
 			}
-			apmhttp.SetTransactionContext(tx, req, resp, body, finished)
+			apmhttp.SetTransactionContext(tx, req, resp, body)
 		}()
 		h(w, req, p)
-		finished = true
 	}
 }
 
