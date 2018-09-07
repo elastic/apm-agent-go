@@ -60,11 +60,11 @@ var (
 )
 
 func initialRequestDuration() (time.Duration, error) {
-	return apmconfig.ParseDurationEnv(envAPIRequestTime, "", defaultAPIRequestTime)
+	return apmconfig.ParseDurationEnv(envAPIRequestTime, defaultAPIRequestTime)
 }
 
 func initialMetricsInterval() (time.Duration, error) {
-	return apmconfig.ParseDurationEnv(envMetricsInterval, "s", defaultMetricsInterval)
+	return apmconfig.ParseDurationEnv(envMetricsInterval, defaultMetricsInterval)
 }
 
 func initialAPIBufferSize() (int, error) {
@@ -181,7 +181,7 @@ func initialService() (name, version, environment string) {
 }
 
 func initialSpanFramesMinDuration() (time.Duration, error) {
-	return apmconfig.ParseDurationEnv(envSpanFramesMinDuration, "", defaultSpanFramesMinDuration)
+	return apmconfig.ParseDurationEnv(envSpanFramesMinDuration, defaultSpanFramesMinDuration)
 }
 
 func initialActive() (bool, error) {

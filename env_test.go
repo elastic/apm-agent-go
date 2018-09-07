@@ -58,13 +58,13 @@ func TestTracerRequestTimeEnvInvalid(t *testing.T) {
 		os.Setenv("ELASTIC_APM_API_REQUEST_TIME", "aeon")
 		defer os.Unsetenv("ELASTIC_APM_API_REQUEST_TIME")
 		_, err := elasticapm.NewTracer("tracer_testing", "")
-		assert.EqualError(t, err, "failed to parse ELASTIC_APM_API_REQUEST_TIME: time: invalid duration aeon")
+		assert.EqualError(t, err, "failed to parse ELASTIC_APM_API_REQUEST_TIME: invalid duration aeon")
 	})
 	t.Run("missing_suffix", func(t *testing.T) {
 		os.Setenv("ELASTIC_APM_API_REQUEST_TIME", "1")
 		defer os.Unsetenv("ELASTIC_APM_API_REQUEST_TIME")
 		_, err := elasticapm.NewTracer("tracer_testing", "")
-		assert.EqualError(t, err, "failed to parse ELASTIC_APM_API_REQUEST_TIME: time: missing unit in duration 1")
+		assert.EqualError(t, err, "failed to parse ELASTIC_APM_API_REQUEST_TIME: missing unit in duration 1 (allowed units: ms, s, m)")
 	})
 }
 
@@ -292,7 +292,7 @@ func TestTracerSpanFramesMinDurationEnvInvalid(t *testing.T) {
 	defer os.Unsetenv("ELASTIC_APM_SPAN_FRAMES_MIN_DURATION")
 
 	_, err := elasticapm.NewTracer("tracer_testing", "")
-	assert.EqualError(t, err, "failed to parse ELASTIC_APM_SPAN_FRAMES_MIN_DURATION: time: invalid duration aeon")
+	assert.EqualError(t, err, "failed to parse ELASTIC_APM_SPAN_FRAMES_MIN_DURATION: invalid duration aeon")
 }
 
 func TestTracerActive(t *testing.T) {
