@@ -4,6 +4,7 @@
 
  - Implement v2 intake protocol (#180)
  - Unexport Transaction.Timestamp and Span.Timestamp (#207)
+ - Add jitter (+/-10%) to backoff on transport error (#212)
 
 ## [v0.5.0](https://github.com/elastic/apm-agent-go/releases/tag/v0.5.0)
 
