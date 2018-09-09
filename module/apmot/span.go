@@ -156,6 +156,9 @@ func (s *otSpan) setSpanContext() {
 		// Elastic APM-specific tags:
 		case "type":
 			s.span.Type = fmt.Sprint(v)
+
+		default:
+			s.span.Context.SetTag(k, fmt.Sprint(v))
 		}
 	}
 	switch {

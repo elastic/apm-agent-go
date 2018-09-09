@@ -251,6 +251,30 @@ func (v *SpanContext) MarshalFastJSON(w *fastjson.Writer) {
 		}
 		v.HTTP.MarshalFastJSON(w)
 	}
+	if v.Tags != nil {
+		const prefix = ",\"tags\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.RawByte('{')
+		{
+			first := true
+			for k, v := range v.Tags {
+				if first {
+					first = false
+				} else {
+					w.RawByte(',')
+				}
+				w.String(k)
+				w.RawByte(':')
+				w.String(v)
+			}
+		}
+		w.RawByte('}')
+	}
 	w.RawByte('}')
 }
 
