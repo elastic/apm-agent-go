@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"regexp"
 	"strings"
 	"sync"
@@ -24,6 +25,7 @@ import (
 const (
 	defaultPreContext      = 3
 	defaultPostContext     = 3
+	gracePeriodJitter      = 0.1 // +/- 10%
 	transactionsChannelCap = 1000
 	spansChannelCap        = 1000
 	errorsChannelCap       = 1000
@@ -506,10 +508,11 @@ func (t *Tracer) loop() {
 	sendStreamRequest := make(chan time.Duration)
 	defer close(sendStreamRequest)
 	go func() {
+		jitterRand := rand.New(rand.NewSource(time.Now().UnixNano()))
 		for gracePeriod := range sendStreamRequest {
 			if gracePeriod > 0 {
 				select {
-				case <-time.After(gracePeriod):
+				case <-time.After(jitterDuration(gracePeriod, jitterRand, gracePeriodJitter)):
 				case <-ctx.Done():
 				}
 			}
@@ -612,7 +615,7 @@ func (t *Tracer) loop() {
 				stats.Errors.SendStream++
 				gracePeriod = nextGracePeriod(gracePeriod)
 				if cfg.logger != nil {
-					cfg.logger.Debugf("request failed: %s (next request in %s)", err, gracePeriod)
+					cfg.logger.Debugf("request failed: %s (next request in ~%s)", err, gracePeriod)
 				}
 			} else {
 				gracePeriod = -1 // Reset grace period after success.
