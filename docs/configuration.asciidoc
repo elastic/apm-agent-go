@@ -105,6 +105,11 @@ of the deployed revision, e.g. the output of `git rev-parse HEAD`.
 
 The name of the environment this service is deployed in, e.g. "production" or "staging".
 
+WARNING: the APM UI does not currently group services by environment, so metrics for
+all environments will be combined. Consider changing the service name if you want to
+see the metrics separated by environment. Alternatively, you can use the search bar
+introduced with the 6.4 release.
+
 [float]
 [[config-active]]
 === `ELASTIC_APM_ACTIVE`
