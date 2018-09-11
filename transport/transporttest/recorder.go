@@ -74,7 +74,7 @@ func (r *RecorderTransport) record(stream io.Reader) error {
 	for {
 		var payload struct {
 			Error       *model.Error       `json:"error"`
-			Metrics     *model.Metrics     `json:"metrics"`
+			Metrics     *model.Metrics     `json:"metricset"`
 			Span        *model.Span        `json:"span"`
 			Transaction *model.Transaction `json:"transaction"`
 		}
