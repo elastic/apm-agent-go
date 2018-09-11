@@ -205,6 +205,9 @@ type SpanContext struct {
 
 	// HTTP holds contextual information for HTTP client request spans.
 	HTTP *HTTPSpanContext `json:"http,omitempty"`
+
+	// Tags holds user-defined key/value pairs.
+	Tags map[string]string `json:"tags,omitempty"`
 }
 
 // DatabaseSpanContext holds contextual information for database

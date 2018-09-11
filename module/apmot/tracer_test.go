@@ -201,6 +201,23 @@ func TestStartSpanParentFinished(t *testing.T) {
 	}
 }
 
+func TestCustomTags(t *testing.T) {
+	tracer, apmtracer, recorder := newTestTracer()
+	defer apmtracer.Close()
+
+	outer := tracer.StartSpan("name", opentracing.Tag{Key: "foo", Value: "bar"})
+	inner := tracer.StartSpan("name", opentracing.Tag{Key: "baz", Value: "qux"}, opentracing.ChildOf(outer.Context()))
+	inner.Finish()
+	outer.Finish()
+
+	apmtracer.Flush(nil)
+	payloads := recorder.Payloads()
+	require.Len(t, payloads.Transactions, 1)
+	require.Len(t, payloads.Spans, 1)
+	assert.Equal(t, map[string]string{"foo": "bar"}, payloads.Transactions[0].Context.Tags)
+	assert.Equal(t, map[string]string{"baz": "qux"}, payloads.Spans[0].Context.Tags)
+}
+
 func newTestTracer() (opentracing.Tracer, *elasticapm.Tracer, *transporttest.RecorderTransport) {
 	apmtracer, recorder := transporttest.NewRecorderTracer()
 	tracer := apmot.New(apmot.WithTracer(apmtracer))

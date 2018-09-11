@@ -31,6 +31,7 @@ type DatabaseSpanContext struct {
 
 func (c *SpanContext) build() *model.SpanContext {
 	switch {
+	case len(c.model.Tags) != 0:
 	case c.model.Database != nil:
 	case c.model.HTTP != nil:
 	default:
@@ -40,7 +41,22 @@ func (c *SpanContext) build() *model.SpanContext {
 }
 
 func (c *SpanContext) reset() {
+	// TODO(axw) reuse space for tags
 	*c = SpanContext{}
+}
+
+// SetTag sets a tag in the context. If the key is invalid
+// (contains '.', '*', or '"'), the call is a no-op.
+func (c *SpanContext) SetTag(key, value string) {
+	if !validTagKey(key) {
+		return
+	}
+	value = truncateString(value)
+	if c.model.Tags == nil {
+		c.model.Tags = map[string]string{key: value}
+	} else {
+		c.model.Tags[key] = value
+	}
 }
 
 // SetDatabase sets the span context for database-related operations.

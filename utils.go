@@ -1,6 +1,7 @@
 package elasticapm
 
 import (
+	"math/rand"
 	"os"
 	"regexp"
 	"runtime"
@@ -108,4 +109,13 @@ func nextGracePeriod(p time.Duration) time.Duration {
 		}
 	}
 	return p
+}
+
+// jitterDuration returns d +/- some multiple of d in the range [0,j].
+func jitterDuration(d time.Duration, rng *rand.Rand, j float64) time.Duration {
+	if d == 0 || j == 0 {
+		return d
+	}
+	r := (rng.Float64() * j * 2) - j
+	return d + time.Duration(float64(d)*r)
 }
