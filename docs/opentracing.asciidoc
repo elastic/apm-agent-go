@@ -57,6 +57,34 @@ func main() {
 ----
 
 [float]
+[[opentracing-mixed]]
+=== Mixing Native and OpenTracing APIs
+
+When you import `apmot`, transactions and spans created with the <<api, native API>>
+will be made available as OpenTracing spans, enabling you to mix the use of the
+native and OpenTracing APIs. e.g.:
+
+[source,go]
+----
+// Transaction created through native API.
+transaction := elasticapm.DefaultTracer.StartTransaction("GET /", "request")
+ctx := elasticapm.ContextWithTransaction(context.Background(), transaction)
+
+// Span created through OpenTracing API will be a child of the transaction.
+otSpan, ctx := opentracing.StartSpanFromContext(ctx, "ot-span")
+
+// Span created through the native API will be a child of the span created
+// above via the OpenTracing API.
+apmSpan, ctx := elasticapm.StartSpan(ctx, "apm-span", "apm-span")
+----
+
+The `opentracing.SpanFromContext` function will return an `opentracing.Span`
+that wraps either an `elasticapm.Span` or `elasticapm.Transaction`. These span
+objects are intended only for passing in context when creating a new span
+through the OpenTracing API, and are not fully functional spans. In particular,
+the `Finish` method is a no-op, and the `Tracer` method returns a no-op tracer.
+
+[float]
 [[opentracing-apm-tags]]
 === Elastic APM specific tags
 

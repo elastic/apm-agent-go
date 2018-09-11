@@ -1,6 +1,7 @@
 package apmot_test
 
 import (
+	"context"
 	"net/url"
 	"testing"
 
@@ -216,6 +217,41 @@ func TestCustomTags(t *testing.T) {
 	require.Len(t, payloads.Spans, 1)
 	assert.Equal(t, map[string]string{"foo": "bar"}, payloads.Transactions[0].Context.Tags)
 	assert.Equal(t, map[string]string{"baz": "qux"}, payloads.Spans[0].Context.Tags)
+}
+
+func TestStartSpanFromContextMixed(t *testing.T) {
+	tracer, apmtracer, recorder := newTestTracer()
+	defer apmtracer.Close()
+	opentracing.SetGlobalTracer(tracer)
+
+	tx := apmtracer.StartTransaction("tx", "unknown")
+	ctx := elasticapm.ContextWithTransaction(context.Background(), tx)
+	apmSpan1, ctx := elasticapm.StartSpan(ctx, "apm1", "apm")
+	otSpan1, ctx := opentracing.StartSpanFromContext(ctx, "ot1")
+	apmSpan2, ctx := elasticapm.StartSpan(ctx, "apm2", "apm")
+	otSpan2, ctx := opentracing.StartSpanFromContext(ctx, "ot2")
+	otSpan3, ctx := opentracing.StartSpanFromContext(ctx, "ot3")
+	otSpan3.Finish()
+	otSpan2.Finish()
+	apmSpan2.End()
+	otSpan1.Finish()
+	apmSpan1.End()
+	tx.End()
+
+	apmtracer.Flush(nil)
+	payloads := recorder.Payloads()
+	require.Len(t, payloads.Transactions, 1)
+	require.Len(t, payloads.Spans, 5)
+
+	assert.Equal(t, "ot3", payloads.Spans[0].Name)
+	assert.Equal(t, "ot2", payloads.Spans[1].Name)
+	assert.Equal(t, "apm2", payloads.Spans[2].Name)
+	assert.Equal(t, "ot1", payloads.Spans[3].Name)
+	assert.Equal(t, "apm1", payloads.Spans[4].Name)
+	assert.Equal(t, payloads.Spans[4].ID, payloads.Spans[3].ParentID)
+	assert.Equal(t, payloads.Spans[3].ID, payloads.Spans[2].ParentID)
+	assert.Equal(t, payloads.Spans[2].ID, payloads.Spans[1].ParentID)
+	assert.Equal(t, payloads.Spans[1].ID, payloads.Spans[0].ParentID)
 }
 
 func newTestTracer() (opentracing.Tracer, *elasticapm.Tracer, *transporttest.RecorderTransport) {
