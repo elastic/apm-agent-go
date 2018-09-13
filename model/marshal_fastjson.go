@@ -172,19 +172,10 @@ func (v *Transaction) MarshalFastJSON(w *fastjson.Writer) {
 
 func (v *SpanCount) MarshalFastJSON(w *fastjson.Writer) {
 	w.RawByte('{')
-	w.RawString("\"total\":")
-	w.Int64(int64(v.Total))
-	if !v.Dropped.isZero() {
-		w.RawString(",\"dropped\":")
-		v.Dropped.MarshalFastJSON(w)
-	}
-	w.RawByte('}')
-}
-
-func (v *SpanCountDropped) MarshalFastJSON(w *fastjson.Writer) {
-	w.RawByte('{')
-	w.RawString("\"total\":")
-	w.Int64(int64(v.Total))
+	w.RawString("\"dropped\":")
+	w.Int64(int64(v.Dropped))
+	w.RawString(",\"started\":")
+	w.Int64(int64(v.Started))
 	w.RawByte('}')
 }
 

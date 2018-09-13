@@ -67,5 +67,5 @@ func TestTracerStartSpan(t *testing.T) {
 
 	// The span created after the transaction (obviously?)
 	// doesn't get included in the transaction's span count.
-	assert.Equal(t, 1, payloads.Transactions[0].SpanCount.Total)
+	assert.Equal(t, 1, payloads.Transactions[0].SpanCount.Started)
 }

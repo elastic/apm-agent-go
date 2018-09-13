@@ -14,8 +14,7 @@ FILES=( \
     "transactions/mark.json" \
     "transactions/common_transaction.json" \
     "transactions/v2_transaction.json" \
-    "metrics/payload.json" \
-    "metrics/metric.json" \
+    "metrics/metricset.json" \
     "metrics/sample.json" \
     "context.json" \
     "metadata.json" \
@@ -24,6 +23,7 @@ FILES=( \
     "service.json" \
     "stacktrace_frame.json" \
     "system.json" \
+    "tags.json" \
     "user.json" \
 )
 

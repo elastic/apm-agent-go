@@ -238,10 +238,6 @@ func (v *URL) marshalFullURL(w *fastjson.Writer, scheme []byte) bool {
 	return true
 }
 
-func (d *SpanCountDropped) isZero() bool {
-	return *d == SpanCountDropped{}
-}
-
 func (l *Log) isZero() bool {
 	return l.Message == ""
 }

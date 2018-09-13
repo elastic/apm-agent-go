@@ -21,7 +21,7 @@
                 },
                 "message": {
                    "description": "The original error message.",
-                   "type": "string"
+                   "type": ["string", "null"]
                 },
                 "module": {
                     "description": "Describes the exception type's module namespace.",
@@ -47,7 +47,10 @@
                     "description": "Indicator whether the error was caught somewhere in the code or not."
                 }
             },
-            "required": ["message"]
+            "anyOf": [
+                {"required": ["message"], "properties": {"message": {"type": "string"}}},
+                {"required": ["type"], "properties": {"type": {"type": "string"}}}
+            ]
         },
         "log": {
             "type": ["object", "null"],
@@ -92,11 +95,7 @@
         }
     },
     "anyOf": [
-        {
-            "required": ["exception"]
-        },
-        {
-            "required": ["log"]
-        }
+        { "required": ["exception"], "properties": {"exception": { "type": "object" }} },
+        { "required": ["log"], "properties": {"log": { "type": "object" }} }
     ]
 }
