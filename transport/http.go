@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	intakePath = "/v2/intake"
+	intakePath = "/intake/v2/events"
 
 	envSecretToken      = "ELASTIC_APM_SECRET_TOKEN"
 	envServerURL        = "ELASTIC_APM_SERVER_URL"
