@@ -145,18 +145,13 @@ type Transaction struct {
 
 // SpanCount holds statistics on spans within a transaction.
 type SpanCount struct {
-	// Dropped holds statistics on dropped spans within a transaction.
-	Dropped SpanCountDropped `json:"dropped,omitempty"`
+	// Dropped holds the number of spans dropped within a transaction.
+	// This does not include spans that were started and dropped due
+	// to full buffers, network errors, etc.
+	Dropped int `json:"dropped"`
 
-	// Total holds the number of spans recorded within a transaction.
-	Total int `json:"total"`
-}
-
-// SpanCountDropped holds statistics on dropped spans.
-type SpanCountDropped struct {
-	// Total holds the total number of spans dropped by the
-	// agent within a transaction.
-	Total int `json:"total"`
+	// Started holds the number of spans started within a transaction.
+	Started int `json:"started"`
 }
 
 // Span represents a span within a transaction.

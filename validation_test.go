@@ -287,7 +287,7 @@ func (t *validatingTransport) SendStream(ctx context.Context, r io.Reader) error
 				case "error":
 					schema = apmschema.Error
 				case "metricset":
-					schema = apmschema.Metrics
+					schema = apmschema.MetricSet
 				case "span":
 					schema = apmschema.Span
 				case "transaction":

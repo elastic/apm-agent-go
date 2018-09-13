@@ -16,8 +16,8 @@ var (
 	// Metadata is the compiled JSON Schema for metadata.
 	Metadata *jsonschema.Schema
 
-	// Metrics is the compiled JSON Schema for a set of metrics.
-	Metrics *jsonschema.Schema
+	// MetricSet is the compiled JSON Schema for a set of metrics.
+	MetricSet *jsonschema.Schema
 
 	// Span is the compiled JSON Schema for a span.
 	Span *jsonschema.Schema
@@ -43,7 +43,7 @@ func init() {
 	}
 	compile("errors/v2_error.json", &Error)
 	compile("metadata.json", &Metadata)
-	compile("metrics/metric.json", &Metrics)
+	compile("metrics/metricset.json", &MetricSet)
 	compile("spans/v2_span.json", &Span)
 	compile("transactions/v2_transaction.json", &Transaction)
 }

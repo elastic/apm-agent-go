@@ -78,10 +78,8 @@ func TestMarshalTransaction(t *testing.T) {
 			},
 		},
 		"span_count": map[string]interface{}{
-			"total": float64(99),
-			"dropped": map[string]interface{}{
-				"total": float64(4),
-			},
+			"started": float64(99),
+			"dropped": float64(4),
 		},
 	}
 	assert.Equal(t, expect, decoded)
@@ -537,10 +535,8 @@ func fakeTransaction() model.Transaction {
 			},
 		},
 		SpanCount: model.SpanCount{
-			Total: 99,
-			Dropped: model.SpanCountDropped{
-				Total: 4,
-			},
+			Started: 99,
+			Dropped: 4,
 		},
 	}
 }
