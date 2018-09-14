@@ -31,18 +31,18 @@ const (
 	envAPIRequestTime        = "ELASTIC_APM_API_REQUEST_TIME"
 	envAPIBufferSize         = "ELASTIC_APM_API_BUFFER_SIZE"
 
-	defaultAPIRequestSize        = 768 * 1024 // 768 KiB / 0.75 MiB
+	defaultAPIRequestSize        = 750 * apmconfig.KByte
 	defaultAPIRequestTime        = 10 * time.Second
-	defaultAPIBufferSize         = 10 * 1024 * 1024 // 10 MiB
-	defaultMetricsInterval       = 0                // disabled by default
+	defaultAPIBufferSize         = 10 * apmconfig.MByte
+	defaultMetricsInterval       = 0 // disabled by default
 	defaultMaxSpans              = 500
 	defaultCaptureBody           = CaptureBodyOff
 	defaultSpanFramesMinDuration = 5 * time.Millisecond
 
-	minAPIBufferSize  = 10 * 1024         // 10 KiB
-	maxAPIBufferSize  = 100 * 1024 * 1024 // 100 MiB
-	minAPIRequestSize = 1024              // 1 KiB
-	maxAPIRequestSize = 5 * 1024 * 1024   // 5 MiB
+	minAPIBufferSize  = 10 * apmconfig.KByte
+	maxAPIBufferSize  = 100 * apmconfig.MByte
+	minAPIRequestSize = 1 * apmconfig.KByte
+	maxAPIRequestSize = 5 * apmconfig.MByte
 )
 
 var (
@@ -68,39 +68,31 @@ func initialMetricsInterval() (time.Duration, error) {
 }
 
 func initialAPIBufferSize() (int, error) {
-	value := os.Getenv(envAPIBufferSize)
-	if value == "" {
-		return defaultAPIBufferSize, nil
-	}
-	size, err := strconv.Atoi(value)
+	size, err := apmconfig.ParseSizeEnv(envAPIBufferSize, defaultAPIBufferSize)
 	if err != nil {
-		return 0, errors.Wrapf(err, "failed to parse %s", envAPIBufferSize)
+		return 0, err
 	}
 	if size < minAPIBufferSize || size > maxAPIBufferSize {
 		return 0, errors.Errorf(
-			"%s must be at least %d and less than %d, got %d",
+			"%s must be at least %s and less than %s, got %s",
 			envAPIBufferSize, minAPIBufferSize, maxAPIBufferSize, size,
 		)
 	}
-	return size, nil
+	return int(size), nil
 }
 
 func initialAPIRequestSize() (int, error) {
-	value := os.Getenv(envAPIRequestSize)
-	if value == "" {
-		return defaultAPIRequestSize, nil
-	}
-	size, err := strconv.Atoi(value)
+	size, err := apmconfig.ParseSizeEnv(envAPIRequestSize, defaultAPIRequestSize)
 	if err != nil {
-		return 0, errors.Wrapf(err, "failed to parse %s", envAPIRequestSize)
+		return 0, err
 	}
 	if size < minAPIRequestSize || size > maxAPIRequestSize {
 		return 0, errors.Errorf(
-			"%s must be at least %d and less than %d, got %d",
+			"%s must be at least %s and less than %s, got %s",
 			envAPIRequestSize, minAPIRequestSize, maxAPIRequestSize, size,
 		)
 	}
-	return size, nil
+	return int(size), nil
 }
 
 func initialMaxSpans() (int, error) {

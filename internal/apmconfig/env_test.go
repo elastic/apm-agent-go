@@ -50,6 +50,56 @@ func TestParseDurationEnv(t *testing.T) {
 	assert.EqualError(t, err, "failed to parse ELASTIC_APM_TEST_DURATION: invalid duration blah")
 }
 
+func TestParseSizeEnv(t *testing.T) {
+	const envKey = "ELASTIC_APM_TEST_SIZE"
+	os.Setenv(envKey, "")
+
+	d, err := apmconfig.ParseSizeEnv(envKey, 42*apmconfig.KByte)
+	assert.NoError(t, err)
+	assert.Equal(t, 42*apmconfig.KByte, d)
+
+	os.Setenv(envKey, "5b")
+	d, err = apmconfig.ParseSizeEnv(envKey, 42*apmconfig.KByte)
+	assert.NoError(t, err)
+	assert.Equal(t, 5*apmconfig.Byte, d)
+
+	os.Setenv(envKey, "5kb")
+	d, err = apmconfig.ParseSizeEnv(envKey, 42*apmconfig.KByte)
+	assert.NoError(t, err)
+	assert.Equal(t, 5*apmconfig.KByte, d)
+
+	os.Setenv(envKey, "5mb")
+	d, err = apmconfig.ParseSizeEnv(envKey, 42*apmconfig.KByte)
+	assert.NoError(t, err)
+	assert.Equal(t, 5*apmconfig.MByte, d)
+
+	os.Setenv(envKey, "5gb")
+	d, err = apmconfig.ParseSizeEnv(envKey, 42*apmconfig.KByte)
+	assert.NoError(t, err)
+	assert.Equal(t, 5*apmconfig.GByte, d)
+
+	os.Setenv(envKey, "5GB")
+	d, err = apmconfig.ParseSizeEnv(envKey, 42*apmconfig.KByte)
+	assert.NoError(t, err)
+	assert.Equal(t, 5*apmconfig.GByte, d)
+
+	os.Setenv(envKey, "5 mb")
+	_, err = apmconfig.ParseSizeEnv(envKey, 0)
+	assert.EqualError(t, err, "failed to parse ELASTIC_APM_TEST_SIZE: invalid character ' ' in size 5 mb")
+
+	os.Setenv(envKey, "5tb")
+	_, err = apmconfig.ParseSizeEnv(envKey, 0)
+	assert.EqualError(t, err, "failed to parse ELASTIC_APM_TEST_SIZE: invalid unit in size 5tb (allowed units: B, KB, MB, GB)")
+
+	os.Setenv(envKey, "5")
+	_, err = apmconfig.ParseSizeEnv(envKey, 0)
+	assert.EqualError(t, err, "failed to parse ELASTIC_APM_TEST_SIZE: missing unit in size 5 (allowed units: B, KB, MB, GB)")
+
+	os.Setenv(envKey, "blah")
+	_, err = apmconfig.ParseSizeEnv(envKey, 0)
+	assert.EqualError(t, err, "failed to parse ELASTIC_APM_TEST_SIZE: invalid size blah")
+}
+
 func TestParseBoolEnv(t *testing.T) {
 	const envKey = "ELASTIC_APM_TEST_BOOL"
 	os.Setenv(envKey, "")

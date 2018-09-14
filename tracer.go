@@ -87,13 +87,13 @@ func (opts *options) init(continueOnError bool) error {
 
 	requestSize, err := initialAPIRequestSize()
 	if err != nil {
-		requestSize = defaultAPIRequestSize
+		requestSize = int(defaultAPIRequestSize)
 		errs = append(errs, err)
 	}
 
 	bufferSize, err := initialAPIBufferSize()
 	if err != nil {
-		bufferSize = defaultAPIBufferSize
+		bufferSize = int(defaultAPIBufferSize)
 		errs = append(errs, err)
 	}
 

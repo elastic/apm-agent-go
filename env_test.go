@@ -70,31 +70,31 @@ func TestTracerRequestTimeEnvInvalid(t *testing.T) {
 
 func TestTracerRequestSizeEnvInvalid(t *testing.T) {
 	t.Run("too_small", func(t *testing.T) {
-		os.Setenv("ELASTIC_APM_API_REQUEST_SIZE", "1")
+		os.Setenv("ELASTIC_APM_API_REQUEST_SIZE", "1B")
 		defer os.Unsetenv("ELASTIC_APM_API_REQUEST_SIZE")
 		_, err := elasticapm.NewTracer("tracer_testing", "")
-		assert.EqualError(t, err, "ELASTIC_APM_API_REQUEST_SIZE must be at least 1024 and less than 5242880, got 1")
+		assert.EqualError(t, err, "ELASTIC_APM_API_REQUEST_SIZE must be at least 1KB and less than 5MB, got 1B")
 	})
 	t.Run("too_large", func(t *testing.T) {
-		os.Setenv("ELASTIC_APM_API_REQUEST_SIZE", "99999999999")
+		os.Setenv("ELASTIC_APM_API_REQUEST_SIZE", "500GB")
 		defer os.Unsetenv("ELASTIC_APM_API_REQUEST_SIZE")
 		_, err := elasticapm.NewTracer("tracer_testing", "")
-		assert.EqualError(t, err, "ELASTIC_APM_API_REQUEST_SIZE must be at least 1024 and less than 5242880, got 99999999999")
+		assert.EqualError(t, err, "ELASTIC_APM_API_REQUEST_SIZE must be at least 1KB and less than 5MB, got 500GB")
 	})
 }
 
 func TestTracerBufferSizeEnvInvalid(t *testing.T) {
 	t.Run("too_small", func(t *testing.T) {
-		os.Setenv("ELASTIC_APM_API_BUFFER_SIZE", "1")
+		os.Setenv("ELASTIC_APM_API_BUFFER_SIZE", "1B")
 		defer os.Unsetenv("ELASTIC_APM_API_BUFFER_SIZE")
 		_, err := elasticapm.NewTracer("tracer_testing", "")
-		assert.EqualError(t, err, "ELASTIC_APM_API_BUFFER_SIZE must be at least 10240 and less than 104857600, got 1")
+		assert.EqualError(t, err, "ELASTIC_APM_API_BUFFER_SIZE must be at least 10KB and less than 100MB, got 1B")
 	})
 	t.Run("too_large", func(t *testing.T) {
-		os.Setenv("ELASTIC_APM_API_BUFFER_SIZE", "99999999999")
+		os.Setenv("ELASTIC_APM_API_BUFFER_SIZE", "500GB")
 		defer os.Unsetenv("ELASTIC_APM_API_BUFFER_SIZE")
 		_, err := elasticapm.NewTracer("tracer_testing", "")
-		assert.EqualError(t, err, "ELASTIC_APM_API_BUFFER_SIZE must be at least 10240 and less than 104857600, got 99999999999")
+		assert.EqualError(t, err, "ELASTIC_APM_API_BUFFER_SIZE must be at least 10KB and less than 100MB, got 500GB")
 	})
 }
 

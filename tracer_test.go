@@ -226,7 +226,7 @@ func TestSpanStackTrace(t *testing.T) {
 }
 
 func TestTracerRequestSize(t *testing.T) {
-	os.Setenv("ELASTIC_APM_API_REQUEST_SIZE", "1024")
+	os.Setenv("ELASTIC_APM_API_REQUEST_SIZE", "1KB")
 	defer os.Unsetenv("ELASTIC_APM_API_REQUEST_SIZE")
 
 	type times struct {
@@ -265,8 +265,8 @@ func TestTracerRequestSize(t *testing.T) {
 }
 
 func TestTracerBufferSize(t *testing.T) {
-	os.Setenv("ELASTIC_APM_API_REQUEST_SIZE", "1024")
-	os.Setenv("ELASTIC_APM_API_BUFFER_SIZE", "10240")
+	os.Setenv("ELASTIC_APM_API_REQUEST_SIZE", "1KB")
+	os.Setenv("ELASTIC_APM_API_BUFFER_SIZE", "10KB")
 	defer os.Unsetenv("ELASTIC_APM_API_REQUEST_SIZE")
 	defer os.Unsetenv("ELASTIC_APM_API_BUFFER_SIZE")
 
@@ -319,7 +319,7 @@ func TestTracerBufferSize(t *testing.T) {
 }
 
 func TestTracerBodyUnread(t *testing.T) {
-	os.Setenv("ELASTIC_APM_API_REQUEST_SIZE", "1024")
+	os.Setenv("ELASTIC_APM_API_REQUEST_SIZE", "1KB")
 	defer os.Unsetenv("ELASTIC_APM_API_REQUEST_SIZE")
 
 	// Don't consume the request body in the handler; close the connection.
