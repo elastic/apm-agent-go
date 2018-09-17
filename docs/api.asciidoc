@@ -43,8 +43,9 @@ func main() {
 ==== `func (*Tracer) StartTransaction(name, type string) *Transaction`
 
 StartTransaction returns a new Transaction with the specified name and type,
-and with the start time set to the current time. Time timestamp can be overridden
-by updating the resulting object's `Timestamp` field.
+and with the start time set to the current time.. If you need to set the
+timestamp or set the parent <<trace-context, trace context>>, you should use
+<<tracer-api-start-transaction-options, Tracer.StartTransactionOptions>>.
 
 This method should be called at the beginning of a transaction such as a web
 or RPC request. e.g.:
@@ -69,6 +70,23 @@ transaction.Context.SetCustom("key", "value")
 See <<context-api>> for more details on setting transaction context.
 
 [float]
+[[tracer-api-start-transaction-options]]
+==== `func (*Tracer) StartTransactionOptions(name, type string, opts TransactionOptions) *Transaction`
+
+StartTransactionOptions is essentially the same as StartTransaction, but
+also accepts an options struct. This struct allows you to specify the
+parent <<trace-context, trace context>> and/or the transaction's start time.
+
+[source,go]
+----
+opts := elasticapm.TransactionOptions{
+	Start: time.Now(),
+	TraceContext: parentTraceContext,
+}
+transaction := elasticapm.DefaultTracer.StartTransactionOptions("GET /", "request", opts)
+----
+
+[float]
 [[transaction-end]]
 ==== `func (*Transaction) End()`
 
@@ -77,13 +95,19 @@ The Transaction must not be used after this.
 
 The transaction's duration will be calculated as the amount of time
 elapsed since the transaction was started until this call. To override
-this behaviour, the transaction's Duration field may be set before
+this behaviour, the transaction's `Duration` field may be set before
 calling End.
 
 [source,go]
 ----
 transaction.End()
 ----
+
+[float]
+[[transaction-tracecontext]]
+==== `func (*Transaction) TraceContext() TraceContext`
+
+TraceContext returns the transaction's <<trace-context, trace context>>.
 
 // -------------------------------------------------------------------------------------------------
 
@@ -102,6 +126,8 @@ application.
 
 StartSpan starts and returns a new Span within the transaction, with the specified name,
 type, and optional parent span, and with the start time set to the current time.
+If you need to set the timestamp or parent <<trace-context, trace context>>, you should
+use <<transaction-start-span-options, Transaction.StartSpanOptions>>.
 
 If the transaction is sampled, then the span's ID will be set, and its stacktrace will
 be set if the tracer is configured accordingly. If the transaction is not sampled, then
@@ -115,6 +141,25 @@ will be non-nil and safe for use, but will not be reported to the APM server.
 [source,go]
 ----
 span := tx.StartSpan("SELECT FROM foo", "db.mysql.query", nil)
+----
+
+[float]
+[[transaction-start-span-options]]
+==== `func (*Transaction) StartSpanOptions(name, spanType string, opts SpanOptions) *Span`
+
+StartSpanOptions is essentially the same as StartSpan, but also accepts an options struct.
+This struct allows you to specify the parent <<trace-context, trace context>> and/or the
+spans's start time. If the parent trace context is not specified in the options, then the
+span will be a direct child of the transaction. Otherwise, the parent trace context should
+belong to some span descended from the transaction.
+
+[source,go]
+----
+opts := elasticapm.SpanOptions{
+	Start: time.Now(),
+	Parent: parentSpan.TraceContext(),
+}
+span := tx.StartSpanOptions("SELECT FROM foo", "db.mysql.query", opts)
 ----
 
 [float]
@@ -147,6 +192,12 @@ the span's Duration field may be set before calling End.
 Dropped indicates whether or not the span is dropped, meaning it will not be reported to
 the APM server. Spans are dropped when the created via a nil or non-sampled transaction,
 or one whose max spans limit has been reached.
+
+[float]
+[[span-tracecontext]]
+==== `func (*Span) TraceContext() TraceContext`
+
+TraceContext returns the span's <<trace-context, trace context>>.
 
 // -------------------------------------------------------------------------------------------------
 
@@ -362,6 +413,18 @@ if err != nil {
         e.Send()
 }
 ----
+
+[float]
+[[trace-context]]
+==== Trace Context
+
+Trace context contains the ID for a transaction or span, the ID of the end-to-end trace to which the
+transaction or span belongs, and trace options such as flags relating to sampling. Trace context is
+propagated between processes, e.g. in HTTP headers, in order to correlate events originating from
+related services.
+
+Elastic APM's trace context is based on the https://w3c.github.io/distributed-tracing/report-trace-context.html[W3C Trace Context]
+draft.
 
 [float]
 [[error-context]]
