@@ -35,6 +35,7 @@ built-in modules are not suitable, please refer to <<custom-instrumentation, Cus
 [[builtin-modules]]
 ==== Built-in Modules
 
+[[builtin-modules-apmecho]]
 ===== module/apmecho
 Package apmecho provides middleware for the https://github.com/labstack/echo[Echo] web framework.
 
@@ -55,6 +56,7 @@ func main() {
 The apmecho middleware will recover panics and send them to Elastic APM,
 so you do not need to install the echo/middleware.Recover middleware.
 
+[[builtin-modules-apmgin]]
 ===== module/apmgin
 Package apmgin provides middleware for the https://gin-gonic.github.io/gin/[Gin] web framework.
 
@@ -73,6 +75,7 @@ func main() {
 
 The apmgin middleware will recover panics and send them to Elastic APM, so you do not need to install the gin.Recovery middleware.
 
+[[builtin-modules-apmgorilla]]
 ===== module/apmgorilla
 Package apmgorilla provides middleware for the http://www.gorillatoolkit.org/pkg/mux[Gorilla Mux] router.
 
@@ -93,6 +96,7 @@ func main() {
 
 The apmgorilla middleware will recover panics and send them to Elastic APM, so you do not need to install any other recovery middleware.
 
+[[builtin-modules-apmgrpc]]
 ===== module/apmgrpc
 Package apmgrpc provides server and client interceptors for https://github.com/grpc/grpc-go[gRPC-Go].
 Server interceptors report transactions for each incoming request, while client interceptors
@@ -130,6 +134,7 @@ server := grpc.NewServer(grpc.UnaryInterceptor(
 There is currently no support for intercepting at the stream level. Please file an issue and/or
 send a pull request if this is something you need.
 
+[[builtin-modules-apmhttp]]
 ===== module/apmhttp
 Package apmhttp provides a low-level `net/http` middleware handler. Other web middleware should
 typically be based off this.
@@ -171,6 +176,7 @@ func main() {
 }
 ----
 
+[[builtin-modules-apmhttprouter]]
 ===== module/apmhttprouter
 Package apmhttprouter provides a low-level middleware handler for https://github.com/julienschmidt/httprouter[httprouter].
 
@@ -232,6 +238,7 @@ We currently do not expose the transactions via context; when we do, it will be
 necessary to make a small change to your code to call apmlambda.Start instead of
 lambda.Start.
 
+[[builtin-modules-apmsql]]
 ===== module/apmsql
 Package apmsql provides a means of wrapping `database/sql` drivers so that queries and other
 executions are reported as spans within the current transaction.
@@ -264,6 +271,7 @@ func main() {
 Spans will be created for queries and other statement executions if the context methods are
 used, and the context includes a transaction.
 
+[[builtin-modules-apmgorm]]
 ===== module/apmgorm
 Package apmgorm provides a means of instrumenting [gorm](http://gorm.io) database operations.
 
@@ -289,6 +297,7 @@ func main() {
 }
 ----
 
+[[builtin-modules-apmgocql]]
 ===== module/apmgocql
 Package apmgocql provides a means of instrumenting https://github.com/gocql/gocql[gocql] so
 that queries are reported as spans within the current transaction.

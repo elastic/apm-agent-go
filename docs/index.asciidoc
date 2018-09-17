@@ -2,6 +2,7 @@
 
 ifdef::env-github[]
 * link:./introduction.asciidoc[Introduction]
+* link:./supported-tech.asciidoc[Supported Technologies]
 * link:./instrumenting.asciidoc[Instrumenting]
 * link:./configuration.asciidoc[Configuration]
 * link:./api.asciidoc[API documentation]
@@ -12,6 +13,7 @@ ifndef::env-github[]
 :branch: current
 include::{asciidoc-dir}/../../shared/attributes.asciidoc[]
 include::./introduction.asciidoc[Introduction]
+include::./supported-tech.asciidoc[Supported Technologies]
 include::./instrumenting.asciidoc[Instrumenting]
 include::./configuration.asciidoc[Configuration]
 include::./api.asciidoc[API documentation]
