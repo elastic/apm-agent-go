@@ -13,6 +13,43 @@ and <<config-verify-server-cert, ELASTIC_APM_VERIFY_SERVER_CERT>>. All other
 variables have usable defaults.
 
 [float]
+=== Configuration formats
+
+Some options require a unit, either duration or size. These need to be provided
+in a specific format.
+
+[float]
+==== Duration format
+
+The _duration_ format is used for options like timeouts. The unit is provided as
+a suffix directly after the number, without any whitespace.
+
+*Example:* `5ms`
+
+*Supported units:*
+
+- `ms` (milliseconds)
+- `s` (seconds)
+- `m` (minutes)
+
+[float]
+==== Size format
+
+The _size_ format is used for options such as maximum buffer sizes. The unit is
+provided as a suffix directly after the number, without any whitespace.
+
+*Example:* `10KB`
+
+*Supported units:*
+
+- B (bytes)
+- KB (kilobytes)
+- MB (megabytes)
+- GB (gigabytes)
+
+NOTE: We use the power-of-two sizing convention, e.g. 1KB = 1024B.
+
+[float]
 [[config-server-url]]
 === `ELASTIC_APM_SERVER_URL`
 
@@ -105,6 +142,11 @@ of the deployed revision, e.g. the output of `git rev-parse HEAD`.
 
 The name of the environment this service is deployed in, e.g. "production" or "staging".
 
+WARNING: the APM UI does not currently group services by environment, so metrics for
+all environments will be combined. Consider changing the service name if you want to
+see the metrics separated by environment. Alternatively, you can use the search bar
+introduced with the 6.4 release.
+
 [float]
 [[config-active]]
 === `ELASTIC_APM_ACTIVE`
@@ -185,12 +227,12 @@ The host name to use when sending error and transaction data to the APM server.
 
 [float]
 [[config-api-request-time]]
-=== `ELASTIC_APM_REQUEST_TIME`
+=== `ELASTIC_APM_API_REQUEST_TIME`
 
 [options="header"]
 |============
-| Environment                | Default
-| `ELASTIC_APM_REQUEST_TIME` | `10s`
+| Environment                    | Default
+| `ELASTIC_APM_API_REQUEST_TIME` | `10s`
 |============
 
 Amount of time to wait before ending a request to the Elastic APM server.
@@ -201,12 +243,12 @@ request will remain open until this time has been exceeded, or until the
 
 [float]
 [[config-api-request-size]]
-=== `ELASTIC_APM_REQUEST_SIZE`
+=== `ELASTIC_APM_API_REQUEST_SIZE`
 
 [options="header"]
 |============
-| Environment                | Default
-| `ELASTIC_APM_REQUEST_SIZE` | `768000`
+| Environment                    | Default | Minimum | Maximum
+| `ELASTIC_APM_API_REQUEST_SIZE` | `750KB` | `1KB`   | `5MB`
 |============
 
 The maximum size of request bodies to send to the Elastic APM server.
@@ -215,12 +257,12 @@ to the APM server.
 
 [float]
 [[config-api-buffer-size]]
-=== `ELASTIC_APM_BUFFER_SIZE`
+=== `ELASTIC_APM_API_BUFFER_SIZE`
 
 [options="header"]           
 |============
-| Environment               | Default
-| `ELASTIC_APM_BUFFER_SIZE` | `10485760`
+| Environment                   | Default | Minimum | Maximum
+| `ELASTIC_APM_API_BUFFER_SIZE` | `10MB`  | `10KB`  | `100MB`
 |============
 
 The maximum number of bytes of uncompressed, encoded events to store in memory
