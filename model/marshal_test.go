@@ -162,63 +162,25 @@ func TestMarshalMetrics(t *testing.T) {
 	assert.Equal(t, expect, decoded)
 }
 
-/*
-	expect := map[string]interface{}{
-		"process": map[string]interface{}{
-			"pid":   float64(1234),
-			"ppid":  float64(1),
-			"title": "my-fake-service",
-			"argv":  []interface{}{"my-fake-service", "-f", "config.yml"},
-		},
-		"service": map[string]interface{}{
-			"environment": "dev",
-			"agent": map[string]interface{}{
-				"name":    "go",
-				"version": "0.1.0",
-			},
-			"framework": map[string]interface{}{
-				"name":    "gin",
-				"version": "1.0",
-			},
-			"language": map[string]interface{}{
-				"name":    "go",
-				"version": "1.10",
-			},
-			"runtime": map[string]interface{}{
-				"name":    "go",
-				"version": "gc 1.10",
-			},
-			"name":    "fake-service",
-			"version": "1.0.0-rc1",
-		},
-		"system": map[string]interface{}{
-			"architecture": "x86_64",
-			"hostname":     "host.example",
-			"platform":     "linux",
-		},
-		"transactions": []interface{}{},
-	}
-*/
-
 func TestMarshalError(t *testing.T) {
 	var e model.Error
 	time, err := time.Parse("2006-01-02T15:04:05.999Z", "1970-01-01T00:02:03Z")
 	assert.NoError(t, err)
 	e.Timestamp = model.Time(time)
 
-	// All error IDs are optional
+	// The primary error ID is required, all other IDs are optional
 	var w fastjson.Writer
 	e.MarshalFastJSON(&w)
-	assert.Equal(t, `{"timestamp":"1970-01-01T00:02:03Z"}`, string(w.Bytes()))
+	assert.Equal(t, `{"id":"00000000000000000000000000000000","timestamp":"1970-01-01T00:02:03Z"}`, string(w.Bytes()))
 
-	e.ID = model.SpanID{1, 2, 3, 4, 5, 6, 7, 8}
+	e.ID = model.TraceID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
 	e.TransactionID = model.SpanID{1, 2, 3, 4, 5, 6, 7, 8}
 	e.TraceID = model.TraceID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	e.ParentID = model.SpanID{1, 2, 3, 4, 5, 6, 7, 8}
 	w.Reset()
 	e.MarshalFastJSON(&w)
 	assert.Equal(t,
-		`{"timestamp":"1970-01-01T00:02:03Z","id":"0102030405060708","parent_id":"0102030405060708","trace_id":"0102030405060708090a0b0c0d0e0f10","transaction_id":"0102030405060708"}`,
+		`{"id":"000102030405060708090a0b0c0d0e0f","timestamp":"1970-01-01T00:02:03Z","parent_id":"0102030405060708","trace_id":"0102030405060708090a0b0c0d0e0f10","transaction_id":"0102030405060708"}`,
 		string(w.Bytes()),
 	)
 }

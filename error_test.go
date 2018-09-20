@@ -1,18 +1,33 @@
 package elasticapm_test
 
 import (
+	"context"
 	"path/filepath"
 	"runtime"
 	"testing"
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/apm-agent-go"
+	"github.com/elastic/apm-agent-go/apmtest"
 	"github.com/elastic/apm-agent-go/model"
 	"github.com/elastic/apm-agent-go/stacktrace"
 	"github.com/elastic/apm-agent-go/transport/transporttest"
 )
+
+func TestErrorID(t *testing.T) {
+	var errorID elasticapm.ErrorID
+	_, _, errors := apmtest.WithTransaction(func(ctx context.Context) {
+		e := elasticapm.CaptureError(ctx, errors.New("boom"))
+		errorID = e.ID
+		e.Send()
+	})
+	require.Len(t, errors, 1)
+	assert.NotZero(t, errorID)
+	assert.Equal(t, model.TraceID(errorID), errors[0].ID)
+}
 
 func TestErrorsStackTrace(t *testing.T) {
 	modelError := sendError(t, &errorsStackTracer{

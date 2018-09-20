@@ -423,7 +423,9 @@ func (v *User) MarshalFastJSON(w *fastjson.Writer) {
 
 func (v *Error) MarshalFastJSON(w *fastjson.Writer) {
 	w.RawByte('{')
-	w.RawString("\"timestamp\":")
+	w.RawString("\"id\":")
+	v.ID.MarshalFastJSON(w)
+	w.RawString(",\"timestamp\":")
 	v.Timestamp.MarshalFastJSON(w)
 	if v.Context != nil {
 		w.RawString(",\"context\":")
@@ -436,10 +438,6 @@ func (v *Error) MarshalFastJSON(w *fastjson.Writer) {
 	if !v.Exception.isZero() {
 		w.RawString(",\"exception\":")
 		v.Exception.MarshalFastJSON(w)
-	}
-	if !v.ID.isZero() {
-		w.RawString(",\"id\":")
-		v.ID.MarshalFastJSON(w)
 	}
 	if !v.Log.isZero() {
 		w.RawString(",\"log\":")

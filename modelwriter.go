@@ -117,7 +117,7 @@ func (w *modelWriter) buildModelSpan(out *model.Span, span *Span) {
 
 func (w *modelWriter) buildModelError(e *Error) {
 	// TODO(axw) move the model type outside of Error
-	e.model.ID = model.SpanID(e.ID)
+	e.model.ID = model.TraceID(e.ID)
 	e.model.TraceID = model.TraceID(e.TraceID)
 	e.model.ParentID = model.SpanID(e.ParentID)
 	e.model.TransactionID = model.SpanID(e.TransactionID)
