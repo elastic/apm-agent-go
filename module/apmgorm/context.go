@@ -117,7 +117,7 @@ func newAfterCallback(dsnInfo apmsql.DSNInfo) func(*gorm.Scope) {
 			Type:      "sql",
 			User:      dsnInfo.User,
 		})
-		span.End()
+		defer span.End()
 
 		// Capture errors, except for "record not found", which may be expected.
 		for _, err := range scope.DB().GetErrors() {
