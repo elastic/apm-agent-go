@@ -374,9 +374,9 @@ type ErrorLogRecord struct {
 }
 
 // ErrorID uniquely identifies an error.
-type ErrorID SpanID
+type ErrorID TraceID
 
 // String returns id in its hex-encoded format.
 func (id ErrorID) String() string {
-	return SpanID(id).String()
+	return TraceID(id).String()
 }

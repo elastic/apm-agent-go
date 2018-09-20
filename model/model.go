@@ -268,8 +268,8 @@ type Error struct {
 	// Timestamp holds the time at which the error occurred.
 	Timestamp Time `json:"timestamp"`
 
-	// ID holds the 64-bit hex-encoded error ID.
-	ID SpanID `json:"id,omitempty"`
+	// ID holds the 128-bit hex-encoded error ID.
+	ID TraceID `json:"id"`
 
 	// TraceID holds the ID of the trace within which the error occurred.
 	TraceID TraceID `json:"trace_id,omitempty"`
