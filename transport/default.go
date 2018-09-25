@@ -29,7 +29,7 @@ func InitDefault() (Transport, error) {
 }
 
 func getDefault() (Transport, error) {
-	s, err := NewHTTPTransport("", "")
+	s, err := NewHTTPTransport()
 	if err != nil {
 		return discardTransport{err}, err
 	}

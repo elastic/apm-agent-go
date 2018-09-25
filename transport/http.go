@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
@@ -22,6 +23,7 @@ const (
 	intakePath = "/intake/v2/events"
 
 	envSecretToken      = "ELASTIC_APM_SECRET_TOKEN"
+	envServerURLs       = "ELASTIC_APM_SERVER_URLS"
 	envServerURL        = "ELASTIC_APM_SERVER_URL"
 	envServerTimeout    = "ELASTIC_APM_SERVER_TIMEOUT"
 	envVerifyServerCert = "ELASTIC_APM_VERIFY_SERVER_CERT"
@@ -32,109 +34,149 @@ var (
 	// in case another package replaces the value later.
 	defaultHTTPTransport = http.DefaultTransport.(*http.Transport)
 
-	defaultServerURL     = "http://localhost:8200"
+	defaultServerURL, _  = url.Parse("http://localhost:8200")
 	defaultServerTimeout = 30 * time.Second
 )
 
 // HTTPTransport is an implementation of Transport, sending payloads via
 // a net/http client.
 type HTTPTransport struct {
-	Client    *http.Client
-	baseURL   *url.URL
-	intakeURL *url.URL
-	headers   http.Header
+	// Client exposes the http.Client used by the HTTPTransport for
+	// sending requests to the APM Server.
+	Client  *http.Client
+	headers http.Header
+
+	intakeURLs     []*url.URL
+	intakeURLIndex int
+	shuffleRand    *rand.Rand
 }
 
-// NewHTTPTransport returns a new HTTPTransport, which can be used for
-// streaming data to the APM server at the specified URL, with the given
-// secret token.
+// NewHTTPTransport returns a new HTTPTransport which can be used for
+// streaming data to the APM Server. The returned HTTPTransport will be
+// initialized using the following environment variables:
 //
-// If the URL specified is the empty string, then NewHTTPTransport will use the
-// value of the ELASTIC_APM_SERVER_URL environment variable, if defined; if
-// the environment variable is also undefined, then the transport will use the
-// default URL "http://localhost:8200". The URL must be the base server URL,
-// excluding any transactions or errors path. e.g. "http://server.example:8200".
+// - ELASTIC_APM_SERVER_URLS: a comma-separated list of APM Server URLs.
+//   The transport will use this list of URLs for sending requests,
+//   switching to the next URL in the list upon error. The list will be
+//   shuffled first. If no URLs are specified, then the transport will
+//   use the default URL "http://localhost:8200".
 //
-// If the secret token specified is the empty string, then NewHTTPTransport
-// will use the value of the ELASTIC_APM_SECRET_TOKEN environment variable, if
-// defined; if the environment variable is also undefined, then requests will
-// not be authenticated.
+// - ELASTIC_APM_SERVER_TIMEOUT: timeout for requests to the APM Server.
+//   If not specified, defaults to 30 seconds.
 //
-// If ELASTIC_APM_VERIFY_SERVER_CERT is set to "false", then the transport
-// will not verify the APM server's TLS certificate.
+// - ELASTIC_APM_SECRET_TOKEN: used to authenticate the agent.
 //
-// The Client field will be initialized with a new http.Client configured from
-// ELASTIC_APM_* environment variables. The Client field may be modified or
-// replaced, e.g. in order to specify TLS root CAs.
-func NewHTTPTransport(serverURL, secretToken string) (*HTTPTransport, error) {
-	if serverURL == "" {
-		serverURL = os.Getenv(envServerURL)
-		if serverURL == "" {
-			serverURL = defaultServerURL
-		}
-	}
-	req, err := http.NewRequest("POST", serverURL, nil)
+// - ELASTIC_APM_VERIFY_SERVER_CERT: if set to "false", the transport
+//   will not verify the APM Server's TLS certificate. Only relevant
+//   when using HTTPS. By default, the transport will verify server
+//   certificates.
+//
+func NewHTTPTransport() (*HTTPTransport, error) {
+	verifyServerCert, err := apmconfig.ParseBoolEnv(envVerifyServerCert, true)
 	if err != nil {
 		return nil, err
 	}
 
-	httpTransport := &http.Transport{
-		Proxy:                 defaultHTTPTransport.Proxy,
-		DialContext:           defaultHTTPTransport.DialContext,
-		MaxIdleConns:          defaultHTTPTransport.MaxIdleConns,
-		IdleConnTimeout:       defaultHTTPTransport.IdleConnTimeout,
-		TLSHandshakeTimeout:   defaultHTTPTransport.TLSHandshakeTimeout,
-		ExpectContinueTimeout: defaultHTTPTransport.ExpectContinueTimeout,
-	}
-	if req.URL.Scheme == "https" && os.Getenv(envVerifyServerCert) == "false" {
-		httpTransport.TLSClientConfig = &tls.Config{
-			InsecureSkipVerify: true,
-		}
-	}
-	client := &http.Client{Transport: httpTransport}
-
-	timeout, err := apmconfig.ParseDurationEnv(envServerTimeout, defaultServerTimeout)
+	serverTimeout, err := apmconfig.ParseDurationEnv(envServerTimeout, defaultServerTimeout)
 	if err != nil {
 		return nil, err
 	}
-	if timeout > 0 {
-		client.Timeout = timeout
+	if serverTimeout < 0 {
+		serverTimeout = 0
+	}
+
+	serverURLs, err := initServerURLs()
+	if err != nil {
+		return nil, err
+	}
+
+	client := &http.Client{
+		Timeout: serverTimeout,
+		Transport: &http.Transport{
+			Proxy:                 defaultHTTPTransport.Proxy,
+			DialContext:           defaultHTTPTransport.DialContext,
+			MaxIdleConns:          defaultHTTPTransport.MaxIdleConns,
+			IdleConnTimeout:       defaultHTTPTransport.IdleConnTimeout,
+			TLSHandshakeTimeout:   defaultHTTPTransport.TLSHandshakeTimeout,
+			ExpectContinueTimeout: defaultHTTPTransport.ExpectContinueTimeout,
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: !verifyServerCert,
+			},
+		},
 	}
 
 	headers := make(http.Header)
 	headers.Set("Content-Type", "application/x-ndjson")
 	headers.Set("Content-Encoding", "deflate")
 	headers.Set("Transfer-Encoding", "chunked")
-	if secretToken == "" {
-		secretToken = os.Getenv(envSecretToken)
-	}
-	if secretToken != "" {
-		headers.Set("Authorization", "Bearer "+secretToken)
-	}
-
 	t := &HTTPTransport{
-		Client:    client,
-		baseURL:   req.URL,
-		intakeURL: urlWithPath(req.URL, intakePath),
-		headers:   headers,
+		Client:  client,
+		headers: headers,
 	}
+	t.SetSecretToken(os.Getenv(envSecretToken))
+	t.SetServerURL(serverURLs...)
 	return t, nil
 }
 
-// SetUserAgent sets the User-Agent header that will be
-// sent with each request.
+// SetServerURL sets the APM Server URL (or URLs) for sending requests.
+// At least one URL must be specified, or the method will panic. The
+// list will be randomly shuffled.
+func (t *HTTPTransport) SetServerURL(u ...*url.URL) {
+	if len(u) == 0 {
+		panic("SetServerURL expects at least one URL")
+	}
+	intakeURLs := make([]*url.URL, len(u))
+	for i, u := range u {
+		intakeURLs[i] = urlWithPath(u, intakePath)
+	}
+	if n := len(intakeURLs); n > 0 {
+		if t.shuffleRand == nil {
+			t.shuffleRand = rand.New(rand.NewSource(time.Now().UnixNano()))
+		}
+		for i := n - 1; i > 0; i-- {
+			j := t.shuffleRand.Intn(i + 1)
+			intakeURLs[i], intakeURLs[j] = intakeURLs[j], intakeURLs[i]
+		}
+	}
+	t.intakeURLs = intakeURLs
+	t.intakeURLIndex = 0
+}
+
+// SetUserAgent sets the User-Agent header that will be sent with each request.
 func (t *HTTPTransport) SetUserAgent(ua string) {
 	t.headers.Set("User-Agent", ua)
 }
 
-// SendStream sends the stream over HTTP.
-func (t *HTTPTransport) SendStream(ctx context.Context, r io.Reader) error {
-	req := t.newRequest(t.intakeURL)
-	req.Body = ioutil.NopCloser(r)
+// SetSecretToken sets the Authorization header with the given secret token.
+// This overrides the value specified via the ELASTIC_APM_SECRET_TOKEN
+// environment variable, if any.
+func (t *HTTPTransport) SetSecretToken(secretToken string) {
+	if secretToken != "" {
+		t.headers.Set("Authorization", "Bearer "+secretToken)
+	} else {
+		t.headers.Del("Authorization")
+	}
+}
 
+// SendStream sends the stream over HTTP. If SendStream returns an error and
+// the transport is configured with more than one APM Server URL, then the
+// following request will be sent to the next URL in the list.
+func (t *HTTPTransport) SendStream(ctx context.Context, r io.Reader) error {
+	intakeURL := t.intakeURLs[t.intakeURLIndex]
+	req := t.newRequest(intakeURL)
+	req = requestWithContext(ctx, req)
+	req.Body = ioutil.NopCloser(r)
+	if err := t.sendRequest(req); err != nil {
+		t.intakeURLIndex = (t.intakeURLIndex + 1) % len(t.intakeURLs)
+		return err
+	}
+	return nil
+}
+
+func (t *HTTPTransport) sendRequest(req *http.Request) error {
 	resp, err := t.Client.Do(req)
 	if err != nil {
-		return errors.Wrap(err, "sending stream failed")
+		return errors.Wrap(err, "sending request failed")
 	}
 	switch resp.StatusCode {
 	case http.StatusOK, http.StatusAccepted:
@@ -191,6 +233,35 @@ func (e *HTTPError) Error() string {
 		msg += ": " + e.Message
 	}
 	return msg
+}
+
+// initServerURLs parses ELASTIC_APM_SERVER_URLS if specified,
+// otherwise parses ELASTIC_APM_SERVER_URL if specified. If
+// neither are specified, then the default localhost URL is
+// returned.
+func initServerURLs() ([]*url.URL, error) {
+	key := envServerURLs
+	value := os.Getenv(key)
+	if value == "" {
+		key = envServerURL
+		value = os.Getenv(key)
+	}
+	var urls []*url.URL
+	for _, field := range strings.Split(value, ",") {
+		field = strings.TrimSpace(field)
+		if field == "" {
+			continue
+		}
+		u, err := url.Parse(field)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to parse %s", key)
+		}
+		urls = append(urls, u)
+	}
+	if len(urls) == 0 {
+		urls = []*url.URL{defaultServerURL}
+	}
+	return urls, nil
 }
 
 func requestWithContext(ctx context.Context, req *http.Request) *http.Request {

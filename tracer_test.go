@@ -244,10 +244,13 @@ func TestTracerRequestSize(t *testing.T) {
 	}))
 	defer server.Close()
 
+	os.Setenv("ELASTIC_APM_SERVER_URLS", server.URL)
+	defer os.Unsetenv("ELASTIC_APM_SERVER_URLS")
+
 	tracer, err := elasticapm.NewTracer("tracer_testing", "")
 	require.NoError(t, err)
 	defer tracer.Close()
-	httpTransport, err := transport.NewHTTPTransport(server.URL, "")
+	httpTransport, err := transport.NewHTTPTransport()
 	require.NoError(t, err)
 	tracer.Transport = httpTransport
 
@@ -330,10 +333,13 @@ func TestTracerBodyUnread(t *testing.T) {
 	}))
 	defer server.Close()
 
+	os.Setenv("ELASTIC_APM_SERVER_URLS", server.URL)
+	defer os.Unsetenv("ELASTIC_APM_SERVER_URLS")
+
 	tracer, err := elasticapm.NewTracer("tracer_testing", "")
 	require.NoError(t, err)
 	defer tracer.Close()
-	httpTransport, err := transport.NewHTTPTransport(server.URL, "")
+	httpTransport, err := transport.NewHTTPTransport()
 	require.NoError(t, err)
 	tracer.Transport = httpTransport
 

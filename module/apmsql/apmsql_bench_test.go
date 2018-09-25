@@ -3,6 +3,7 @@ package apmsql_test
 import (
 	"context"
 	"database/sql"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -29,8 +30,13 @@ func BenchmarkStmtQueryContext(b *testing.B) {
 		benchmarkQueries(b, context.Background(), stmt)
 	})
 	b.Run("instrumented", func(b *testing.B) {
-		httpTransport, err := transport.NewHTTPTransport("http://testing.invalid:8200", "")
+		invalidServerURL, err := url.Parse("http://testing.invalid:8200")
+		if err != nil {
+			panic(err)
+		}
+		httpTransport, err := transport.NewHTTPTransport()
 		require.NoError(b, err)
+		httpTransport.SetServerURL(invalidServerURL)
 		tracer, err := elasticapm.NewTracer("apmhttp_test", "0.1")
 		require.NoError(b, err)
 		tracer.Transport = httpTransport

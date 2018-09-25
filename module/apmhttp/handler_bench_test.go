@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"path"
 	"testing"
 	"time"
@@ -56,10 +57,16 @@ func newTracer() *elasticapm.Tracer {
 		panic(err)
 	}
 
-	httpTransport, err := transport.NewHTTPTransport("http://testing.invalid:8200", "")
+	invalidServerURL, err := url.Parse("http://testing.invalid:8200")
 	if err != nil {
 		panic(err)
 	}
+
+	httpTransport, err := transport.NewHTTPTransport()
+	if err != nil {
+		panic(err)
+	}
+	httpTransport.SetServerURL(invalidServerURL)
 	tracer.Transport = httpTransport
 	return tracer
 }
