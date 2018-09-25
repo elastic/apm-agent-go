@@ -64,8 +64,8 @@ func (t *otTracer) StartSpanWithOptions(name string, opts opentracing.StartSpanO
 				Parent: parentCtx.traceContext,
 				Start:  otSpan.ctx.startTime,
 			}
-			if parentCtx.tx != nil {
-				otSpan.span = parentCtx.tx.StartSpanOptions(name, "", opts)
+			if parentCtx.txSpanContext.tx != nil {
+				otSpan.span = parentCtx.txSpanContext.tx.StartSpanOptions(name, "", opts)
 			} else {
 				otSpan.span = t.tracer.StartSpan(name, "",
 					parentCtx.transactionID,
@@ -76,6 +76,18 @@ func (t *otTracer) StartSpanWithOptions(name string, opts opentracing.StartSpanO
 			otSpan.ctx.traceContext = otSpan.span.TraceContext()
 			otSpan.ctx.transactionID = parentCtx.transactionID
 			otSpan.ctx.txSpanContext = parentCtx.txSpanContext
+			return otSpan
+		} else if parentCtx.txSpanContext == nil && parentCtx.tx != nil {
+			// parentCtx is a synthesized spanContext object. It has no
+			// txSpanContext, so we treat it as the transaction creator.
+			opts := elasticapm.SpanOptions{
+				Parent: parentCtx.traceContext,
+				Start:  otSpan.ctx.startTime,
+			}
+			otSpan.span = parentCtx.tx.StartSpanOptions(name, "", opts)
+			otSpan.ctx.traceContext = otSpan.span.TraceContext()
+			otSpan.ctx.transactionID = parentCtx.transactionID
+			otSpan.ctx.txSpanContext = parentCtx
 			return otSpan
 		}
 		parentTraceContext = parentCtx.traceContext

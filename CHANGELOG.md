@@ -9,6 +9,7 @@
  - Require units for size configuration (#223)
  - Require units for duration configuration (#211)
  - Add support for multiple server URLs with failover (#233)
+ - Add support for mixing OpenTracing spans with native transactions/spans (#235)
 
 ## [v0.5.0](https://github.com/elastic/apm-agent-go/releases/tag/v0.5.0)
 

@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/log"
 
 	"github.com/elastic/apm-agent-go"
 	"github.com/elastic/apm-agent-go/module/apmhttp"
@@ -16,11 +15,18 @@ import (
 // otSpan wraps elasticapm objects to implement the opentracing.Span interface.
 type otSpan struct {
 	tracer *otTracer
+	unsupportedSpanMethods
 
 	mu   sync.Mutex
 	span *elasticapm.Span
 	tags opentracing.Tags
 	ctx  spanContext
+}
+
+// Span returns s.span, the underlying elasticapm.Span. This is used to satisfy
+// SpanFromContext.
+func (s *otSpan) Span() *elasticapm.Span {
+	return s.span
 }
 
 // SetOperationName sets or changes the operation name.
@@ -94,31 +100,6 @@ func (s *otSpan) Context() opentracing.SpanContext {
 func (s *otSpan) SetBaggageItem(key, val string) opentracing.Span {
 	// We do not support baggage.
 	return s
-}
-
-// BaggageItem returns the empty string; we do not support baggage.
-func (s *otSpan) BaggageItem(key string) string {
-	return ""
-}
-
-func (*otSpan) LogKV(keyValues ...interface{}) {
-	// No-op.
-}
-
-func (*otSpan) LogFields(fields ...log.Field) {
-	// No-op.
-}
-
-func (*otSpan) LogEvent(event string) {
-	// No-op.
-}
-
-func (*otSpan) LogEventWithPayload(event string, payload interface{}) {
-	// No-op.
-}
-
-func (*otSpan) Log(ld opentracing.LogData) {
-	// No-op.
 }
 
 func (s *otSpan) setSpanContext() {

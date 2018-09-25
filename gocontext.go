@@ -2,34 +2,36 @@ package elasticapm
 
 import (
 	"context"
+
+	"github.com/elastic/apm-agent-go/internal/apmcontext"
 )
 
 // ContextWithSpan returns a copy of parent in which the given span
 // is stored, associated with the key ContextSpanKey.
 func ContextWithSpan(parent context.Context, s *Span) context.Context {
-	return context.WithValue(parent, contextSpanKey{}, s)
+	return apmcontext.ContextWithSpan(parent, s)
 }
 
 // ContextWithTransaction returns a copy of parent in which the given
 // transaction is stored, associated with the key ContextTransactionKey.
 func ContextWithTransaction(parent context.Context, t *Transaction) context.Context {
-	return context.WithValue(parent, contextTransactionKey{}, t)
+	return apmcontext.ContextWithTransaction(parent, t)
 }
 
 // SpanFromContext returns the current Span in context, if any. The span must
-// have been added to the context previously using either ContextWithSpan
-// or SetSpanInContext.
+// have been added to the context previously using ContextWithSpan, or the
+// top-level StartSpan function.
 func SpanFromContext(ctx context.Context) *Span {
-	span, _ := ctx.Value(contextSpanKey{}).(*Span)
-	return span
+	value, _ := apmcontext.SpanFromContext(ctx).(*Span)
+	return value
 }
 
 // TransactionFromContext returns the current Transaction in context, if any.
-// The transaction must have been added to the context previously using either
-// ContextWithTransaction or SetTransactionInContext.
+// The transaction must have been added to the context previously using
+// ContextWithTransaction.
 func TransactionFromContext(ctx context.Context) *Transaction {
-	tx, _ := ctx.Value(contextTransactionKey{}).(*Transaction)
-	return tx
+	value, _ := apmcontext.TransactionFromContext(ctx).(*Transaction)
+	return value
 }
 
 // StartSpan is equivalent to calling StartSpanOptions with a zero SpanOptions struct.
@@ -47,7 +49,7 @@ func StartSpanOptions(ctx context.Context, name, spanType string, opts SpanOptio
 	tx := TransactionFromContext(ctx)
 	span := tx.StartSpan(name, spanType, SpanFromContext(ctx))
 	if !span.Dropped() {
-		ctx = context.WithValue(ctx, contextSpanKey{}, span)
+		ctx = ContextWithSpan(ctx, span)
 	}
 	return span, ctx
 }
@@ -77,6 +79,3 @@ func CaptureError(ctx context.Context, err error) *Error {
 	e.Handled = true
 	return e
 }
-
-type contextSpanKey struct{}
-type contextTransactionKey struct{}
