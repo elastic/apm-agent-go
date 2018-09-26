@@ -85,6 +85,24 @@ calling End.
 transaction.End()
 ----
 
+[float]
+[[elasticapm-context-with-transaction]]
+==== `func ContextWithTransaction(context.Context, *Transaction) context.Context`
+
+ContextWithTransaction adds the transaction to the context, and returns the resulting context.
+
+The transaction can be retrieved using <<elasticapm-transaction-from-context, elasticapm.TransactionFromContext>>.
+The context may also be passed into <<elasticapm-start-span, elasticapm.StartSpan>>, which uses
+TransactionFromContext under the covers to create a span as a child of the transaction.
+
+[float]
+[[elasticapm-transaction-from-context]]
+==== `func TransactionFromContext(context.Context) *Transaction`
+
+TransactionFromContext returns a transaction previously stored in the context using
+<<elasticapm-context-with-transaction, elasticapm.ContextWithTransaction>>, or nil if the context
+does not contain a transaction.
+
 // -------------------------------------------------------------------------------------------------
 
 [float]
@@ -148,6 +166,24 @@ the span's Duration field may be set before calling End.
 Dropped indicates whether or not the span is dropped, meaning it will not be reported to
 the APM server. Spans are dropped when the created via a nil or non-sampled transaction,
 or one whose max spans limit has been reached.
+
+[float]
+[[elasticapm-context-with-span]]
+==== `func ContextWithSpan(context.Context, *Span) context.Context`
+
+ContextWithSpan adds the span to the context, and returns the resulting context.
+
+The span can be retrieved using <<elasticapm-span-from-context, elasticapm.SpanFromContext>>.
+The context may also be passed into <<elasticapm-start-span, elasticapm.StartSpan>>, which uses
+SpanFromContext under the covers to create another span as a child of the span.
+
+[float]
+[[elasticapm-span-from-context]]
+==== `func SpanFromContext(context.Context) *Span`
+
+SpanFromContext returns a span previously stored in the context using
+<<elasticapm-context-with-span, elasticapm.ContextWithSpan>>, or nil if the context
+does not contain a span.
 
 // -------------------------------------------------------------------------------------------------
 
