@@ -44,7 +44,6 @@ func TestWrap(t *testing.T) {
 	assert.Equal(t, "request", transaction.Type)
 	assert.Equal(t, "HTTP 4xx", transaction.Result)
 
-	true_ := true
 	assert.Equal(t, &model.Context{
 		Request: &model.Request{
 			Socket: &model.RequestSocket{
@@ -64,7 +63,6 @@ func TestWrap(t *testing.T) {
 		},
 		Response: &model.Response{
 			StatusCode: 418,
-			Finished:   &true_,
 		},
 	}, transaction.Context)
 }
@@ -94,9 +92,7 @@ func TestRecovery(t *testing.T) {
 	assert.Equal(t, "panicHandler", error0.Culprit)
 	assert.Equal(t, "foo", error0.Exception.Message)
 
-	true_ := true
 	assert.Equal(t, &model.Response{
-		Finished:   &true_,
 		StatusCode: 418,
 	}, transaction.Context.Response)
 }

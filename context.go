@@ -161,18 +161,6 @@ func (c *Context) SetHTTPResponseHeaders(h http.Header) {
 	}
 }
 
-// SetHTTPResponseHeadersSent records whether or not response were sent.
-func (c *Context) SetHTTPResponseHeadersSent(headersSent bool) {
-	c.response.HeadersSent = &headersSent
-	c.model.Response = &c.response
-}
-
-// SetHTTPResponseFinished records whether or not the response was finished.
-func (c *Context) SetHTTPResponseFinished(finished bool) {
-	c.response.Finished = &finished
-	c.model.Response = &c.response
-}
-
 // SetHTTPStatusCode records the HTTP response status code.
 func (c *Context) SetHTTPStatusCode(statusCode int) {
 	c.response.StatusCode = statusCode

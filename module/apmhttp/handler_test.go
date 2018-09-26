@@ -45,7 +45,6 @@ func TestHandler(t *testing.T) {
 	assert.Equal(t, "request", transaction.Type)
 	assert.Equal(t, "HTTP 4xx", transaction.Result)
 
-	true_ := true
 	assert.Equal(t, &model.Context{
 		Request: &model.Request{
 			Socket: &model.RequestSocket{
@@ -65,7 +64,6 @@ func TestHandler(t *testing.T) {
 		},
 		Response: &model.Response{
 			StatusCode: 418,
-			Finished:   &true_,
 		},
 	}, transaction.Context)
 }
@@ -104,7 +102,6 @@ func TestHandlerHTTP2(t *testing.T) {
 	payloads := transport.Payloads()
 	transaction := payloads.Transactions[0]
 
-	true_ := true
 	assert.Equal(t, &model.Context{
 		Request: &model.Request{
 			Socket: &model.RequestSocket{
@@ -126,7 +123,6 @@ func TestHandlerHTTP2(t *testing.T) {
 		},
 		Response: &model.Response{
 			StatusCode: 418,
-			Finished:   &true_,
 		},
 	}, transaction.Context)
 }
@@ -230,9 +226,7 @@ func TestHandlerRecovery(t *testing.T) {
 	assert.Equal(t, "panicHandler", error0.Culprit)
 	assert.Equal(t, "foo", error0.Exception.Message)
 
-	true_ := true
 	assert.Equal(t, &model.Response{
-		Finished:   &true_,
 		StatusCode: 418,
 	}, transaction.Context.Response)
 }

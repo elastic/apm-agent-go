@@ -34,7 +34,6 @@ func TestMuxMiddleware(t *testing.T) {
 	assert.Equal(t, "request", transaction.Type)
 	assert.Equal(t, "HTTP 2xx", transaction.Result)
 
-	true_ := true
 	assert.Equal(t, &model.Context{
 		Request: &model.Request{
 			Socket: &model.RequestSocket{
@@ -51,9 +50,7 @@ func TestMuxMiddleware(t *testing.T) {
 			HTTPVersion: "1.1",
 		},
 		Response: &model.Response{
-			StatusCode:  200,
-			Finished:    &true_,
-			HeadersSent: &true_,
+			StatusCode: 200,
 			Headers: &model.ResponseHeaders{
 				ContentType: "text/plain; charset=utf-8",
 			},

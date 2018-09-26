@@ -82,34 +82,24 @@ func (m *middleware) handle(c *gin.Context) {
 	defer tx.End()
 
 	body := m.tracer.CaptureHTTPRequestBody(c.Request)
-	ginContext := ginContext{Handler: handlerName}
 	defer func() {
 		if v := recover(); v != nil {
 			c.AbortWithStatus(http.StatusInternalServerError)
 			e := m.tracer.Recovered(v)
 			e.SetTransaction(tx)
-			e.Context.SetHTTPRequest(c.Request)
-			e.Context.SetHTTPRequestBody(body)
+			setContext(&e.Context, c, body)
 			e.Send()
 		}
 		tx.Result = apmhttp.StatusCodeResult(c.Writer.Status())
 
 		if tx.Sampled() {
-			tx.Context.SetHTTPRequest(c.Request)
-			tx.Context.SetHTTPRequestBody(body)
-			tx.Context.SetHTTPStatusCode(c.Writer.Status())
-			tx.Context.SetHTTPResponseHeaders(c.Writer.Header())
-			tx.Context.SetHTTPResponseHeadersSent(c.Writer.Written())
-			tx.Context.SetHTTPResponseFinished(!c.IsAborted())
-			tx.Context.SetCustom("gin", ginContext)
+			setContext(&tx.Context, c, body)
 		}
 
 		for _, err := range c.Errors {
 			e := m.tracer.NewError(err.Err)
 			e.SetTransaction(tx)
-			e.Context.SetHTTPRequest(c.Request)
-			e.Context.SetHTTPRequestBody(body)
-			e.Context.SetCustom("gin", ginContext)
+			setContext(&e.Context, c, body)
 			e.Handled = true
 			e.Send()
 		}
@@ -117,8 +107,13 @@ func (m *middleware) handle(c *gin.Context) {
 	c.Next()
 }
 
-type ginContext struct {
-	Handler string `json:"handler"`
+func setContext(ctx *elasticapm.Context, c *gin.Context, body *elasticapm.BodyCapturer) {
+	ctx.SetHTTPRequest(c.Request)
+	ctx.SetHTTPRequestBody(body)
+	if c.Writer.Written() {
+		ctx.SetHTTPStatusCode(c.Writer.Status())
+		ctx.SetHTTPResponseHeaders(c.Writer.Header())
+	}
 }
 
 // Option sets options for tracing.

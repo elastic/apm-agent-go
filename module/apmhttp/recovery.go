@@ -10,6 +10,7 @@ import (
 type RecoveryFunc func(
 	w http.ResponseWriter,
 	req *http.Request,
+	resp *Response,
 	body *elasticapm.BodyCapturer,
 	tx *elasticapm.Transaction,
 	recovered interface{},
@@ -27,14 +28,14 @@ func NewTraceRecovery(t *elasticapm.Tracer) RecoveryFunc {
 	return func(
 		w http.ResponseWriter,
 		req *http.Request,
+		resp *Response,
 		body *elasticapm.BodyCapturer,
 		tx *elasticapm.Transaction,
 		recovered interface{},
 	) {
 		e := t.Recovered(recovered)
 		e.SetTransaction(tx)
-		e.Context.SetHTTPRequest(req)
-		e.Context.SetHTTPRequestBody(body)
+		setContext(&e.Context, req, resp, body)
 		e.Send()
 	}
 }
