@@ -162,10 +162,6 @@ type Span struct {
 	// Timestamp holds the time at which the span's transaction started.
 	Timestamp Time `json:"timestamp"`
 
-	// Start is the start time of the span, in milliseconds relative to
-	// the containing transaction's timestamp.
-	Start float64 `json:"start"`
-
 	// Duration holds the duration of the span, in milliseconds.
 	Duration float64 `json:"duration"`
 

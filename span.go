@@ -56,7 +56,6 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 	span := tx.tracer.startSpan(name, spanType, transactionID, opts)
 	binary.LittleEndian.PutUint64(span.traceContext.Span[:], tx.rand.Uint64())
 	span.stackFramesMinDuration = tx.spanFramesMinDuration
-	span.transactionTimestamp = tx.timestamp
 	tx.spansCreated++
 	tx.mu.Unlock()
 	return span
@@ -71,7 +70,7 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 // containing transaction's End method has been called. Spans created in this
 // way will not have the "max spans" configuration applied, nor will they be
 // considered in any transaction's span count.
-func (t *Tracer) StartSpan(name, spanType string, transactionID SpanID, transactionTimestamp time.Time, opts SpanOptions) *Span {
+func (t *Tracer) StartSpan(name, spanType string, transactionID SpanID, opts SpanOptions) *Span {
 	if opts.Parent.Trace.Validate() != nil || opts.Parent.Span.Validate() != nil || transactionID.Validate() != nil {
 		return newDroppedSpan()
 	}
@@ -84,7 +83,6 @@ func (t *Tracer) StartSpan(name, spanType string, transactionID SpanID, transact
 	}
 	span := t.startSpan(name, spanType, transactionID, opts)
 	span.traceContext.Span = spanID
-	span.transactionTimestamp = transactionTimestamp
 	t.spanFramesMinDurationMu.RLock()
 	span.stackFramesMinDuration = t.spanFramesMinDuration
 	t.spanFramesMinDurationMu.RUnlock()
@@ -118,7 +116,6 @@ type Span struct {
 	parentID               SpanID
 	transactionID          SpanID
 	stackFramesMinDuration time.Duration
-	transactionTimestamp   time.Time
 	timestamp              time.Time
 
 	Name     string

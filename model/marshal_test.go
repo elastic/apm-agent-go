@@ -103,7 +103,6 @@ func TestMarshalSpan(t *testing.T) {
 		"id":             "0001020304050607",
 		"parent_id":      "0001020304050607",
 		"transaction_id": "0001020304050607",
-		"start":          float64(123),
 		"name":           "SELECT FROM bar",
 		"timestamp":      "1970-01-01T00:02:03Z",
 		"duration":       float64(3),
@@ -133,7 +132,6 @@ func TestMarshalSpan(t *testing.T) {
 		"transaction_id": "0001020304050607",
 		"name":           "GET testing.invalid:8000",
 		"timestamp":      "1970-01-01T00:02:03Z",
-		"start":          float64(123),
 		"duration":       float64(4),
 		"type":           "ext.http",
 		"context": map[string]interface{}{
@@ -567,7 +565,6 @@ func fakeSpan() model.Span {
 		TransactionID: model.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
 		TraceID:       model.TraceID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
 		Timestamp:     model.Time(time.Unix(123, 0).UTC()),
-		Start:         123,
 		Duration:      3,
 		Type:          "db.postgresql.query",
 		Context:       fakeDatabaseSpanContext(),

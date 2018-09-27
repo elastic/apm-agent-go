@@ -69,7 +69,6 @@ func (t *otTracer) StartSpanWithOptions(name string, opts opentracing.StartSpanO
 			} else {
 				otSpan.span = t.tracer.StartSpan(name, "",
 					parentCtx.transactionID,
-					parentCtx.txSpanContext.startTime,
 					opts,
 				)
 			}

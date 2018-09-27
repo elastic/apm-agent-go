@@ -234,8 +234,6 @@ func (v *Span) MarshalFastJSON(w *fastjson.Writer) {
 	v.ID.MarshalFastJSON(w)
 	w.RawString(",\"name\":")
 	w.String(v.Name)
-	w.RawString(",\"start\":")
-	w.Float64(v.Start)
 	w.RawString(",\"timestamp\":")
 	v.Timestamp.MarshalFastJSON(w)
 	w.RawString(",\"trace_id\":")
