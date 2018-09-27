@@ -30,7 +30,7 @@ func TestStartTransactionTraceContextOptions(t *testing.T) {
 func startTransactionTraceContextOptions(t *testing.T, requested, maybeRecorded bool) elasticapm.TraceContext {
 	tracer, _ := transporttest.NewRecorderTracer()
 	defer tracer.Close()
-	tracer.SetSampler(samplerFunc(func(*elasticapm.Transaction) bool {
+	tracer.SetSampler(samplerFunc(func(elasticapm.TraceContext) bool {
 		panic("nope")
 	}))
 
@@ -65,7 +65,7 @@ func startTransactionInvalidTraceContext(t *testing.T, traceContext elasticapm.T
 	defer tracer.Close()
 
 	var samplerCalled bool
-	tracer.SetSampler(samplerFunc(func(*elasticapm.Transaction) bool {
+	tracer.SetSampler(samplerFunc(func(elasticapm.TraceContext) bool {
 		samplerCalled = true
 		return true
 	}))
@@ -76,8 +76,8 @@ func startTransactionInvalidTraceContext(t *testing.T, traceContext elasticapm.T
 	assert.True(t, samplerCalled)
 }
 
-type samplerFunc func(*elasticapm.Transaction) bool
+type samplerFunc func(elasticapm.TraceContext) bool
 
-func (f samplerFunc) Sample(tx *elasticapm.Transaction) bool {
-	return f(tx)
+func (f samplerFunc) Sample(t elasticapm.TraceContext) bool {
+	return f(t)
 }
