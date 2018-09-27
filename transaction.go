@@ -37,13 +37,14 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 	tx.Name = name
 	tx.Type = transactionType
 
+	var root bool
 	if opts.TraceContext.Trace.Validate() == nil && opts.TraceContext.Span.Validate() == nil {
 		tx.traceContext.Trace = opts.TraceContext.Trace
-		tx.traceContext.Options = opts.TraceContext.Options
 		tx.parentSpan = opts.TraceContext.Span
 		binary.LittleEndian.PutUint64(tx.traceContext.Span[:], tx.rand.Uint64())
 	} else {
 		// Start a new trace. We reuse the trace ID for the root transaction's ID.
+		root = true
 		binary.LittleEndian.PutUint64(tx.traceContext.Trace[:8], tx.rand.Uint64())
 		binary.LittleEndian.PutUint64(tx.traceContext.Trace[8:], tx.rand.Uint64())
 		copy(tx.traceContext.Span[:], tx.traceContext.Trace[:])
@@ -60,12 +61,7 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 	tx.spanFramesMinDuration = t.spanFramesMinDuration
 	t.spanFramesMinDurationMu.RUnlock()
 
-	// TODO(axw) make this behaviour configurable. In some cases
-	// it may not be a good idea to honour the sampled flag, as
-	// it may open up the application to DoS by forced sampling.
-	// Even ignoring bad actors, a service that has many feeder
-	// applications may end up being sampled at a very high rate.
-	if !tx.traceContext.Options.Requested() {
+	if root {
 		t.samplerMu.RLock()
 		sampler := t.sampler
 		t.samplerMu.RUnlock()
@@ -73,6 +69,13 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 			o := tx.traceContext.Options.WithRequested(true).WithMaybeRecorded(true)
 			tx.traceContext.Options = o
 		}
+	} else if opts.TraceContext.Options.Requested() {
+		// TODO(axw) make this behaviour configurable. In some cases
+		// it may not be a good idea to honour the requested flag, as
+		// it may open up the application to DoS by forced sampling.
+		// Even ignoring bad actors, a service that has many feeder
+		// applications may end up being sampled at a very high rate.
+		tx.traceContext.Options = opts.TraceContext.Options.WithMaybeRecorded(true)
 	}
 	tx.timestamp = opts.Start
 	if tx.timestamp.IsZero() {
