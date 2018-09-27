@@ -501,7 +501,7 @@ type ResponseHeaders struct {
 	ContentType string `json:"content-type,omitempty"`
 }
 
-// Time is a timestamp, formatted as "YYYY-MM-DDTHH:mm:ss.sssZ".
+// Time is a timestamp, formatted as a number of microseconds since January 1, 1970 UTC.
 type Time time.Time
 
 // TraceID holds a 128-bit trace ID.

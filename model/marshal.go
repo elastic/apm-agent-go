@@ -16,29 +16,18 @@ import (
 
 //go:generate go run ../internal/fastjson/generate.go -f -o marshal_fastjson.go .
 
-const (
-	// YYYY-MM-DDTHH:mm:ss.sssZ
-	dateTimeFormat = "2006-01-02T15:04:05.999Z"
-)
-
 // MarshalFastJSON writes the JSON representation of t to w.
 func (t Time) MarshalFastJSON(w *fastjson.Writer) {
-	w.RawByte('"')
-	w.Time(time.Time(t), dateTimeFormat)
-	w.RawByte('"')
+	w.Int64(time.Time(t).UnixNano() / int64(time.Microsecond))
 }
 
 // UnmarshalJSON unmarshals the JSON data into t.
 func (t *Time) UnmarshalJSON(data []byte) error {
-	var s string
-	if err := json.Unmarshal(data, &s); err != nil {
+	var usec int64
+	if err := json.Unmarshal(data, &usec); err != nil {
 		return err
 	}
-	time, err := time.Parse(dateTimeFormat, s)
-	if err != nil {
-		return err
-	}
-	*t = Time(time)
+	*t = Time(time.Unix(usec/1000000, (usec%1000000)*1000).UTC())
 	return nil
 }
 
