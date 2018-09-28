@@ -78,9 +78,9 @@ func (w *modelWriter) buildModelTransaction(out *model.Transaction, tx *Transact
 	out.TraceID = model.TraceID(tx.traceContext.Trace)
 	out.ParentID = model.SpanID(tx.parentSpan)
 
-	out.Name = truncateString(tx.Name)
-	out.Type = truncateString(tx.Type)
-	out.Result = truncateString(tx.Result)
+	out.Name = truncateKeyword(tx.Name)
+	out.Type = truncateKeyword(tx.Type)
+	out.Result = truncateKeyword(tx.Result)
 	out.Timestamp = model.Time(tx.timestamp.UTC())
 	out.Duration = tx.Duration.Seconds() * 1000
 	out.SpanCount.Started = tx.spansCreated
@@ -103,8 +103,8 @@ func (w *modelWriter) buildModelSpan(out *model.Span, span *Span) {
 	out.ParentID = model.SpanID(span.parentID)
 	out.TransactionID = model.SpanID(span.transactionID)
 
-	out.Name = truncateString(span.Name)
-	out.Type = truncateString(span.Type)
+	out.Name = truncateKeyword(span.Name)
+	out.Type = truncateKeyword(span.Type)
 	out.Timestamp = model.Time(span.transactionTimestamp.UTC())
 	out.Start = span.timestamp.Sub(span.transactionTimestamp).Seconds() * 1000
 	out.Duration = span.Duration.Seconds() * 1000

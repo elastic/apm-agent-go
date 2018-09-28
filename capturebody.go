@@ -84,7 +84,9 @@ func (bc *BodyCapturer) setContext(out *model.RequestBody) bool {
 		postForm := make(url.Values, len(bc.request.PostForm))
 		for k, v := range bc.request.PostForm {
 			vcopy := make([]string, len(v))
-			copy(vcopy, v)
+			for i := range vcopy {
+				vcopy[i] = truncateText(v[i])
+			}
 			postForm[k] = vcopy
 		}
 		out.Form = postForm
@@ -98,6 +100,6 @@ func (bc *BodyCapturer) setContext(out *model.RequestBody) bool {
 		// TODO(axw) log error?
 		return false
 	}
-	out.Raw = string(all)
+	out.Raw = truncateText(string(all))
 	return true
 }

@@ -67,7 +67,7 @@ func (c *Context) SetTag(key, value string) {
 	if !validTagKey(key) {
 		return
 	}
-	value = truncateString(value)
+	value = truncateKeyword(value)
 	if c.model.Tags == nil {
 		c.model.Tags = map[string]string{key: value}
 	} else {
@@ -108,7 +108,7 @@ func (c *Context) SetHTTPRequest(req *http.Request) {
 	c.request = model.Request{
 		Body:        c.request.Body,
 		URL:         apmhttputil.RequestURL(req, forwarded),
-		Method:      truncateString(req.Method),
+		Method:      truncateKeyword(req.Method),
 		HTTPVersion: httpVersion,
 		Cookies:     req.Cookies(),
 	}
@@ -116,7 +116,7 @@ func (c *Context) SetHTTPRequest(req *http.Request) {
 
 	c.requestHeaders = model.RequestHeaders{
 		ContentType: req.Header.Get("Content-Type"),
-		Cookie:      strings.Join(req.Header["Cookie"], ";"),
+		Cookie:      truncateText(strings.Join(req.Header["Cookie"], ";")),
 		UserAgent:   req.UserAgent(),
 	}
 	if c.requestHeaders != (model.RequestHeaders{}) {
@@ -135,7 +135,7 @@ func (c *Context) SetHTTPRequest(req *http.Request) {
 	if !ok && req.URL.User != nil {
 		username = req.URL.User.Username()
 	}
-	c.user.Username = truncateString(username)
+	c.user.Username = truncateKeyword(username)
 	if c.user.Username != "" {
 		c.model.User = &c.user
 	}
@@ -169,7 +169,7 @@ func (c *Context) SetHTTPStatusCode(statusCode int) {
 
 // SetUserID sets the ID of the authenticated user.
 func (c *Context) SetUserID(id string) {
-	c.user.ID = truncateString(id)
+	c.user.ID = truncateKeyword(id)
 	if c.user.ID != "" {
 		c.model.User = &c.user
 	}
@@ -177,7 +177,7 @@ func (c *Context) SetUserID(id string) {
 
 // SetUserEmail sets the email for the authenticated user.
 func (c *Context) SetUserEmail(email string) {
-	c.user.Email = truncateString(email)
+	c.user.Email = truncateKeyword(email)
 	if c.user.Email != "" {
 		c.model.User = &c.user
 	}
@@ -185,7 +185,7 @@ func (c *Context) SetUserEmail(email string) {
 
 // SetUsername sets the username of the authenticated user.
 func (c *Context) SetUsername(username string) {
-	c.user.Username = truncateString(username)
+	c.user.Username = truncateKeyword(username)
 	if c.user.Username != "" {
 		c.model.User = &c.user
 	}
