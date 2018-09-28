@@ -9,8 +9,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/santhosh-tekuri/jsonschema"
 	"github.com/stretchr/testify/assert"
@@ -67,6 +69,17 @@ func TestValidateSpanName(t *testing.T) {
 func TestValidateSpanType(t *testing.T) {
 	validateTransaction(t, func(tx *elasticapm.Transaction) {
 		tx.StartSpan("name", strings.Repeat("x", 1025), nil).End()
+	})
+}
+
+func TestValidateDatabaseSpanContextInstance(t *testing.T) {
+	validateSpan(t, func(s *elasticapm.Span) {
+		s.Context.SetDatabase(elasticapm.DatabaseSpanContext{
+			Instance:  strings.Repeat("x", 1025),
+			Statement: strings.Repeat("x", 10001),
+			Type:      strings.Repeat("x", 1025),
+			User:      strings.Repeat("x", 1025),
+		})
 	})
 }
 
@@ -136,6 +149,37 @@ func TestValidateRequestMethod(t *testing.T) {
 	})
 }
 
+func TestValidateRequestBody(t *testing.T) {
+	t.Run("raw", func(t *testing.T) {
+		validatePayloads(t, func(tracer *elasticapm.Tracer) {
+			tracer.SetCaptureBody(elasticapm.CaptureBodyAll)
+			tx := tracer.StartTransaction("name", "type")
+			defer tx.End()
+
+			body := strings.NewReader(strings.Repeat("x", 10001))
+			req, _ := http.NewRequest("GET", "/", body)
+			captureBody := tracer.CaptureHTTPRequestBody(req)
+			tx.Context.SetHTTPRequest(req)
+			tx.Context.SetHTTPRequestBody(captureBody)
+		})
+	})
+	t.Run("form", func(t *testing.T) {
+		validatePayloads(t, func(tracer *elasticapm.Tracer) {
+			tracer.SetCaptureBody(elasticapm.CaptureBodyAll)
+			tx := tracer.StartTransaction("name", "type")
+			defer tx.End()
+
+			req, _ := http.NewRequest("GET", "/", strings.NewReader("x"))
+			req.PostForm = url.Values{
+				"unsanitized_field": []string{strings.Repeat("x", 10001)},
+			}
+			captureBody := tracer.CaptureHTTPRequestBody(req)
+			tx.Context.SetHTTPRequest(req)
+			tx.Context.SetHTTPRequestBody(captureBody)
+		})
+	})
+}
+
 func TestValidateRequestURL(t *testing.T) {
 	type test struct {
 		name string
@@ -169,6 +213,13 @@ func TestValidateErrorException(t *testing.T) {
 			}).Send()
 		})
 	})
+	t.Run("long_message", func(t *testing.T) {
+		validatePayloads(t, func(tracer *elasticapm.Tracer) {
+			tracer.NewError(&testError{
+				message: strings.Repeat("x", 10001),
+			}).Send()
+		})
+	})
 	t.Run("code", func(t *testing.T) {
 		validatePayloads(t, func(tracer *elasticapm.Tracer) {
 			tracer.NewError(&testError{
@@ -191,6 +242,9 @@ func TestValidateErrorLog(t *testing.T) {
 	tests := map[string]elasticapm.ErrorLogRecord{
 		"empty_message": {
 			Message: "",
+		},
+		"long_message": {
+			Message: strings.Repeat("x", 10001),
 		},
 		"level": {
 			Message: "x",
@@ -227,6 +281,14 @@ func TestValidateMetrics(t *testing.T) {
 		unregister := tracer.RegisterMetricsGatherer(elasticapm.GatherMetricsFunc(gather))
 		defer unregister()
 		tracer.SendMetrics(nil)
+	})
+}
+
+func validateSpan(t *testing.T, f func(s *elasticapm.Span)) {
+	validateTransaction(t, func(tx *elasticapm.Transaction) {
+		s := tx.StartSpan("name", "type", nil)
+		f(s)
+		s.End()
 	})
 }
 
@@ -298,7 +360,10 @@ func (t *validatingTransport) SendStream(ctx context.Context, r io.Reader) error
 				}
 			}
 			err := schema.Validate(bytes.NewReader([]byte(v)))
-			assert.NoError(t.t, err)
+			if assert.NoError(t.t, err) {
+				// Perform additional validation.
+				t.checkStringLengths(k, v)
+			}
 		}
 	}
 	assert.NoError(t.t, s.Err())
@@ -306,6 +371,43 @@ func (t *validatingTransport) SendStream(ctx context.Context, r io.Reader) error
 		t.t.Errorf("metadata missing from stream")
 	}
 	return nil
+}
+
+func (t *validatingTransport) checkStringLengths(path string, raw json.RawMessage) {
+	// No string should exceed 10000 runes.
+	const limit = 10000
+	var checkRecursive func(path string, v interface{}) bool
+	checkRecursive = func(path string, v interface{}) bool {
+		switch v := v.(type) {
+		case map[string]interface{}:
+			for k, v := range v {
+				path := path + "." + k
+				if !checkRecursive(path, v) {
+					return false
+				}
+			}
+		case string:
+			n := utf8.RuneCountInString(v)
+			if !assert.Condition(t.t, func() bool {
+				return n <= limit
+			}, "len(%s) > %d (==%d)", path, limit, n) {
+				return false
+			}
+		case []interface{}:
+			for i, v := range v {
+				path := fmt.Sprintf("%s[%d]", path, i)
+				if !checkRecursive(path, v) {
+					return false
+				}
+			}
+		}
+		return true
+	}
+	m := make(map[string]interface{})
+	if err := json.Unmarshal(raw, &m); !assert.NoError(t.t, err) {
+		return
+	}
+	checkRecursive(path, m)
 }
 
 type testError struct {

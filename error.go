@@ -65,7 +65,7 @@ func (t *Tracer) NewError(err error) *Error {
 	}
 	e := t.newError()
 	rand.Read(e.ID[:]) // ignore error, can't do anything about it
-	e.model.Exception.Message = err.Error()
+	e.model.Exception.Message = truncateText(err.Error())
 	if e.model.Exception.Message == "" {
 		e.model.Exception.Message = "[EMPTY]"
 	}
@@ -86,10 +86,10 @@ func (t *Tracer) NewError(err error) *Error {
 func (t *Tracer) NewErrorLog(r ErrorLogRecord) *Error {
 	e := t.newError()
 	e.model.Log = model.Log{
-		Message:      r.Message,
-		Level:        truncateString(r.Level),
-		LoggerName:   truncateString(r.LoggerName),
-		ParamMessage: truncateString(r.MessageFormat),
+		Message:      truncateText(r.Message),
+		Level:        truncateKeyword(r.Level),
+		LoggerName:   truncateKeyword(r.LoggerName),
+		ParamMessage: truncateKeyword(r.MessageFormat),
 	}
 	if e.model.Log.Message == "" {
 		e.model.Log.Message = "[EMPTY]"
@@ -301,8 +301,8 @@ func initException(e *model.Exception, err error) {
 	if errTimeout(err) {
 		setAttr("timeout", true)
 	}
-	e.Code.String = truncateString(e.Code.String)
-	e.Type = truncateString(e.Type)
+	e.Code.String = truncateKeyword(e.Code.String)
+	e.Type = truncateKeyword(e.Type)
 }
 
 func initStacktrace(e *Error, err error) {
