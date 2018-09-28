@@ -2,7 +2,6 @@ package elasticapm
 
 import (
 	"fmt"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -123,8 +122,7 @@ func initialSampler() (Sampler, error) {
 			envTransactionSampleRate, value,
 		)
 	}
-	source := rand.NewSource(time.Now().Unix())
-	return NewRatioSampler(ratio, source), nil
+	return NewRatioSampler(ratio), nil
 }
 
 func initialSanitizedFieldNamesRegexp() (*regexp.Regexp, error) {

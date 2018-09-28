@@ -1,7 +1,6 @@
 package elasticapm_test
 
 import (
-	"math/rand"
 	"testing"
 	"time"
 
@@ -15,7 +14,7 @@ func TestStartSpanTransactionNotSampled(t *testing.T) {
 	tracer, _ := elasticapm.NewTracer("tracer_testing", "")
 	defer tracer.Close()
 	// sample nothing
-	tracer.SetSampler(elasticapm.NewRatioSampler(0, rand.New(rand.NewSource(0))))
+	tracer.SetSampler(elasticapm.NewRatioSampler(0))
 
 	tx := tracer.StartTransaction("name", "type")
 	assert.False(t, tx.Sampled())
