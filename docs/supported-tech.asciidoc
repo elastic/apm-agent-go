@@ -1,0 +1,134 @@
+[[supported-tech]]
+== Supported Technologies
+
+This page describes the technologies supported by the Elastic APM Go agent.
+
+If your favorite technology is not supported yet, you can vote for it by
+participating in our https://docs.google.com/forms/d/e/1FAIpQLScbW7D8m-otPO7cxqeg7XstWR8vMnxG6brnXLs_TFVSTHuHvg/viewform?usp=sf_link[survey], or joining the conversation in the https://discuss.elastic.co/c/apm[Discuss forum].
+We will use the results of the survey and Discuss topics to add support
+for the most requested technologies.
+
+If you would like to get more involved, take a look at the <<contributing, contributing guide>>.
+
+[float]
+[[supported-tech-go]]
+=== Go
+
+The Elastic APM Go agent naturally requires Go. We will support, at a minimum,
+the last two major Go releases as described by
+https://golang.org/doc/devel/release.html#policy[Go's Release Policy]. Older
+versions of Go will be supported on a best-effort basis.
+
+We currently test the agent with all major versions of Go since 1.8. Some
+integration modules may require a more recent version of Go due to third-party
+dependencies.
+
+[float]
+[[supported-tech-web-frameworks]]
+=== Web Frameworks
+
+We support several third-party web frameworks, as well as Go's standard `net/http`
+package. Regardless of the framework, we create a transaction for each incoming
+request, and name the transaction after the registered route.
+
+[float]
+==== httprouter
+
+https://github.com/julienschmidt/httprouter[julienschmidt/httprouter] does
+not use semantic versioning, but its API is relatively stable. Any recent
+version should be compatible with the Elastic APM Go agent.
+
+See <<builtin-modules-apmhttprouter, module/apmhttprouter>> for more
+information about httprouter instrumentation.
+
+[float]
+==== Echo
+
+We support the https://echo.labstack.com/[Echo] web framework,
+https://github.com/labstack/echo/releases/tag/3.3.2[v3.2.2] and greater.
+
+See <<builtin-modules-apmecho, module/apmecho>> for more information
+about Echo instrumentation.
+
+[float]
+==== Gin
+
+We support the https://gin-gonic.github.io/gin/[Gin] web framework,
+https://github.com/gin-gonic/gin/releases/tag/v1.2[v1.2] and greater.
+
+See <<builtin-modules-apmgin, module/apmgin>> for more information
+about Gin instrumentation.
+
+[float]
+==== gorilla/mux
+
+We support http://www.gorillatoolkit.org/pkg/mux[gorilla/mux]
+https://github.com/gorilla/mux/releases/tag/v1.6.1[v1.6.1] and greater.
+Older versions are not supported due to the use of gorilla.Middleware.
+
+See <<builtin-modules-apmgorilla, module/apmgorilla>> for more information
+about gorilla/mux instrumentation.
+
+[float]
+[[supported-tech-databases]]
+=== Databases
+
+[float]
+==== database/sql
+
+We support tracing requests with any `database/sql` driver, provided
+the driver is registered with the Elastic APM Go agent. Spans will be
+created for each statemented executed.
+
+When using one of the following drivers, the Elastic APM Go agent will
+be able to parse the datasource name, and provide more context in the
+spans it emits:
+
+- https://github.com/lib/pq[lib/pq] (PostgreSQL)
+- https://github.com/go-sql-driver/mysql[go-sql-driver/mysql]
+- https://github.com/go-sqlite3[mattn/go-sqlite3]
+
+See <<builtin-modules-apmsql, module/apmsql>> for more information
+about database/sql instrumentation.
+
+[float]
+==== GORM
+
+We support the http://gorm.io/[GORM] object-relational mapping library,
+https://github.com/jinzhu/gorm/releases/tag/v1.9[v1.9] and greater.
+Spans will be created for each create, query, update, and delete
+operation.
+
+As with `database/sql` support we provide additional support for the
+postgres, mysql, and sqlite dialects.
+
+See <<builtin-modules-apmgorm, module/apmgorm>> for more information
+about GORM instrumentation.
+
+[float]
+==== Cassandra (gocql)
+
+https://gocql.github.io/[GoCQL] does not have a stable API, so we will
+provide support for the most recent API, and older versions of the API
+on a best-effort basis. Spans will be created for each query. When the
+batch API is used, a span will be created for the batch, and a sub-span
+is created for each query in the batch.
+
+See <<builtin-modules-apmgocql, module/apmgocql>> for more information
+about GoCQL instrumentation.
+
+[float]
+[[supported-tech-rpc]]
+=== RPC Frameworks
+
+[float]
+==== gRPC
+
+We support https://grpc.io/[gRPC]
+https://github.com/grpc/grpc-go/releases/tag/v1.3.0[v1.3.0] and greater.
+We provide unary interceptors for both the client and server. The server
+interceptor will create a transaction for each incoming request, and
+the client interceptor will create a span for each outgoing request.
+
+See <<builtin-modules-apmgrpc, module/apmgrpc>> for more information
+about gRPC instrumentation.
