@@ -352,6 +352,46 @@ func main() {
 }
 ----
 
+[[builtin-modules-apmredigo]]
+===== module/apmredigo
+Package apmredigo provides a means of instrumenting https://github.com/gomodule/redigo[Redigo]
+so that Redis commands are reported as spans within the current transaction.
+
+To report Redis commands, you can use the top-level `Do` or `DoWithTimeout` functions.
+These functions have the same signature as the `redis.Conn` equivalents apart from an
+initial `context.Context` parameter. If the context passed in contains a sampled
+transaction, a span will be reported for the Redis command.
+
+Another top-level function, `Wrap`, is provided to wrap a `redis.Conn` such that its
+`Do` and `DoWithTimeout` methods call the above mentioned functions. Initially, the
+wrapped connection will be associated with the background context; its `WithContext`
+method may be used to obtain a shallow copy with another context. For example, in an
+HTTP middleware you might bind a connection to the request context, which would
+associate spans with the request's APM transaction.
+
+[source,go]
+----
+import (
+	"net/http"
+
+	"github.com/gomodule/redigo/redis"
+
+	"github.com/elastic/apm-agent-go/module/apmredigo"
+)
+
+var redisPool *redis.Pool // initialized at program startup
+
+func handleRequest(w http.ResponseWriter, req *http.Request) {
+	// Wrap and bind redis.Conn to request context. If the HTTP
+	// server is instrumented with Elastic APM (e.g. with apmhttp),
+	// Redis commands will be reported as spans within the request's
+	// transaction.
+	conn := apmredigo.Wrap(redisPool.Get()).WithContext(req.Context())
+	defer conn.Close()
+	...
+}
+----
+
 [[custom-instrumentation]]
 ==== Custom instrumentation
 

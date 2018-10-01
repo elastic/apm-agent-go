@@ -14,10 +14,12 @@ services:
       CASSANDRA_HOST: cassandra
       MYSQL_HOST: mysql
       PGHOST: postgres
+      REDIS_URL: redis://redis
     depends_on:
       - cassandra
       - mysql
       - postgres
+      - redis
 
   mysql:
     image: mysql:latest
@@ -42,6 +44,9 @@ services:
     environment:
       MAX_HEAP_SIZE: "1G"
       HEAP_NEWSIZE: 400m
+
+  redis:
+    image: redis:latest
 
 volumes:
   mysqldata:
