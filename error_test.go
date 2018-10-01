@@ -2,6 +2,7 @@ package elasticapm_test
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -73,10 +74,34 @@ func TestInternalStackTrace(t *testing.T) {
 	}}, stacktrace)
 }
 
+func TestErrorAutoStackTraceReuse(t *testing.T) {
+	tracer, r := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	err := fmt.Errorf("hullo") // no stacktrace attached
+	for i := 0; i < 1000; i++ {
+		tracer.NewError(err).Send()
+	}
+	tracer.Flush(nil)
+
+	// The previously sent error objects should have
+	// been reset and will be reused. We reuse the
+	// stacktrace slice. See elastic/apm-agent-go#204.
+	for i := 0; i < 1000; i++ {
+		tracer.NewError(err).Send()
+	}
+	tracer.Flush(nil)
+
+	payloads := r.Payloads()
+	assert.NotEmpty(t, payloads.Errors)
+	for _, e := range payloads.Errors {
+		assert.NotEqual(t, "", e.Culprit)
+		assert.NotEmpty(t, e.Exception.Stacktrace)
+	}
+}
+
 func sendError(t *testing.T, err error, f ...func(*elasticapm.Error)) model.Error {
-	var r transporttest.RecorderTransport
-	tracer, newTracerErr := elasticapm.NewTracer("tracer_testing", "")
-	assert.NoError(t, newTracerErr)
+	tracer, r := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
 	error_ := tracer.NewError(err)
@@ -84,7 +109,6 @@ func sendError(t *testing.T, err error, f ...func(*elasticapm.Error)) model.Erro
 		f(error_)
 	}
 
-	tracer.Transport = &r
 	error_.Send()
 	tracer.Flush(nil)
 
