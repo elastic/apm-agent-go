@@ -1,6 +1,14 @@
 # Changelog
 
-## [Unreleased](https://github.com/elastic/apm-agent-go/compare/v0.5.0...master)
+## [Unreleased](https://github.com/elastic/apm-agent-go/compare/v0.5.2...master)
+
+## [v0.5.2](https://github.com/elastic/apm-agent-go/releases/tag/v0.5.2)
+
+ - Fixed premature Span.End() in apmgorm callback, causing a data-race with captured errors (#229)
+
+## [v0.5.1](https://github.com/elastic/apm-agent-go/releases/tag/v0.5.1)
+
+ - Fixed a bug causing error stacktraces and culprit to sometimes not be set (#204)
 
  - Implement v2 intake protocol (#180)
  - Unexport Transaction.Timestamp and Span.Timestamp (#207)

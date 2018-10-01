@@ -71,7 +71,7 @@ func (t *Tracer) NewError(err error) *Error {
 	}
 	initException(&e.model.Exception, errors.Cause(err))
 	initStacktrace(e, err)
-	if e.stacktrace == nil {
+	if len(e.stacktrace) == 0 {
 		e.SetStacktrace(2)
 	}
 	return e
