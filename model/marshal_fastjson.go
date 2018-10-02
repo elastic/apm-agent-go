@@ -8,28 +8,75 @@ import (
 
 func (v *Service) MarshalFastJSON(w *fastjson.Writer) {
 	w.RawByte('{')
-	w.RawString("\"agent\":")
-	v.Agent.MarshalFastJSON(w)
-	w.RawString(",\"name\":")
-	w.String(v.Name)
+	first := true
+	if v.Agent != nil {
+		const prefix = ",\"agent\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		v.Agent.MarshalFastJSON(w)
+	}
 	if v.Environment != "" {
-		w.RawString(",\"environment\":")
+		const prefix = ",\"environment\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
 		w.String(v.Environment)
 	}
 	if v.Framework != nil {
-		w.RawString(",\"framework\":")
+		const prefix = ",\"framework\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
 		v.Framework.MarshalFastJSON(w)
 	}
 	if v.Language != nil {
-		w.RawString(",\"language\":")
+		const prefix = ",\"language\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
 		v.Language.MarshalFastJSON(w)
 	}
+	if v.Name != "" {
+		const prefix = ",\"name\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.String(v.Name)
+	}
 	if v.Runtime != nil {
-		w.RawString(",\"runtime\":")
+		const prefix = ",\"runtime\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
 		v.Runtime.MarshalFastJSON(w)
 	}
 	if v.Version != "" {
-		w.RawString(",\"version\":")
+		const prefix = ",\"version\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
 		w.String(v.Version)
 	}
 	w.RawByte('}')
@@ -347,6 +394,16 @@ func (v *Context) MarshalFastJSON(w *fastjson.Writer) {
 			w.RawString(prefix)
 		}
 		v.Response.MarshalFastJSON(w)
+	}
+	if v.Service != nil {
+		const prefix = ",\"service\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		v.Service.MarshalFastJSON(w)
 	}
 	if v.Tags != nil {
 		const prefix = ",\"tags\":"
