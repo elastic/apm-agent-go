@@ -118,6 +118,16 @@ See <<builtin-modules-apmgocql, module/apmgocql>> for more information
 about GoCQL instrumentation.
 
 [float]
+==== Redis (gomodule/redigo)
+
+We support https://github.com/gomodule/redigo[Redigo],
+https://github.com/gomodule/redigo/tree/v2.0.0[v2.0.0] and greater.
+We provide helper functions for reporting Redis commands as spans.
+
+See <<builtin-modules-apmredigo, module/apmredigo>> for more information
+about Redigo instrumentation.
+
+[float]
 [[supported-tech-rpc]]
 === RPC Frameworks
 
