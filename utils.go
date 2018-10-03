@@ -54,7 +54,7 @@ func makeService(name, version, environment string) model.Service {
 		Name:        truncateKeyword(name),
 		Version:     truncateKeyword(version),
 		Environment: truncateKeyword(environment),
-		Agent:       goAgent,
+		Agent:       &goAgent,
 		Language:    &goLanguage,
 		Runtime:     &goRuntime,
 	}
