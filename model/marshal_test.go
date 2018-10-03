@@ -427,6 +427,50 @@ func TestMarshalURL(t *testing.T) {
 	assert.Equal(t, in, out)
 }
 
+func TestMarshalURLPathLeadingSlashMissing(t *testing.T) {
+	in := model.URL{
+		Path:     "foo",
+		Search:   "abc=def",
+		Hostname: "testing.invalid",
+		Port:     "999",
+		Protocol: "http",
+	}
+
+	var w fastjson.Writer
+	in.MarshalFastJSON(&w)
+
+	var out model.URL
+	err := json.Unmarshal(w.Bytes(), &out)
+	require.NoError(t, err)
+
+	assert.Equal(t, "http://testing.invalid:999/foo?abc=def", out.Full)
+	out.Full = ""
+
+	// Leading slash should have been added during marshalling. We do it
+	// here rather than when building the model to avoid allocation.
+	in.Path = "/foo"
+
+	assert.Equal(t, in, out)
+}
+
+func TestMarshalHTTPSpanContextURLPathLeadingSlashMissing(t *testing.T) {
+	httpSpanContext := model.HTTPSpanContext{
+		URL: mustParseURL("http://testing.invalid:8000/path?query#fragment"),
+	}
+	httpSpanContext.URL.Path = "path"
+
+	var w fastjson.Writer
+	httpSpanContext.MarshalFastJSON(&w)
+
+	var out model.HTTPSpanContext
+	err := json.Unmarshal(w.Bytes(), &out)
+	require.NoError(t, err)
+
+	// Leading slash should have been added during marshalling.
+	httpSpanContext.URL.Path = "/path"
+	assert.Equal(t, httpSpanContext.URL, out.URL)
+}
+
 func TestTransactionUnmarshalJSON(t *testing.T) {
 	tx := fakeTransaction()
 	var w fastjson.Writer

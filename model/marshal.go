@@ -84,6 +84,9 @@ func (v *HTTPSpanContext) marshalURL(w *fastjson.Writer) bool {
 	if v.URL.Path == "" {
 		w.RawByte('/')
 	} else {
+		if v.URL.Path[0] != '/' {
+			w.RawByte('/')
+		}
 		w.StringContents(v.URL.Path)
 	}
 	if v.URL.RawQuery != "" {
@@ -122,14 +125,18 @@ func (v *URL) MarshalFastJSON(w *fastjson.Writer) {
 		w.String(v.Hostname)
 	}
 	if v.Path != "" {
-		const prefix = ",\"pathname\":"
+		const prefix = `,"pathname":"`
 		if first {
 			first = false
 			w.RawString(prefix[1:])
 		} else {
 			w.RawString(prefix)
 		}
-		w.String(v.Path)
+		if v.Path[0] != '/' {
+			w.RawByte('/')
+		}
+		w.StringContents(v.Path)
+		w.RawByte('"')
 	}
 	if v.Port != "" {
 		const prefix = ",\"port\":"
@@ -220,6 +227,9 @@ func (v *URL) marshalFullURL(w *fastjson.Writer, scheme []byte) bool {
 	if v.Port != "" {
 		w.RawByte(':')
 		w.StringContents(v.Port)
+	}
+	if !strings.HasPrefix(v.Path, "/") {
+		w.RawByte('/')
 	}
 	w.StringContents(v.Path)
 	if v.Search != "" {
