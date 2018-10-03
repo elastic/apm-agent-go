@@ -2,14 +2,6 @@
 
 ## [Unreleased](https://github.com/elastic/apm-agent-go/compare/v0.5.2...master)
 
-## [v0.5.2](https://github.com/elastic/apm-agent-go/releases/tag/v0.5.2)
-
- - Fixed premature Span.End() in apmgorm callback, causing a data-race with captured errors (#229)
-
-## [v0.5.1](https://github.com/elastic/apm-agent-go/releases/tag/v0.5.1)
-
- - Fixed a bug causing error stacktraces and culprit to sometimes not be set (#204)
-
  - Implement v2 intake protocol (#180)
  - Unexport Transaction.Timestamp and Span.Timestamp (#207)
  - Add jitter (+/-10%) to backoff on transport error (#212)
@@ -21,6 +13,19 @@
  - Drop SetHTTPResponseHeadersSent and SetHTTPResponseFinished methods from Context (#238)
  - Stop setting custom context (gin.handler) in apmgin (#238)
  - Set response context in errors reported by web modules (#238)
+ - module/apmredigo: introduce gomodule/redigo instrumentation (#248)
+ - Update Sampler interface to take TraceContext (#243)
+ - Truncate all strings to a maximum of 10000 chars (#244)
+ - Add leading slash to URLs in transaction/span context (#250)
+ - Add `Transaction.Context` method for setting framework (#252)
+
+## [v0.5.2](https://github.com/elastic/apm-agent-go/releases/tag/v0.5.2)
+
+ - Fixed premature Span.End() in apmgorm callback, causing a data-race with captured errors (#229)
+
+## [v0.5.1](https://github.com/elastic/apm-agent-go/releases/tag/v0.5.1)
+
+ - Fixed a bug causing error stacktraces and culprit to sometimes not be set (#204)
 
 ## [v0.5.0](https://github.com/elastic/apm-agent-go/releases/tag/v0.5.0)
 
