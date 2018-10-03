@@ -42,6 +42,12 @@ func TestMiddleware(t *testing.T) {
 	assert.Equal(t, "HTTP 2xx", transaction.Result)
 
 	assert.Equal(t, &model.Context{
+		Service: &model.Service{
+			Framework: &model.Framework{
+				Name:    "gin",
+				Version: gin.Version,
+			},
+		},
 		Request: &model.Request{
 			Socket: &model.RequestSocket{
 				RemoteAddress: "client.testing",

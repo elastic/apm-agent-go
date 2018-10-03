@@ -36,6 +36,12 @@ func TestEchoMiddleware(t *testing.T) {
 	assert.Equal(t, "HTTP 4xx", transaction.Result)
 
 	assert.Equal(t, &model.Context{
+		Service: &model.Service{
+			Framework: &model.Framework{
+				Name:    "echo",
+				Version: echo.Version,
+			},
+		},
 		Request: &model.Request{
 			Socket: &model.RequestSocket{
 				RemoteAddress: "client.testing",

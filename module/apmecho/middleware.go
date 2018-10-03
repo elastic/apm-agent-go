@@ -86,6 +86,7 @@ func (m *middleware) handle(c echo.Context) error {
 }
 
 func setContext(ctx *elasticapm.Context, req *http.Request, resp *echo.Response, body *elasticapm.BodyCapturer) {
+	ctx.SetFramework("echo", echo.Version)
 	ctx.SetHTTPRequest(req)
 	ctx.SetHTTPRequestBody(body)
 	if resp.Committed {

@@ -108,6 +108,7 @@ func (m *middleware) handle(c *gin.Context) {
 }
 
 func setContext(ctx *elasticapm.Context, c *gin.Context, body *elasticapm.BodyCapturer) {
+	ctx.SetFramework("gin", gin.Version)
 	ctx.SetHTTPRequest(c.Request)
 	ctx.SetHTTPRequestBody(body)
 	if c.Writer.Written() {
