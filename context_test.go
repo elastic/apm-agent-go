@@ -1,13 +1,15 @@
 package elasticapm_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/apm-agent-go"
+	"github.com/elastic/apm-agent-go/apmtest"
 	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/transport/transporttest"
 )
 
 func TestContextUser(t *testing.T) {
@@ -31,15 +33,40 @@ func TestContextUser(t *testing.T) {
 	})
 }
 
+func TestContextFramework(t *testing.T) {
+	t.Run("name_unspecified", func(t *testing.T) {
+		tx := testSendTransaction(t, func(tx *elasticapm.Transaction) {
+			tx.Context.SetFramework("", "1.0")
+		})
+		assert.Nil(t, tx.Context)
+	})
+	t.Run("version_specified", func(t *testing.T) {
+		tx := testSendTransaction(t, func(tx *elasticapm.Transaction) {
+			tx.Context.SetFramework("framework", "1.0")
+		})
+		require.NotNil(t, tx.Context)
+		require.NotNil(t, tx.Context.Service)
+		assert.Equal(t, &model.Framework{
+			Name:    "framework",
+			Version: "1.0",
+		}, tx.Context.Service.Framework)
+	})
+	t.Run("version_unspecified", func(t *testing.T) {
+		tx := testSendTransaction(t, func(tx *elasticapm.Transaction) {
+			tx.Context.SetFramework("framework", "")
+		})
+		require.NotNil(t, tx.Context)
+		require.NotNil(t, tx.Context.Service)
+		assert.Equal(t, &model.Framework{
+			Name:    "framework",
+			Version: "unspecified",
+		}, tx.Context.Service.Framework)
+	})
+}
+
 func testSendTransaction(t *testing.T, f func(tx *elasticapm.Transaction)) model.Transaction {
-	tracer, r := transporttest.NewRecorderTracer()
-	defer tracer.Close()
-
-	tx := tracer.StartTransaction("name", "type")
-	f(tx)
-	tx.End()
-	tracer.Flush(nil)
-
-	payloads := r.Payloads()
-	return payloads.Transactions[0]
+	transaction, _, _ := apmtest.WithTransaction(func(ctx context.Context) {
+		f(elasticapm.TransactionFromContext(ctx))
+	})
+	return transaction
 }

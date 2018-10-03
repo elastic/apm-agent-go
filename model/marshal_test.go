@@ -33,6 +33,12 @@ func TestMarshalTransaction(t *testing.T) {
 		"duration":  123.456,
 		"result":    "418",
 		"context": map[string]interface{}{
+			"service": map[string]interface{}{
+				"framework": map[string]interface{}{
+					"name":    "framework-name",
+					"version": "framework-version",
+				},
+			},
 			"request": map[string]interface{}{
 				"url": map[string]interface{}{
 					"full":     "https://testing.invalid/foo/bar?baz#qux",
@@ -539,6 +545,12 @@ func fakeTransaction() model.Transaction {
 			Tags: map[string]string{
 				"tag": "urit",
 			},
+			Service: &model.Service{
+				Framework: &model.Framework{
+					Name:    "framework-name",
+					Version: "framework-version",
+				},
+			},
 		},
 		SpanCount: model.SpanCount{
 			Started: 99,
@@ -597,7 +609,7 @@ func fakeService() *model.Service {
 		Name:        "fake-service",
 		Version:     "1.0.0-rc1",
 		Environment: "dev",
-		Agent: model.Agent{
+		Agent: &model.Agent{
 			Name:    "go",
 			Version: "0.1.0",
 		},

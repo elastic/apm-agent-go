@@ -84,6 +84,12 @@ func testServerTransactionHappy(t *testing.T, p testParams) {
 	assert.Contains(t, grpcContext, "peer.address")
 	delete(grpcContext, "peer.address")
 	assert.Equal(t, &model.Context{
+		Service: &model.Service{
+			Framework: &model.Framework{
+				Name:    "grpc",
+				Version: grpc.Version,
+			},
+		},
 		Custom: model.IfaceMap{{
 			Key:   "grpc",
 			Value: map[string]interface{}{},

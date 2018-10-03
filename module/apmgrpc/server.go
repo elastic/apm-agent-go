@@ -40,6 +40,7 @@ func NewUnaryServerInterceptor(o ...ServerOption) grpc.UnaryServerInterceptor {
 		tx := opts.tracer.StartTransaction(info.FullMethod, "grpc")
 		ctx = elasticapm.ContextWithTransaction(ctx, tx)
 		defer tx.End()
+		tx.Context.SetFramework("grpc", grpc.Version)
 
 		if tx.Sampled() {
 			p, ok := peer.FromContext(ctx)
@@ -61,6 +62,7 @@ func NewUnaryServerInterceptor(o ...ServerOption) grpc.UnaryServerInterceptor {
 			if r != nil {
 				e := opts.tracer.Recovered(r)
 				e.SetTransaction(tx)
+				e.Context.SetFramework("grpc", grpc.Version)
 				e.Handled = opts.recover
 				e.Send()
 				if opts.recover {

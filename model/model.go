@@ -9,7 +9,7 @@ import (
 // Service represents the service handling transactions being traced.
 type Service struct {
 	// Name is the immutable name of the service.
-	Name string `json:"name"`
+	Name string `json:"name,omitempty"`
 
 	// Version is the version of the service, if it has one.
 	Version string `json:"version,omitempty"`
@@ -20,7 +20,7 @@ type Service struct {
 
 	// Agent holds information about the Elastic APM agent tracing this
 	// service's transactions.
-	Agent Agent `json:"agent"`
+	Agent *Agent `json:"agent,omitempty"`
 
 	// Framework holds information about the service's framework, if any.
 	Framework *Framework `json:"framework,omitempty"`
@@ -248,6 +248,9 @@ type Context struct {
 
 	// Tags holds user-defined key/value pairs.
 	Tags map[string]string `json:"tags,omitempty"`
+
+	// Service holds values to overrides service-level metadata.
+	Service *Service `json:"service,omitempty"`
 }
 
 // User holds information about an authenticated user.

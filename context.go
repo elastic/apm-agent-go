@@ -11,15 +11,17 @@ import (
 
 // Context provides methods for setting transaction and error context.
 type Context struct {
-	model           model.Context
-	request         model.Request
-	requestBody     model.RequestBody
-	requestHeaders  model.RequestHeaders
-	requestSocket   model.RequestSocket
-	response        model.Response
-	responseHeaders model.ResponseHeaders
-	user            model.User
-	captureBodyMask CaptureBodyMode
+	model            model.Context
+	request          model.Request
+	requestBody      model.RequestBody
+	requestHeaders   model.RequestHeaders
+	requestSocket    model.RequestSocket
+	response         model.Response
+	responseHeaders  model.ResponseHeaders
+	user             model.User
+	service          model.Service
+	serviceFramework model.Framework
+	captureBodyMask  CaptureBodyMode
 }
 
 func (c *Context) build() *model.Context {
@@ -27,6 +29,7 @@ func (c *Context) build() *model.Context {
 	case c.model.Request != nil:
 	case c.model.Response != nil:
 	case c.model.User != nil:
+	case c.model.Service != nil:
 	case len(c.model.Custom) != 0:
 	case len(c.model.Tags) != 0:
 	default:
@@ -73,6 +76,29 @@ func (c *Context) SetTag(key, value string) {
 	} else {
 		c.model.Tags[key] = value
 	}
+}
+
+// SetFramework sets the framework name and version in the context.
+//
+// This is used for identifying the framework in which the context
+// was created, such as Gin or Echo.
+//
+// If the name is empty, this is a no-op. If version is empty, then
+// it will be set to "unspecified".
+func (c *Context) SetFramework(name, version string) {
+	if name == "" {
+		return
+	}
+	if version == "" {
+		// Framework version is required.
+		version = "unspecified"
+	}
+	c.serviceFramework = model.Framework{
+		Name:    truncateKeyword(name),
+		Version: truncateKeyword(version),
+	}
+	c.service.Framework = &c.serviceFramework
+	c.model.Service = &c.service
 }
 
 // SetHTTPRequest sets details of the HTTP request in the context.
