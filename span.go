@@ -53,6 +53,14 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 	if opts.Parent == (TraceContext{}) {
 		opts.Parent = tx.traceContext
 	}
+	// Calculate the span time relative to the transaction timestamp so
+	// that wall-clock adjustments occurring after the transaction start
+	// don't affect the span timestamp.
+	if opts.Start.IsZero() {
+		opts.Start = tx.timestamp.Add(time.Since(tx.timestamp))
+	} else {
+		opts.Start = tx.timestamp.Add(opts.Start.Sub(tx.timestamp))
+	}
 	span := tx.tracer.startSpan(name, spanType, transactionID, opts)
 	binary.LittleEndian.PutUint64(span.traceContext.Span[:], tx.rand.Uint64())
 	span.stackFramesMinDuration = tx.spanFramesMinDuration
@@ -81,6 +89,9 @@ func (t *Tracer) StartSpan(name, spanType string, transactionID SpanID, opts Spa
 	if _, err := cryptorand.Read(spanID[:]); err != nil {
 		return newDroppedSpan()
 	}
+	if opts.Start.IsZero() {
+		opts.Start = time.Now()
+	}
 	span := t.startSpan(name, spanType, transactionID, opts)
 	span.traceContext.Span = spanID
 	t.spanFramesMinDurationMu.RLock()
@@ -103,9 +114,6 @@ func (t *Tracer) startSpan(name, spanType string, transactionID SpanID, opts Spa
 	span.parentID = opts.Parent.Span
 	span.transactionID = transactionID
 	span.timestamp = opts.Start
-	if span.timestamp.IsZero() {
-		span.timestamp = time.Now()
-	}
 	return span
 }
 
@@ -208,5 +216,15 @@ type SpanOptions struct {
 
 	// Start is the start time of the span. If this has the zero value,
 	// time.Now() will be used instead.
+	//
+	// When a span is created using Transaction.StartSpanOptions, the
+	// span timestamp is internally calculated relative to the transaction
+	// timestamp.
+	//
+	// When Tracer.StartSpan is used, this timestamp should be pre-calculated
+	// as relative from the transaction start time, i.e. by calculating the
+	// time elapsed since the transaction started, and adding that to the
+	// transaction timestamp. Calculating the timstamp in this way will ensure
+	// monotonicity of events within a transaction.
 	Start time.Time
 }

@@ -1,12 +1,15 @@
 package elasticapm_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/apm-agent-go"
+	"github.com/elastic/apm-agent-go/apmtest"
 	"github.com/elastic/apm-agent-go/transport/transporttest"
 )
 
@@ -64,4 +67,22 @@ func TestTracerStartSpan(t *testing.T) {
 	// The span created after the transaction (obviously?)
 	// doesn't get included in the transaction's span count.
 	assert.Equal(t, 1, payloads.Transactions[0].SpanCount.Started)
+}
+
+func TestSpanTiming(t *testing.T) {
+	tx, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+		time.Sleep(200 * time.Millisecond)
+		span, _ := elasticapm.StartSpan(ctx, "name", "type")
+		time.Sleep(200 * time.Millisecond)
+		span.End()
+	})
+	require.Len(t, spans, 1)
+	span := spans[0]
+
+	assert.InDelta(t,
+		time.Time(span.Timestamp).Sub(time.Time(tx.Timestamp)),
+		float64(200*time.Millisecond),
+		float64(100*time.Millisecond),
+	)
+	assert.InDelta(t, span.Duration, 200, 100)
 }
