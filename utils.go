@@ -3,6 +3,7 @@ package elasticapm
 import (
 	"math/rand"
 	"os"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -38,8 +39,8 @@ func init() {
 func getCurrentProcess() model.Process {
 	ppid := os.Getppid()
 	title, err := currentProcessTitle()
-	if err != nil {
-		title = os.Args[0]
+	if err != nil || title == "" {
+		title = filepath.Base(os.Args[0])
 	}
 	return model.Process{
 		Pid:   os.Getpid(),

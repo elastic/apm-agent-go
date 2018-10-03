@@ -2,11 +2,27 @@ package elasticapm
 
 import (
 	"math/rand"
+	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func TestGetCurrentProcess(t *testing.T) {
+	process := getCurrentProcess()
+	expected := filepath.Base(os.Args[0])
+
+	// On Linux, the process title can be at most
+	// 16 bytes, including the null terminator.
+	if runtime.GOOS == "linux" && len(expected) >= 16 {
+		expected = expected[:15]
+	}
+
+	assert.Equal(t, expected, process.Title)
+}
 
 func TestGracePeriod(t *testing.T) {
 	var p time.Duration = -1

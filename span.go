@@ -55,11 +55,6 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 	}
 	span := tx.tracer.startSpan(name, spanType, transactionID, opts)
 	binary.LittleEndian.PutUint64(span.traceContext.Span[:], tx.rand.Uint64())
-	// TODO(axw) profile whether it's worthwhile threading and
-	// storing spanFramesMinDuration through to the transaction
-	// and span, or if we can instead unconditionally capture
-	// the stack trace, and make the rendering in the model
-	// writer conditional.
 	span.stackFramesMinDuration = tx.spanFramesMinDuration
 	span.transactionTimestamp = tx.timestamp
 	tx.spansCreated++
@@ -90,11 +85,6 @@ func (t *Tracer) StartSpan(name, spanType string, transactionID SpanID, transact
 	span := t.startSpan(name, spanType, transactionID, opts)
 	span.traceContext.Span = spanID
 	span.transactionTimestamp = transactionTimestamp
-	// TODO(axw) profile whether it's worthwhile threading and
-	// storing spanFramesMinDuration through to the transaction
-	// and span, or if we can instead unconditionally capture
-	// the stack trace, and make the rendering in the model
-	// writer conditional.
 	t.spanFramesMinDurationMu.RLock()
 	span.stackFramesMinDuration = t.spanFramesMinDuration
 	t.spanFramesMinDurationMu.RUnlock()
