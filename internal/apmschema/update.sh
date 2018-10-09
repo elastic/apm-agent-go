@@ -14,8 +14,9 @@ FILES=( \
     "transactions/mark.json" \
     "transactions/common_transaction.json" \
     "transactions/v2_transaction.json" \
-    "metrics/metricset.json" \
-    "metrics/sample.json" \
+    "metricsets/common_metricset.json" \
+    "metricsets/v2_metricset.json" \
+    "metricsets/sample.json" \
     "context.json" \
     "metadata.json" \
     "process.json" \
@@ -24,10 +25,11 @@ FILES=( \
     "stacktrace_frame.json" \
     "system.json" \
     "tags.json" \
+    "timestamp_epoch.json" \
     "user.json" \
 )
 
-mkdir -p jsonschema/errors jsonschema/transactions jsonschema/sourcemaps jsonschema/spans jsonschema/metrics
+mkdir -p jsonschema/errors jsonschema/transactions jsonschema/sourcemaps jsonschema/spans jsonschema/metricsets
 
 for i in "${FILES[@]}"; do
   o=jsonschema/$i
