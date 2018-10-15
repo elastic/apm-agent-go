@@ -198,7 +198,11 @@ func TestQueryObserverErrorIntegration(t *testing.T) {
 	})
 	require.Len(t, errors, 1)
 	require.Len(t, spans, 1)
-	assert.Equal(t, errors[0].Culprit, "execQuery")
+
+	// BUG(axw) gocql executes queries, and notifies observers, in another
+	// goroutine whose stack does not include the original caller.
+	// See https://github.com/elastic/apm-agent-go/issues/258.
+	assert.Equal(t, errors[0].Culprit, "")
 	assert.EqualError(t, queryError, errors[0].Exception.Message)
 }
 
