@@ -7,11 +7,11 @@ import (
 	"os"
 	"unicode/utf8"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/stacktrace"
-
 	"github.com/aws/aws-lambda-go/lambda/messages"
 	"github.com/aws/aws-lambda-go/lambdacontext"
+
+	"github.com/elastic/apm-agent-go"
+	"github.com/elastic/apm-agent-go/stacktrace"
 )
 
 const (
