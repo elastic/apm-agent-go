@@ -18,6 +18,7 @@
  - Truncate all strings to a maximum of 10000 chars (#244)
  - Add leading slash to URLs in transaction/span context (#250)
  - Add `Transaction.Context` method for setting framework (#252)
+ - Timestamps are now reported as usec since epoch, spans no longer use "start" offset (#257)
 
 ## [v0.5.2](https://github.com/elastic/apm-agent-go/releases/tag/v0.5.2)
 

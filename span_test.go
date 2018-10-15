@@ -1,12 +1,15 @@
 package elasticapm_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/apm-agent-go"
+	"github.com/elastic/apm-agent-go/apmtest"
 	"github.com/elastic/apm-agent-go/transport/transporttest"
 )
 
@@ -39,7 +42,7 @@ func TestTracerStartSpan(t *testing.T) {
 	// Even if the transaction and parent span have been ended,
 	// it is possible to report a span with their IDs.
 	tracer.StartSpan("name", "type",
-		txTraceContext.Span, txTimestamp,
+		txTraceContext.Span,
 		elasticapm.SpanOptions{
 			Parent: span0TraceContext,
 			Start:  txTimestamp.Add(time.Second),
@@ -59,12 +62,27 @@ func TestTracerStartSpan(t *testing.T) {
 	}
 	assert.NotZero(t, payloads.Spans[1].ID)
 
-	// NOTE(axw) the timestamp of the span is set to the same as the
-	// transaction. The span's "start" is relative to that timestamp.
-	assert.Equal(t, payloads.Transactions[0].Timestamp, payloads.Spans[1].Timestamp)
-	assert.Equal(t, float64(1000), payloads.Spans[1].Start)
+	assert.Equal(t, time.Time(payloads.Transactions[0].Timestamp).Add(time.Second), time.Time(payloads.Spans[1].Timestamp))
 
 	// The span created after the transaction (obviously?)
 	// doesn't get included in the transaction's span count.
 	assert.Equal(t, 1, payloads.Transactions[0].SpanCount.Started)
+}
+
+func TestSpanTiming(t *testing.T) {
+	tx, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+		time.Sleep(200 * time.Millisecond)
+		span, _ := elasticapm.StartSpan(ctx, "name", "type")
+		time.Sleep(200 * time.Millisecond)
+		span.End()
+	})
+	require.Len(t, spans, 1)
+	span := spans[0]
+
+	assert.InDelta(t,
+		time.Time(span.Timestamp).Sub(time.Time(tx.Timestamp)),
+		float64(200*time.Millisecond),
+		float64(100*time.Millisecond),
+	)
+	assert.InDelta(t, span.Duration, 200, 100)
 }

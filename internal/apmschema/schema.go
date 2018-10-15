@@ -43,7 +43,7 @@ func init() {
 	}
 	compile("errors/v2_error.json", &Error)
 	compile("metadata.json", &Metadata)
-	compile("metrics/metricset.json", &MetricSet)
+	compile("metricsets/v2_metricset.json", &MetricSet)
 	compile("spans/v2_span.json", &Span)
 	compile("transactions/v2_transaction.json", &Transaction)
 }

@@ -162,10 +162,6 @@ type Span struct {
 	// Timestamp holds the time at which the span's transaction started.
 	Timestamp Time `json:"timestamp"`
 
-	// Start is the start time of the span, in milliseconds relative to
-	// the containing transaction's timestamp.
-	Start float64 `json:"start"`
-
 	// Duration holds the duration of the span, in milliseconds.
 	Duration float64 `json:"duration"`
 
@@ -505,7 +501,7 @@ type ResponseHeaders struct {
 	ContentType string `json:"content-type,omitempty"`
 }
 
-// Time is a timestamp, formatted as "YYYY-MM-DDTHH:mm:ss.sssZ".
+// Time is a timestamp, formatted as a number of microseconds since January 1, 1970 UTC.
 type Time time.Time
 
 // TraceID holds a 128-bit trace ID.
