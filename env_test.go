@@ -142,14 +142,6 @@ func testTracerTransactionRateEnv(t *testing.T, envValue string, ratio float64) 
 	assert.InDelta(t, N*ratio, sampled, N*0.02) // allow 2% error
 }
 
-func TestTracerSanitizeFieldNamesEnvInvalid(t *testing.T) {
-	os.Setenv("ELASTIC_APM_SANITIZE_FIELD_NAMES", "oy(")
-	defer os.Unsetenv("ELASTIC_APM_SANITIZE_FIELD_NAMES")
-
-	_, err := elasticapm.NewTracer("tracer_testing", "")
-	assert.EqualError(t, err, "invalid ELASTIC_APM_SANITIZE_FIELD_NAMES value: error parsing regexp: missing closing ): `oy(`")
-}
-
 func TestTracerSanitizeFieldNamesEnv(t *testing.T) {
 	testTracerSanitizeFieldNamesEnv(t, "secRet", "[REDACTED]")
 	testTracerSanitizeFieldNamesEnv(t, "nada", "top")

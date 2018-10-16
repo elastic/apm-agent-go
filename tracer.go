@@ -4,19 +4,18 @@ import (
 	"bytes"
 	"compress/zlib"
 	"context"
-	"fmt"
 	"io"
 	"log"
 	"math/rand"
-	"regexp"
-	"strings"
 	"sync"
 	"time"
 
+	"github.com/elastic/apm-agent-go/internal/apmconfig"
 	"github.com/elastic/apm-agent-go/internal/apmdebug"
 	"github.com/elastic/apm-agent-go/internal/fastjson"
 	"github.com/elastic/apm-agent-go/internal/iochan"
 	"github.com/elastic/apm-agent-go/internal/ringbuffer"
+	"github.com/elastic/apm-agent-go/internal/wildcard"
 	"github.com/elastic/apm-agent-go/model"
 	"github.com/elastic/apm-agent-go/stacktrace"
 	"github.com/elastic/apm-agent-go/transport"
@@ -55,7 +54,7 @@ type options struct {
 	requestSize           int
 	bufferSize            int
 	sampler               Sampler
-	sanitizedFieldNames   *regexp.Regexp
+	sanitizedFieldNames   wildcard.Matchers
 	captureBody           CaptureBodyMode
 	spanFramesMinDuration time.Duration
 	serviceName           string
@@ -107,11 +106,6 @@ func (opts *options) init(continueOnError bool) error {
 		sampler = nil
 	}
 
-	sanitizedFieldNames, err := initialSanitizedFieldNamesRegexp()
-	if failed(err) {
-		sanitizedFieldNames = defaultSanitizedFieldNames
-	}
-
 	captureBody, err := initialCaptureBody()
 	if failed(err) {
 		captureBody = CaptureBodyOff
@@ -140,7 +134,7 @@ func (opts *options) init(continueOnError bool) error {
 	opts.bufferSize = bufferSize
 	opts.maxSpans = maxSpans
 	opts.sampler = sampler
-	opts.sanitizedFieldNames = sanitizedFieldNames
+	opts.sanitizedFieldNames = initialSanitizedFieldNames()
 	opts.captureBody = captureBody
 	opts.spanFramesMinDuration = spanFramesMinDuration
 	opts.serviceName, opts.serviceVersion, opts.serviceEnvironment = initialService()
@@ -286,7 +280,7 @@ type tracerConfig struct {
 	metricsGatherers        []MetricsGatherer
 	contextSetter           stacktrace.ContextSetter
 	preContext, postContext int
-	sanitizedFieldNames     *regexp.Regexp
+	sanitizedFieldNames     wildcard.Matchers
 }
 
 type tracerConfigCommand func(*tracerConfig)
@@ -365,22 +359,21 @@ func (t *Tracer) SetLogger(logger Logger) {
 	})
 }
 
-// SetSanitizedFieldNames sets the patterns that will be used to match
-// cookie and form field names for sanitization. Fields matching any
+// SetSanitizedFieldNames sets the wildcard patterns that will be used to
+// match cookie and form field names for sanitization. Fields matching any
 // of the the supplied patterns will have their values redacted. If
 // SetSanitizedFieldNames is called with no arguments, then no fields
 // will be redacted.
 func (t *Tracer) SetSanitizedFieldNames(patterns ...string) error {
-	var re *regexp.Regexp
+	var matchers wildcard.Matchers
 	if len(patterns) != 0 {
-		var err error
-		re, err = regexp.Compile(fmt.Sprintf("(?i:%s)", strings.Join(patterns, "|")))
-		if err != nil {
-			return err
+		matchers = make(wildcard.Matchers, len(patterns))
+		for i, p := range patterns {
+			matchers[i] = apmconfig.ParseWildcardPattern(p)
 		}
 	}
 	t.sendConfigCommand(func(cfg *tracerConfig) {
-		cfg.sanitizedFieldNames = re
+		cfg.sanitizedFieldNames = matchers
 	})
 	return nil
 }
