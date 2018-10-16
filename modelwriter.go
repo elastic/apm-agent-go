@@ -91,7 +91,7 @@ func (w *modelWriter) buildModelTransaction(out *model.Transaction, tx *Transact
 	}
 
 	out.Context = tx.Context.build()
-	if w.cfg.sanitizedFieldNames != nil && out.Context != nil && out.Context.Request != nil {
+	if len(w.cfg.sanitizedFieldNames) != 0 && out.Context != nil && out.Context.Request != nil {
 		sanitizeRequest(out.Context.Request, w.cfg.sanitizedFieldNames)
 	}
 }

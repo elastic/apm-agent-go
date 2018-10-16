@@ -1,10 +1,8 @@
 package elasticapm
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -13,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/elastic/apm-agent-go/internal/apmconfig"
+	"github.com/elastic/apm-agent-go/internal/wildcard"
 )
 
 const (
@@ -45,17 +44,17 @@ const (
 )
 
 var (
-	defaultSanitizedFieldNames = regexp.MustCompile(fmt.Sprintf("(?i:%s)", strings.Join([]string{
+	defaultSanitizedFieldNames = apmconfig.ParseWildcardPatterns(strings.Join([]string{
 		"password",
 		"passwd",
 		"pwd",
 		"secret",
-		".*key",
-		".*token",
-		".*session.*",
-		".*credit.*",
-		".*card.*",
-	}, "|")))
+		"*key",
+		"*token*",
+		"*session*",
+		"*credit*",
+		"*card*",
+	}, ","))
 )
 
 func initialRequestDuration() (time.Duration, error) {
@@ -125,17 +124,8 @@ func initialSampler() (Sampler, error) {
 	return NewRatioSampler(ratio), nil
 }
 
-func initialSanitizedFieldNamesRegexp() (*regexp.Regexp, error) {
-	value := os.Getenv(envSanitizeFieldNames)
-	if value == "" {
-		return defaultSanitizedFieldNames, nil
-	}
-	re, err := regexp.Compile(fmt.Sprintf("(?i:%s)", value))
-	if err != nil {
-		_, err = regexp.Compile(value)
-		return nil, errors.Wrapf(err, "invalid %s value", envSanitizeFieldNames)
-	}
-	return re, nil
+func initialSanitizedFieldNames() wildcard.Matchers {
+	return apmconfig.ParseWildcardPatternsEnv(envSanitizeFieldNames, defaultSanitizedFieldNames)
 }
 
 func initialCaptureBody() (CaptureBodyMode, error) {
