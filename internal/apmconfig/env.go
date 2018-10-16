@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+
+	"github.com/elastic/apm-agent-go/internal/wildcard"
 )
 
 // ParseDurationEnv gets the value of the environment variable envKey
@@ -62,4 +64,15 @@ func ParseListEnv(envKey, sep string, defaultValue []string) []string {
 		return defaultValue
 	}
 	return ParseList(value, sep)
+}
+
+// ParseWildcardPatternsEnv gets the value of the environment variable envKey
+// and, if set, parses it as a list of wildcard patterns. If the environment
+// variable is unset, defaultValue is returned.
+func ParseWildcardPatternsEnv(envKey string, defaultValue wildcard.Matchers) wildcard.Matchers {
+	value := os.Getenv(envKey)
+	if value == "" {
+		return defaultValue
+	}
+	return ParseWildcardPatterns(value)
 }

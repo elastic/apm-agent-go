@@ -5,8 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elastic/apm-agent-go/internal/apmconfig"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/elastic/apm-agent-go/internal/apmconfig"
+	"github.com/elastic/apm-agent-go/internal/wildcard"
 )
 
 func TestParseDurationEnv(t *testing.T) {
@@ -158,4 +160,36 @@ func TestParseListEnv(t *testing.T) {
 	os.Setenv(envKey, "a b")
 	list = apmconfig.ParseListEnv(envKey, ",", defaultList)
 	assert.Equal(t, []string{"a b"}, list)
+}
+
+func TestParseWildcardPatternsEnv(t *testing.T) {
+	const envKey = "ELASTIC_APM_TEST_WILDCARDS"
+	os.Unsetenv(envKey)
+	defer os.Unsetenv(envKey)
+
+	newMatchers := func(p ...string) wildcard.Matchers {
+		matchers := make(wildcard.Matchers, len(p))
+		for i, p := range p {
+			matchers[i] = wildcard.NewMatcher(p, wildcard.CaseInsensitive)
+		}
+		return matchers
+	}
+	defaultMatchers := newMatchers("default")
+
+	matchers := apmconfig.ParseWildcardPatternsEnv(envKey, defaultMatchers)
+	assert.Equal(t, defaultMatchers, matchers)
+
+	os.Setenv(envKey, "foo, bar")
+	expected := newMatchers("foo", "bar")
+	matchers = apmconfig.ParseWildcardPatternsEnv(envKey, defaultMatchers)
+	assert.Equal(t, expected, matchers)
+
+	os.Setenv(envKey, "foo, (?-i)bar")
+	expected[1] = wildcard.NewMatcher("bar", wildcard.CaseSensitive)
+	matchers = apmconfig.ParseWildcardPatternsEnv(envKey, defaultMatchers)
+	assert.Equal(t, expected, matchers)
+
+	os.Setenv(envKey, "(?i)foo, (?-i)bar")
+	matchers = apmconfig.ParseWildcardPatternsEnv(envKey, defaultMatchers)
+	assert.Equal(t, expected, matchers)
 }
