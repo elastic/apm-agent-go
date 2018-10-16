@@ -5,14 +5,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/elastic/apm-agent-go/internal/apmconfig"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestParseDurationEnv(t *testing.T) {
 	const envKey = "ELASTIC_APM_TEST_DURATION"
-	os.Setenv(envKey, "")
+	os.Unsetenv(envKey)
+	defer os.Unsetenv(envKey)
 
 	d, err := apmconfig.ParseDurationEnv(envKey, 42*time.Second)
 	assert.NoError(t, err)
@@ -52,7 +52,8 @@ func TestParseDurationEnv(t *testing.T) {
 
 func TestParseSizeEnv(t *testing.T) {
 	const envKey = "ELASTIC_APM_TEST_SIZE"
-	os.Setenv(envKey, "")
+	os.Unsetenv(envKey)
+	defer os.Unsetenv(envKey)
 
 	d, err := apmconfig.ParseSizeEnv(envKey, 42*apmconfig.KByte)
 	assert.NoError(t, err)
@@ -102,7 +103,8 @@ func TestParseSizeEnv(t *testing.T) {
 
 func TestParseBoolEnv(t *testing.T) {
 	const envKey = "ELASTIC_APM_TEST_BOOL"
-	os.Setenv(envKey, "")
+	os.Unsetenv(envKey)
+	defer os.Unsetenv(envKey)
 
 	b, err := apmconfig.ParseBoolEnv(envKey, true)
 	assert.NoError(t, err)
@@ -121,4 +123,39 @@ func TestParseBoolEnv(t *testing.T) {
 	os.Setenv(envKey, "falsk")
 	_, err = apmconfig.ParseBoolEnv(envKey, true)
 	assert.EqualError(t, err, `failed to parse ELASTIC_APM_TEST_BOOL: strconv.ParseBool: parsing "falsk": invalid syntax`)
+}
+
+func TestParseListEnv(t *testing.T) {
+	const envKey = "ELASTIC_APM_TEST_LIST"
+	os.Unsetenv(envKey)
+	defer os.Unsetenv(envKey)
+
+	defaultList := []string{"foo", "bar"}
+
+	list := apmconfig.ParseListEnv(envKey, ",", defaultList)
+	assert.Equal(t, defaultList, list)
+
+	os.Setenv(envKey, "a")
+	list = apmconfig.ParseListEnv(envKey, ",", defaultList)
+	assert.Equal(t, []string{"a"}, list)
+
+	os.Setenv(envKey, "a,b")
+	list = apmconfig.ParseListEnv(envKey, ",", defaultList)
+	assert.Equal(t, []string{"a", "b"}, list)
+
+	os.Setenv(envKey, ",a , b,")
+	list = apmconfig.ParseListEnv(envKey, ",", defaultList)
+	assert.Equal(t, []string{"a", "b"}, list)
+
+	os.Setenv(envKey, ",")
+	list = apmconfig.ParseListEnv(envKey, ",", defaultList)
+	assert.Len(t, list, 0)
+
+	os.Setenv(envKey, "a| b")
+	list = apmconfig.ParseListEnv(envKey, "|", defaultList)
+	assert.Equal(t, []string{"a", "b"}, list)
+
+	os.Setenv(envKey, "a b")
+	list = apmconfig.ParseListEnv(envKey, ",", defaultList)
+	assert.Equal(t, []string{"a b"}, list)
 }

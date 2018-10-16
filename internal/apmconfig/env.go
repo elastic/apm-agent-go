@@ -52,3 +52,14 @@ func ParseBoolEnv(envKey string, defaultValue bool) (bool, error) {
 	}
 	return b, nil
 }
+
+// ParseListEnv gets the value of the environment variable envKey
+// and, if set, parses it as a list separated by sep. If the environment
+// variable is unset, defaultValue is returned.
+func ParseListEnv(envKey, sep string, defaultValue []string) []string {
+	value := os.Getenv(envKey)
+	if value == "" {
+		return defaultValue
+	}
+	return ParseList(value, sep)
+}
