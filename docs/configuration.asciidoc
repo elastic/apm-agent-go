@@ -167,16 +167,15 @@ any data to the Elastic APM server, and instrumentation overhead is minimized.
 [options="header"]
 |============
 | Environment               | Default | Example
-| `ELASTIC_APM_IGNORE_URLS` |         | `/heartbeat\|/_internal/.*`
+| `ELASTIC_APM_IGNORE_URLS` |         | `/heartbeat*, *.jpg`
 |============
 
-A regular expression matching the request line of HTTP requests for which
-transactions should not be reported.
+A list of patterns to match HTTP requests to ignore. An incoming HTTP request
+whose request line matches any of the patterns will not be reported as a transaction.
 
-The pattern specified in `ELASTIC_APM_IGNORE_URLS` is treated
-case-insensitively by default. To override this behavior and match case-sensitively,
-wrap the value like `(?-i:<value>)`. For a full definition of Go's regular
-expression syntax, see https://golang.org/pkg/regexp/syntax/.
+This option supports the wildcard `*`, which matches zero or more characters.
+Examples: `/foo/*/bar/*/baz*`, `*foo*`. Matching is case insensitive by default.
+Prefixing a pattern with `(?-i)` makes the matching case sensitive.
 
 [float]
 [[config-sanitize-field-names]]
@@ -184,16 +183,15 @@ expression syntax, see https://golang.org/pkg/regexp/syntax/.
 
 [options="header"]
 |============
-| Environment                        | Default                                                                            | Example
-| `ELASTIC_APM_SANITIZE_FIELD_NAMES` | `password\|passwd\|pwd\|secret\|.*key\|.*token\|.*session.*\|.*credit.*\|.*card.*` | `sekrits`
+| Environment                        | Default                                                                     | Example
+| `ELASTIC_APM_SANITIZE_FIELD_NAMES` | `password, passwd, pwd, secret, *key, *token*, *session*, *credit*, *card*` | `sekrits`
 |============
 
-A regular expression matching the names of HTTP cookies and POST form fields to redact.
+A list of patterns to match the names of HTTP cookies and POST form fields to refact.
 
-The pattern specified in `ELASTIC_APM_SANITIZE_FIELD_NAMES` is treated
-case-insensitively by default. To override this behavior and match case-sensitively,
-wrap the value like `(?-i:<value>)`. For a full definition of Go's regular
-expression syntax, see https://golang.org/pkg/regexp/syntax/.
+This option supports the wildcard `*`, which matches zero or more characters.
+Examples: `/foo/*/bar/*/baz*`, `*foo*`. Matching is case insensitive by default.
+Prefixing a pattern with `(?-i)` makes the matching case sensitive.
 
 [float]
 [[config-capture-body]]
