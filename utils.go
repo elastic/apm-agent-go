@@ -1,4 +1,4 @@
-package elasticapm
+package apm
 
 import (
 	"math/rand"
@@ -11,8 +11,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/elastic/apm-agent-go/internal/apmstrings"
-	"github.com/elastic/apm-agent-go/model"
+	"go.elastic.co/apm/internal/apmstrings"
+	"go.elastic.co/apm/model"
 )
 
 var (

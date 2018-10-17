@@ -1,4 +1,4 @@
-package elasticapm
+package apm
 
 import (
 	cryptorand "crypto/rand"
@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/elastic/apm-agent-go/stacktrace"
+	"go.elastic.co/apm/stacktrace"
 )
 
 // droppedSpanPool holds *Spans which are used when the span

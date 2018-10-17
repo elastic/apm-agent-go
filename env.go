@@ -1,4 +1,4 @@
-package elasticapm
+package apm
 
 import (
 	"os"
@@ -10,8 +10,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/elastic/apm-agent-go/internal/apmconfig"
-	"github.com/elastic/apm-agent-go/internal/wildcard"
+	"go.elastic.co/apm/internal/apmconfig"
+	"go.elastic.co/apm/internal/wildcard"
 )
 
 const (

@@ -8,11 +8,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 
-	"github.com/elastic/apm-agent-go"
+	"go.elastic.co/apm"
 )
 
-// Wrap returns an elasticapm.MetricsGatherer wrapping g.
-func Wrap(g prometheus.Gatherer) elasticapm.MetricsGatherer {
+// Wrap returns an apm.MetricsGatherer wrapping g.
+func Wrap(g prometheus.Gatherer) apm.MetricsGatherer {
 	return gatherer{g}
 }
 
@@ -22,7 +22,7 @@ type gatherer struct {
 
 // GatherMetrics gathers metrics from the prometheus.Gatherer p.g,
 // and adds them to out.
-func (g gatherer) GatherMetrics(ctx context.Context, out *elasticapm.Metrics) error {
+func (g gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 	metricFamilies, err := g.p.Gather()
 	if err != nil {
 		return errors.WithStack(err)
@@ -70,10 +70,10 @@ func (g gatherer) GatherMetrics(ctx context.Context, out *elasticapm.Metrics) er
 	return nil
 }
 
-func makeLabels(lps []*dto.LabelPair) []elasticapm.MetricLabel {
-	labels := make([]elasticapm.MetricLabel, len(lps))
+func makeLabels(lps []*dto.LabelPair) []apm.MetricLabel {
+	labels := make([]apm.MetricLabel, len(lps))
 	for i, lp := range lps {
-		labels[i] = elasticapm.MetricLabel{Name: lp.GetName(), Value: lp.GetValue()}
+		labels[i] = apm.MetricLabel{Name: lp.GetName(), Value: lp.GetValue()}
 	}
 	return labels
 }

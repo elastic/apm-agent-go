@@ -3,7 +3,7 @@
 package model
 
 import (
-	"github.com/elastic/apm-agent-go/internal/fastjson"
+	"go.elastic.co/apm/internal/fastjson"
 )
 
 func (v *Service) MarshalFastJSON(w *fastjson.Writer) {

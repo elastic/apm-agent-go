@@ -1,9 +1,9 @@
-package elasticapm
+package apm
 
 import (
 	"net/http"
 
-	"github.com/elastic/apm-agent-go/model"
+	"go.elastic.co/apm/model"
 )
 
 // SpanContext provides methods for setting span context.

@@ -8,10 +8,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/module/apmsql"
-	_ "github.com/elastic/apm-agent-go/module/apmsql/sqlite3"
-	"github.com/elastic/apm-agent-go/transport"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/module/apmsql"
+	_ "go.elastic.co/apm/module/apmsql/sqlite3"
+	"go.elastic.co/apm/transport"
 )
 
 func BenchmarkStmtQueryContext(b *testing.B) {
@@ -37,14 +37,14 @@ func BenchmarkStmtQueryContext(b *testing.B) {
 		httpTransport, err := transport.NewHTTPTransport()
 		require.NoError(b, err)
 		httpTransport.SetServerURL(invalidServerURL)
-		tracer, err := elasticapm.NewTracer("apmhttp_test", "0.1")
+		tracer, err := apm.NewTracer("apmhttp_test", "0.1")
 		require.NoError(b, err)
 		tracer.Transport = httpTransport
 		defer tracer.Close()
 
 		tracer.SetMaxSpans(b.N)
 		tx := tracer.StartTransaction("name", "type")
-		ctx := elasticapm.ContextWithTransaction(context.Background(), tx)
+		ctx := apm.ContextWithTransaction(context.Background(), tx)
 		benchmarkQueries(b, ctx, stmt)
 	})
 }

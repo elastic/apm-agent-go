@@ -12,12 +12,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/apm-agent-go/apmtest"
-	"github.com/elastic/apm-agent-go/module/apmgorm"
-	_ "github.com/elastic/apm-agent-go/module/apmgorm/dialects/mysql"
-	_ "github.com/elastic/apm-agent-go/module/apmgorm/dialects/postgres"
-	_ "github.com/elastic/apm-agent-go/module/apmgorm/dialects/sqlite"
-	"github.com/elastic/apm-agent-go/module/apmsql"
+	"go.elastic.co/apm/apmtest"
+	"go.elastic.co/apm/module/apmgorm"
+	_ "go.elastic.co/apm/module/apmgorm/dialects/mysql"
+	_ "go.elastic.co/apm/module/apmgorm/dialects/postgres"
+	_ "go.elastic.co/apm/module/apmgorm/dialects/sqlite"
+	"go.elastic.co/apm/module/apmsql"
 )
 
 type Product struct {

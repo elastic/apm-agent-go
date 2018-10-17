@@ -16,7 +16,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/elastic/apm-agent-go/internal/apmconfig"
+	"go.elastic.co/apm/internal/apmconfig"
 )
 
 const (

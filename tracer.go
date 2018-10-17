@@ -1,4 +1,4 @@
-package elasticapm
+package apm
 
 import (
 	"bytes"
@@ -10,15 +10,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/elastic/apm-agent-go/internal/apmconfig"
-	"github.com/elastic/apm-agent-go/internal/apmdebug"
-	"github.com/elastic/apm-agent-go/internal/fastjson"
-	"github.com/elastic/apm-agent-go/internal/iochan"
-	"github.com/elastic/apm-agent-go/internal/ringbuffer"
-	"github.com/elastic/apm-agent-go/internal/wildcard"
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/stacktrace"
-	"github.com/elastic/apm-agent-go/transport"
+	"go.elastic.co/apm/internal/apmconfig"
+	"go.elastic.co/apm/internal/apmdebug"
+	"go.elastic.co/apm/internal/fastjson"
+	"go.elastic.co/apm/internal/iochan"
+	"go.elastic.co/apm/internal/ringbuffer"
+	"go.elastic.co/apm/internal/wildcard"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/stacktrace"
+	"go.elastic.co/apm/transport"
 )
 
 const (
@@ -125,7 +125,7 @@ func (opts *options) init(continueOnError bool) error {
 		return errs[0]
 	}
 	for _, err := range errs {
-		log.Printf("[elasticapm]: %s", err)
+		log.Printf("[apm]: %s", err)
 	}
 
 	opts.requestDuration = requestDuration

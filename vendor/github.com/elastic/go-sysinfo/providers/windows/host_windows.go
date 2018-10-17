@@ -21,13 +21,13 @@ import (
 	"os"
 	"time"
 
-	"github.com/elastic/go-windows"
 	"github.com/joeshaw/multierror"
 	"github.com/pkg/errors"
 
 	"github.com/elastic/go-sysinfo/internal/registry"
 	"github.com/elastic/go-sysinfo/providers/shared"
 	"github.com/elastic/go-sysinfo/types"
+	"github.com/elastic/go-windows"
 )
 
 func init() {

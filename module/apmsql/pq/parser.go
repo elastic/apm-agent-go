@@ -9,7 +9,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/elastic/apm-agent-go/module/apmsql"
+	"go.elastic.co/apm/module/apmsql"
 )
 
 // ParseDSN parses the given lib/pq datasource name, which may

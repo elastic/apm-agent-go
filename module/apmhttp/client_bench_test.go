@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context/ctxhttp"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/module/apmhttp"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/module/apmhttp"
 )
 
 func BenchmarkClient(b *testing.B) {
@@ -34,7 +34,7 @@ func benchmarkClient(b *testing.B, wrap func(*http.Client) *http.Client) {
 			tracer := newTracer()
 			defer tracer.Close()
 			tx := tracer.StartTransaction("name", "type")
-			ctx := elasticapm.ContextWithTransaction(context.Background(), tx)
+			ctx := apm.ContextWithTransaction(context.Background(), tx)
 			client := wrap(nil)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {

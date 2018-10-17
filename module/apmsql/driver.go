@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/elastic/apm-agent-go/internal/sqlutil"
+	"go.elastic.co/apm/internal/sqlutil"
 )
 
 // DriverPrefix should be used as a driver name prefix when
 // registering via sql.Register.
-const DriverPrefix = "elasticapm/"
+const DriverPrefix = "apm/"
 
 var (
 	driversMu sync.RWMutex

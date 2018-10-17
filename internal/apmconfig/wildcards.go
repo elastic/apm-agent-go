@@ -3,7 +3,7 @@ package apmconfig
 import (
 	"strings"
 
-	"github.com/elastic/apm-agent-go/internal/wildcard"
+	"go.elastic.co/apm/internal/wildcard"
 )
 
 // ParseWildcardPatterns parses s as a comma-separated list of wildcard patterns,

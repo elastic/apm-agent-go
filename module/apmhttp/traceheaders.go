@@ -7,7 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/elastic/apm-agent-go"
+	"go.elastic.co/apm"
 )
 
 const (
@@ -21,7 +21,7 @@ const (
 
 // FormatTraceparentHeader formats the given trace context as a
 // traceparent header.
-func FormatTraceparentHeader(c elasticapm.TraceContext) string {
+func FormatTraceparentHeader(c apm.TraceContext) string {
 	const version = 0
 	return fmt.Sprintf("%02x-%032x-%016x-%02x", 0, c.Trace[:], c.Span[:], c.Options)
 }
@@ -34,8 +34,8 @@ func FormatTraceparentHeader(c elasticapm.TraceContext) string {
 // valid. The caller must decide whether or not it wishes to disregard invalid
 // trace/span IDs, and validate them as required using their provided Validate
 // methods.
-func ParseTraceparentHeader(h string) (elasticapm.TraceContext, error) {
-	var out elasticapm.TraceContext
+func ParseTraceparentHeader(h string) (apm.TraceContext, error) {
+	var out apm.TraceContext
 	if len(h) < 3 || h[2] != '-' {
 		return out, errors.Errorf("invalid traceparent header %q", h)
 	}
@@ -77,7 +77,7 @@ func ParseTraceparentHeader(h string) (elasticapm.TraceContext, error) {
 		if _, err := hex.Decode(traceOptions[:], []byte(h[traceOptionsStart:traceOptionsEnd])); err != nil {
 			return out, errors.Wrap(err, "error decoding trace-options")
 		}
-		out.Options = elasticapm.TraceOptions(traceOptions[0])
+		out.Options = apm.TraceOptions(traceOptions[0])
 		return out, nil
 	case 255:
 		return out, errors.Errorf("traceparent header version 255 is forbidden")

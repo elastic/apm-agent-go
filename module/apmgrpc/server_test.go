@@ -16,11 +16,11 @@ import (
 	pb "google.golang.org/grpc/examples/helloworld/helloworld"
 	"google.golang.org/grpc/status"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/module/apmgrpc"
-	"github.com/elastic/apm-agent-go/stacktrace"
-	"github.com/elastic/apm-agent-go/transport/transporttest"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/module/apmgrpc"
+	"go.elastic.co/apm/stacktrace"
+	"go.elastic.co/apm/transport/transporttest"
 )
 
 func init() {
@@ -61,7 +61,7 @@ type testParams struct {
 	server    *helloworldServer
 	conn      *grpc.ClientConn
 	client    pb.GreeterClient
-	tracer    *elasticapm.Tracer
+	tracer    *apm.Tracer
 	transport *transporttest.RecorderTransport
 }
 
@@ -165,7 +165,7 @@ func TestServerRecovery(t *testing.T) {
 	assert.Equal(t, "boom", e.Exception.Message)
 }
 
-func newServer(t *testing.T, tracer *elasticapm.Tracer, opts ...apmgrpc.ServerOption) (*grpc.Server, *helloworldServer, net.Addr) {
+func newServer(t *testing.T, tracer *apm.Tracer, opts ...apmgrpc.ServerOption) (*grpc.Server, *helloworldServer, net.Addr) {
 	// We always install grpc_recovery first to avoid panics
 	// aborting the test process. We install it before the
 	// apmgrpc interceptor so that apmgrpc can recover panics
@@ -204,7 +204,7 @@ type helloworldServer struct {
 func (s *helloworldServer) SayHello(ctx context.Context, req *pb.HelloRequest) (*pb.HelloReply, error) {
 	// The context passed to the server should contain a Transaction
 	// for the gRPC request.
-	span, ctx := elasticapm.StartSpan(ctx, "server_span", "type")
+	span, ctx := apm.StartSpan(ctx, "server_span", "type")
 	span.End()
 	if s.panic {
 		panic(s.err)

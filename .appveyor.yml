@@ -1,5 +1,5 @@
 version: build-{build}-{branch}
-clone_folder: C:\gopath\src\github.com\elastic\apm-agent-go
+clone_folder: C:\gopath\src\go.elastic.co\apm
 shallow_clone: true
 deploy: off
 

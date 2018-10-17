@@ -4,7 +4,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
-	"github.com/elastic/apm-agent-go"
+	"go.elastic.co/apm"
 )
 
 // NewUnaryClientInterceptor returns a grpc.UnaryClientInterceptor that
@@ -12,7 +12,7 @@ import (
 //
 // The interceptor will trace spans with the "grpc" type for each request
 // made, for any client method presented with a context containing a sampled
-// elasticapm.Transaction.
+// apm.Transaction.
 func NewUnaryClientInterceptor(o ...ClientOption) grpc.UnaryClientInterceptor {
 	opts := clientOptions{}
 	for _, o := range o {
@@ -26,14 +26,14 @@ func NewUnaryClientInterceptor(o ...ClientOption) grpc.UnaryClientInterceptor {
 		invoker grpc.UnaryInvoker,
 		opts ...grpc.CallOption,
 	) error {
-		span, ctx := elasticapm.StartSpan(ctx, method, "grpc")
+		span, ctx := apm.StartSpan(ctx, method, "grpc")
 		defer span.End()
 		return invoker(ctx, method, req, resp, cc, opts...)
 	}
 }
 
 type clientOptions struct {
-	tracer *elasticapm.Tracer
+	tracer *apm.Tracer
 }
 
 // ClientOption sets options for client-side tracing.

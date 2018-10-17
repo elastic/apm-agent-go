@@ -1,15 +1,15 @@
-package elasticapm_test
+package apm_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/elastic/apm-agent-go"
+	"go.elastic.co/apm"
 )
 
 func TestTraceID(t *testing.T) {
-	var id elasticapm.TraceID
+	var id apm.TraceID
 	assert.EqualError(t, id.Validate(), "zero trace-id is invalid")
 
 	id[0] = 1
@@ -17,7 +17,7 @@ func TestTraceID(t *testing.T) {
 }
 
 func TestSpanID(t *testing.T) {
-	var id elasticapm.SpanID
+	var id apm.SpanID
 	assert.EqualError(t, id.Validate(), "zero span-id is invalid")
 
 	id[0] = 1
@@ -25,22 +25,22 @@ func TestSpanID(t *testing.T) {
 }
 
 func TestTraceOptions(t *testing.T) {
-	opts := elasticapm.TraceOptions(0xFE)
+	opts := apm.TraceOptions(0xFE)
 	assert.False(t, opts.Requested())
 	assert.True(t, opts.MaybeRecorded())
 
 	opts = opts.WithRequested(true)
 	assert.True(t, opts.Requested())
 	assert.True(t, opts.MaybeRecorded())
-	assert.Equal(t, elasticapm.TraceOptions(0xFF), opts)
+	assert.Equal(t, apm.TraceOptions(0xFF), opts)
 
 	opts = opts.WithRequested(false)
 	assert.False(t, opts.Requested())
 	assert.True(t, opts.MaybeRecorded())
-	assert.Equal(t, elasticapm.TraceOptions(0xFE), opts)
+	assert.Equal(t, apm.TraceOptions(0xFE), opts)
 
 	opts = opts.WithMaybeRecorded(false)
 	assert.False(t, opts.Requested())
 	assert.False(t, opts.MaybeRecorded())
-	assert.Equal(t, elasticapm.TraceOptions(0xFC), opts)
+	assert.Equal(t, apm.TraceOptions(0xFC), opts)
 }

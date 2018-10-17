@@ -8,8 +8,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/stacktrace"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/stacktrace"
 )
 
 func TestFilesystemContextSetter(t *testing.T) {

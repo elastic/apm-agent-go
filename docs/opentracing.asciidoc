@@ -18,14 +18,14 @@ To initialize the OpenTracing tracer implementation, you must first import the `
 [source,go]
 ----
 import (
-	"github.com/elastic/apm-agent-go/module/apmot"
+	"go.elastic.co/apm/module/apmot"
 )
 ----
 
 The apmot package exports a function, "New", which returns an implementation of the
 `opentracing.Tracer` interface. If you simply call `apmot.New()` without any arguments,
-the returned tracer will wrap `elasticapm.DefaultTracer`. If you wish to use a different
-`elasticapm.Tracer`, then you can pass it with `apmot.New(apmot.WithTracer(t))`.
+the returned tracer will wrap `apm.DefaultTracer`. If you wish to use a different
+`apm.Tracer`, then you can pass it with `apmot.New(apmot.WithTracer(t))`.
 
 [source,go]
 ----
@@ -41,7 +41,7 @@ for documentation on the OpenTracing Go API.
 import (
 	"context"
 
-	"github.com/elastic/apm-agent-go/module/apmot"
+	"go.elastic.co/apm/module/apmot"
 
 	"github.com/opentracing/opentracing-go"
 )
@@ -67,22 +67,22 @@ native and OpenTracing APIs. e.g.:
 [source,go]
 ----
 // Transaction created through native API.
-transaction := elasticapm.DefaultTracer.StartTransaction("GET /", "request")
-ctx := elasticapm.ContextWithTransaction(context.Background(), transaction)
+transaction := apm.DefaultTracer.StartTransaction("GET /", "request")
+ctx := apm.ContextWithTransaction(context.Background(), transaction)
 
 // Span created through OpenTracing API will be a child of the transaction.
 otSpan, ctx := opentracing.StartSpanFromContext(ctx, "ot-span")
 
 // Span created through the native API will be a child of the span created
 // above via the OpenTracing API.
-apmSpan, ctx := elasticapm.StartSpan(ctx, "apm-span", "apm-span")
+apmSpan, ctx := apm.StartSpan(ctx, "apm-span", "apm-span")
 ----
 
 The `opentracing.SpanFromContext` function will return an `opentracing.Span`
-that wraps either an `elasticapm.Span` or `elasticapm.Transaction`. These span
-objects are intended only for passing in context when creating a new span
-through the OpenTracing API, and are not fully functional spans. In particular,
-the `Finish` method is a no-op, and the `Tracer` method returns a no-op tracer.
+that wraps either an `apm.Span` or `apm.Transaction`. These span objects are
+intended only for passing in context when creating a new span through the
+OpenTracing API, and are not fully functional spans. In particular, the `Finish`
+method is a no-op, and the `Tracer` method returns a no-op tracer.
 
 [float]
 [[opentracing-apm-tags]]

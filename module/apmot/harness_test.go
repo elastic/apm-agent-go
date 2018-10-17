@@ -8,22 +8,22 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/harness"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/module/apmhttp"
-	"github.com/elastic/apm-agent-go/transport/transporttest"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/module/apmhttp"
+	"go.elastic.co/apm/transport/transporttest"
 )
 
 func TestHarness(t *testing.T) {
 	// NOTE(axw) we do not support binary propagation, but we patch in
 	// basic support *for the tests only* so we can check compatibility
 	// with the HTTP and text formats.
-	binaryInject = func(w io.Writer, traceContext elasticapm.TraceContext) error {
+	binaryInject = func(w io.Writer, traceContext apm.TraceContext) error {
 		return json.NewEncoder(w).Encode(apmhttp.FormatTraceparentHeader(traceContext))
 	}
-	binaryExtract = func(r io.Reader) (elasticapm.TraceContext, error) {
+	binaryExtract = func(r io.Reader) (apm.TraceContext, error) {
 		var headerValue string
 		if err := json.NewDecoder(r).Decode(&headerValue); err != nil {
-			return elasticapm.TraceContext{}, err
+			return apm.TraceContext{}, err
 		}
 		return apmhttp.ParseTraceparentHeader(headerValue)
 	}
@@ -33,7 +33,7 @@ func TestHarness(t *testing.T) {
 	}()
 
 	newTracer := func() (opentracing.Tracer, func()) {
-		apmtracer, err := elasticapm.NewTracer("transporttest", "")
+		apmtracer, err := apm.NewTracer("transporttest", "")
 		if err != nil {
 			panic(err)
 		}

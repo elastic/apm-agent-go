@@ -5,8 +5,8 @@ import (
 	"regexp"
 	"sync"
 
-	"github.com/elastic/apm-agent-go/internal/apmconfig"
-	"github.com/elastic/apm-agent-go/internal/wildcard"
+	"go.elastic.co/apm/internal/apmconfig"
+	"go.elastic.co/apm/internal/wildcard"
 )
 
 const (

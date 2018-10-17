@@ -6,9 +6,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/module/apmhttp"
-	"github.com/elastic/apm-agent-go/stacktrace"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/module/apmhttp"
+	"go.elastic.co/apm/stacktrace"
 )
 
 func init() {
@@ -24,12 +24,12 @@ func init() {
 // This middleware will recover and report panics, so it can
 // be used instead of the standard gin.Recovery middleware.
 //
-// By default, the middleware will use elasticapm.DefaultTracer.
+// By default, the middleware will use apm.DefaultTracer.
 // Use WithTracer to specify an alternative tracer.
 func Middleware(engine *gin.Engine, o ...Option) gin.HandlerFunc {
 	m := &middleware{
 		engine:         engine,
-		tracer:         elasticapm.DefaultTracer,
+		tracer:         apm.DefaultTracer,
 		requestIgnorer: apmhttp.DefaultServerRequestIgnorer(),
 	}
 	for _, o := range o {
@@ -40,7 +40,7 @@ func Middleware(engine *gin.Engine, o ...Option) gin.HandlerFunc {
 
 type middleware struct {
 	engine         *gin.Engine
-	tracer         *elasticapm.Tracer
+	tracer         *apm.Tracer
 	requestIgnorer apmhttp.RequestIgnorerFunc
 
 	setRouteMapOnce sync.Once
@@ -107,7 +107,7 @@ func (m *middleware) handle(c *gin.Context) {
 	c.Next()
 }
 
-func setContext(ctx *elasticapm.Context, c *gin.Context, body *elasticapm.BodyCapturer) {
+func setContext(ctx *apm.Context, c *gin.Context, body *apm.BodyCapturer) {
 	ctx.SetFramework("gin", gin.Version)
 	ctx.SetHTTPRequest(c.Request)
 	ctx.SetHTTPRequestBody(body)
@@ -122,7 +122,7 @@ type Option func(*middleware)
 
 // WithTracer returns an Option which sets t as the tracer
 // to use for tracing server requests.
-func WithTracer(t *elasticapm.Tracer) Option {
+func WithTracer(t *apm.Tracer) Option {
 	if t == nil {
 		panic("t == nil")
 	}

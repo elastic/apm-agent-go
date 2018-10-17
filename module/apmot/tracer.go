@@ -8,26 +8,26 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/module/apmhttp"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/module/apmhttp"
 )
 
 // New returns a new opentracing.Tracer backed by the supplied
 // Elastic APM tracer.
 //
-// By default, the returned tracer will use elasticapm.DefaultTracer.
+// By default, the returned tracer will use apm.DefaultTracer.
 // This can be overridden by using a WithTracer option.
 func New(opts ...Option) opentracing.Tracer {
-	t := &otTracer{tracer: elasticapm.DefaultTracer}
+	t := &otTracer{tracer: apm.DefaultTracer}
 	for _, opt := range opts {
 		opt(t)
 	}
 	return t
 }
 
-// otTracer is an opentracing.Tracer backed by an elasticapm.Tracer.
+// otTracer is an opentracing.Tracer backed by an apm.Tracer.
 type otTracer struct {
-	tracer *elasticapm.Tracer
+	tracer *apm.Tracer
 }
 
 // StartSpan starts a new OpenTracing span with the given name and zero or more options.
@@ -55,12 +55,12 @@ func (t *otTracer) StartSpanWithOptions(name string, opts opentracing.StartSpanO
 		otSpan.ctx.startTime = time.Now()
 	}
 
-	var parentTraceContext elasticapm.TraceContext
+	var parentTraceContext apm.TraceContext
 	if parentCtx, ok := parentSpanContext(opts.References); ok {
 		if parentCtx.tracer == t && parentCtx.txSpanContext != nil {
 			parentCtx.txSpanContext.mu.RLock()
 			defer parentCtx.txSpanContext.mu.RUnlock()
-			opts := elasticapm.SpanOptions{
+			opts := apm.SpanOptions{
 				Parent: parentCtx.traceContext,
 				Start:  otSpan.ctx.startTime,
 			}
@@ -79,7 +79,7 @@ func (t *otTracer) StartSpanWithOptions(name string, opts opentracing.StartSpanO
 		} else if parentCtx.txSpanContext == nil && parentCtx.tx != nil {
 			// parentCtx is a synthesized spanContext object. It has no
 			// txSpanContext, so we treat it as the transaction creator.
-			opts := elasticapm.SpanOptions{
+			opts := apm.SpanOptions{
 				Parent: parentCtx.traceContext,
 				Start:  otSpan.ctx.startTime,
 			}
@@ -93,7 +93,7 @@ func (t *otTracer) StartSpanWithOptions(name string, opts opentracing.StartSpanO
 	}
 
 	// There's no local parent context created by this tracer.
-	otSpan.ctx.tx = t.tracer.StartTransactionOptions(name, "", elasticapm.TransactionOptions{
+	otSpan.ctx.tx = t.tracer.StartTransactionOptions(name, "", apm.TransactionOptions{
 		TraceContext: parentTraceContext,
 		Start:        otSpan.ctx.startTime,
 	})
@@ -173,8 +173,8 @@ func (t *otTracer) Extract(format interface{}, carrier interface{}) (opentracing
 type Option func(*otTracer)
 
 // WithTracer returns an Option which sets t as the underlying
-// elasticapm.Tracer for constructing an OpenTracing Tracer.
-func WithTracer(t *elasticapm.Tracer) Option {
+// apm.Tracer for constructing an OpenTracing Tracer.
+func WithTracer(t *apm.Tracer) Option {
 	if t == nil {
 		panic("t == nil")
 	}
@@ -192,10 +192,10 @@ var (
 	binaryExtract = binaryExtractUnsupported
 )
 
-func binaryInjectUnsupported(w io.Writer, traceContext elasticapm.TraceContext) error {
+func binaryInjectUnsupported(w io.Writer, traceContext apm.TraceContext) error {
 	return opentracing.ErrUnsupportedFormat
 }
 
-func binaryExtractUnsupported(r io.Reader) (elasticapm.TraceContext, error) {
-	return elasticapm.TraceContext{}, opentracing.ErrUnsupportedFormat
+func binaryExtractUnsupported(r io.Reader) (apm.TraceContext, error) {
+	return apm.TraceContext{}, opentracing.ErrUnsupportedFormat
 }

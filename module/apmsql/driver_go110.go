@@ -6,7 +6,7 @@ import (
 	"context"
 	"database/sql/driver"
 
-	"github.com/elastic/apm-agent-go"
+	"go.elastic.co/apm"
 )
 
 func (d *tracingDriver) OpenConnector(name string) (driver.Connector, error) {
@@ -30,11 +30,11 @@ type driverConnector struct {
 }
 
 func (d *driverConnector) Connect(ctx context.Context) (driver.Conn, error) {
-	span, ctx := elasticapm.StartSpan(ctx, "connect", d.driver.connectSpanType)
+	span, ctx := apm.StartSpan(ctx, "connect", d.driver.connectSpanType)
 	defer span.End()
 	dsnInfo := d.driver.dsnParser(d.name)
 	if !span.Dropped() {
-		span.Context.SetDatabase(elasticapm.DatabaseSpanContext{
+		span.Context.SetDatabase(apm.DatabaseSpanContext{
 			Instance: dsnInfo.Database,
 			Type:     "sql",
 			User:     dsnInfo.User,

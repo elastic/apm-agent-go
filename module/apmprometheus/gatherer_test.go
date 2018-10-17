@@ -8,10 +8,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/module/apmprometheus"
-	"github.com/elastic/apm-agent-go/transport/transporttest"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/module/apmprometheus"
+	"go.elastic.co/apm/transport/transporttest"
 )
 
 func TestGoCollector(t *testing.T) {
@@ -117,7 +117,7 @@ func TestLabels(t *testing.T) {
 	}}, metrics)
 }
 
-func gatherMetrics(g elasticapm.MetricsGatherer) []model.Metrics {
+func gatherMetrics(g apm.MetricsGatherer) []model.Metrics {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 	tracer.RegisterMetricsGatherer(g)

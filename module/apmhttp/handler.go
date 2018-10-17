@@ -4,13 +4,13 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/elastic/apm-agent-go"
+	"go.elastic.co/apm"
 )
 
 // Wrap returns an http.Handler wrapping h, reporting each request as
 // a transaction to Elastic APM.
 //
-// By default, the returned Handler will use elasticapm.DefaultTracer.
+// By default, the returned Handler will use apm.DefaultTracer.
 // Use WithTracer to specify an alternative tracer.
 //
 // By default, the returned Handler will recover panics, reporting
@@ -22,7 +22,7 @@ func Wrap(h http.Handler, o ...ServerOption) http.Handler {
 	}
 	handler := &handler{
 		handler:        h,
-		tracer:         elasticapm.DefaultTracer,
+		tracer:         apm.DefaultTracer,
 		requestName:    ServerRequestName,
 		requestIgnorer: DefaultServerRequestIgnorer(),
 	}
@@ -40,14 +40,14 @@ func Wrap(h http.Handler, o ...ServerOption) http.Handler {
 // The http.Request's context will be updated with the transaction.
 type handler struct {
 	handler        http.Handler
-	tracer         *elasticapm.Tracer
+	tracer         *apm.Tracer
 	recovery       RecoveryFunc
 	requestName    RequestNameFunc
 	requestIgnorer RequestIgnorerFunc
 }
 
 // ServeHTTP delegates to h.Handler, tracing the transaction with
-// h.Tracer, or elasticapm.DefaultTracer if h.Tracer is nil.
+// h.Tracer, or apm.DefaultTracer if h.Tracer is nil.
 func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if !h.tracer.Active() || h.requestIgnorer(req) {
 		h.handler.ServeHTTP(w, req)
@@ -72,8 +72,8 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 //
 // If the transaction is not ignored, the request will be
 // returned with the transaction added to its context.
-func StartTransaction(tracer *elasticapm.Tracer, name string, req *http.Request) (*elasticapm.Transaction, *http.Request) {
-	var opts elasticapm.TransactionOptions
+func StartTransaction(tracer *apm.Tracer, name string, req *http.Request) (*apm.Transaction, *http.Request) {
+	var opts apm.TransactionOptions
 	if v := req.Header.Get(TraceparentHeader); v != "" {
 		c, err := ParseTraceparentHeader(v)
 		if err == nil {
@@ -81,14 +81,14 @@ func StartTransaction(tracer *elasticapm.Tracer, name string, req *http.Request)
 		}
 	}
 	tx := tracer.StartTransactionOptions(name, "request", opts)
-	ctx := elasticapm.ContextWithTransaction(req.Context(), tx)
+	ctx := apm.ContextWithTransaction(req.Context(), tx)
 	req = RequestWithContext(ctx, req)
 	return tx, req
 }
 
 // SetTransactionContext sets tx.Result and, if the transaction is being
 // sampled, sets tx.Context with information from req, resp, and finished.
-func SetTransactionContext(tx *elasticapm.Transaction, req *http.Request, resp *Response, body *elasticapm.BodyCapturer) {
+func SetTransactionContext(tx *apm.Transaction, req *http.Request, resp *Response, body *apm.BodyCapturer) {
 	tx.Result = StatusCodeResult(resp.StatusCode)
 	if !tx.Sampled() {
 		return
@@ -96,7 +96,7 @@ func SetTransactionContext(tx *elasticapm.Transaction, req *http.Request, resp *
 	setContext(&tx.Context, req, resp, body)
 }
 
-func setContext(ctx *elasticapm.Context, req *http.Request, resp *Response, body *elasticapm.BodyCapturer) {
+func setContext(ctx *apm.Context, req *http.Request, resp *Response, body *apm.BodyCapturer) {
 	ctx.SetHTTPRequest(req)
 	ctx.SetHTTPRequestBody(body)
 	ctx.SetHTTPStatusCode(resp.StatusCode)
@@ -204,7 +204,7 @@ type ServerOption func(*handler)
 
 // WithTracer returns a ServerOption which sets t as the tracer
 // to use for tracing server requests.
-func WithTracer(t *elasticapm.Tracer) ServerOption {
+func WithTracer(t *apm.Tracer) ServerOption {
 	if t == nil {
 		panic("t == nil")
 	}

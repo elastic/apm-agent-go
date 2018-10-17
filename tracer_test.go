@@ -1,4 +1,4 @@
-package elasticapm_test
+package apm_test
 
 import (
 	"context"
@@ -18,13 +18,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/transport"
-	"github.com/elastic/apm-agent-go/transport/transporttest"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/transport"
+	"go.elastic.co/apm/transport/transporttest"
 )
 
 func TestTracerStats(t *testing.T) {
-	tracer, err := elasticapm.NewTracer("tracer_testing", "")
+	tracer, err := apm.NewTracer("tracer_testing", "")
 	assert.NoError(t, err)
 	defer tracer.Close()
 	tracer.Transport = transporttest.Discard
@@ -33,13 +33,13 @@ func TestTracerStats(t *testing.T) {
 		tracer.StartTransaction("name", "type").End()
 	}
 	tracer.Flush(nil)
-	assert.Equal(t, elasticapm.TracerStats{
+	assert.Equal(t, apm.TracerStats{
 		TransactionsSent: 500,
 	}, tracer.Stats())
 }
 
 func TestTracerClosedSendNonblocking(t *testing.T) {
-	tracer, err := elasticapm.NewTracer("tracer_testing", "")
+	tracer, err := apm.NewTracer("tracer_testing", "")
 	assert.NoError(t, err)
 	tracer.Close()
 
@@ -50,13 +50,13 @@ func TestTracerClosedSendNonblocking(t *testing.T) {
 }
 
 func TestTracerCloseImmediately(t *testing.T) {
-	tracer, err := elasticapm.NewTracer("tracer_testing", "")
+	tracer, err := apm.NewTracer("tracer_testing", "")
 	assert.NoError(t, err)
 	tracer.Close()
 }
 
 func TestTracerFlushEmpty(t *testing.T) {
-	tracer, err := elasticapm.NewTracer("tracer_testing", "")
+	tracer, err := apm.NewTracer("tracer_testing", "")
 	assert.NoError(t, err)
 	defer tracer.Close()
 	tracer.Flush(nil)
@@ -170,7 +170,7 @@ func TestTracerRecovered(t *testing.T) {
 	assert.Equal(t, span.ID, error0.ParentID)
 }
 
-func capturePanic(tracer *elasticapm.Tracer, v interface{}) {
+func capturePanic(tracer *apm.Tracer, v interface{}) {
 	tx := tracer.StartTransaction("name", "type")
 	defer tx.End()
 	span := tx.StartSpan("name", "type", nil)
@@ -186,7 +186,7 @@ func capturePanic(tracer *elasticapm.Tracer, v interface{}) {
 }
 
 func TestTracerServiceNameValidation(t *testing.T) {
-	_, err := elasticapm.NewTracer("wot!", "")
+	_, err := apm.NewTracer("wot!", "")
 	assert.EqualError(t, err, `invalid service name "wot!": character '!' is not in the allowed set (a-zA-Z0-9 _-)`)
 }
 
@@ -247,7 +247,7 @@ func TestTracerRequestSize(t *testing.T) {
 	os.Setenv("ELASTIC_APM_SERVER_URLS", server.URL)
 	defer os.Unsetenv("ELASTIC_APM_SERVER_URLS")
 
-	tracer, err := elasticapm.NewTracer("tracer_testing", "")
+	tracer, err := apm.NewTracer("tracer_testing", "")
 	require.NoError(t, err)
 	defer tracer.Close()
 	httpTransport, err := transport.NewHTTPTransport()
@@ -336,7 +336,7 @@ func TestTracerBodyUnread(t *testing.T) {
 	os.Setenv("ELASTIC_APM_SERVER_URLS", server.URL)
 	defer os.Unsetenv("ELASTIC_APM_SERVER_URLS")
 
-	tracer, err := elasticapm.NewTracer("tracer_testing", "")
+	tracer, err := apm.NewTracer("tracer_testing", "")
 	require.NoError(t, err)
 	defer tracer.Close()
 	httpTransport, err := transport.NewHTTPTransport()

@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/transport/transporttest"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/transport/transporttest"
 )
 
 // WithTransaction calls f with a new context containing a transaction,
@@ -17,7 +17,7 @@ func WithTransaction(f func(ctx context.Context)) (model.Transaction, []model.Sp
 	defer tracer.Close()
 
 	tx := tracer.StartTransaction("name", "type")
-	ctx := elasticapm.ContextWithTransaction(context.Background(), tx)
+	ctx := apm.ContextWithTransaction(context.Background(), tx)
 	f(ctx)
 
 	tx.End()

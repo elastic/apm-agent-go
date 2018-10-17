@@ -13,9 +13,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/apm-agent-go/apmtest"
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/module/apmgocql"
+	"go.elastic.co/apm/apmtest"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/module/apmgocql"
 )
 
 const (
@@ -201,7 +201,7 @@ func TestQueryObserverErrorIntegration(t *testing.T) {
 
 	// BUG(axw) gocql executes queries, and notifies observers, in another
 	// goroutine whose stack does not include the original caller.
-	// See https://github.com/elastic/apm-agent-go/issues/258.
+	// See https://go.elastic.co/apm/issues/258.
 	assert.Equal(t, errors[0].Culprit, "")
 	assert.EqualError(t, queryError, errors[0].Exception.Message)
 }

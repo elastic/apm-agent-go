@@ -1,4 +1,4 @@
-package elasticapm
+package apm
 
 import (
 	"bytes"
@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/elastic/apm-agent-go/model"
+	"go.elastic.co/apm/model"
 )
 
 // CaptureBodyMode holds a value indicating how a tracer should capture

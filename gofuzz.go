@@ -1,6 +1,6 @@
 // +build gofuzz
 
-package elasticapm
+package apm
 
 import (
 	"bytes"
@@ -17,10 +17,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/santhosh-tekuri/jsonschema"
 
-	"github.com/elastic/apm-agent-go/internal/apmschema"
-	"github.com/elastic/apm-agent-go/internal/fastjson"
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/stacktrace"
+	"go.elastic.co/apm/internal/apmschema"
+	"go.elastic.co/apm/internal/fastjson"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/stacktrace"
 )
 
 func Fuzz(data []byte) int {

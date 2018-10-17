@@ -1,4 +1,4 @@
-package elasticapm
+package apm
 
 import (
 	"crypto/rand"
@@ -11,8 +11,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/stacktrace"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/stacktrace"
 )
 
 // Recovered creates an Error with t.NewError(err), where

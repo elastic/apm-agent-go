@@ -1,4 +1,4 @@
-package elasticapm_test
+package apm_test
 
 import (
 	"compress/zlib"
@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/transport"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/transport"
 )
 
 // ExampleTracer shows how to use the Tracer API
@@ -33,7 +33,7 @@ func ExampleTracer() {
 
 	const serviceName = "service-name"
 	const serviceVersion = "1.0.0"
-	tracer, err := elasticapm.NewTracer(serviceName, serviceVersion)
+	tracer, err := apm.NewTracer(serviceName, serviceVersion)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -119,13 +119,13 @@ func ExampleTracer() {
 }
 
 type api struct {
-	tracer *elasticapm.Tracer
+	tracer *apm.Tracer
 }
 
 func (api *api) handleOrder(ctx context.Context, product string) {
 	tx := api.tracer.StartTransaction("order", "request")
 	defer tx.End()
-	ctx = elasticapm.ContextWithTransaction(ctx, tx)
+	ctx = apm.ContextWithTransaction(ctx, tx)
 
 	tx.Context.SetCustom("product", product)
 
@@ -135,7 +135,7 @@ func (api *api) handleOrder(ctx context.Context, product string) {
 }
 
 func storeOrder(ctx context.Context, product string) {
-	span, _ := elasticapm.StartSpan(ctx, "store_order", "rpc")
+	span, _ := apm.StartSpan(ctx, "store_order", "rpc")
 	defer span.End()
 
 	time.Sleep(50 * time.Millisecond)

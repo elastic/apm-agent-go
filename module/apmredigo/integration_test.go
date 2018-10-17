@@ -11,10 +11,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/apm-agent-go/apmtest"
-	"github.com/elastic/apm-agent-go/module/apmhttp"
-	"github.com/elastic/apm-agent-go/module/apmredigo"
-	"github.com/elastic/apm-agent-go/transport/transporttest"
+	"go.elastic.co/apm/apmtest"
+	"go.elastic.co/apm/module/apmhttp"
+	"go.elastic.co/apm/module/apmredigo"
+	"go.elastic.co/apm/transport/transporttest"
 )
 
 func TestRequestContext(t *testing.T) {

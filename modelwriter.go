@@ -1,10 +1,10 @@
-package elasticapm
+package apm
 
 import (
-	"github.com/elastic/apm-agent-go/internal/fastjson"
-	"github.com/elastic/apm-agent-go/internal/ringbuffer"
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/stacktrace"
+	"go.elastic.co/apm/internal/fastjson"
+	"go.elastic.co/apm/internal/ringbuffer"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/stacktrace"
 )
 
 const (

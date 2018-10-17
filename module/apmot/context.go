@@ -6,29 +6,29 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 
-	"github.com/elastic/apm-agent-go"
+	"go.elastic.co/apm"
 )
 
 type spanContext struct {
 	tracer *otTracer // for origin of tx/span
 
 	txSpanContext *spanContext // spanContext for OT span which created tx
-	traceContext  elasticapm.TraceContext
-	transactionID elasticapm.SpanID
+	traceContext  apm.TraceContext
+	transactionID apm.SpanID
 	startTime     time.Time
 
 	mu sync.RWMutex
-	tx *elasticapm.Transaction
+	tx *apm.Transaction
 }
 
 // TraceContext returns the trace context for the transaction or span
 // associated with this span context.
-func (s *spanContext) TraceContext() elasticapm.TraceContext {
+func (s *spanContext) TraceContext() apm.TraceContext {
 	return s.traceContext
 }
 
 // Transaction returns the transaction associated with this span context.
-func (s *spanContext) Transaction() *elasticapm.Transaction {
+func (s *spanContext) Transaction() *apm.Transaction {
 	if s.txSpanContext != nil {
 		return s.txSpanContext.tx
 	}
@@ -46,8 +46,8 @@ func parentSpanContext(refs []opentracing.SpanReference) (*spanContext, bool) {
 				return ctx, ok
 			}
 			if apmSpanContext, ok := ref.ReferencedContext.(interface {
-				Transaction() *elasticapm.Transaction
-				TraceContext() elasticapm.TraceContext
+				Transaction() *apm.Transaction
+				TraceContext() apm.TraceContext
 			}); ok {
 				// The span context is (probably) one of the
 				// native Elastic APM span/transaction wrapper

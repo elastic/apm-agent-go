@@ -1,4 +1,4 @@
-package elasticapm_test
+package apm_test
 
 import (
 	"context"
@@ -11,17 +11,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/apmtest"
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/stacktrace"
-	"github.com/elastic/apm-agent-go/transport/transporttest"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/apmtest"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/stacktrace"
+	"go.elastic.co/apm/transport/transporttest"
 )
 
 func TestErrorID(t *testing.T) {
-	var errorID elasticapm.ErrorID
+	var errorID apm.ErrorID
 	_, _, errors := apmtest.WithTransaction(func(ctx context.Context) {
-		e := elasticapm.CaptureError(ctx, errors.New("boom"))
+		e := apm.CaptureError(ctx, errors.New("boom"))
 		errorID = e.ID
 		e.Send()
 	})
@@ -37,7 +37,7 @@ func TestErrorsStackTrace(t *testing.T) {
 	exception := modelError.Exception
 	stacktrace := exception.Stacktrace
 	assert.Equal(t, "zing", exception.Message)
-	assert.Equal(t, "github.com/elastic/apm-agent-go_test", exception.Module)
+	assert.Equal(t, "go.elastic.co/apm_test", exception.Module)
 	assert.Equal(t, "errorsStackTracer", exception.Type)
 	assert.Len(t, stacktrace, 2)
 	assert.Equal(t, "newErrorsStackTrace", stacktrace[0].Function)
@@ -57,7 +57,7 @@ func TestInternalStackTrace(t *testing.T) {
 	exception := modelError.Exception
 	stacktrace := exception.Stacktrace
 	assert.Equal(t, "zing", exception.Message)
-	assert.Equal(t, "github.com/elastic/apm-agent-go_test", exception.Module)
+	assert.Equal(t, "go.elastic.co/apm_test", exception.Module)
 	assert.Equal(t, "internalStackTracer", exception.Type)
 	assert.Equal(t, []model.StacktraceFrame{{
 		Function: "FuncName",
@@ -100,7 +100,7 @@ func TestErrorAutoStackTraceReuse(t *testing.T) {
 	}
 }
 
-func sendError(t *testing.T, err error, f ...func(*elasticapm.Error)) model.Error {
+func sendError(t *testing.T, err error, f ...func(*apm.Error)) model.Error {
 	tracer, r := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 

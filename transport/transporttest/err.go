@@ -5,7 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 
-	"github.com/elastic/apm-agent-go/transport"
+	"go.elastic.co/apm/transport"
 )
 
 // Discard is a transport.Transport which discards
