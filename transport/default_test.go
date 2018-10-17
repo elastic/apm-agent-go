@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/elastic/apm-agent-go/transport"
+	"go.elastic.co/apm/transport"
 )
 
 func TestInitDefault(t *testing.T) {

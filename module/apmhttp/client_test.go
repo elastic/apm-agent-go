@@ -12,10 +12,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context/ctxhttp"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/module/apmhttp"
-	"github.com/elastic/apm-agent-go/transport/transporttest"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/module/apmhttp"
+	"go.elastic.co/apm/transport/transporttest"
 )
 
 func TestClient(t *testing.T) {
@@ -39,7 +39,7 @@ func TestClient(t *testing.T) {
 	requestURL.User = url.UserPassword("root", "hunter2")
 
 	tx := tracer.StartTransaction("name", "type")
-	ctx := elasticapm.ContextWithTransaction(context.Background(), tx)
+	ctx := apm.ContextWithTransaction(context.Background(), tx)
 	client := apmhttp.WrapClient(http.DefaultClient)
 	resp, err := ctxhttp.Get(ctx, client, requestURL.String())
 	assert.NoError(t, err)

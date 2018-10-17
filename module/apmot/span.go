@@ -8,24 +8,24 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/module/apmhttp"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/module/apmhttp"
 )
 
-// otSpan wraps elasticapm objects to implement the opentracing.Span interface.
+// otSpan wraps apm objects to implement the opentracing.Span interface.
 type otSpan struct {
 	tracer *otTracer
 	unsupportedSpanMethods
 
 	mu   sync.Mutex
-	span *elasticapm.Span
+	span *apm.Span
 	tags opentracing.Tags
 	ctx  spanContext
 }
 
-// Span returns s.span, the underlying elasticapm.Span. This is used to satisfy
+// Span returns s.span, the underlying apm.Span. This is used to satisfy
 // SpanFromContext.
-func (s *otSpan) Span() *elasticapm.Span {
+func (s *otSpan) Span() *apm.Span {
 	return s.span
 }
 
@@ -104,7 +104,7 @@ func (s *otSpan) SetBaggageItem(key, val string) opentracing.Span {
 
 func (s *otSpan) setSpanContext() {
 	var (
-		dbContext       elasticapm.DatabaseSpanContext
+		dbContext       apm.DatabaseSpanContext
 		component       string
 		httpURL         string
 		httpMethod      string

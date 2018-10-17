@@ -6,7 +6,7 @@ var (
 	// ContextWithSpan takes a context and span and returns a new context
 	// from which the span can be extracted using SpanFromContext.
 	//
-	// ContextWithSpan is used by elasticapm.ContextWithSpan. It is a
+	// ContextWithSpan is used by apm.ContextWithSpan. It is a
 	// variable to allow other packages, such as apmot, to replace it
 	// at package init time.
 	ContextWithSpan = DefaultContextWithSpan
@@ -15,7 +15,7 @@ var (
 	// a new context from which the transaction can be extracted using
 	// TransactionFromContext.
 	//
-	// ContextWithTransaction is used by elasticapm.ContextWithTransaction.
+	// ContextWithTransaction is used by apm.ContextWithTransaction.
 	// It is a variable to allow other packages, such as apmot, to replace
 	// it at package init time.
 	ContextWithTransaction = DefaultContextWithTransaction
@@ -23,7 +23,7 @@ var (
 	// SpanFromContext returns a span included in the context using
 	// ContextWithSpan.
 	//
-	// SpanFromContext is used by elasticapm.SpanFromContext. It is a
+	// SpanFromContext is used by apm.SpanFromContext. It is a
 	// variable to allow other packages, such as apmot, to replace it
 	// at package init time.
 	SpanFromContext = DefaultSpanFromContext
@@ -31,7 +31,7 @@ var (
 	// TransactionFromContext returns a transaction included in the context
 	// using ContextWithTransaction.
 	//
-	// TransactionFromContext is used by elasticapm.TransactionFromContext.
+	// TransactionFromContext is used by apm.TransactionFromContext.
 	// It is a variable to allow other packages, such as apmot, to replace
 	// it at package init time.
 	TransactionFromContext = DefaultTransactionFromContext

@@ -3,7 +3,7 @@ package apmhttp
 import (
 	"net/http"
 
-	"github.com/elastic/apm-agent-go"
+	"go.elastic.co/apm"
 )
 
 // WrapClient returns a new *http.Client with all fields copied
@@ -56,7 +56,7 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 		return r.r.RoundTrip(req)
 	}
 	ctx := req.Context()
-	tx := elasticapm.TransactionFromContext(ctx)
+	tx := apm.TransactionFromContext(ctx)
 	if tx == nil {
 		return r.r.RoundTrip(req)
 	}
@@ -78,7 +78,7 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	name := r.requestName(req)
 	spanType := "ext.http"
-	span := tx.StartSpan(name, spanType, elasticapm.SpanFromContext(ctx))
+	span := tx.StartSpan(name, spanType, apm.SpanFromContext(ctx))
 	span.Context.SetHTTPRequest(req)
 	defer span.End()
 	if !span.Dropped() {
@@ -86,7 +86,7 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	req.Header.Set(TraceparentHeader, FormatTraceparentHeader(traceContext))
-	ctx = elasticapm.ContextWithSpan(ctx, span)
+	ctx = apm.ContextWithSpan(ctx, span)
 	req = RequestWithContext(ctx, req)
 	return r.r.RoundTrip(req)
 }

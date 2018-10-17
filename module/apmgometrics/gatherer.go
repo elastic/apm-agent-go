@@ -5,12 +5,12 @@ import (
 
 	"github.com/rcrowley/go-metrics"
 
-	"github.com/elastic/apm-agent-go"
+	"go.elastic.co/apm"
 )
 
 // Wrap wraps r, a go-metrics Registry, so that it can be used
-// as an elasticapm.MetricsGatherer.
-func Wrap(r metrics.Registry) elasticapm.MetricsGatherer {
+// as an apm.MetricsGatherer.
+func Wrap(r metrics.Registry) apm.MetricsGatherer {
 	return gatherer{r}
 }
 
@@ -19,7 +19,7 @@ type gatherer struct {
 }
 
 // GatherMEtrics gathers metrics into m.
-func (g gatherer) GatherMetrics(ctx context.Context, m *elasticapm.Metrics) error {
+func (g gatherer) GatherMetrics(ctx context.Context, m *apm.Metrics) error {
 	g.r.Each(func(name string, v interface{}) {
 		switch v := v.(type) {
 		case metrics.Counter:

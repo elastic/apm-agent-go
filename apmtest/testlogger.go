@@ -1,6 +1,6 @@
 package apmtest
 
-// TestLogger is an implementation of elasticapm.Logger,
+// TestLogger is an implementation of apm.Logger,
 // logging to a testing.T.
 type TestLogger struct {
 	l LogfLogger

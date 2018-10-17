@@ -9,9 +9,9 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/module/apmhttprouter"
-	"github.com/elastic/apm-agent-go/transport/transporttest"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/module/apmhttprouter"
+	"go.elastic.co/apm/transport/transporttest"
 )
 
 func TestWrap(t *testing.T) {

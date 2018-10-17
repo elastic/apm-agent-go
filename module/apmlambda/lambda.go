@@ -10,8 +10,8 @@ import (
 	"github.com/aws/aws-lambda-go/lambda/messages"
 	"github.com/aws/aws-lambda-go/lambdacontext"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/stacktrace"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/stacktrace"
 )
 
 const (
@@ -47,7 +47,7 @@ func init() {
 // by the aws-lambda-go package.
 type Function struct {
 	client *rpc.Client
-	tracer *elasticapm.Tracer
+	tracer *apm.Tracer
 }
 
 // Ping pings the function implementation.
@@ -144,7 +144,7 @@ func init() {
 	srv := rpc.NewServer()
 	srv.Register(&Function{
 		client: rpcClient,
-		tracer: elasticapm.DefaultTracer,
+		tracer: apm.DefaultTracer,
 	})
 	go srv.Accept(lis)
 

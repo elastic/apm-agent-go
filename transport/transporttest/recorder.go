@@ -10,15 +10,15 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/model"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/model"
 )
 
-// NewRecorderTracer returns a new elasticapm.Tracer and
+// NewRecorderTracer returns a new apm.Tracer and
 // RecorderTransport, which is set as the tracer's transport.
-func NewRecorderTracer() (*elasticapm.Tracer, *RecorderTransport) {
+func NewRecorderTracer() (*apm.Tracer, *RecorderTransport) {
 	var transport RecorderTransport
-	tracer, err := elasticapm.NewTracer("transporttest", "")
+	tracer, err := apm.NewTracer("transporttest", "")
 	if err != nil {
 		panic(err)
 	}

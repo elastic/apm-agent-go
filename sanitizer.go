@@ -1,10 +1,10 @@
-package elasticapm
+package apm
 
 import (
 	"bytes"
 
-	"github.com/elastic/apm-agent-go/internal/wildcard"
-	"github.com/elastic/apm-agent-go/model"
+	"go.elastic.co/apm/internal/wildcard"
+	"go.elastic.co/apm/model"
 )
 
 const redacted = "[REDACTED]"

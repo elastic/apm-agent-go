@@ -4,7 +4,7 @@
 Below we cover the most commonly used parts of the API.
 
 The Go agent is documented using standard godoc. For complete documentation,
-refer to the documentation at https://godoc.org/github.com/elastic/apm-agent-go/[godoc.org/github.com/elastic/apm-agent-go],
+refer to the documentation at https://godoc.org/go.elastic.co/apm/[godoc.org/go.elastic.co/apm],
 or by using the "godoc" tool.
 
 [float]
@@ -12,22 +12,22 @@ or by using the "godoc" tool.
 === Tracer API
 
 The initial point of contact your application will have with the Go agent
-is the `elasticapm.Tracer` type, which provides methods for reporting
+is the `apm.Tracer` type, which provides methods for reporting
 transactions and errors.
 
 To make instrumentation simpler the Go agent provides a pre-initialized
-tracer, `elasticapm.DefaultTracer`. This tracer is always initialized and
+tracer, `apm.DefaultTracer`. This tracer is always initialized and
 available for use. This tracer is configured with environment variables;
 see <<configuration>> for details.
 
 [source,go]
 ----
 import (
-	"github.com/elastic/apm-agent-go" // elasticapm
+	"go.elastic.co/apm"
 )
 
 func main() {
-	tracer := elasticapm.DefaultTracer
+	tracer := apm.DefaultTracer
 	...
 }
 ----
@@ -52,7 +52,7 @@ or RPC request. e.g.:
 
 [source,go]
 ----
-transaction := elasticapm.DefaultTracer.StartTransaction("GET /", "request")
+transaction := apm.DefaultTracer.StartTransaction("GET /", "request")
 ----
 
 Transactions will be grouped by type and name in the Elastic APM UI.
@@ -79,11 +79,11 @@ parent <<trace-context, trace context>> and/or the transaction's start time.
 
 [source,go]
 ----
-opts := elasticapm.TransactionOptions{
+opts := apm.TransactionOptions{
 	Start: time.Now(),
 	TraceContext: parentTraceContext,
 }
-transaction := elasticapm.DefaultTracer.StartTransactionOptions("GET /", "request", opts)
+transaction := apm.DefaultTracer.StartTransactionOptions("GET /", "request", opts)
 ----
 
 [float]
@@ -110,21 +110,21 @@ transaction.End()
 TraceContext returns the transaction's <<trace-context, trace context>>.
 
 [float]
-[[elasticapm-context-with-transaction]]
+[[apm-context-with-transaction]]
 ==== `func ContextWithTransaction(context.Context, *Transaction) context.Context`
 
 ContextWithTransaction adds the transaction to the context, and returns the resulting context.
 
-The transaction can be retrieved using <<elasticapm-transaction-from-context, elasticapm.TransactionFromContext>>.
-The context may also be passed into <<elasticapm-start-span, elasticapm.StartSpan>>, which uses
+The transaction can be retrieved using <<apm-transaction-from-context, apm.TransactionFromContext>>.
+The context may also be passed into <<apm-start-span, apm.StartSpan>>, which uses
 TransactionFromContext under the covers to create a span as a child of the transaction.
 
 [float]
-[[elasticapm-transaction-from-context]]
+[[apm-transaction-from-context]]
 ==== `func TransactionFromContext(context.Context) *Transaction`
 
 TransactionFromContext returns a transaction previously stored in the context using
-<<elasticapm-context-with-transaction, elasticapm.ContextWithTransaction>>, or nil if the context
+<<apm-context-with-transaction, apm.ContextWithTransaction>>, or nil if the context
 does not contain a transaction.
 
 // -------------------------------------------------------------------------------------------------
@@ -173,7 +173,7 @@ belong to some span descended from the transaction.
 
 [source,go]
 ----
-opts := elasticapm.SpanOptions{
+opts := apm.SpanOptions{
 	Start: time.Now(),
 	Parent: parentSpan.TraceContext(),
 }
@@ -181,7 +181,7 @@ span := tx.StartSpanOptions("SELECT FROM foo", "db.mysql.query", opts)
 ----
 
 [float]
-[[elasticapm-start-span]]
+[[apm-start-span]]
 ==== `func StartSpan(ctx context.Context, name, spanType string) (*Span, context.Context)`
 
 StartSpan starts and returns a new Span within the sampled transaction and parent span
@@ -190,7 +190,7 @@ context.
 
 [source,go]
 ----
-span, ctx := elasticapm.StartSpan(ctx, "SELECT FROM foo", "db.mysql.query")
+span, ctx := apm.StartSpan(ctx, "SELECT FROM foo", "db.mysql.query")
 ----
 
 [float]
@@ -218,21 +218,21 @@ or one whose max spans limit has been reached.
 TraceContext returns the span's <<trace-context, trace context>>.
 
 [float]
-[[elasticapm-context-with-span]]
+[[apm-context-with-span]]
 ==== `func ContextWithSpan(context.Context, *Span) context.Context`
 
 ContextWithSpan adds the span to the context, and returns the resulting context.
 
-The span can be retrieved using <<elasticapm-span-from-context, elasticapm.SpanFromContext>>.
-The context may also be passed into <<elasticapm-start-span, elasticapm.StartSpan>>, which uses
+The span can be retrieved using <<apm-span-from-context, apm.SpanFromContext>>.
+The context may also be passed into <<apm-start-span, apm.StartSpan>>, which uses
 SpanFromContext under the covers to create another span as a child of the span.
 
 [float]
-[[elasticapm-span-from-context]]
+[[apm-span-from-context]]
 ==== `func SpanFromContext(context.Context) *Span`
 
 SpanFromContext returns a span previously stored in the context using
-<<elasticapm-context-with-span, elasticapm.ContextWithSpan>>, or nil if the context
+<<apm-context-with-span, apm.ContextWithSpan>>, or nil if the context
 does not contain a span.
 
 // -------------------------------------------------------------------------------------------------
@@ -303,7 +303,7 @@ same definition as given by https://github.com/pkg/errors[github.com/pkg/errors]
 
 [source,go]
 ----
-e := elasticapm.DefaultTracer.NewError(err)
+e := apm.DefaultTracer.NewError(err)
 ...
 e.Send()
 ----
@@ -321,7 +321,7 @@ type ErrorsStacktracer interface {
 // Errors implementing Stacktracer will have their stacktrace
 // set based on the result of the StackTrace method.
 type Stacktracer interface {
-    StackTrace() []github.com/elastic/apm-agent-go/stacktrace.Frame
+    StackTrace() []go.elastic.co/apm/stacktrace.Frame
 }
 
 // Errors implementing Typer will have a "type" field set to the
@@ -383,7 +383,7 @@ The resulting Error's stacktrace will not be set. Call the SetStacktrace method 
 
 [source,go]
 ----
-e := elasticapm.DefaultTracer.NewErrorLog(elasticapm.ErrorLogRecord{
+e := apm.DefaultTracer.NewErrorLog(apm.ErrorLogRecord{
 	Message: "Somebody set up us the bomb.",
 })
 ...
@@ -420,11 +420,11 @@ and then call its `Send` method.
 
 [source,go]
 ----
-tx := elasticapm.DefaultTracer.StartTransaction(...)
+tx := apm.DefaultTracer.StartTransaction(...)
 defer tx.End()
 defer func() {
 	if v := recover(); v != nil {
-		e := elasticapm.DefaultTracer.Recovered(v)
+		e := apm.DefaultTracer.Recovered(v)
 		e.SetTransaction(tx)
 		e.Send()
 	}
@@ -432,7 +432,7 @@ defer func() {
 ----
 
 [float]
-[[elasticapm-captureerror]]
+[[apm-captureerror]]
 ==== `func CaptureError(context.Context, error) *Error`
 
 CaptureError returns a new Error related to the sampled transaction and span present in the context,
@@ -445,7 +445,7 @@ As a convenience, if the provided error is nil, then CaptureError will also retu
 [source,go]
 ----
 if err != nil {
-        e := elasticapm.CaptureError(ctx, err)
+        e := apm.CaptureError(ctx, err)
         e.Send()
 }
 ----
@@ -472,9 +472,9 @@ In addition, errors can be associated with an active transaction or span using
 
 [source,go]
 ----
-tx := elasticapm.DefaultTracer.StartTransaction("GET /foo", "request")
+tx := apm.DefaultTracer.StartTransaction("GET /foo", "request")
 defer tx.End()
-e := elasticapm.DefaultTracer.NewError(err)
+e := apm.DefaultTracer.NewError(err)
 e.SetTransaction(tx)
 e.Send()
 ----

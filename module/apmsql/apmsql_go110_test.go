@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/apm-agent-go/apmtest"
-	"github.com/elastic/apm-agent-go/module/apmsql"
+	"go.elastic.co/apm/apmtest"
+	"go.elastic.co/apm/module/apmsql"
 )
 
 func TestConnect(t *testing.T) {

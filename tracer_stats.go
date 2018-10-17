@@ -1,4 +1,4 @@
-package elasticapm
+package apm
 
 // TracerStats holds statistics for a Tracer.
 type TracerStats struct {

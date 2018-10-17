@@ -11,7 +11,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/elastic/apm-agent-go/internal/fastjson"
+	"go.elastic.co/apm/internal/fastjson"
 )
 
 //go:generate go run ../internal/fastjson/generate.go -f -o marshal_fastjson.go .

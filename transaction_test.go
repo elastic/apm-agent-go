@@ -1,12 +1,12 @@
-package elasticapm_test
+package apm_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/transport/transporttest"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/transport/transporttest"
 )
 
 func TestStartTransactionTraceContextOptions(t *testing.T) {
@@ -27,17 +27,17 @@ func TestStartTransactionTraceContextOptions(t *testing.T) {
 	assert.True(t, traceContext.Options.MaybeRecorded())
 }
 
-func startTransactionTraceContextOptions(t *testing.T, requested, maybeRecorded bool) elasticapm.TraceContext {
+func startTransactionTraceContextOptions(t *testing.T, requested, maybeRecorded bool) apm.TraceContext {
 	tracer, _ := transporttest.NewRecorderTracer()
 	defer tracer.Close()
-	tracer.SetSampler(samplerFunc(func(elasticapm.TraceContext) bool {
+	tracer.SetSampler(samplerFunc(func(apm.TraceContext) bool {
 		panic("nope")
 	}))
 
-	opts := elasticapm.TransactionOptions{
-		TraceContext: elasticapm.TraceContext{
-			Trace: elasticapm.TraceID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
-			Span:  elasticapm.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
+	opts := apm.TransactionOptions{
+		TraceContext: apm.TraceContext{
+			Trace: apm.TraceID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+			Span:  apm.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
 		},
 	}
 	opts.TraceContext.Options = opts.TraceContext.Options.WithRequested(requested)
@@ -50,34 +50,34 @@ func startTransactionTraceContextOptions(t *testing.T, requested, maybeRecorded 
 }
 
 func TestStartTransactionInvalidTraceContext(t *testing.T) {
-	startTransactionInvalidTraceContext(t, elasticapm.TraceContext{
+	startTransactionInvalidTraceContext(t, apm.TraceContext{
 		// Trace is all zeroes, which is invalid.
-		Span: elasticapm.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
+		Span: apm.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
 	})
-	startTransactionInvalidTraceContext(t, elasticapm.TraceContext{
-		Trace: elasticapm.TraceID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+	startTransactionInvalidTraceContext(t, apm.TraceContext{
+		Trace: apm.TraceID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
 		// Span is all zeroes, which is invalid.
 	})
 }
 
-func startTransactionInvalidTraceContext(t *testing.T, traceContext elasticapm.TraceContext) {
+func startTransactionInvalidTraceContext(t *testing.T, traceContext apm.TraceContext) {
 	tracer, _ := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
 	var samplerCalled bool
-	tracer.SetSampler(samplerFunc(func(elasticapm.TraceContext) bool {
+	tracer.SetSampler(samplerFunc(func(apm.TraceContext) bool {
 		samplerCalled = true
 		return true
 	}))
 
-	opts := elasticapm.TransactionOptions{TraceContext: traceContext}
+	opts := apm.TransactionOptions{TraceContext: traceContext}
 	tx := tracer.StartTransactionOptions("name", "type", opts)
 	tx.Discard()
 	assert.True(t, samplerCalled)
 }
 
-type samplerFunc func(elasticapm.TraceContext) bool
+type samplerFunc func(apm.TraceContext) bool
 
-func (f samplerFunc) Sample(t elasticapm.TraceContext) bool {
+func (f samplerFunc) Sample(t apm.TraceContext) bool {
 	return f(t)
 }

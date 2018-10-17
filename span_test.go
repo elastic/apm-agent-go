@@ -1,4 +1,4 @@
-package elasticapm_test
+package apm_test
 
 import (
 	"context"
@@ -8,16 +8,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/apmtest"
-	"github.com/elastic/apm-agent-go/transport/transporttest"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/apmtest"
+	"go.elastic.co/apm/transport/transporttest"
 )
 
 func TestStartSpanTransactionNotSampled(t *testing.T) {
-	tracer, _ := elasticapm.NewTracer("tracer_testing", "")
+	tracer, _ := apm.NewTracer("tracer_testing", "")
 	defer tracer.Close()
 	// sample nothing
-	tracer.SetSampler(elasticapm.NewRatioSampler(0))
+	tracer.SetSampler(apm.NewRatioSampler(0))
 
 	tx := tracer.StartTransaction("name", "type")
 	assert.False(t, tx.Sampled())
@@ -30,7 +30,7 @@ func TestTracerStartSpan(t *testing.T) {
 	defer tracer.Close()
 
 	txTimestamp := time.Now()
-	tx := tracer.StartTransactionOptions("name", "type", elasticapm.TransactionOptions{
+	tx := tracer.StartTransactionOptions("name", "type", apm.TransactionOptions{
 		Start: txTimestamp,
 	})
 	txTraceContext := tx.TraceContext()
@@ -43,7 +43,7 @@ func TestTracerStartSpan(t *testing.T) {
 	// it is possible to report a span with their IDs.
 	tracer.StartSpan("name", "type",
 		txTraceContext.Span,
-		elasticapm.SpanOptions{
+		apm.SpanOptions{
 			Parent: span0TraceContext,
 			Start:  txTimestamp.Add(time.Second),
 		},
@@ -72,7 +72,7 @@ func TestTracerStartSpan(t *testing.T) {
 func TestSpanTiming(t *testing.T) {
 	tx, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
 		time.Sleep(200 * time.Millisecond)
-		span, _ := elasticapm.StartSpan(ctx, "name", "type")
+		span, _ := apm.StartSpan(ctx, "name", "type")
 		time.Sleep(200 * time.Millisecond)
 		span.End()
 	})

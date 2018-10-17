@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/apmtest"
-	"github.com/elastic/apm-agent-go/module/apmredigo"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/apmtest"
+	"go.elastic.co/apm/module/apmredigo"
 )
 
 func TestWrap(t *testing.T) {
@@ -28,7 +28,7 @@ func TestWrap(t *testing.T) {
 
 func TestWithContext(t *testing.T) {
 	ping := func(ctx context.Context, conn apmredigo.Conn) {
-		span, ctx := elasticapm.StartSpan(ctx, "ping", "custom")
+		span, ctx := apm.StartSpan(ctx, "ping", "custom")
 		defer span.End()
 
 		// bind conn to the ctx containing the span above

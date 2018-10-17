@@ -1,4 +1,4 @@
-package elasticapm_test
+package apm_test
 
 import (
 	"net/http"
@@ -7,9 +7,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/module/apmhttp"
-	"github.com/elastic/apm-agent-go/transport/transporttest"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/module/apmhttp"
+	"go.elastic.co/apm/transport/transporttest"
 )
 
 func TestSanitizeRequest(t *testing.T) {

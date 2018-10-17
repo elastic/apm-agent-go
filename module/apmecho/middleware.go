@@ -7,8 +7,8 @@ import (
 
 	"github.com/labstack/echo"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/module/apmhttp"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/module/apmhttp"
 )
 
 // Middleware returns a new Echo middleware handler for tracing
@@ -17,11 +17,11 @@ import (
 // This middleware will recover and report panics, so it can
 // be used instead of echo/middleware.Recover.
 //
-// By default, the middleware will use elasticapm.DefaultTracer.
+// By default, the middleware will use apm.DefaultTracer.
 // Use WithTracer to specify an alternative tracer.
 func Middleware(o ...Option) echo.MiddlewareFunc {
 	opts := options{
-		tracer:         elasticapm.DefaultTracer,
+		tracer:         apm.DefaultTracer,
 		requestIgnorer: apmhttp.DefaultServerRequestIgnorer(),
 	}
 	for _, o := range o {
@@ -39,7 +39,7 @@ func Middleware(o ...Option) echo.MiddlewareFunc {
 
 type middleware struct {
 	handler        echo.HandlerFunc
-	tracer         *elasticapm.Tracer
+	tracer         *apm.Tracer
 	requestIgnorer apmhttp.RequestIgnorerFunc
 }
 
@@ -85,7 +85,7 @@ func (m *middleware) handle(c echo.Context) error {
 	return nil
 }
 
-func setContext(ctx *elasticapm.Context, req *http.Request, resp *echo.Response, body *elasticapm.BodyCapturer) {
+func setContext(ctx *apm.Context, req *http.Request, resp *echo.Response, body *apm.BodyCapturer) {
 	ctx.SetFramework("echo", echo.Version)
 	ctx.SetHTTPRequest(req)
 	ctx.SetHTTPRequestBody(body)
@@ -96,7 +96,7 @@ func setContext(ctx *elasticapm.Context, req *http.Request, resp *echo.Response,
 }
 
 type options struct {
-	tracer         *elasticapm.Tracer
+	tracer         *apm.Tracer
 	requestIgnorer apmhttp.RequestIgnorerFunc
 }
 
@@ -105,7 +105,7 @@ type Option func(*options)
 
 // WithTracer returns an Option which sets t as the tracer
 // to use for tracing server requests.
-func WithTracer(t *elasticapm.Tracer) Option {
+func WithTracer(t *apm.Tracer) Option {
 	if t == nil {
 		panic("t == nil")
 	}

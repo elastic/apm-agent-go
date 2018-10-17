@@ -3,7 +3,7 @@ package sqlutil
 import (
 	"strings"
 
-	"github.com/elastic/apm-agent-go/internal/sqlscanner"
+	"go.elastic.co/apm/internal/sqlscanner"
 )
 
 // QuerySignature returns the "signature" for a query:

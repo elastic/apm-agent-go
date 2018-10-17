@@ -7,8 +7,8 @@ import (
 
 	"github.com/gocql/gocql"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/stacktrace"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/stacktrace"
 )
 
 func init() {
@@ -21,14 +21,14 @@ func init() {
 // Observer is a gocql.QueryObserver and gocql.BatchObserver,
 // tracing operations and spans within a transaction.
 type Observer struct {
-	tracer *elasticapm.Tracer
+	tracer *apm.Tracer
 }
 
 // NewObserver returns a new Observer which creates spans for
 // observed gocql queries.
 func NewObserver(o ...Option) *Observer {
 	opts := options{
-		tracer: elasticapm.DefaultTracer,
+		tracer: apm.DefaultTracer,
 	}
 	for _, o := range o {
 		o(&opts)
@@ -39,22 +39,22 @@ func NewObserver(o ...Option) *Observer {
 // ObserveBatch observes batch executions, and creates spans for the
 // batch, and sub-spans for each statement therein.
 func (o *Observer) ObserveBatch(ctx context.Context, batch gocql.ObservedBatch) {
-	batchSpan, ctx := elasticapm.StartSpanOptions(ctx, "BATCH", "db.cassandra.batch", elasticapm.SpanOptions{
+	batchSpan, ctx := apm.StartSpanOptions(ctx, "BATCH", "db.cassandra.batch", apm.SpanOptions{
 		Start: batch.Start,
 	})
 	batchSpan.Duration = batch.End.Sub(batch.Start)
-	batchSpan.Context.SetDatabase(elasticapm.DatabaseSpanContext{
+	batchSpan.Context.SetDatabase(apm.DatabaseSpanContext{
 		Type:     "cassandra",
 		Instance: batch.Keyspace,
 	})
 	defer batchSpan.End()
 
 	for _, statement := range batch.Statements {
-		span, _ := elasticapm.StartSpanOptions(ctx, querySignature(statement), "db.cassandra.query", elasticapm.SpanOptions{
+		span, _ := apm.StartSpanOptions(ctx, querySignature(statement), "db.cassandra.query", apm.SpanOptions{
 			Start: batch.Start,
 		})
 		span.Duration = batchSpan.Duration
-		span.Context.SetDatabase(elasticapm.DatabaseSpanContext{
+		span.Context.SetDatabase(apm.DatabaseSpanContext{
 			Type:      "cassandra",
 			Instance:  batch.Keyspace,
 			Statement: statement,
@@ -62,7 +62,7 @@ func (o *Observer) ObserveBatch(ctx context.Context, batch gocql.ObservedBatch) 
 		span.End()
 	}
 
-	if e := elasticapm.CaptureError(ctx, batch.Err); e != nil {
+	if e := apm.CaptureError(ctx, batch.Err); e != nil {
 		e.Timestamp = batch.End
 		e.Send()
 	}
@@ -70,25 +70,25 @@ func (o *Observer) ObserveBatch(ctx context.Context, batch gocql.ObservedBatch) 
 
 // ObserveQuery observes query results, and creates spans for them.
 func (o *Observer) ObserveQuery(ctx context.Context, query gocql.ObservedQuery) {
-	span, _ := elasticapm.StartSpanOptions(ctx, querySignature(query.Statement), "db.cassandra.query", elasticapm.SpanOptions{
+	span, _ := apm.StartSpanOptions(ctx, querySignature(query.Statement), "db.cassandra.query", apm.SpanOptions{
 		Start: query.Start,
 	})
 	span.Duration = query.End.Sub(query.Start)
-	span.Context.SetDatabase(elasticapm.DatabaseSpanContext{
+	span.Context.SetDatabase(apm.DatabaseSpanContext{
 		Type:      "cassandra",
 		Instance:  query.Keyspace,
 		Statement: query.Statement,
 	})
 	span.End()
 
-	if e := elasticapm.CaptureError(ctx, query.Err); e != nil {
+	if e := apm.CaptureError(ctx, query.Err); e != nil {
 		e.Timestamp = query.End
 		e.Send()
 	}
 }
 
 type options struct {
-	tracer *elasticapm.Tracer
+	tracer *apm.Tracer
 }
 
 // Option sets options for observers.

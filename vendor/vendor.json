@@ -99,5 +99,5 @@
 			"revisionTime": "2018-06-09T05:43:31Z"
 		}
 	],
-	"rootPath": "github.com/elastic/apm-agent-go"
+	"rootPath": "go.elastic.co/apm"
 }

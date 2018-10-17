@@ -1,12 +1,12 @@
-package elasticapm
+package apm
 
 import (
 	"fmt"
 	"net/http"
 	"strings"
 
-	"github.com/elastic/apm-agent-go/internal/apmhttputil"
-	"github.com/elastic/apm-agent-go/model"
+	"go.elastic.co/apm/internal/apmhttputil"
+	"go.elastic.co/apm/model"
 )
 
 // Context provides methods for setting transaction and error context.

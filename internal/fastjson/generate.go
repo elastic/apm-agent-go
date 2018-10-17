@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	fastjsonPath  = "github.com/elastic/apm-agent-go/internal/fastjson"
+	fastjsonPath  = "go.elastic.co/apm/internal/fastjson"
 	isZeroMethod  = "isZero"
 	marshalMethod = "MarshalFastJSON"
 )

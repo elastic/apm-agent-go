@@ -1,6 +1,6 @@
 //+build !linux
 
-package elasticapm
+package apm
 
 import (
 	"github.com/pkg/errors"

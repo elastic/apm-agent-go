@@ -1,4 +1,4 @@
-package elasticapm
+package apm
 
 import (
 	"math/rand"

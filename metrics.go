@@ -1,4 +1,4 @@
-package elasticapm
+package apm
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/elastic/apm-agent-go/model"
+	"go.elastic.co/apm/model"
 )
 
 // Metrics holds a set of metrics.

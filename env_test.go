@@ -1,4 +1,4 @@
-package elasticapm_test
+package apm_test
 
 import (
 	"io"
@@ -14,11 +14,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/module/apmhttp"
-	"github.com/elastic/apm-agent-go/transport"
-	"github.com/elastic/apm-agent-go/transport/transporttest"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/module/apmhttp"
+	"go.elastic.co/apm/transport"
+	"go.elastic.co/apm/transport/transporttest"
 )
 
 func TestTracerRequestTimeEnv(t *testing.T) {
@@ -38,7 +38,7 @@ func TestTracerRequestTimeEnv(t *testing.T) {
 	os.Setenv("ELASTIC_APM_SERVER_URLS", server.URL)
 	defer os.Unsetenv("ELASTIC_APM_SERVER_URLS")
 
-	tracer, err := elasticapm.NewTracer("tracer_testing", "")
+	tracer, err := apm.NewTracer("tracer_testing", "")
 	require.NoError(t, err)
 	defer tracer.Close()
 	httpTransport, err := transport.NewHTTPTransport()
@@ -60,13 +60,13 @@ func TestTracerRequestTimeEnvInvalid(t *testing.T) {
 	t.Run("invalid_duration", func(t *testing.T) {
 		os.Setenv("ELASTIC_APM_API_REQUEST_TIME", "aeon")
 		defer os.Unsetenv("ELASTIC_APM_API_REQUEST_TIME")
-		_, err := elasticapm.NewTracer("tracer_testing", "")
+		_, err := apm.NewTracer("tracer_testing", "")
 		assert.EqualError(t, err, "failed to parse ELASTIC_APM_API_REQUEST_TIME: invalid duration aeon")
 	})
 	t.Run("missing_suffix", func(t *testing.T) {
 		os.Setenv("ELASTIC_APM_API_REQUEST_TIME", "1")
 		defer os.Unsetenv("ELASTIC_APM_API_REQUEST_TIME")
-		_, err := elasticapm.NewTracer("tracer_testing", "")
+		_, err := apm.NewTracer("tracer_testing", "")
 		assert.EqualError(t, err, "failed to parse ELASTIC_APM_API_REQUEST_TIME: missing unit in duration 1 (allowed units: ms, s, m)")
 	})
 }
@@ -75,13 +75,13 @@ func TestTracerRequestSizeEnvInvalid(t *testing.T) {
 	t.Run("too_small", func(t *testing.T) {
 		os.Setenv("ELASTIC_APM_API_REQUEST_SIZE", "1B")
 		defer os.Unsetenv("ELASTIC_APM_API_REQUEST_SIZE")
-		_, err := elasticapm.NewTracer("tracer_testing", "")
+		_, err := apm.NewTracer("tracer_testing", "")
 		assert.EqualError(t, err, "ELASTIC_APM_API_REQUEST_SIZE must be at least 1KB and less than 5MB, got 1B")
 	})
 	t.Run("too_large", func(t *testing.T) {
 		os.Setenv("ELASTIC_APM_API_REQUEST_SIZE", "500GB")
 		defer os.Unsetenv("ELASTIC_APM_API_REQUEST_SIZE")
-		_, err := elasticapm.NewTracer("tracer_testing", "")
+		_, err := apm.NewTracer("tracer_testing", "")
 		assert.EqualError(t, err, "ELASTIC_APM_API_REQUEST_SIZE must be at least 1KB and less than 5MB, got 500GB")
 	})
 }
@@ -90,13 +90,13 @@ func TestTracerBufferSizeEnvInvalid(t *testing.T) {
 	t.Run("too_small", func(t *testing.T) {
 		os.Setenv("ELASTIC_APM_API_BUFFER_SIZE", "1B")
 		defer os.Unsetenv("ELASTIC_APM_API_BUFFER_SIZE")
-		_, err := elasticapm.NewTracer("tracer_testing", "")
+		_, err := apm.NewTracer("tracer_testing", "")
 		assert.EqualError(t, err, "ELASTIC_APM_API_BUFFER_SIZE must be at least 10KB and less than 100MB, got 1B")
 	})
 	t.Run("too_large", func(t *testing.T) {
 		os.Setenv("ELASTIC_APM_API_BUFFER_SIZE", "500GB")
 		defer os.Unsetenv("ELASTIC_APM_API_BUFFER_SIZE")
-		_, err := elasticapm.NewTracer("tracer_testing", "")
+		_, err := apm.NewTracer("tracer_testing", "")
 		assert.EqualError(t, err, "ELASTIC_APM_API_BUFFER_SIZE must be at least 10KB and less than 100MB, got 500GB")
 	})
 }
@@ -117,7 +117,7 @@ func TestTracerTransactionRateEnvInvalid(t *testing.T) {
 	os.Setenv("ELASTIC_APM_TRANSACTION_SAMPLE_RATE", "2.0")
 	defer os.Unsetenv("ELASTIC_APM_TRANSACTION_SAMPLE_RATE")
 
-	_, err := elasticapm.NewTracer("tracer_testing", "")
+	_, err := apm.NewTracer("tracer_testing", "")
 	assert.EqualError(t, err, "invalid ELASTIC_APM_TRANSACTION_SAMPLE_RATE value 2.0: out of range [0,1.0]")
 }
 
@@ -125,7 +125,7 @@ func testTracerTransactionRateEnv(t *testing.T, envValue string, ratio float64) 
 	os.Setenv("ELASTIC_APM_TRANSACTION_SAMPLE_RATE", envValue)
 	defer os.Unsetenv("ELASTIC_APM_TRANSACTION_SAMPLE_RATE")
 
-	tracer, err := elasticapm.NewTracer("tracer_testing", "")
+	tracer, err := apm.NewTracer("tracer_testing", "")
 	require.NoError(t, err)
 	defer tracer.Close()
 	tracer.Transport = transporttest.Discard
@@ -175,7 +175,7 @@ func TestTracerServiceNameEnvSanitizationSpecified(t *testing.T) {
 
 func TestTracerServiceNameEnvSanitizationExecutableName(t *testing.T) {
 	testTracerServiceNameSanitization(
-		t, "apm-agent-go_test", // .test -> _test
+		t, "apm_test", // .test -> _test
 	)
 }
 
@@ -192,7 +192,7 @@ func testTracerServiceNameSanitization(t *testing.T, sanitizedServiceName string
 	}
 
 	var transport transporttest.RecorderTransport
-	tracer, _ := elasticapm.NewTracer("", "")
+	tracer, _ := apm.NewTracer("", "")
 	tracer.Transport = &transport
 	defer tracer.Close()
 
@@ -235,7 +235,7 @@ func testTracerCaptureBodyEnv(t *testing.T, envValue string, expectBody bool) {
 	}
 
 	var transport transporttest.RecorderTransport
-	tracer := elasticapm.DefaultTracer
+	tracer := apm.DefaultTracer
 	tracer.Transport = &transport
 
 	req, _ := http.NewRequest("GET", "/", strings.NewReader("foo_bar"))
@@ -286,7 +286,7 @@ func TestTracerSpanFramesMinDurationEnvInvalid(t *testing.T) {
 	os.Setenv("ELASTIC_APM_SPAN_FRAMES_MIN_DURATION", "aeon")
 	defer os.Unsetenv("ELASTIC_APM_SPAN_FRAMES_MIN_DURATION")
 
-	_, err := elasticapm.NewTracer("tracer_testing", "")
+	_, err := apm.NewTracer("tracer_testing", "")
 	assert.EqualError(t, err, "failed to parse ELASTIC_APM_SPAN_FRAMES_MIN_DURATION: invalid duration aeon")
 }
 
@@ -309,7 +309,7 @@ func TestTracerActiveInvalid(t *testing.T) {
 	os.Setenv("ELASTIC_APM_ACTIVE", "yep")
 	defer os.Unsetenv("ELASTIC_APM_ACTIVE")
 
-	_, err := elasticapm.NewTracer("tracer_testing", "")
+	_, err := apm.NewTracer("tracer_testing", "")
 	assert.EqualError(t, err, "failed to parse ELASTIC_APM_ACTIVE: strconv.ParseBool: parsing \"yep\": invalid syntax")
 }
 

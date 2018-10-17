@@ -1,4 +1,4 @@
-package elasticapm_test
+package apm_test
 
 import (
 	"context"
@@ -7,26 +7,26 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/apmtest"
-	"github.com/elastic/apm-agent-go/model"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/apmtest"
+	"go.elastic.co/apm/model"
 )
 
 func TestContextUser(t *testing.T) {
 	t.Run("email", func(t *testing.T) {
-		tx := testSendTransaction(t, func(tx *elasticapm.Transaction) {
+		tx := testSendTransaction(t, func(tx *apm.Transaction) {
 			tx.Context.SetUserEmail("testing@host.invalid")
 		})
 		assert.Equal(t, &model.User{Email: "testing@host.invalid"}, tx.Context.User)
 	})
 	t.Run("username", func(t *testing.T) {
-		tx := testSendTransaction(t, func(tx *elasticapm.Transaction) {
+		tx := testSendTransaction(t, func(tx *apm.Transaction) {
 			tx.Context.SetUsername("schnibble")
 		})
 		assert.Equal(t, &model.User{Username: "schnibble"}, tx.Context.User)
 	})
 	t.Run("id", func(t *testing.T) {
-		tx := testSendTransaction(t, func(tx *elasticapm.Transaction) {
+		tx := testSendTransaction(t, func(tx *apm.Transaction) {
 			tx.Context.SetUserID("123")
 		})
 		assert.Equal(t, &model.User{ID: "123"}, tx.Context.User)
@@ -35,13 +35,13 @@ func TestContextUser(t *testing.T) {
 
 func TestContextFramework(t *testing.T) {
 	t.Run("name_unspecified", func(t *testing.T) {
-		tx := testSendTransaction(t, func(tx *elasticapm.Transaction) {
+		tx := testSendTransaction(t, func(tx *apm.Transaction) {
 			tx.Context.SetFramework("", "1.0")
 		})
 		assert.Nil(t, tx.Context)
 	})
 	t.Run("version_specified", func(t *testing.T) {
-		tx := testSendTransaction(t, func(tx *elasticapm.Transaction) {
+		tx := testSendTransaction(t, func(tx *apm.Transaction) {
 			tx.Context.SetFramework("framework", "1.0")
 		})
 		require.NotNil(t, tx.Context)
@@ -52,7 +52,7 @@ func TestContextFramework(t *testing.T) {
 		}, tx.Context.Service.Framework)
 	})
 	t.Run("version_unspecified", func(t *testing.T) {
-		tx := testSendTransaction(t, func(tx *elasticapm.Transaction) {
+		tx := testSendTransaction(t, func(tx *apm.Transaction) {
 			tx.Context.SetFramework("framework", "")
 		})
 		require.NotNil(t, tx.Context)
@@ -64,9 +64,9 @@ func TestContextFramework(t *testing.T) {
 	})
 }
 
-func testSendTransaction(t *testing.T, f func(tx *elasticapm.Transaction)) model.Transaction {
+func testSendTransaction(t *testing.T, f func(tx *apm.Transaction)) model.Transaction {
 	transaction, _, _ := apmtest.WithTransaction(func(ctx context.Context) {
-		f(elasticapm.TransactionFromContext(ctx))
+		f(apm.TransactionFromContext(ctx))
 	})
 	return transaction
 }

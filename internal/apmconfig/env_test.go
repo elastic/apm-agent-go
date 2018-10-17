@@ -7,8 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/elastic/apm-agent-go/internal/apmconfig"
-	"github.com/elastic/apm-agent-go/internal/wildcard"
+	"go.elastic.co/apm/internal/apmconfig"
+	"go.elastic.co/apm/internal/wildcard"
 )
 
 func TestParseDurationEnv(t *testing.T) {

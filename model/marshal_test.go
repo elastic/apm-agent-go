@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/apm-agent-go/internal/fastjson"
-	"github.com/elastic/apm-agent-go/model"
+	"go.elastic.co/apm/internal/fastjson"
+	"go.elastic.co/apm/model"
 )
 
 func TestMarshalTransaction(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/elastic/apm-agent-go/model"
+	"go.elastic.co/apm/model"
 )
 
 // SetContext sets the source context for the given stack frames,

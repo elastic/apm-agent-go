@@ -1,4 +1,4 @@
-package elasticapm
+package apm
 
 // Logger is an interface for logging, used by the tracer
 // to log tracer errors and other interesting events.

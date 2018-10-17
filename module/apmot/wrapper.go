@@ -5,8 +5,8 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/internal/apmcontext"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/internal/apmcontext"
 )
 
 func init() {
@@ -20,10 +20,10 @@ func init() {
 }
 
 func contextWithSpan(ctx context.Context, apmSpan interface{}) context.Context {
-	tx, _ := transactionFromContext(ctx).(*elasticapm.Transaction)
+	tx, _ := transactionFromContext(ctx).(*apm.Transaction)
 	return opentracing.ContextWithSpan(ctx, apmSpanWrapper{
 		spanContext: apmSpanWrapperContext{
-			span:        apmSpan.(*elasticapm.Span),
+			span:        apmSpan.(*apm.Span),
 			transaction: tx,
 		},
 	})
@@ -32,14 +32,14 @@ func contextWithSpan(ctx context.Context, apmSpan interface{}) context.Context {
 func contextWithTransaction(ctx context.Context, apmTransaction interface{}) context.Context {
 	return opentracing.ContextWithSpan(ctx, apmTransactionWrapper{
 		spanContext: apmTransactionWrapperContext{
-			transaction: apmTransaction.(*elasticapm.Transaction),
+			transaction: apmTransaction.(*apm.Transaction),
 		},
 	})
 }
 
 func spanFromContext(ctx context.Context) interface{} {
 	otSpan, _ := opentracing.SpanFromContext(ctx).(interface {
-		Span() *elasticapm.Span
+		Span() *apm.Span
 	})
 	if otSpan == nil {
 		return nil
@@ -53,7 +53,7 @@ func transactionFromContext(ctx context.Context) interface{} {
 		return nil
 	}
 	if apmSpanContext, ok := otSpan.Context().(interface {
-		Transaction() *elasticapm.Transaction
+		Transaction() *apm.Transaction
 	}); ok {
 		return apmSpanContext.Transaction()
 	}
@@ -61,21 +61,21 @@ func transactionFromContext(ctx context.Context) interface{} {
 }
 
 // apmSpanWrapperContext is an opentracing.SpanContext that wraps
-// an elasticapm.Span and elasticapm.Transaction.
+// an apm.Span and apm.Transaction.
 type apmSpanWrapperContext struct {
-	span        *elasticapm.Span
-	transaction *elasticapm.Transaction
+	span        *apm.Span
+	transaction *apm.Transaction
 }
 
 // TraceContext returns ctx.span.TraceContext(). This is used to set the
 // parent trace context for spans created through the OpenTracing API.
-func (ctx apmSpanWrapperContext) TraceContext() elasticapm.TraceContext {
+func (ctx apmSpanWrapperContext) TraceContext() apm.TraceContext {
 	return ctx.span.TraceContext()
 }
 
 // Transaction returns ctx.transaction. This is used to obtain the transaction
 // to use for creating spans through the OpenTracing API.
-func (ctx apmSpanWrapperContext) Transaction() *elasticapm.Transaction {
+func (ctx apmSpanWrapperContext) Transaction() *apm.Transaction {
 	return ctx.transaction
 }
 
@@ -89,7 +89,7 @@ type apmSpanWrapper struct {
 }
 
 // Span returns s.spanContext.span. This is used by spanFromContext.
-func (s apmSpanWrapper) Span() *elasticapm.Span {
+func (s apmSpanWrapper) Span() *apm.Span {
 	return s.spanContext.span
 }
 
@@ -118,20 +118,20 @@ func (s apmSpanWrapper) SetBaggageItem(key, val string) opentracing.Span {
 }
 
 // apmTransactionWrapperContext is an opentracing.SpanContext that wraps
-// an elasticapm.Transaction.
+// an apm.Transaction.
 type apmTransactionWrapperContext struct {
-	transaction *elasticapm.Transaction
+	transaction *apm.Transaction
 }
 
 // TraceContext returns ctx.transaction.TraceContext(). This is used to set the
 // parent trace context for spans created through the OpenTracing API.
-func (ctx apmTransactionWrapperContext) TraceContext() elasticapm.TraceContext {
+func (ctx apmTransactionWrapperContext) TraceContext() apm.TraceContext {
 	return ctx.transaction.TraceContext()
 }
 
 // Transaction returns ctx.transaction. This is used to obtain the transaction
 // to use for creating spans through the OpenTracing API.
-func (ctx apmTransactionWrapperContext) Transaction() *elasticapm.Transaction {
+func (ctx apmTransactionWrapperContext) Transaction() *apm.Transaction {
 	return ctx.transaction
 }
 

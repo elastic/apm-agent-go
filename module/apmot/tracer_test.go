@@ -10,10 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/module/apmot"
-	"github.com/elastic/apm-agent-go/transport/transporttest"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/module/apmot"
+	"go.elastic.co/apm/transport/transporttest"
 )
 
 func TestTransactionType(t *testing.T) {
@@ -225,10 +225,10 @@ func TestStartSpanFromContextMixed(t *testing.T) {
 	opentracing.SetGlobalTracer(tracer)
 
 	tx := apmtracer.StartTransaction("tx", "unknown")
-	ctx := elasticapm.ContextWithTransaction(context.Background(), tx)
-	apmSpan1, ctx := elasticapm.StartSpan(ctx, "apm1", "apm")
+	ctx := apm.ContextWithTransaction(context.Background(), tx)
+	apmSpan1, ctx := apm.StartSpan(ctx, "apm1", "apm")
 	otSpan1, ctx := opentracing.StartSpanFromContext(ctx, "ot1")
-	apmSpan2, ctx := elasticapm.StartSpan(ctx, "apm2", "apm")
+	apmSpan2, ctx := apm.StartSpan(ctx, "apm2", "apm")
 	otSpan2, ctx := opentracing.StartSpanFromContext(ctx, "ot2")
 	otSpan3, ctx := opentracing.StartSpanFromContext(ctx, "ot3")
 	otSpan3.Finish()
@@ -254,7 +254,7 @@ func TestStartSpanFromContextMixed(t *testing.T) {
 	assert.Equal(t, payloads.Spans[1].ID, payloads.Spans[0].ParentID)
 }
 
-func newTestTracer() (opentracing.Tracer, *elasticapm.Tracer, *transporttest.RecorderTransport) {
+func newTestTracer() (opentracing.Tracer, *apm.Tracer, *transporttest.RecorderTransport) {
 	apmtracer, recorder := transporttest.NewRecorderTracer()
 	tracer := apmot.New(apmot.WithTracer(apmtracer))
 	return tracer, apmtracer, recorder

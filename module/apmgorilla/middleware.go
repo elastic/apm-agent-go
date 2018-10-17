@@ -5,8 +5,8 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/module/apmhttp"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/module/apmhttp"
 )
 
 // Middleware returns a new gorilla/mux middleware handler
@@ -16,11 +16,11 @@ import (
 // be used instead of the gorilla/middleware.RecoveryHandler
 // middleware.
 //
-// By default, the middleware will use elasticapm.DefaultTracer.
+// By default, the middleware will use apm.DefaultTracer.
 // Use WithTracer to specify an alternative tracer.
 func Middleware(o ...Option) mux.MiddlewareFunc {
 	opts := options{
-		tracer:         elasticapm.DefaultTracer,
+		tracer:         apm.DefaultTracer,
 		requestIgnorer: apmhttp.DefaultServerRequestIgnorer(),
 	}
 	for _, o := range o {
@@ -48,7 +48,7 @@ func routeRequestName(req *http.Request) string {
 }
 
 type options struct {
-	tracer         *elasticapm.Tracer
+	tracer         *apm.Tracer
 	requestIgnorer apmhttp.RequestIgnorerFunc
 }
 
@@ -57,7 +57,7 @@ type Option func(*options)
 
 // WithTracer returns an Option which sets t as the tracer
 // to use for tracing server requests.
-func WithTracer(t *elasticapm.Tracer) Option {
+func WithTracer(t *apm.Tracer) Option {
 	if t == nil {
 		panic("t == nil")
 	}

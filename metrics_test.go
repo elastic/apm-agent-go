@@ -1,4 +1,4 @@
-package elasticapm_test
+package apm_test
 
 import (
 	"bytes"
@@ -14,9 +14,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/transport/transporttest"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/transport/transporttest"
 )
 
 func TestTracerMetricsBuiltin(t *testing.T) {
@@ -115,13 +115,13 @@ func TestTracerMetricsGatherer(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
-	tracer.RegisterMetricsGatherer(elasticapm.GatherMetricsFunc(
-		func(ctx context.Context, m *elasticapm.Metrics) error {
-			m.Add("http.request", []elasticapm.MetricLabel{
+	tracer.RegisterMetricsGatherer(apm.GatherMetricsFunc(
+		func(ctx context.Context, m *apm.Metrics) error {
+			m.Add("http.request", []apm.MetricLabel{
 				{Name: "code", Value: "400"},
 				{Name: "path", Value: "/"},
 			}, 3)
-			m.Add("http.request", []elasticapm.MetricLabel{
+			m.Add("http.request", []apm.MetricLabel{
 				{Name: "code", Value: "200"},
 			}, 4)
 			return nil
@@ -147,9 +147,9 @@ func TestTracerMetricsDeregister(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
-	g := elasticapm.GatherMetricsFunc(
-		func(ctx context.Context, m *elasticapm.Metrics) error {
-			m.Add("with_labels", []elasticapm.MetricLabel{
+	g := apm.GatherMetricsFunc(
+		func(ctx context.Context, m *apm.Metrics) error {
+			m.Add("with_labels", []apm.MetricLabel{
 				{Name: "code", Value: "200"},
 			}, 4)
 			return nil

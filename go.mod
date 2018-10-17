@@ -1,4 +1,4 @@
-module github.com/elastic/apm-agent-go
+module go.elastic.co/apm
 
 require (
 	github.com/elastic/go-sysinfo v0.0.0-20180725164248-b603f0b7f205
