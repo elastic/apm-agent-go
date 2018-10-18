@@ -2,8 +2,7 @@
 
 set -ex
 
-# TODO(axw) use master branch when v2 is merged
-BRANCH=v2
+BRANCH=master
 
 FILES=( \
     "errors/common_error.json" \
