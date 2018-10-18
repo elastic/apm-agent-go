@@ -84,7 +84,11 @@ func (m *middleware) handle(c *gin.Context) {
 	body := m.tracer.CaptureHTTPRequestBody(c.Request)
 	defer func() {
 		if v := recover(); v != nil {
-			c.AbortWithStatus(http.StatusInternalServerError)
+			if !c.Writer.Written() {
+				c.AbortWithStatus(http.StatusInternalServerError)
+			} else {
+				c.Abort()
+			}
 			e := m.tracer.Recovered(v)
 			e.SetTransaction(tx)
 			setContext(&e.Context, c, body)

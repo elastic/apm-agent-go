@@ -1,6 +1,8 @@
 package apmgin_test
 
 import (
+	"bytes"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -15,12 +17,16 @@ import (
 	"go.elastic.co/apm/transport/transporttest"
 )
 
+var (
+	debugOutput bytes.Buffer
+)
+
 func init() {
-	// Make gin be quiet.
-	gin.SetMode(gin.ReleaseMode)
+	log.SetOutput(&debugOutput)
 }
 
 func TestMiddleware(t *testing.T) {
+	debugOutput.Reset()
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
@@ -74,6 +80,7 @@ func TestMiddleware(t *testing.T) {
 }
 
 func TestMiddlewarePanic(t *testing.T) {
+	debugOutput.Reset()
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
@@ -88,6 +95,7 @@ func TestMiddlewarePanic(t *testing.T) {
 }
 
 func TestMiddlewarePanicHeadersSent(t *testing.T) {
+	debugOutput.Reset()
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
@@ -99,9 +107,14 @@ func TestMiddlewarePanicHeadersSent(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	tracer.Flush(nil)
 	assertError(t, transport.Payloads(), "handlePanicAfterHeaders", "boom", false)
+
+	// There should be no warnings about attempting to override
+	// the status code after the headers were written.
+	assert.NotContains(t, debugOutput.String(), "[WARNING] Headers were already written")
 }
 
 func TestMiddlewareError(t *testing.T) {
+	debugOutput.Reset()
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
