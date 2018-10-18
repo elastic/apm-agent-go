@@ -66,16 +66,16 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 		sampler := t.sampler
 		t.samplerMu.RUnlock()
 		if sampler == nil || sampler.Sample(tx.traceContext) {
-			o := tx.traceContext.Options.WithRequested(true).WithMaybeRecorded(true)
+			o := tx.traceContext.Options.WithRecorded(true)
 			tx.traceContext.Options = o
 		}
-	} else if opts.TraceContext.Options.Requested() {
+	} else {
 		// TODO(axw) make this behaviour configurable. In some cases
-		// it may not be a good idea to honour the requested flag, as
+		// it may not be a good idea to honour the recorded flag, as
 		// it may open up the application to DoS by forced sampling.
 		// Even ignoring bad actors, a service that has many feeder
 		// applications may end up being sampled at a very high rate.
-		tx.traceContext.Options = opts.TraceContext.Options.WithMaybeRecorded(true)
+		tx.traceContext.Options = opts.TraceContext.Options
 	}
 	tx.timestamp = opts.Start
 	if tx.timestamp.IsZero() {
@@ -126,7 +126,7 @@ func (tx *Transaction) Discard() {
 
 // Sampled reports whether or not the transaction is sampled.
 func (tx *Transaction) Sampled() bool {
-	return tx.traceContext.Options.MaybeRecorded()
+	return tx.traceContext.Options.Recorded()
 }
 
 // TraceContext returns the transaction's TraceContext.

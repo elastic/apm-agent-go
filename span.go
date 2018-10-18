@@ -82,7 +82,7 @@ func (t *Tracer) StartSpan(name, spanType string, transactionID SpanID, opts Spa
 	if opts.Parent.Trace.Validate() != nil || opts.Parent.Span.Validate() != nil || transactionID.Validate() != nil {
 		return newDroppedSpan()
 	}
-	if !opts.Parent.Options.MaybeRecorded() {
+	if !opts.Parent.Options.Recorded() {
 		return newDroppedSpan()
 	}
 	var spanID SpanID
