@@ -2,12 +2,12 @@ package transport
 
 import (
 	"bytes"
-	"compress/gzip"
 	"context"
 	"crypto/tls"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
@@ -16,24 +16,17 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/elastic/apm-agent-go/internal/apmconfig"
-	"github.com/elastic/apm-agent-go/internal/fastjson"
-	"github.com/elastic/apm-agent-go/model"
+	"go.elastic.co/apm/internal/apmconfig"
 )
 
 const (
-	transactionsPath = "/v1/transactions"
-	errorsPath       = "/v1/errors"
-	metricsPath      = "/v1/metrics"
+	intakePath = "/intake/v2/events"
 
 	envSecretToken      = "ELASTIC_APM_SECRET_TOKEN"
+	envServerURLs       = "ELASTIC_APM_SERVER_URLS"
 	envServerURL        = "ELASTIC_APM_SERVER_URL"
 	envServerTimeout    = "ELASTIC_APM_SERVER_TIMEOUT"
 	envVerifyServerCert = "ELASTIC_APM_VERIFY_SERVER_CERT"
-
-	// gzipThresholdBytes is the minimum size of the uncompressed
-	// payload before we'll consider gzip-compressing it.
-	gzipThresholdBytes = 1024
 )
 
 var (
@@ -41,163 +34,149 @@ var (
 	// in case another package replaces the value later.
 	defaultHTTPTransport = http.DefaultTransport.(*http.Transport)
 
-	defaultServerURL     = "http://localhost:8200"
+	defaultServerURL, _  = url.Parse("http://localhost:8200")
 	defaultServerTimeout = 30 * time.Second
 )
 
 // HTTPTransport is an implementation of Transport, sending payloads via
 // a net/http client.
 type HTTPTransport struct {
-	Client          *http.Client
-	baseURL         *url.URL
-	transactionsURL *url.URL
-	errorsURL       *url.URL
-	metricsURL      *url.URL
-	headers         http.Header
-	gzipHeaders     http.Header
-	jsonWriter      fastjson.Writer
-	gzipWriter      *gzip.Writer
-	gzipBuffer      bytes.Buffer
+	// Client exposes the http.Client used by the HTTPTransport for
+	// sending requests to the APM Server.
+	Client  *http.Client
+	headers http.Header
+
+	intakeURLs     []*url.URL
+	intakeURLIndex int
+	shuffleRand    *rand.Rand
 }
 
-// NewHTTPTransport returns a new HTTPTransport, which can be used for sending
-// transactions and errors to the APM server at the specified URL, with the
-// given secret token.
+// NewHTTPTransport returns a new HTTPTransport which can be used for
+// streaming data to the APM Server. The returned HTTPTransport will be
+// initialized using the following environment variables:
 //
-// If the URL specified is the empty string, then NewHTTPTransport will use the
-// value of the ELASTIC_APM_SERVER_URL environment variable, if defined; if
-// the environment variable is also undefined, then the transport will use the
-// default URL "http://localhost:8200". The URL must be the base server URL,
-// excluding any transactions or errors path. e.g. "http://server.example:8200".
+// - ELASTIC_APM_SERVER_URLS: a comma-separated list of APM Server URLs.
+//   The transport will use this list of URLs for sending requests,
+//   switching to the next URL in the list upon error. The list will be
+//   shuffled first. If no URLs are specified, then the transport will
+//   use the default URL "http://localhost:8200".
 //
-// If the secret token specified is the empty string, then NewHTTPTransport
-// will use the value of the ELASTIC_APM_SECRET_TOKEN environment variable, if
-// defined; if the environment variable is also undefined, then requests will
-// not be authenticated.
+// - ELASTIC_APM_SERVER_TIMEOUT: timeout for requests to the APM Server.
+//   If not specified, defaults to 30 seconds.
 //
-// If ELASTIC_APM_VERIFY_SERVER_CERT is set to "false", then the transport
-// will not verify the APM server's TLS certificate.
+// - ELASTIC_APM_SECRET_TOKEN: used to authenticate the agent.
 //
-// The Client field will be initialized with a new http.Client configured from
-// ELASTIC_APM_* environment variables. The Client field may be modified or
-// replaced, e.g. in order to specify TLS root CAs.
-func NewHTTPTransport(serverURL, secretToken string) (*HTTPTransport, error) {
-	if serverURL == "" {
-		serverURL = os.Getenv(envServerURL)
-		if serverURL == "" {
-			serverURL = defaultServerURL
-		}
-	}
-	req, err := http.NewRequest("POST", serverURL, nil)
+// - ELASTIC_APM_VERIFY_SERVER_CERT: if set to "false", the transport
+//   will not verify the APM Server's TLS certificate. Only relevant
+//   when using HTTPS. By default, the transport will verify server
+//   certificates.
+//
+func NewHTTPTransport() (*HTTPTransport, error) {
+	verifyServerCert, err := apmconfig.ParseBoolEnv(envVerifyServerCert, true)
 	if err != nil {
 		return nil, err
 	}
 
-	client := &http.Client{}
-	if req.URL.Scheme == "https" && os.Getenv(envVerifyServerCert) == "false" {
-		tlsConfig := &tls.Config{
-			InsecureSkipVerify: true,
-		}
-		client.Transport = &http.Transport{
+	serverTimeout, err := apmconfig.ParseDurationEnv(envServerTimeout, defaultServerTimeout)
+	if err != nil {
+		return nil, err
+	}
+	if serverTimeout < 0 {
+		serverTimeout = 0
+	}
+
+	serverURLs, err := initServerURLs()
+	if err != nil {
+		return nil, err
+	}
+
+	client := &http.Client{
+		Timeout: serverTimeout,
+		Transport: &http.Transport{
 			Proxy:                 defaultHTTPTransport.Proxy,
 			DialContext:           defaultHTTPTransport.DialContext,
 			MaxIdleConns:          defaultHTTPTransport.MaxIdleConns,
 			IdleConnTimeout:       defaultHTTPTransport.IdleConnTimeout,
 			TLSHandshakeTimeout:   defaultHTTPTransport.TLSHandshakeTimeout,
 			ExpectContinueTimeout: defaultHTTPTransport.ExpectContinueTimeout,
-			TLSClientConfig:       tlsConfig,
-		}
-	}
-
-	timeout, err := apmconfig.ParseDurationEnv(envServerTimeout, "s", defaultServerTimeout)
-	if err != nil {
-		return nil, err
-	}
-	if timeout > 0 {
-		client.Timeout = timeout
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: !verifyServerCert,
+			},
+		},
 	}
 
 	headers := make(http.Header)
-	headers.Set("Content-Type", "application/json")
-	if secretToken == "" {
-		secretToken = os.Getenv(envSecretToken)
-	}
-	if secretToken != "" {
-		headers.Set("Authorization", "Bearer "+secretToken)
-	}
-
-	gzipHeaders := make(http.Header)
-	for k, v := range headers {
-		gzipHeaders[k] = v
-	}
-	gzipHeaders.Set("Content-Encoding", "gzip")
-
+	headers.Set("Content-Type", "application/x-ndjson")
+	headers.Set("Content-Encoding", "deflate")
+	headers.Set("Transfer-Encoding", "chunked")
 	t := &HTTPTransport{
-		Client:          client,
-		baseURL:         req.URL,
-		transactionsURL: urlWithPath(req.URL, transactionsPath),
-		errorsURL:       urlWithPath(req.URL, errorsPath),
-		metricsURL:      urlWithPath(req.URL, metricsPath),
-		headers:         headers,
-		gzipHeaders:     gzipHeaders,
+		Client:  client,
+		headers: headers,
 	}
-	t.gzipWriter = gzip.NewWriter(&t.gzipBuffer)
+	t.SetSecretToken(os.Getenv(envSecretToken))
+	t.SetServerURL(serverURLs...)
 	return t, nil
 }
 
-// SetUserAgent sets the User-Agent header that will be
-// sent with each request.
+// SetServerURL sets the APM Server URL (or URLs) for sending requests.
+// At least one URL must be specified, or the method will panic. The
+// list will be randomly shuffled.
+func (t *HTTPTransport) SetServerURL(u ...*url.URL) {
+	if len(u) == 0 {
+		panic("SetServerURL expects at least one URL")
+	}
+	intakeURLs := make([]*url.URL, len(u))
+	for i, u := range u {
+		intakeURLs[i] = urlWithPath(u, intakePath)
+	}
+	if n := len(intakeURLs); n > 0 {
+		if t.shuffleRand == nil {
+			t.shuffleRand = rand.New(rand.NewSource(time.Now().UnixNano()))
+		}
+		for i := n - 1; i > 0; i-- {
+			j := t.shuffleRand.Intn(i + 1)
+			intakeURLs[i], intakeURLs[j] = intakeURLs[j], intakeURLs[i]
+		}
+	}
+	t.intakeURLs = intakeURLs
+	t.intakeURLIndex = 0
+}
+
+// SetUserAgent sets the User-Agent header that will be sent with each request.
 func (t *HTTPTransport) SetUserAgent(ua string) {
 	t.headers.Set("User-Agent", ua)
-	t.gzipHeaders.Set("User-Agent", ua)
 }
 
-// SendTransactions sends the transactions payload over HTTP.
-func (t *HTTPTransport) SendTransactions(ctx context.Context, p *model.TransactionsPayload) error {
-	t.jsonWriter.Reset()
-	p.MarshalFastJSON(&t.jsonWriter)
-	req := requestWithContext(ctx, t.newTransactionsRequest())
-	return t.sendPayload(req, "SendTransactions")
-}
-
-// SendErrors sends the errors payload over HTTP.
-func (t *HTTPTransport) SendErrors(ctx context.Context, p *model.ErrorsPayload) error {
-	t.jsonWriter.Reset()
-	p.MarshalFastJSON(&t.jsonWriter)
-	req := requestWithContext(ctx, t.newErrorsRequest())
-	return t.sendPayload(req, "SendErrors")
-}
-
-// SendMetrics sends the metrics payload over HTTP.
-func (t *HTTPTransport) SendMetrics(ctx context.Context, p *model.MetricsPayload) error {
-	t.jsonWriter.Reset()
-	p.MarshalFastJSON(&t.jsonWriter)
-	req := requestWithContext(ctx, t.newMetricsRequest())
-	return t.sendPayload(req, "SendMetrics")
-}
-
-func (t *HTTPTransport) sendPayload(req *http.Request, op string) error {
-	buf := t.jsonWriter.Bytes()
-	var body io.Reader = bytes.NewReader(buf)
-	req.ContentLength = int64(len(buf))
-	if req.ContentLength >= gzipThresholdBytes {
-		t.gzipBuffer.Reset()
-		t.gzipWriter.Reset(&t.gzipBuffer)
-		if _, err := io.Copy(t.gzipWriter, body); err != nil {
-			return err
-		}
-		if err := t.gzipWriter.Flush(); err != nil {
-			return err
-		}
-		req.ContentLength = int64(t.gzipBuffer.Len())
-		body = &t.gzipBuffer
-		req.Header = t.gzipHeaders
+// SetSecretToken sets the Authorization header with the given secret token.
+// This overrides the value specified via the ELASTIC_APM_SECRET_TOKEN
+// environment variable, if any.
+func (t *HTTPTransport) SetSecretToken(secretToken string) {
+	if secretToken != "" {
+		t.headers.Set("Authorization", "Bearer "+secretToken)
+	} else {
+		t.headers.Del("Authorization")
 	}
-	req.Body = ioutil.NopCloser(body)
+}
 
+// SendStream sends the stream over HTTP. If SendStream returns an error and
+// the transport is configured with more than one APM Server URL, then the
+// following request will be sent to the next URL in the list.
+func (t *HTTPTransport) SendStream(ctx context.Context, r io.Reader) error {
+	intakeURL := t.intakeURLs[t.intakeURLIndex]
+	req := t.newRequest(intakeURL)
+	req = requestWithContext(ctx, req)
+	req.Body = ioutil.NopCloser(r)
+	if err := t.sendRequest(req); err != nil {
+		t.intakeURLIndex = (t.intakeURLIndex + 1) % len(t.intakeURLs)
+		return err
+	}
+	return nil
+}
+
+func (t *HTTPTransport) sendRequest(req *http.Request) error {
 	resp, err := t.Client.Do(req)
 	if err != nil {
-		return errors.Wrapf(err, "sending request for %s failed", op)
+		return errors.Wrap(err, "sending request failed")
 	}
 	switch resp.StatusCode {
 	case http.StatusOK, http.StatusAccepted:
@@ -215,22 +194,9 @@ func (t *HTTPTransport) sendPayload(req *http.Request, op string) error {
 		resp.Body = ioutil.NopCloser(bytes.NewReader(bodyContents))
 	}
 	return &HTTPError{
-		Op:       op,
 		Response: resp,
 		Message:  strings.TrimSpace(string(bodyContents)),
 	}
-}
-
-func (t *HTTPTransport) newTransactionsRequest() *http.Request {
-	return t.newRequest(t.transactionsURL)
-}
-
-func (t *HTTPTransport) newErrorsRequest() *http.Request {
-	return t.newRequest(t.errorsURL)
-}
-
-func (t *HTTPTransport) newMetricsRequest() *http.Request {
-	return t.newRequest(t.metricsURL)
 }
 
 func (t *HTTPTransport) newRequest(url *url.URL) *http.Request {
@@ -257,17 +223,45 @@ func urlWithPath(url *url.URL, p string) *url.URL {
 
 // HTTPError is an error returned by HTTPTransport methods when requests fail.
 type HTTPError struct {
-	Op       string
 	Response *http.Response
 	Message  string
 }
 
 func (e *HTTPError) Error() string {
-	msg := fmt.Sprintf("%s failed with %s", e.Op, e.Response.Status)
+	msg := fmt.Sprintf("request failed with %s", e.Response.Status)
 	if e.Message != "" {
 		msg += ": " + e.Message
 	}
 	return msg
+}
+
+// initServerURLs parses ELASTIC_APM_SERVER_URLS if specified,
+// otherwise parses ELASTIC_APM_SERVER_URL if specified. If
+// neither are specified, then the default localhost URL is
+// returned.
+func initServerURLs() ([]*url.URL, error) {
+	key := envServerURLs
+	value := os.Getenv(key)
+	if value == "" {
+		key = envServerURL
+		value = os.Getenv(key)
+	}
+	var urls []*url.URL
+	for _, field := range strings.Split(value, ",") {
+		field = strings.TrimSpace(field)
+		if field == "" {
+			continue
+		}
+		u, err := url.Parse(field)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to parse %s", key)
+		}
+		urls = append(urls, u)
+	}
+	if len(urls) == 0 {
+		urls = []*url.URL{defaultServerURL}
+	}
+	return urls, nil
 }
 
 func requestWithContext(ctx context.Context, req *http.Request) *http.Request {

@@ -5,7 +5,7 @@ package stacktrace
 import (
 	"strings"
 
-	"github.com/elastic/apm-agent-go/internal/radix"
+	"go.elastic.co/apm/internal/radix"
 )
 
 var libraryPackages = newLibraryPackagesRadixTree(
@@ -194,7 +194,7 @@ var libraryPackages = newLibraryPackagesRadixTree(
 	"vendor/golang_org/x/text/unicode",
 	"vendor/golang_org/x/text/unicode/bidi",
 	"vendor/golang_org/x/text/unicode/norm",
-	"github.com/elastic/apm-agent-go",
+	"go.elastic.co/apm",
 )
 
 func newLibraryPackagesRadixTree(k ...string) *radix.Tree {

@@ -1,4 +1,4 @@
-package elasticapm
+package apm
 
 // TracerStats holds statistics for a Tracer.
 type TracerStats struct {
@@ -7,13 +7,14 @@ type TracerStats struct {
 	ErrorsDropped       uint64
 	TransactionsSent    uint64
 	TransactionsDropped uint64
+	SpansSent           uint64
+	SpansDropped        uint64
 }
 
 // TracerStatsErrors holds error statistics for a Tracer.
 type TracerStatsErrors struct {
-	SetContext       uint64
-	SendTransactions uint64
-	SendErrors       uint64
+	SetContext uint64
+	SendStream uint64
 }
 
 func (s TracerStats) isZero() bool {
@@ -24,10 +25,11 @@ func (s TracerStats) isZero() bool {
 // the values in rhs.
 func (s *TracerStats) accumulate(rhs TracerStats) {
 	s.Errors.SetContext += rhs.Errors.SetContext
-	s.Errors.SendTransactions += rhs.Errors.SendTransactions
-	s.Errors.SendErrors += rhs.Errors.SendErrors
+	s.Errors.SendStream += rhs.Errors.SendStream
 	s.ErrorsSent += rhs.ErrorsSent
 	s.ErrorsDropped += rhs.ErrorsDropped
+	s.SpansSent += rhs.SpansSent
+	s.SpansDropped += rhs.SpansDropped
 	s.TransactionsSent += rhs.TransactionsSent
 	s.TransactionsDropped += rhs.TransactionsDropped
 }

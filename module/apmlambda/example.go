@@ -3,12 +3,11 @@
 package main
 
 import (
-	"context"
-
-	// Trace lambda function invocations.
-	_ "github.com/elastic/apm-agent-go/module/apmlambda"
+	"context" // Trace lambda function invocations.
 
 	"github.com/aws/aws-lambda-go/lambda"
+
+	_ "go.elastic.co/apm/module/apmlambda"
 )
 
 type Request struct {

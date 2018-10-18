@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/elastic/apm-agent-go/module/apmhttp"
+	"go.elastic.co/apm/module/apmhttp"
 )
 
 func TestStatusCode(t *testing.T) {

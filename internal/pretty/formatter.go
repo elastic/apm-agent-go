@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"text/tabwriter"
 
-	"github.com/elastic/apm-agent-go/internal/krtext"
+	"go.elastic.co/apm/internal/krtext"
 )
 
 type formatter struct {

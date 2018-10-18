@@ -5,14 +5,14 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/module/apmhttp"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/module/apmhttp"
 )
 
 // Wrap wraps h such that it will report requests as transactions
 // to Elastic APM, using route in the transaction name.
 //
-// By default, the returned Handle will use elasticapm.DefaultTracer.
+// By default, the returned Handle will use apm.DefaultTracer.
 // Use WithTracer to specify an alternative tracer.
 //
 // By default, the returned Handle will recover panics, reporting
@@ -20,7 +20,7 @@ import (
 // WithRecovery.
 func Wrap(h httprouter.Handle, route string, o ...Option) httprouter.Handle {
 	opts := options{
-		tracer:         elasticapm.DefaultTracer,
+		tracer:         apm.DefaultTracer,
 		requestIgnorer: apmhttp.DefaultServerRequestIgnorer(),
 	}
 	for _, o := range o {
@@ -37,23 +37,20 @@ func Wrap(h httprouter.Handle, route string, o ...Option) httprouter.Handle {
 		tx, req := apmhttp.StartTransaction(opts.tracer, req.Method+" "+route, req)
 		defer tx.End()
 
-		finished := false
 		body := opts.tracer.CaptureHTTPRequestBody(req)
 		w, resp := apmhttp.WrapResponseWriter(w)
 		defer func() {
 			if v := recover(); v != nil {
-				opts.recovery(w, req, body, tx, v)
-				finished = true
+				opts.recovery(w, req, resp, body, tx, v)
 			}
-			apmhttp.SetTransactionContext(tx, req, resp, body, finished)
+			apmhttp.SetTransactionContext(tx, req, resp, body)
 		}()
 		h(w, req, p)
-		finished = true
 	}
 }
 
 type options struct {
-	tracer         *elasticapm.Tracer
+	tracer         *apm.Tracer
 	recovery       apmhttp.RecoveryFunc
 	requestIgnorer apmhttp.RequestIgnorerFunc
 }
@@ -63,7 +60,7 @@ type Option func(*options)
 
 // WithTracer returns an Option which sets t as the tracer
 // to use for tracing server requests.
-func WithTracer(t *elasticapm.Tracer) Option {
+func WithTracer(t *apm.Tracer) Option {
 	if t == nil {
 		panic("t == nil")
 	}

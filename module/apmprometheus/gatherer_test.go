@@ -8,10 +8,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/module/apmprometheus"
-	"github.com/elastic/apm-agent-go/transport/transporttest"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/module/apmprometheus"
+	"go.elastic.co/apm/transport/transporttest"
 )
 
 func TestGoCollector(t *testing.T) {
@@ -81,7 +81,7 @@ func TestLabels(t *testing.T) {
 	assert.Contains(t, metrics[0].Samples, "golang.heap.allocations.mallocs")
 	metrics = metrics[1:]
 
-	assert.Equal(t, []*model.Metrics{{
+	assert.Equal(t, []model.Metrics{{
 		Labels: model.StringMap{
 			{Key: "code", Value: "200"},
 			{Key: "method", Value: "GET"},
@@ -117,14 +117,14 @@ func TestLabels(t *testing.T) {
 	}}, metrics)
 }
 
-func gatherMetrics(g elasticapm.MetricsGatherer) []*model.Metrics {
+func gatherMetrics(g apm.MetricsGatherer) []model.Metrics {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 	tracer.RegisterMetricsGatherer(g)
 	tracer.SendMetrics(nil)
-	metrics := transport.Payloads()[0].Metrics()
-	for _, s := range metrics {
-		s.Timestamp = model.Time{}
+	metrics := transport.Payloads().Metrics
+	for i := range metrics {
+		metrics[i].Timestamp = model.Time{}
 	}
 	return metrics
 }

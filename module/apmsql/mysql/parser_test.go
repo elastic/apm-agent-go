@@ -5,8 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/elastic/apm-agent-go/module/apmsql"
-	"github.com/elastic/apm-agent-go/module/apmsql/mysql"
+	"go.elastic.co/apm/module/apmsql"
+	"go.elastic.co/apm/module/apmsql/mysql"
 )
 
 func TestParseDSN(t *testing.T) {

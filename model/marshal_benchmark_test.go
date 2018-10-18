@@ -1,13 +1,14 @@
 package model_test
 
 import (
+	"encoding/json"
 	"testing"
 
-	"github.com/elastic/apm-agent-go/internal/fastjson"
+	"go.elastic.co/apm/internal/fastjson"
 )
 
-func BenchmarkMarshalTransactionPayloadStdlib(b *testing.B) {
-	p := fakeTransactionsPayload(1000)
+func BenchmarkMarshalTransactionFastJSON(b *testing.B) {
+	p := fakeTransaction()
 	b.ResetTimer()
 
 	var w fastjson.Writer
@@ -16,4 +17,26 @@ func BenchmarkMarshalTransactionPayloadStdlib(b *testing.B) {
 		b.SetBytes(int64(w.Size()))
 		w.Reset()
 	}
+}
+
+func BenchmarkMarshalTransactionStdlib(b *testing.B) {
+	p := fakeTransaction()
+	b.ResetTimer()
+
+	var cw countingWriter
+	encoder := json.NewEncoder(&cw)
+	for i := 0; i < b.N; i++ {
+		encoder.Encode(p)
+		b.SetBytes(int64(cw.n))
+		cw.n = 0
+	}
+}
+
+type countingWriter struct {
+	n int
+}
+
+func (w *countingWriter) Write(p []byte) (int, error) {
+	w.n += len(p)
+	return len(p), nil
 }

@@ -7,10 +7,10 @@ import (
 	"github.com/rcrowley/go-metrics"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/module/apmgometrics"
-	"github.com/elastic/apm-agent-go/transport/transporttest"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/module/apmgometrics"
+	"go.elastic.co/apm/transport/transporttest"
 )
 
 func TestGatherer(t *testing.T) {
@@ -30,7 +30,7 @@ func TestGatherer(t *testing.T) {
 		}
 	}
 
-	assert.Equal(t, []*model.Metrics{{
+	assert.Equal(t, []model.Metrics{{
 		Samples: map[string]model.Metric{
 			"http.requests_total": {
 				Value: 123,
@@ -70,14 +70,14 @@ func TestHistogram(t *testing.T) {
 	}, metrics[0].Samples)
 }
 
-func gatherMetrics(g elasticapm.MetricsGatherer) []*model.Metrics {
+func gatherMetrics(g apm.MetricsGatherer) []model.Metrics {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 	tracer.RegisterMetricsGatherer(g)
 	tracer.SendMetrics(nil)
-	metrics := transport.Payloads()[0].Metrics()
-	for _, m := range metrics {
-		m.Timestamp = model.Time{}
+	metrics := transport.Payloads().Metrics
+	for i := range metrics {
+		metrics[i].Timestamp = model.Time{}
 	}
 	return metrics
 }

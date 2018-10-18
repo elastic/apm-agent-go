@@ -2,13 +2,14 @@ package transporttest
 
 import (
 	"context"
+	"io"
+	"io/ioutil"
 
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/transport"
+	"go.elastic.co/apm/transport"
 )
 
 // Discard is a transport.Transport which discards
-// all payloads, and returns no errors.
+// all streams, and returns no errors.
 var Discard transport.Transport = ErrorTransport{}
 
 // ErrorTransport is a transport that returns the stored error
@@ -17,17 +18,20 @@ type ErrorTransport struct {
 	Error error
 }
 
-// SendTransactions discards the payload and returns t.Error.
-func (t ErrorTransport) SendTransactions(context.Context, *model.TransactionsPayload) error {
-	return t.Error
-}
-
-// SendErrors discards the payload and returns t.Error.
-func (t ErrorTransport) SendErrors(context.Context, *model.ErrorsPayload) error {
-	return t.Error
-}
-
-// SendMetrics discards the payload and returns t.Error.
-func (t ErrorTransport) SendMetrics(context.Context, *model.MetricsPayload) error {
-	return t.Error
+// SendStream discards the stream and returns t.Error.
+func (t ErrorTransport) SendStream(ctx context.Context, r io.Reader) error {
+	errc := make(chan error, 1)
+	go func() {
+		_, err := io.Copy(ioutil.Discard, r)
+		errc <- err
+	}()
+	select {
+	case err := <-errc:
+		if err != nil {
+			return err
+		}
+		return t.Error
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }

@@ -1,4 +1,4 @@
-package elasticapm_test
+package apm_test
 
 import (
 	"net/http"
@@ -6,11 +6,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/module/apmhttp"
-	"github.com/elastic/apm-agent-go/transport/transporttest"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/module/apmhttp"
+	"go.elastic.co/apm/transport/transporttest"
 )
 
 func TestSanitizeRequest(t *testing.T) {
@@ -37,11 +36,8 @@ func TestSanitizeRequest(t *testing.T) {
 	tracer.Flush(nil)
 
 	payloads := transport.Payloads()
-	require.Len(t, payloads, 1)
-	transactions := payloads[0].Transactions()
-	require.Len(t, transactions, 1)
+	tx := payloads.Transactions[0]
 
-	tx := transactions[0]
 	assert.Equal(t, tx.Context.Request.Cookies, model.Cookies{
 		{Name: "Custom-Credit-Card-Number", Value: "[REDACTED]"},
 		{Name: "secret", Value: "[REDACTED]"},
@@ -84,11 +80,8 @@ func testSetSanitizedFieldNames(t *testing.T, expect string, sanitized ...string
 	tracer.Flush(nil)
 
 	payloads := transport.Payloads()
-	require.Len(t, payloads, 1)
-	transactions := payloads[0].Transactions()
-	require.Len(t, transactions, 1)
+	tx := payloads.Transactions[0]
 
-	tx := transactions[0]
 	assert.Equal(t, tx.Context.Request.Cookies, model.Cookies{
 		{Name: "secret", Value: expect},
 	})

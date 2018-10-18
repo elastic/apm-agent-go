@@ -1,21 +1,21 @@
-package elasticapm
+package apm
 
 import (
 	"bytes"
-	"regexp"
 
-	"github.com/elastic/apm-agent-go/model"
+	"go.elastic.co/apm/internal/wildcard"
+	"go.elastic.co/apm/model"
 )
 
 const redacted = "[REDACTED]"
 
 // sanitizeRequest sanitizes HTTP request data, redacting
 // the values of cookies and forms whose corresponding keys
-// match the given regular expression.
-func sanitizeRequest(r *model.Request, re *regexp.Regexp) {
+// match any of the given wildcard patterns.
+func sanitizeRequest(r *model.Request, matchers wildcard.Matchers) {
 	var anyCookiesRedacted bool
 	for _, c := range r.Cookies {
-		if !re.MatchString(c.Name) {
+		if !matchers.MatchAny(c.Name) {
 			continue
 		}
 		c.Value = redacted
@@ -33,7 +33,7 @@ func sanitizeRequest(r *model.Request, re *regexp.Regexp) {
 	}
 	if r.Body != nil && r.Body.Form != nil {
 		for key, values := range r.Body.Form {
-			if !re.MatchString(key) {
+			if !matchers.MatchAny(key) {
 				continue
 			}
 			for i := range values {

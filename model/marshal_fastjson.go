@@ -3,33 +3,80 @@
 package model
 
 import (
-	"github.com/elastic/apm-agent-go/internal/fastjson"
+	"go.elastic.co/apm/internal/fastjson"
 )
 
 func (v *Service) MarshalFastJSON(w *fastjson.Writer) {
 	w.RawByte('{')
-	w.RawString("\"agent\":")
-	v.Agent.MarshalFastJSON(w)
-	w.RawString(",\"name\":")
-	w.String(v.Name)
+	first := true
+	if v.Agent != nil {
+		const prefix = ",\"agent\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		v.Agent.MarshalFastJSON(w)
+	}
 	if v.Environment != "" {
-		w.RawString(",\"environment\":")
+		const prefix = ",\"environment\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
 		w.String(v.Environment)
 	}
 	if v.Framework != nil {
-		w.RawString(",\"framework\":")
+		const prefix = ",\"framework\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
 		v.Framework.MarshalFastJSON(w)
 	}
 	if v.Language != nil {
-		w.RawString(",\"language\":")
+		const prefix = ",\"language\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
 		v.Language.MarshalFastJSON(w)
 	}
+	if v.Name != "" {
+		const prefix = ",\"name\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.String(v.Name)
+	}
 	if v.Runtime != nil {
-		w.RawString(",\"runtime\":")
+		const prefix = ",\"runtime\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
 		v.Runtime.MarshalFastJSON(w)
 	}
 	if v.Version != "" {
-		w.RawString(",\"version\":")
+		const prefix = ",\"version\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
 		w.String(v.Version)
 	}
 	w.RawByte('}')
@@ -143,8 +190,12 @@ func (v *Transaction) MarshalFastJSON(w *fastjson.Writer) {
 	v.ID.MarshalFastJSON(w)
 	w.RawString(",\"name\":")
 	w.String(v.Name)
+	w.RawString(",\"span_count\":")
+	v.SpanCount.MarshalFastJSON(w)
 	w.RawString(",\"timestamp\":")
 	v.Timestamp.MarshalFastJSON(w)
+	w.RawString(",\"trace_id\":")
+	v.TraceID.MarshalFastJSON(w)
 	w.RawString(",\"type\":")
 	w.String(v.Type)
 	if v.Context != nil {
@@ -163,41 +214,15 @@ func (v *Transaction) MarshalFastJSON(w *fastjson.Writer) {
 		w.RawString(",\"sampled\":")
 		w.Bool(*v.Sampled)
 	}
-	if !v.SpanCount.isZero() {
-		w.RawString(",\"span_count\":")
-		v.SpanCount.MarshalFastJSON(w)
-	}
-	if v.Spans != nil {
-		w.RawString(",\"spans\":")
-		w.RawByte('[')
-		for i, v := range v.Spans {
-			if i != 0 {
-				w.RawByte(',')
-			}
-			v.MarshalFastJSON(w)
-		}
-		w.RawByte(']')
-	}
-	if !v.TraceID.isZero() {
-		w.RawString(",\"trace_id\":")
-		v.TraceID.MarshalFastJSON(w)
-	}
 	w.RawByte('}')
 }
 
 func (v *SpanCount) MarshalFastJSON(w *fastjson.Writer) {
 	w.RawByte('{')
-	if !v.Dropped.isZero() {
-		w.RawString("\"dropped\":")
-		v.Dropped.MarshalFastJSON(w)
-	}
-	w.RawByte('}')
-}
-
-func (v *SpanCountDropped) MarshalFastJSON(w *fastjson.Writer) {
-	w.RawByte('{')
-	w.RawString("\"total\":")
-	w.Int64(int64(v.Total))
+	w.RawString("\"dropped\":")
+	w.Int64(int64(v.Dropped))
+	w.RawString(",\"started\":")
+	w.Int64(int64(v.Started))
 	w.RawByte('}')
 }
 
@@ -205,19 +230,21 @@ func (v *Span) MarshalFastJSON(w *fastjson.Writer) {
 	w.RawByte('{')
 	w.RawString("\"duration\":")
 	w.Float64(v.Duration)
+	w.RawString(",\"id\":")
+	v.ID.MarshalFastJSON(w)
 	w.RawString(",\"name\":")
 	w.String(v.Name)
-	w.RawString(",\"start\":")
-	w.Float64(v.Start)
+	w.RawString(",\"timestamp\":")
+	v.Timestamp.MarshalFastJSON(w)
+	w.RawString(",\"trace_id\":")
+	v.TraceID.MarshalFastJSON(w)
+	w.RawString(",\"transaction_id\":")
+	v.TransactionID.MarshalFastJSON(w)
 	w.RawString(",\"type\":")
 	w.String(v.Type)
 	if v.Context != nil {
 		w.RawString(",\"context\":")
 		v.Context.MarshalFastJSON(w)
-	}
-	if !v.ID.isZero() {
-		w.RawString(",\"id\":")
-		v.ID.MarshalFastJSON(w)
 	}
 	if !v.ParentID.isZero() {
 		w.RawString(",\"parent_id\":")
@@ -233,10 +260,6 @@ func (v *Span) MarshalFastJSON(w *fastjson.Writer) {
 			v.MarshalFastJSON(w)
 		}
 		w.RawByte(']')
-	}
-	if !v.TraceID.isZero() {
-		w.RawString(",\"trace_id\":")
-		v.TraceID.MarshalFastJSON(w)
 	}
 	w.RawByte('}')
 }
@@ -263,6 +286,30 @@ func (v *SpanContext) MarshalFastJSON(w *fastjson.Writer) {
 			w.RawString(prefix)
 		}
 		v.HTTP.MarshalFastJSON(w)
+	}
+	if v.Tags != nil {
+		const prefix = ",\"tags\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.RawByte('{')
+		{
+			first := true
+			for k, v := range v.Tags {
+				if first {
+					first = false
+				} else {
+					w.RawByte(',')
+				}
+				w.String(k)
+				w.RawByte(':')
+				w.String(v)
+			}
+		}
+		w.RawByte('}')
 	}
 	w.RawByte('}')
 }
@@ -346,6 +393,16 @@ func (v *Context) MarshalFastJSON(w *fastjson.Writer) {
 		}
 		v.Response.MarshalFastJSON(w)
 	}
+	if v.Service != nil {
+		const prefix = ",\"service\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		v.Service.MarshalFastJSON(w)
+	}
 	if v.Tags != nil {
 		const prefix = ",\"tags\":"
 		if first {
@@ -421,7 +478,9 @@ func (v *User) MarshalFastJSON(w *fastjson.Writer) {
 
 func (v *Error) MarshalFastJSON(w *fastjson.Writer) {
 	w.RawByte('{')
-	w.RawString("\"timestamp\":")
+	w.RawString("\"id\":")
+	v.ID.MarshalFastJSON(w)
+	w.RawString(",\"timestamp\":")
 	v.Timestamp.MarshalFastJSON(w)
 	if v.Context != nil {
 		w.RawString(",\"context\":")
@@ -435,10 +494,6 @@ func (v *Error) MarshalFastJSON(w *fastjson.Writer) {
 		w.RawString(",\"exception\":")
 		v.Exception.MarshalFastJSON(w)
 	}
-	if !v.ID.isZero() {
-		w.RawString(",\"id\":")
-		v.ID.MarshalFastJSON(w)
-	}
 	if !v.Log.isZero() {
 		w.RawString(",\"log\":")
 		v.Log.MarshalFastJSON(w)
@@ -451,17 +506,10 @@ func (v *Error) MarshalFastJSON(w *fastjson.Writer) {
 		w.RawString(",\"trace_id\":")
 		v.TraceID.MarshalFastJSON(w)
 	}
-	if !v.Transaction.isZero() {
-		w.RawString(",\"transaction\":")
-		v.Transaction.MarshalFastJSON(w)
+	if !v.TransactionID.isZero() {
+		w.RawString(",\"transaction_id\":")
+		v.TransactionID.MarshalFastJSON(w)
 	}
-	w.RawByte('}')
-}
-
-func (v *TransactionReference) MarshalFastJSON(w *fastjson.Writer) {
-	w.RawByte('{')
-	w.RawString("\"id\":")
-	v.ID.MarshalFastJSON(w)
 	w.RawByte('}')
 }
 
@@ -817,99 +865,5 @@ func (v *Metric) MarshalFastJSON(w *fastjson.Writer) {
 	w.RawByte('{')
 	w.RawString("\"value\":")
 	w.Float64(v.Value)
-	w.RawByte('}')
-}
-
-func (v *TransactionsPayload) MarshalFastJSON(w *fastjson.Writer) {
-	w.RawByte('{')
-	w.RawString("\"service\":")
-	if v.Service == nil {
-		w.RawString("null")
-	} else {
-		v.Service.MarshalFastJSON(w)
-	}
-	w.RawString(",\"transactions\":")
-	if v.Transactions == nil {
-		w.RawString("null")
-	} else {
-		w.RawByte('[')
-		for i, v := range v.Transactions {
-			if i != 0 {
-				w.RawByte(',')
-			}
-			v.MarshalFastJSON(w)
-		}
-		w.RawByte(']')
-	}
-	if v.Process != nil {
-		w.RawString(",\"process\":")
-		v.Process.MarshalFastJSON(w)
-	}
-	if v.System != nil {
-		w.RawString(",\"system\":")
-		v.System.MarshalFastJSON(w)
-	}
-	w.RawByte('}')
-}
-
-func (v *ErrorsPayload) MarshalFastJSON(w *fastjson.Writer) {
-	w.RawByte('{')
-	w.RawString("\"errors\":")
-	if v.Errors == nil {
-		w.RawString("null")
-	} else {
-		w.RawByte('[')
-		for i, v := range v.Errors {
-			if i != 0 {
-				w.RawByte(',')
-			}
-			v.MarshalFastJSON(w)
-		}
-		w.RawByte(']')
-	}
-	w.RawString(",\"service\":")
-	if v.Service == nil {
-		w.RawString("null")
-	} else {
-		v.Service.MarshalFastJSON(w)
-	}
-	if v.Process != nil {
-		w.RawString(",\"process\":")
-		v.Process.MarshalFastJSON(w)
-	}
-	if v.System != nil {
-		w.RawString(",\"system\":")
-		v.System.MarshalFastJSON(w)
-	}
-	w.RawByte('}')
-}
-
-func (v *MetricsPayload) MarshalFastJSON(w *fastjson.Writer) {
-	w.RawByte('{')
-	w.RawString("\"metrics\":")
-	if v.Metrics == nil {
-		w.RawString("null")
-	} else {
-		w.RawByte('[')
-		for i, v := range v.Metrics {
-			if i != 0 {
-				w.RawByte(',')
-			}
-			v.MarshalFastJSON(w)
-		}
-		w.RawByte(']')
-	}
-	if v.Process != nil {
-		w.RawString(",\"process\":")
-		v.Process.MarshalFastJSON(w)
-	}
-	if v.Service != nil {
-		w.RawString(",\"service\":")
-		v.Service.MarshalFastJSON(w)
-	}
-	if v.System != nil {
-		w.RawString(",\"system\":")
-		v.System.MarshalFastJSON(w)
-	}
 	w.RawByte('}')
 }

@@ -7,10 +7,6 @@ import (
 
 //go:generate /bin/bash generate_library.bash std ..
 
-// TODO(axw) add a function for marking frames as library
-// frames, based on configuration. Possibly use
-// in-the-same-repo as a heuristic?
-
 // AppendStacktrace appends at most n entries to frames,
 // skipping skip frames starting with AppendStacktrace,
 // and returns the extended slice. If n is negative, then

@@ -1,4 +1,4 @@
-package elasticapm
+package apm
 
 import (
 	cryptorand "crypto/rand"
@@ -37,25 +37,17 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 	tx.Name = name
 	tx.Type = transactionType
 
-	if tx.tracer.distributedTracing {
-		if opts.TraceContext.Trace.Validate() == nil && opts.TraceContext.Span.Validate() == nil {
-			tx.traceContext.Trace = opts.TraceContext.Trace
-			tx.parentSpan = opts.TraceContext.Span
-		}
-		tx.traceContext.Options = opts.TraceContext.Options
-	}
-	if tx.traceContext.Trace.isZero() {
-		// In any case, we fill out the trace ID; this will be used for
-		// either the transaction's trace ID, or for its UUID in case
-		// distributed tracing is disabled. If distributed tracing is
-		// enabled, we also set the span ID.
+	var root bool
+	if opts.TraceContext.Trace.Validate() == nil && opts.TraceContext.Span.Validate() == nil {
+		tx.traceContext.Trace = opts.TraceContext.Trace
+		tx.parentSpan = opts.TraceContext.Span
+		binary.LittleEndian.PutUint64(tx.traceContext.Span[:], tx.rand.Uint64())
+	} else {
+		// Start a new trace. We reuse the trace ID for the root transaction's ID.
+		root = true
 		binary.LittleEndian.PutUint64(tx.traceContext.Trace[:8], tx.rand.Uint64())
 		binary.LittleEndian.PutUint64(tx.traceContext.Trace[8:], tx.rand.Uint64())
-		if tx.tracer.distributedTracing {
-			copy(tx.traceContext.Span[:], tx.traceContext.Trace[:])
-		}
-	} else {
-		binary.LittleEndian.PutUint64(tx.traceContext.Span[:], tx.rand.Uint64())
+		copy(tx.traceContext.Span[:], tx.traceContext.Trace[:])
 	}
 
 	// Take a snapshot of the max spans config to ensure
@@ -69,23 +61,25 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 	tx.spanFramesMinDuration = t.spanFramesMinDuration
 	t.spanFramesMinDurationMu.RUnlock()
 
-	// TODO(axw) make this behaviour configurable. In some cases
-	// it may not be a good idea to honour the sampled flag, as
-	// it may open up the application to DoS by forced sampling.
-	// Even ignoring bad actors, a service that has many feeder
-	// applications may end up being sampled at a very high rate.
-	if !tx.traceContext.Options.Requested() {
+	if root {
 		t.samplerMu.RLock()
 		sampler := t.sampler
 		t.samplerMu.RUnlock()
-		if sampler == nil || sampler.Sample(tx) {
+		if sampler == nil || sampler.Sample(tx.traceContext) {
 			o := tx.traceContext.Options.WithRequested(true).WithMaybeRecorded(true)
 			tx.traceContext.Options = o
 		}
+	} else if opts.TraceContext.Options.Requested() {
+		// TODO(axw) make this behaviour configurable. In some cases
+		// it may not be a good idea to honour the requested flag, as
+		// it may open up the application to DoS by forced sampling.
+		// Even ignoring bad actors, a service that has many feeder
+		// applications may end up being sampled at a very high rate.
+		tx.traceContext.Options = opts.TraceContext.Options.WithMaybeRecorded(true)
 	}
-	tx.Timestamp = opts.Start
-	if tx.Timestamp.IsZero() {
-		tx.Timestamp = time.Now()
+	tx.timestamp = opts.Start
+	if tx.timestamp.IsZero() {
+		tx.timestamp = time.Now()
 	}
 	return tx
 }
@@ -94,45 +88,40 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 type Transaction struct {
 	Name         string
 	Type         string
-	Timestamp    time.Time
 	Duration     time.Duration
 	Context      Context
 	Result       string
 	traceContext TraceContext
 	parentSpan   SpanID
+	timestamp    time.Time
 
 	tracer                *Tracer
 	maxSpans              int
 	spanFramesMinDuration time.Duration
 
 	mu           sync.Mutex
-	spans        []*Span
+	spansCreated int
 	spansDropped int
 	rand         *rand.Rand // for ID generation
 }
 
-// reset resets the Transaction back to its zero state, so it can be reused
-// in the transaction pool.
+// reset resets the Transaction back to its zero state and places it back
+// into the transaction pool.
 func (tx *Transaction) reset() {
-	for _, s := range tx.spans {
-		s.reset()
-		tx.tracer.spanPool.Put(s)
-	}
 	*tx = Transaction{
 		tracer:   tx.tracer,
-		spans:    tx.spans[:0],
 		Context:  tx.Context,
 		Duration: -1,
 		rand:     tx.rand,
 	}
 	tx.Context.reset()
+	tx.tracer.transactionPool.Put(tx)
 }
 
 // Discard discards a previously started transaction. The Transaction
 // must not be used after this.
 func (tx *Transaction) Discard() {
 	tx.reset()
-	tx.tracer.transactionPool.Put(tx)
 }
 
 // Sampled reports whether or not the transaction is sampled.
@@ -140,9 +129,7 @@ func (tx *Transaction) Sampled() bool {
 	return tx.traceContext.Options.MaybeRecorded()
 }
 
-// TraceContext returns the transaction's TraceContext: its trace ID,
-// span ID, and trace options. The values are undefined if distributed
-// tracing is disabled.
+// TraceContext returns the transaction's TraceContext.
 func (tx *Transaction) TraceContext() TraceContext {
 	return tx.traceContext
 }
@@ -150,14 +137,11 @@ func (tx *Transaction) TraceContext() TraceContext {
 // End enqueues tx for sending to the Elastic APM server; tx must not
 // be used after this.
 //
-// If tx.Duration has not been set, End will set it to the elapsed
-// time since tx.Timestamp.
+// If tx.Duration has not been set, End will set it to the elapsed time
+// since the transaction's start time.
 func (tx *Transaction) End() {
 	if tx.Duration < 0 {
-		tx.Duration = time.Since(tx.Timestamp)
-	}
-	for _, s := range tx.spans {
-		s.finalize(tx.Timestamp.Add(tx.Duration))
+		tx.Duration = time.Since(tx.timestamp)
 	}
 	tx.enqueue()
 }
@@ -171,16 +155,13 @@ func (tx *Transaction) enqueue() {
 		tx.tracer.stats.TransactionsDropped++
 		tx.tracer.statsMu.Unlock()
 		tx.reset()
-		tx.tracer.transactionPool.Put(tx)
 	}
 }
 
 // TransactionOptions holds options for Tracer.StartTransactionOptions.
 type TransactionOptions struct {
 	// TraceContext holds the TraceContext for a new transaction. If this is
-	// zero, and distributed tracing is enabled, a new trace will be started.
-	//
-	// TraceContext is ignored if distributed tracing is disabled.
+	// zero, a new trace will be started.
 	TraceContext TraceContext
 
 	// Start is the start time of the transaction. If this has the

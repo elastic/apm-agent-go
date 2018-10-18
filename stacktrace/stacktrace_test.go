@@ -5,16 +5,16 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/elastic/apm-agent-go/stacktrace"
+	"go.elastic.co/apm/stacktrace"
 )
 
 func TestStacktrace(t *testing.T) {
 	expect := []string{
-		"github.com/elastic/apm-agent-go/stacktrace_test.TestStacktrace.func1",
+		"go.elastic.co/apm/stacktrace_test.TestStacktrace.func1",
 		"runtime.call32",
 		"runtime.gopanic",
-		"github.com/elastic/apm-agent-go/stacktrace_test.(*panicker).panic",
-		"github.com/elastic/apm-agent-go/stacktrace_test.TestStacktrace",
+		"go.elastic.co/apm/stacktrace_test.(*panicker).panic",
+		"go.elastic.co/apm/stacktrace_test.TestStacktrace",
 	}
 	defer func() {
 		err := recover()
@@ -43,10 +43,10 @@ func TestSplitFunctionName(t *testing.T) {
 	testSplitFunctionName(t, "main", "main")
 	testSplitFunctionName(t, "main", "Foo.Bar")
 	testSplitFunctionName(t, "main", "(*Foo).Bar")
-	testSplitFunctionName(t, "github.com/elastic/apm-agent-go/foo", "bar")
+	testSplitFunctionName(t, "go.elastic.co/apm/foo", "bar")
 	testSplitFunctionName(t,
-		"github.com/elastic/apm-agent-go/module/apmgin",
-		"(*middleware).(github.com/elastic/apm-agent-go/module/apmgin.handle)-fm",
+		"go.elastic.co/apm/module/apmgin",
+		"(*middleware).(go.elastic.co/apm/module/apmgin.handle)-fm",
 	)
 }
 

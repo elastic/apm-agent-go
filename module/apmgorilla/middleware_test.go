@@ -9,9 +9,9 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/module/apmgorilla"
-	"github.com/elastic/apm-agent-go/transport/transporttest"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/module/apmgorilla"
+	"go.elastic.co/apm/transport/transporttest"
 )
 
 func TestMuxMiddleware(t *testing.T) {
@@ -28,13 +28,12 @@ func TestMuxMiddleware(t *testing.T) {
 	tracer.Flush(nil)
 
 	payloads := transport.Payloads()
-	transaction := payloads[0].Transactions()[0]
+	transaction := payloads.Transactions[0]
 
 	assert.Equal(t, "GET /prefix/articles/{category}/{id}", transaction.Name)
 	assert.Equal(t, "request", transaction.Type)
 	assert.Equal(t, "HTTP 2xx", transaction.Result)
 
-	true_ := true
 	assert.Equal(t, &model.Context{
 		Request: &model.Request{
 			Socket: &model.RequestSocket{
@@ -51,9 +50,7 @@ func TestMuxMiddleware(t *testing.T) {
 			HTTPVersion: "1.1",
 		},
 		Response: &model.Response{
-			StatusCode:  200,
-			Finished:    &true_,
-			HeadersSent: &true_,
+			StatusCode: 200,
 			Headers: &model.ResponseHeaders{
 				ContentType: "text/plain; charset=utf-8",
 			},

@@ -1,25 +1,27 @@
-package elasticapm
+package apm
 
 import (
 	"fmt"
 	"net/http"
 	"strings"
 
-	"github.com/elastic/apm-agent-go/internal/apmhttputil"
-	"github.com/elastic/apm-agent-go/model"
+	"go.elastic.co/apm/internal/apmhttputil"
+	"go.elastic.co/apm/model"
 )
 
 // Context provides methods for setting transaction and error context.
 type Context struct {
-	model           model.Context
-	request         model.Request
-	requestBody     model.RequestBody
-	requestHeaders  model.RequestHeaders
-	requestSocket   model.RequestSocket
-	response        model.Response
-	responseHeaders model.ResponseHeaders
-	user            model.User
-	captureBodyMask CaptureBodyMode
+	model            model.Context
+	request          model.Request
+	requestBody      model.RequestBody
+	requestHeaders   model.RequestHeaders
+	requestSocket    model.RequestSocket
+	response         model.Response
+	responseHeaders  model.ResponseHeaders
+	user             model.User
+	service          model.Service
+	serviceFramework model.Framework
+	captureBodyMask  CaptureBodyMode
 }
 
 func (c *Context) build() *model.Context {
@@ -27,6 +29,7 @@ func (c *Context) build() *model.Context {
 	case c.model.Request != nil:
 	case c.model.Response != nil:
 	case c.model.User != nil:
+	case c.model.Service != nil:
 	case len(c.model.Custom) != 0:
 	case len(c.model.Tags) != 0:
 	default:
@@ -67,12 +70,35 @@ func (c *Context) SetTag(key, value string) {
 	if !validTagKey(key) {
 		return
 	}
-	value = truncateString(value)
+	value = truncateKeyword(value)
 	if c.model.Tags == nil {
 		c.model.Tags = map[string]string{key: value}
 	} else {
 		c.model.Tags[key] = value
 	}
+}
+
+// SetFramework sets the framework name and version in the context.
+//
+// This is used for identifying the framework in which the context
+// was created, such as Gin or Echo.
+//
+// If the name is empty, this is a no-op. If version is empty, then
+// it will be set to "unspecified".
+func (c *Context) SetFramework(name, version string) {
+	if name == "" {
+		return
+	}
+	if version == "" {
+		// Framework version is required.
+		version = "unspecified"
+	}
+	c.serviceFramework = model.Framework{
+		Name:    truncateKeyword(name),
+		Version: truncateKeyword(version),
+	}
+	c.service.Framework = &c.serviceFramework
+	c.model.Service = &c.service
 }
 
 // SetHTTPRequest sets details of the HTTP request in the context.
@@ -108,7 +134,7 @@ func (c *Context) SetHTTPRequest(req *http.Request) {
 	c.request = model.Request{
 		Body:        c.request.Body,
 		URL:         apmhttputil.RequestURL(req, forwarded),
-		Method:      truncateString(req.Method),
+		Method:      truncateKeyword(req.Method),
 		HTTPVersion: httpVersion,
 		Cookies:     req.Cookies(),
 	}
@@ -116,7 +142,7 @@ func (c *Context) SetHTTPRequest(req *http.Request) {
 
 	c.requestHeaders = model.RequestHeaders{
 		ContentType: req.Header.Get("Content-Type"),
-		Cookie:      strings.Join(req.Header["Cookie"], ";"),
+		Cookie:      truncateText(strings.Join(req.Header["Cookie"], ";")),
 		UserAgent:   req.UserAgent(),
 	}
 	if c.requestHeaders != (model.RequestHeaders{}) {
@@ -135,7 +161,7 @@ func (c *Context) SetHTTPRequest(req *http.Request) {
 	if !ok && req.URL.User != nil {
 		username = req.URL.User.Username()
 	}
-	c.user.Username = truncateString(username)
+	c.user.Username = truncateKeyword(username)
 	if c.user.Username != "" {
 		c.model.User = &c.user
 	}
@@ -161,18 +187,6 @@ func (c *Context) SetHTTPResponseHeaders(h http.Header) {
 	}
 }
 
-// SetHTTPResponseHeadersSent records whether or not response were sent.
-func (c *Context) SetHTTPResponseHeadersSent(headersSent bool) {
-	c.response.HeadersSent = &headersSent
-	c.model.Response = &c.response
-}
-
-// SetHTTPResponseFinished records whether or not the response was finished.
-func (c *Context) SetHTTPResponseFinished(finished bool) {
-	c.response.Finished = &finished
-	c.model.Response = &c.response
-}
-
 // SetHTTPStatusCode records the HTTP response status code.
 func (c *Context) SetHTTPStatusCode(statusCode int) {
 	c.response.StatusCode = statusCode
@@ -181,7 +195,7 @@ func (c *Context) SetHTTPStatusCode(statusCode int) {
 
 // SetUserID sets the ID of the authenticated user.
 func (c *Context) SetUserID(id string) {
-	c.user.ID = truncateString(id)
+	c.user.ID = truncateKeyword(id)
 	if c.user.ID != "" {
 		c.model.User = &c.user
 	}
@@ -189,7 +203,7 @@ func (c *Context) SetUserID(id string) {
 
 // SetUserEmail sets the email for the authenticated user.
 func (c *Context) SetUserEmail(email string) {
-	c.user.Email = truncateString(email)
+	c.user.Email = truncateKeyword(email)
 	if c.user.Email != "" {
 		c.model.User = &c.user
 	}
@@ -197,7 +211,7 @@ func (c *Context) SetUserEmail(email string) {
 
 // SetUsername sets the username of the authenticated user.
 func (c *Context) SetUsername(username string) {
-	c.user.Username = truncateString(username)
+	c.user.Username = truncateKeyword(username)
 	if c.user.Username != "" {
 		c.model.User = &c.user
 	}

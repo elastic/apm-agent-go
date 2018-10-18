@@ -4,29 +4,30 @@ import (
 	"io"
 	"net/http"
 	"net/textproto"
+	"time"
 
 	"github.com/opentracing/opentracing-go"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/module/apmhttp"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/module/apmhttp"
 )
 
 // New returns a new opentracing.Tracer backed by the supplied
 // Elastic APM tracer.
 //
-// By default, the returned tracer will use elasticapm.DefaultTracer.
+// By default, the returned tracer will use apm.DefaultTracer.
 // This can be overridden by using a WithTracer option.
 func New(opts ...Option) opentracing.Tracer {
-	t := &otTracer{tracer: elasticapm.DefaultTracer}
+	t := &otTracer{tracer: apm.DefaultTracer}
 	for _, opt := range opts {
 		opt(t)
 	}
 	return t
 }
 
-// otTracer is an opentracing.Tracer backed by an elasticapm.Tracer.
+// otTracer is an opentracing.Tracer backed by an apm.Tracer.
 type otTracer struct {
-	tracer *elasticapm.Tracer
+	tracer *apm.Tracer
 }
 
 // StartSpan starts a new OpenTracing span with the given name and zero or more options.
@@ -38,44 +39,72 @@ func (t *otTracer) StartSpan(name string, opts ...opentracing.StartSpanOption) o
 	return t.StartSpanWithOptions(name, sso)
 }
 
-// StartSpanWithOptions starts a new OpenTracing span with the given
-// name and options.
+// StartSpanWithOptions starts a new OpenTracing span with the given name and options.
 func (t *otTracer) StartSpanWithOptions(name string, opts opentracing.StartSpanOptions) opentracing.Span {
-	ctx := spanContext{tracer: t}
-	parentCtx, _ := parentSpanContext(opts.References)
-	if parentCtx.tracer == t && parentCtx.tx != nil {
-		// tx is non-nil, which means the parent is a process-local
-		// transaction or span. Create a sub-span.
-		ctx.tx = parentCtx.tx
-		ctx.span = ctx.tx.StartSpan(name, "", parentCtx.span)
-		if !opts.StartTime.IsZero() {
-			ctx.span.Timestamp = opts.StartTime
-		}
-		ctx.traceContext = ctx.span.TraceContext()
-	} else {
-		// tx is nil or comes from another tracer, so we must create
-		// a new transaction. It's possible that we have a non-local
-		// parent transaction, so pass in the (possibly-zero) trace
-		// context.
-		ctx.tx = t.tracer.StartTransactionOptions(name, "", elasticapm.TransactionOptions{
-			TraceContext: parentCtx.traceContext,
-			Start:        opts.StartTime,
-		})
-		ctx.traceContext = ctx.tx.TraceContext()
-	}
 	// Because the Context method can be called at any time after
 	// the span is finished, we cannot pool the objects.
-	return &otSpan{
+	otSpan := &otSpan{
 		tracer: t,
-		tx:     ctx.tx,
-		span:   ctx.span,
 		tags:   opts.Tags,
-		ctx:    ctx,
+		ctx: spanContext{
+			tracer:    t,
+			startTime: opts.StartTime,
+		},
 	}
+	if opts.StartTime.IsZero() {
+		otSpan.ctx.startTime = time.Now()
+	}
+
+	var parentTraceContext apm.TraceContext
+	if parentCtx, ok := parentSpanContext(opts.References); ok {
+		if parentCtx.tracer == t && parentCtx.txSpanContext != nil {
+			parentCtx.txSpanContext.mu.RLock()
+			defer parentCtx.txSpanContext.mu.RUnlock()
+			opts := apm.SpanOptions{
+				Parent: parentCtx.traceContext,
+				Start:  otSpan.ctx.startTime,
+			}
+			if parentCtx.txSpanContext.tx != nil {
+				otSpan.span = parentCtx.txSpanContext.tx.StartSpanOptions(name, "", opts)
+			} else {
+				otSpan.span = t.tracer.StartSpan(name, "",
+					parentCtx.transactionID,
+					opts,
+				)
+			}
+			otSpan.ctx.traceContext = otSpan.span.TraceContext()
+			otSpan.ctx.transactionID = parentCtx.transactionID
+			otSpan.ctx.txSpanContext = parentCtx.txSpanContext
+			return otSpan
+		} else if parentCtx.txSpanContext == nil && parentCtx.tx != nil {
+			// parentCtx is a synthesized spanContext object. It has no
+			// txSpanContext, so we treat it as the transaction creator.
+			opts := apm.SpanOptions{
+				Parent: parentCtx.traceContext,
+				Start:  otSpan.ctx.startTime,
+			}
+			otSpan.span = parentCtx.tx.StartSpanOptions(name, "", opts)
+			otSpan.ctx.traceContext = otSpan.span.TraceContext()
+			otSpan.ctx.transactionID = parentCtx.transactionID
+			otSpan.ctx.txSpanContext = parentCtx
+			return otSpan
+		}
+		parentTraceContext = parentCtx.traceContext
+	}
+
+	// There's no local parent context created by this tracer.
+	otSpan.ctx.tx = t.tracer.StartTransactionOptions(name, "", apm.TransactionOptions{
+		TraceContext: parentTraceContext,
+		Start:        otSpan.ctx.startTime,
+	})
+	otSpan.ctx.traceContext = otSpan.ctx.tx.TraceContext()
+	otSpan.ctx.transactionID = otSpan.ctx.traceContext.Span
+	otSpan.ctx.txSpanContext = &otSpan.ctx
+	return otSpan
 }
 
 func (t *otTracer) Inject(sc opentracing.SpanContext, format interface{}, carrier interface{}) error {
-	spanContext, ok := sc.(spanContext)
+	spanContext, ok := sc.(*spanContext)
 	if !ok {
 		return opentracing.ErrInvalidSpanContext
 	}
@@ -124,7 +153,7 @@ func (t *otTracer) Extract(format interface{}, carrier interface{}) (opentracing
 		if err != nil {
 			return nil, err
 		}
-		return spanContext{tracer: t, traceContext: traceContext}, nil
+		return &spanContext{tracer: t, traceContext: traceContext}, nil
 	case opentracing.Binary:
 		reader, ok := carrier.(io.Reader)
 		if !ok {
@@ -134,7 +163,7 @@ func (t *otTracer) Extract(format interface{}, carrier interface{}) (opentracing
 		if err != nil {
 			return nil, err
 		}
-		return spanContext{tracer: t, traceContext: traceContext}, nil
+		return &spanContext{tracer: t, traceContext: traceContext}, nil
 	default:
 		return nil, opentracing.ErrUnsupportedFormat
 	}
@@ -144,8 +173,8 @@ func (t *otTracer) Extract(format interface{}, carrier interface{}) (opentracing
 type Option func(*otTracer)
 
 // WithTracer returns an Option which sets t as the underlying
-// elasticapm.Tracer for constructing an OpenTracing Tracer.
-func WithTracer(t *elasticapm.Tracer) Option {
+// apm.Tracer for constructing an OpenTracing Tracer.
+func WithTracer(t *apm.Tracer) Option {
 	if t == nil {
 		panic("t == nil")
 	}
@@ -163,10 +192,10 @@ var (
 	binaryExtract = binaryExtractUnsupported
 )
 
-func binaryInjectUnsupported(w io.Writer, traceContext elasticapm.TraceContext) error {
+func binaryInjectUnsupported(w io.Writer, traceContext apm.TraceContext) error {
 	return opentracing.ErrUnsupportedFormat
 }
 
-func binaryExtractUnsupported(r io.Reader) (elasticapm.TraceContext, error) {
-	return elasticapm.TraceContext{}, opentracing.ErrUnsupportedFormat
+func binaryExtractUnsupported(r io.Reader) (apm.TraceContext, error) {
+	return apm.TraceContext{}, opentracing.ErrUnsupportedFormat
 }

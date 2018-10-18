@@ -9,9 +9,9 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/module/apmhttprouter"
-	"github.com/elastic/apm-agent-go/transport/transporttest"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/module/apmhttprouter"
+	"go.elastic.co/apm/transport/transporttest"
 )
 
 func TestWrap(t *testing.T) {
@@ -39,13 +39,11 @@ func TestWrap(t *testing.T) {
 	assert.Equal(t, "go:/bananas", w.Body.String())
 
 	payloads := transport.Payloads()
-	transactions := payloads[0].Transactions()
-	transaction := transactions[0]
+	transaction := payloads.Transactions[0]
 	assert.Equal(t, "GET /hello/:name/go/*wild", transaction.Name)
 	assert.Equal(t, "request", transaction.Type)
 	assert.Equal(t, "HTTP 4xx", transaction.Result)
 
-	true_ := true
 	assert.Equal(t, &model.Context{
 		Request: &model.Request{
 			Socket: &model.RequestSocket{
@@ -65,7 +63,6 @@ func TestWrap(t *testing.T) {
 		},
 		Response: &model.Response{
 			StatusCode: 418,
-			Finished:   &true_,
 		},
 	}, transaction.Context)
 }
@@ -89,15 +86,13 @@ func TestRecovery(t *testing.T) {
 	assert.Equal(t, http.StatusTeapot, w.Code)
 
 	payloads := transport.Payloads()
-	error0 := payloads[0].Errors()[0]
-	transaction := payloads[1].Transactions()[0]
+	error0 := payloads.Errors[0]
+	transaction := payloads.Transactions[0]
 
 	assert.Equal(t, "panicHandler", error0.Culprit)
 	assert.Equal(t, "foo", error0.Exception.Message)
 
-	true_ := true
 	assert.Equal(t, &model.Response{
-		Finished:   &true_,
 		StatusCode: 418,
 	}, transaction.Context.Response)
 }

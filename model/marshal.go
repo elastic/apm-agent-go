@@ -11,34 +11,23 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/elastic/apm-agent-go/internal/fastjson"
+	"go.elastic.co/apm/internal/fastjson"
 )
 
 //go:generate go run ../internal/fastjson/generate.go -f -o marshal_fastjson.go .
 
-const (
-	// YYYY-MM-DDTHH:mm:ss.sssZ
-	dateTimeFormat = "2006-01-02T15:04:05.999Z"
-)
-
 // MarshalFastJSON writes the JSON representation of t to w.
 func (t Time) MarshalFastJSON(w *fastjson.Writer) {
-	w.RawByte('"')
-	w.Time(time.Time(t), dateTimeFormat)
-	w.RawByte('"')
+	w.Int64(time.Time(t).UnixNano() / int64(time.Microsecond))
 }
 
 // UnmarshalJSON unmarshals the JSON data into t.
 func (t *Time) UnmarshalJSON(data []byte) error {
-	var s string
-	if err := json.Unmarshal(data, &s); err != nil {
+	var usec int64
+	if err := json.Unmarshal(data, &usec); err != nil {
 		return err
 	}
-	time, err := time.Parse(dateTimeFormat, s)
-	if err != nil {
-		return err
-	}
-	*t = Time(time)
+	*t = Time(time.Unix(usec/1000000, (usec%1000000)*1000).UTC())
 	return nil
 }
 
@@ -84,6 +73,9 @@ func (v *HTTPSpanContext) marshalURL(w *fastjson.Writer) bool {
 	if v.URL.Path == "" {
 		w.RawByte('/')
 	} else {
+		if v.URL.Path[0] != '/' {
+			w.RawByte('/')
+		}
 		w.StringContents(v.URL.Path)
 	}
 	if v.URL.RawQuery != "" {
@@ -122,14 +114,18 @@ func (v *URL) MarshalFastJSON(w *fastjson.Writer) {
 		w.String(v.Hostname)
 	}
 	if v.Path != "" {
-		const prefix = ",\"pathname\":"
+		const prefix = `,"pathname":"`
 		if first {
 			first = false
 			w.RawString(prefix[1:])
 		} else {
 			w.RawString(prefix)
 		}
-		w.String(v.Path)
+		if v.Path[0] != '/' {
+			w.RawByte('/')
+		}
+		w.StringContents(v.Path)
+		w.RawByte('"')
 	}
 	if v.Port != "" {
 		const prefix = ",\"port\":"
@@ -221,6 +217,9 @@ func (v *URL) marshalFullURL(w *fastjson.Writer, scheme []byte) bool {
 		w.RawByte(':')
 		w.StringContents(v.Port)
 	}
+	if !strings.HasPrefix(v.Path, "/") {
+		w.RawByte('/')
+	}
 	w.StringContents(v.Path)
 	if v.Search != "" {
 		w.RawByte('?')
@@ -236,14 +235,6 @@ func (v *URL) marshalFullURL(w *fastjson.Writer, scheme []byte) bool {
 	}
 	w.RawByte('"')
 	return true
-}
-
-func (c *SpanCount) isZero() bool {
-	return *c == SpanCount{}
-}
-
-func (d *SpanCountDropped) isZero() bool {
-	return *d == SpanCountDropped{}
 }
 
 func (l *Log) isZero() bool {
@@ -298,11 +289,6 @@ func (c *Cookies) UnmarshalJSON(data []byte) error {
 		return (*c)[i].Name < (*c)[j].Name
 	})
 	return nil
-}
-
-// isZero is used by fastjson to implement omitempty.
-func (t *TransactionReference) isZero() bool {
-	return t.ID.isZero()
 }
 
 // MarshalFastJSON writes the JSON representation of c to w.
@@ -493,23 +479,6 @@ func (*StringMapItem) MarshalFastJSON(*fastjson.Writer) {
 	panic("unreachable")
 }
 
-// MarshalFastJSON writes the JSON representation of id to w.
-func (id *TransactionID) MarshalFastJSON(w *fastjson.Writer) {
-	if !id.SpanID.isZero() {
-		id.SpanID.MarshalFastJSON(w)
-		return
-	}
-	id.UUID.MarshalFastJSON(w)
-}
-
-// UnmarshalJSON unmarshals the JSON data into id.
-func (id *TransactionID) UnmarshalJSON(data []byte) error {
-	if len(data) == len(id.SpanID)*2+2 {
-		return id.SpanID.UnmarshalJSON(data)
-	}
-	return id.UUID.UnmarshalJSON(data)
-}
-
 func (id *TraceID) isZero() bool {
 	return *id == TraceID{}
 }
@@ -541,43 +510,6 @@ func (id *SpanID) UnmarshalJSON(data []byte) error {
 func (id *SpanID) MarshalFastJSON(w *fastjson.Writer) {
 	w.RawByte('"')
 	writeHex(w, id[:])
-	w.RawByte('"')
-}
-
-func (id *UUID) isZero() bool {
-	return *id == UUID{}
-}
-
-// UnmarshalJSON unmarshals the JSON data into id.
-func (id *UUID) UnmarshalJSON(data []byte) error {
-	// NOTE(axw) UnmarshalJSON is provided only for tests;
-	// it should only ever be fed valid data, hence panics.
-	hexDecode := func(out, in []byte) {
-		if _, err := hex.Decode(out, in); err != nil {
-			panic(err)
-		}
-	}
-	data = data[1 : len(data)-1]
-	hexDecode(id[:4], data[:8])
-	hexDecode(id[4:6], data[9:13])
-	hexDecode(id[6:8], data[14:18])
-	hexDecode(id[8:10], data[19:23])
-	hexDecode(id[10:], data[24:])
-	return nil
-}
-
-// MarshalFastJSON writes the JSON representation of id to w.
-func (id *UUID) MarshalFastJSON(w *fastjson.Writer) {
-	w.RawByte('"')
-	writeHex(w, id[:4])
-	w.RawByte('-')
-	writeHex(w, id[4:6])
-	w.RawByte('-')
-	writeHex(w, id[6:8])
-	w.RawByte('-')
-	writeHex(w, id[8:10])
-	w.RawByte('-')
-	writeHex(w, id[10:])
 	w.RawByte('"')
 }
 

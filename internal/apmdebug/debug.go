@@ -7,11 +7,8 @@ import (
 )
 
 var (
-	// TraceTransport reports whether or not the transport methods
-	// should be traced. If true, messages will be sent to stderr
-	// for each SendTransactions and SendErrors call, proceeded by
-	// the results.
-	TraceTransport bool
+	// DebugLog reports whether debug logging is enabled.
+	DebugLog bool
 )
 
 func init() {
@@ -27,8 +24,8 @@ func init() {
 		}
 		k, _ := field[:pos], field[pos+1:]
 		switch k {
-		case "tracetransport":
-			TraceTransport = true
+		case "log":
+			DebugLog = true
 		default:
 			unknownKey(k)
 			continue
@@ -42,4 +39,41 @@ func unknownKey(key string) {
 
 func invalidField(field string) {
 	log.Println("invalid ELASTIC_APM_DEBUG field:", field)
+}
+
+// Logger provides methods for logging.
+type Logger interface {
+	Debugf(format string, args ...interface{})
+	Errorf(format string, args ...interface{})
+}
+
+// LogLogger is a Logger that uses the standard "log" package.
+type LogLogger struct{}
+
+// Debugf logs a message with log.Printf, with a DEBUG prefix.
+func (l LogLogger) Debugf(format string, args ...interface{}) {
+	log.Printf("[DEBUG] "+format, args...)
+}
+
+// Errorf logs a message with log.Printf, with an ERROR prefix.
+func (l LogLogger) Errorf(format string, args ...interface{}) {
+	log.Printf("[ERROR] "+format, args...)
+}
+
+// ChainedLogger is a chain of Loggers, which dispatches method calls
+// to each element in the chain in sequence.
+type ChainedLogger []Logger
+
+// Debugf calls Debugf(format, args..) for each logger in the chain.
+func (l ChainedLogger) Debugf(format string, args ...interface{}) {
+	for _, l := range l {
+		l.Debugf(format, args...)
+	}
+}
+
+// Errorf calls Errorf(format, args..) for each logger in the chain.
+func (l ChainedLogger) Errorf(format string, args ...interface{}) {
+	for _, l := range l {
+		l.Errorf(format, args...)
+	}
 }

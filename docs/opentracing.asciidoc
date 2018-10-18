@@ -1,0 +1,137 @@
+[[opentracing]]
+== OpenTracing API
+
+The Elastic APM Go agent provides an implementation of the https://opentracing.io[OpenTracing API],
+building on top of the core Elastic APM API.
+
+Spans created through the OpenTracing API will be translated to Elastic APM transactions or spans.
+Root spans, and spans created with a remote span context, will be translated to Elastic APM
+transactions; all others will be created as Elastic APM spans.
+
+[float]
+[[opentracing-init]]
+=== Initializing the tracer
+
+The OpenTracing API implementation is implemented as a bridge on top of the core Elastic APM API.
+To initialize the OpenTracing tracer implementation, you must first import the `apmot` package:
+
+[source,go]
+----
+import (
+	"go.elastic.co/apm/module/apmot"
+)
+----
+
+The apmot package exports a function, "New", which returns an implementation of the
+`opentracing.Tracer` interface. If you simply call `apmot.New()` without any arguments,
+the returned tracer will wrap `apm.DefaultTracer`. If you wish to use a different
+`apm.Tracer`, then you can pass it with `apmot.New(apmot.WithTracer(t))`.
+
+[source,go]
+----
+otTracer := apmot.New()
+----
+
+Once you have obtained an `opentracing.Tracer`, you can use the standard OpenTracing API
+to report spans to Elastic APM. Please refer to https://github.com/opentracing/opentracing-go[opentracing-go]
+for documentation on the OpenTracing Go API.
+
+[source,go]
+----
+import (
+	"context"
+
+	"go.elastic.co/apm/module/apmot"
+
+	"github.com/opentracing/opentracing-go"
+)
+
+func main() {
+	opentracing.SetGlobalTracer(apmot.New())
+
+	parent, ctx := opentracing.StartSpanFromContext(context.Background(), "parent")
+	child, _ := opentracing.StartSpanFromContext(ctx, "child")
+	child.Finish()
+	parent.Finish()
+}
+----
+
+[float]
+[[opentracing-mixed]]
+=== Mixing Native and OpenTracing APIs
+
+When you import `apmot`, transactions and spans created with the <<api, native API>>
+will be made available as OpenTracing spans, enabling you to mix the use of the
+native and OpenTracing APIs. e.g.:
+
+[source,go]
+----
+// Transaction created through native API.
+transaction := apm.DefaultTracer.StartTransaction("GET /", "request")
+ctx := apm.ContextWithTransaction(context.Background(), transaction)
+
+// Span created through OpenTracing API will be a child of the transaction.
+otSpan, ctx := opentracing.StartSpanFromContext(ctx, "ot-span")
+
+// Span created through the native API will be a child of the span created
+// above via the OpenTracing API.
+apmSpan, ctx := apm.StartSpan(ctx, "apm-span", "apm-span")
+----
+
+The `opentracing.SpanFromContext` function will return an `opentracing.Span`
+that wraps either an `apm.Span` or `apm.Transaction`. These span objects are
+intended only for passing in context when creating a new span through the
+OpenTracing API, and are not fully functional spans. In particular, the `Finish`
+method is a no-op, and the `Tracer` method returns a no-op tracer.
+
+[float]
+[[opentracing-apm-tags]]
+=== Elastic APM specific tags
+
+Elastic APM defines some tags which are not included in the OpenTracing API,
+but are relevant in the context of Elastic APM. Some tags are relevant only
+to Elastic APM transactions.
+
+- `type` - sets the type of the transaction or span, e.g. "request", or "ext.http".
+           If `type` is not specified, then the type may be inferred from other
+           tags. e.g. if "http.url" is specified, then the type will be "request"
+           for transactions, and "ext.http" for spans. If no type can be inferred,
+           it is set to "unknown".
+
+The following tags are relevant only to root or service-entry spans, which are
+translated to Elastic APM transactions:
+
+- `user.id` - sets the user ID, which appears in the "User" tab in the transaction details in the Elastic APM UI
+- `user.email` - sets the user email, appears in the "User" tab in the transaction details in the Elastic APM UI
+- `user.username` - sets the user name, appears in the "User" tab in the transaction details in the Elastic APM UI
+- `result` - sets the result of the transaction. If `result` is _not_ specified, but `error` tag is set to `true`,
+             then the transaction result will be set to "error"
+
+[float]
+[[opentracing-caveats]]
+=== Caveats
+
+[float]
+[[opentracing-caveats-propagation]]
+==== Context Propagation
+
+We support the `TextMap` and `HTTPHeaders` propagation formats; `Binary` is not currently supported.
+
+[float]
+[[opentracing-caveats-spanrefs]]
+==== Span References
+
+We support only `ChildOf` references. Other references, e.g. `FollowsFrom`, are not currently supported.
+
+[float]
+[[opentracing-caveats-baggage]]
+==== Baggage
+
+`Span.SetBaggageItem` is a no-op; baggage items are silently dropped.
+
+[float]
+[[opentracing-caveats-logs]]
+==== Logs
+
+`Span.Log*` methods are no-ops; logs will be silently dropped.
+

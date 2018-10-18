@@ -7,11 +7,11 @@ import (
 	"os"
 	"unicode/utf8"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/stacktrace"
-
 	"github.com/aws/aws-lambda-go/lambda/messages"
 	"github.com/aws/aws-lambda-go/lambdacontext"
+
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/stacktrace"
 )
 
 const (
@@ -47,7 +47,7 @@ func init() {
 // by the aws-lambda-go package.
 type Function struct {
 	client *rpc.Client
-	tracer *elasticapm.Tracer
+	tracer *apm.Tracer
 }
 
 // Ping pings the function implementation.
@@ -60,7 +60,13 @@ func (f *Function) Invoke(req *messages.InvokeRequest, response *messages.Invoke
 	tx := f.tracer.StartTransaction(lambdacontext.FunctionName, "function")
 	defer f.tracer.Flush(nonBlocking)
 	defer tx.End()
-	defer f.tracer.Recover(tx)
+	defer func() {
+		if v := recover(); v != nil {
+			e := f.tracer.Recovered(v)
+			e.SetTransaction(tx)
+			e.Send()
+		}
+	}()
 	if tx.Sampled() {
 		tx.Context.SetCustom("lambda", &lambdaContext)
 	}
@@ -73,8 +79,8 @@ func (f *Function) Invoke(req *messages.InvokeRequest, response *messages.Invoke
 	err := f.client.Call("Function.Invoke", req, response)
 	if err != nil {
 		e := f.tracer.NewError(err)
+		e.SetTransaction(tx)
 		e.Context.SetCustom("lambda", &lambdaContext)
-		e.Transaction = tx
 		e.Send()
 		return err
 	}
@@ -84,8 +90,8 @@ func (f *Function) Invoke(req *messages.InvokeRequest, response *messages.Invoke
 	}
 	if response.Error != nil {
 		e := f.tracer.NewError(invokeResponseError{response.Error})
+		e.SetTransaction(tx)
 		e.Context.SetCustom("lambda", &lambdaContext)
-		e.Transaction = tx
 		e.Send()
 	}
 	return nil
@@ -138,7 +144,7 @@ func init() {
 	srv := rpc.NewServer()
 	srv.Register(&Function{
 		client: rpcClient,
-		tracer: elasticapm.DefaultTracer,
+		tracer: apm.DefaultTracer,
 	})
 	go srv.Accept(lis)
 

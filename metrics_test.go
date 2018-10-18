@@ -1,4 +1,4 @@
-package elasticapm_test
+package apm_test
 
 import (
 	"bytes"
@@ -14,9 +14,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/transport/transporttest"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/transport/transporttest"
 )
 
 func TestTracerMetricsBuiltin(t *testing.T) {
@@ -27,11 +27,7 @@ func TestTracerMetricsBuiltin(t *testing.T) {
 	tracer.SendMetrics(nil)
 
 	payloads := transport.Payloads()
-	require.Len(t, payloads, 1)
-
-	metrics := payloads[0].Metrics()
-	require.Len(t, metrics, 1)
-	builtinMetrics := metrics[0]
+	builtinMetrics := payloads.Metrics[0]
 
 	assert.Nil(t, builtinMetrics.Labels)
 	assert.NotEmpty(t, builtinMetrics.Timestamp)
@@ -72,12 +68,13 @@ func TestTracerMetricsBuiltin(t *testing.T) {
 		"system.process.memory.size",
 		"system.process.memory.rss.bytes",
 
+		"agent.send_errors",
+		"agent.spans.sent",
+		"agent.spans.dropped",
 		"agent.transactions.sent",
 		"agent.transactions.dropped",
-		"agent.transactions.send_errors",
 		"agent.errors.sent",
 		"agent.errors.dropped",
-		"agent.errors.send_errors",
 	}
 	sort.Strings(expected)
 	for name := range builtinMetrics.Samples {
@@ -96,17 +93,35 @@ func TestTracerMetricsBuiltin(t *testing.T) {
 	t.Logf("\n\n%s\n", buf.String())
 }
 
+func TestTracerMetricsInterval(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	interval := 1 * time.Second
+	tracer.SetMetricsInterval(interval)
+	before := time.Now()
+	deadline := before.Add(5 * time.Second)
+	for len(transport.Payloads().Metrics) == 0 {
+		if time.Now().After(deadline) {
+			t.Fatal("timed out waiting for metrics")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	after := time.Now()
+	assert.WithinDuration(t, before.Add(interval), after, 200*time.Millisecond)
+}
+
 func TestTracerMetricsGatherer(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
-	tracer.RegisterMetricsGatherer(elasticapm.GatherMetricsFunc(
-		func(ctx context.Context, m *elasticapm.Metrics) error {
-			m.Add("http.request", []elasticapm.MetricLabel{
+	tracer.RegisterMetricsGatherer(apm.GatherMetricsFunc(
+		func(ctx context.Context, m *apm.Metrics) error {
+			m.Add("http.request", []apm.MetricLabel{
 				{Name: "code", Value: "400"},
 				{Name: "path", Value: "/"},
 			}, 3)
-			m.Add("http.request", []elasticapm.MetricLabel{
+			m.Add("http.request", []apm.MetricLabel{
 				{Name: "code", Value: "200"},
 			}, 4)
 			return nil
@@ -115,28 +130,26 @@ func TestTracerMetricsGatherer(t *testing.T) {
 	tracer.SendMetrics(nil)
 
 	payloads := transport.Payloads()
-	require.Len(t, payloads, 1)
+	metrics1 := payloads.Metrics[1]
+	metrics2 := payloads.Metrics[2]
 
-	metrics := payloads[0].Metrics()
-	require.Len(t, metrics, 3)
-
-	assert.Equal(t, model.StringMap{{Key: "code", Value: "200"}}, metrics[1].Labels)
-	assert.Equal(t, map[string]model.Metric{"http.request": {Value: 4}}, metrics[1].Samples)
+	assert.Equal(t, model.StringMap{{Key: "code", Value: "200"}}, metrics1.Labels)
+	assert.Equal(t, map[string]model.Metric{"http.request": {Value: 4}}, metrics1.Samples)
 
 	assert.Equal(t, model.StringMap{
 		{Key: "code", Value: "400"},
 		{Key: "path", Value: "/"},
-	}, metrics[2].Labels)
-	assert.Equal(t, map[string]model.Metric{"http.request": {Value: 3}}, metrics[2].Samples)
+	}, metrics2.Labels)
+	assert.Equal(t, map[string]model.Metric{"http.request": {Value: 3}}, metrics2.Samples)
 }
 
 func TestTracerMetricsDeregister(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
-	g := elasticapm.GatherMetricsFunc(
-		func(ctx context.Context, m *elasticapm.Metrics) error {
-			m.Add("with_labels", []elasticapm.MetricLabel{
+	g := apm.GatherMetricsFunc(
+		func(ctx context.Context, m *apm.Metrics) error {
+			m.Add("with_labels", []apm.MetricLabel{
 				{Name: "code", Value: "200"},
 			}, 4)
 			return nil
@@ -148,9 +161,7 @@ func TestTracerMetricsDeregister(t *testing.T) {
 	tracer.SendMetrics(nil)
 
 	payloads := transport.Payloads()
-	require.Len(t, payloads, 1)
-
-	metrics := payloads[0].Metrics()
+	metrics := payloads.Metrics
 	require.Len(t, metrics, 1) // just the builtin/unlabeled metrics
 }
 

@@ -1,6 +1,6 @@
 package apmgrpc
 
-import "github.com/elastic/apm-agent-go/stacktrace"
+import "go.elastic.co/apm/stacktrace"
 
 func init() {
 	stacktrace.RegisterLibraryPackage(

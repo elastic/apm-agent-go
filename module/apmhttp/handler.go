@@ -4,13 +4,13 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/elastic/apm-agent-go"
+	"go.elastic.co/apm"
 )
 
 // Wrap returns an http.Handler wrapping h, reporting each request as
 // a transaction to Elastic APM.
 //
-// By default, the returned Handler will use elasticapm.DefaultTracer.
+// By default, the returned Handler will use apm.DefaultTracer.
 // Use WithTracer to specify an alternative tracer.
 //
 // By default, the returned Handler will recover panics, reporting
@@ -22,7 +22,7 @@ func Wrap(h http.Handler, o ...ServerOption) http.Handler {
 	}
 	handler := &handler{
 		handler:        h,
-		tracer:         elasticapm.DefaultTracer,
+		tracer:         apm.DefaultTracer,
 		requestName:    ServerRequestName,
 		requestIgnorer: DefaultServerRequestIgnorer(),
 	}
@@ -40,14 +40,14 @@ func Wrap(h http.Handler, o ...ServerOption) http.Handler {
 // The http.Request's context will be updated with the transaction.
 type handler struct {
 	handler        http.Handler
-	tracer         *elasticapm.Tracer
+	tracer         *apm.Tracer
 	recovery       RecoveryFunc
 	requestName    RequestNameFunc
 	requestIgnorer RequestIgnorerFunc
 }
 
 // ServeHTTP delegates to h.Handler, tracing the transaction with
-// h.Tracer, or elasticapm.DefaultTracer if h.Tracer is nil.
+// h.Tracer, or apm.DefaultTracer if h.Tracer is nil.
 func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if !h.tracer.Active() || h.requestIgnorer(req) {
 		h.handler.ServeHTTP(w, req)
@@ -56,18 +56,15 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	tx, req := StartTransaction(h.tracer, h.requestName(req), req)
 	defer tx.End()
 
-	finished := false
 	body := h.tracer.CaptureHTTPRequestBody(req)
 	w, resp := WrapResponseWriter(w)
 	defer func() {
 		if v := recover(); v != nil {
-			h.recovery(w, req, body, tx, v)
-			finished = true
+			h.recovery(w, req, resp, body, tx, v)
 		}
-		SetTransactionContext(tx, req, resp, body, finished)
+		SetTransactionContext(tx, req, resp, body)
 	}()
 	h.handler.ServeHTTP(w, req)
-	finished = true
 }
 
 // StartTransaction returns a new Transaction with name,
@@ -75,8 +72,8 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 //
 // If the transaction is not ignored, the request will be
 // returned with the transaction added to its context.
-func StartTransaction(tracer *elasticapm.Tracer, name string, req *http.Request) (*elasticapm.Transaction, *http.Request) {
-	var opts elasticapm.TransactionOptions
+func StartTransaction(tracer *apm.Tracer, name string, req *http.Request) (*apm.Transaction, *http.Request) {
+	var opts apm.TransactionOptions
 	if v := req.Header.Get(TraceparentHeader); v != "" {
 		c, err := ParseTraceparentHeader(v)
 		if err == nil {
@@ -84,41 +81,26 @@ func StartTransaction(tracer *elasticapm.Tracer, name string, req *http.Request)
 		}
 	}
 	tx := tracer.StartTransactionOptions(name, "request", opts)
-	ctx := elasticapm.ContextWithTransaction(req.Context(), tx)
+	ctx := apm.ContextWithTransaction(req.Context(), tx)
 	req = RequestWithContext(ctx, req)
 	return tx, req
 }
 
 // SetTransactionContext sets tx.Result and, if the transaction is being
 // sampled, sets tx.Context with information from req, resp, and finished.
-//
-// The finished property indicates that the response was not completely
-// written, e.g. because the handler panicked and we did not recover the
-// panic.
-func SetTransactionContext(tx *elasticapm.Transaction, req *http.Request, resp *Response, body *elasticapm.BodyCapturer, finished bool) {
+func SetTransactionContext(tx *apm.Transaction, req *http.Request, resp *Response, body *apm.BodyCapturer) {
 	tx.Result = StatusCodeResult(resp.StatusCode)
 	if !tx.Sampled() {
 		return
 	}
-	tx.Context.SetHTTPRequest(req)
-	tx.Context.SetHTTPRequestBody(body)
-	tx.Context.SetHTTPStatusCode(resp.StatusCode)
-	tx.Context.SetHTTPResponseHeaders(resp.Headers)
+	setContext(&tx.Context, req, resp, body)
+}
 
-	if finished {
-		// Responses are always "finished" unless the handler panics
-		// and it is not recovered. Since we can't tell whether a panic
-		// will be recovered up the stack (but before reaching the
-		// net/http server code), we omit the Finished context if we
-		// don't know for sure it finished.
-		tx.Context.SetHTTPResponseFinished(finished)
-	}
-	if resp.HeadersWritten || len(resp.Headers) != 0 {
-		// We only set headers_sent if we know for sure
-		// that headers have been sent. Otherwise we
-		// leave it to indicate that we don't know.
-		tx.Context.SetHTTPResponseHeadersSent(resp.HeadersWritten)
-	}
+func setContext(ctx *apm.Context, req *http.Request, resp *Response, body *apm.BodyCapturer) {
+	ctx.SetHTTPRequest(req)
+	ctx.SetHTTPRequestBody(body)
+	ctx.SetHTTPStatusCode(resp.StatusCode)
+	ctx.SetHTTPResponseHeaders(resp.Headers)
 }
 
 // WrapResponseWriter wraps an http.ResponseWriter and returns the wrapped
@@ -169,9 +151,6 @@ type Response struct {
 
 	// Headers holds the headers set in the ResponseWriter.
 	Headers http.Header
-
-	// HeadersWritten records whether or not headers were written.
-	HeadersWritten bool
 }
 
 type responseWriter struct {
@@ -185,15 +164,6 @@ type responseWriter struct {
 func (w *responseWriter) WriteHeader(statusCode int) {
 	w.ResponseWriter.WriteHeader(statusCode)
 	w.resp.StatusCode = statusCode
-	w.resp.HeadersWritten = len(w.ResponseWriter.Header()) != 0
-}
-
-// Write sets w.resp.HeadersWritten if there are any headers set on the
-// ResponseWriter, and calls through to the embedded ResponseWriter.
-func (w *responseWriter) Write(data []byte) (int, error) {
-	n, err := w.ResponseWriter.Write(data)
-	w.resp.HeadersWritten = len(w.ResponseWriter.Header()) != 0
-	return n, err
 }
 
 // CloseNotify returns w.closeNotify() if w.closeNotify is non-nil,
@@ -234,7 +204,7 @@ type ServerOption func(*handler)
 
 // WithTracer returns a ServerOption which sets t as the tracer
 // to use for tracing server requests.
-func WithTracer(t *elasticapm.Tracer) ServerOption {
+func WithTracer(t *apm.Tracer) ServerOption {
 	if t == nil {
 		panic("t == nil")
 	}

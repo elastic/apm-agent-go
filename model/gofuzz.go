@@ -6,8 +6,8 @@ import (
 	"bytes"
 	"encoding/json"
 
-	"github.com/elastic/apm-agent-go/internal/apmschema"
-	"github.com/elastic/apm-agent-go/internal/fastjson"
+	"go.elastic.co/apm/internal/apmschema"
+	"go.elastic.co/apm/internal/fastjson"
 )
 
 func Fuzz(data []byte) int {

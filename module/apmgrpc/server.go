@@ -7,7 +7,7 @@ import (
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 
-	"github.com/elastic/apm-agent-go"
+	"go.elastic.co/apm"
 )
 
 // NewUnaryServerInterceptor returns a grpc.UnaryServerInterceptor that
@@ -15,14 +15,14 @@ import (
 //
 // The interceptor will trace transactions with the "grpc" type for each
 // incoming request. The transaction will be added to the context, so
-// server methods can use elasticapm.StartSpan with the provided context.
+// server methods can use apm.StartSpan with the provided context.
 //
-// By default, the interceptor will trace with elasticapm.DefaultTracer,
+// By default, the interceptor will trace with apm.DefaultTracer,
 // and will not recover any panics. Use WithTracer to specify an
 // alternative tracer, and WithRecovery to enable panic recovery.
 func NewUnaryServerInterceptor(o ...ServerOption) grpc.UnaryServerInterceptor {
 	opts := serverOptions{
-		tracer:  elasticapm.DefaultTracer,
+		tracer:  apm.DefaultTracer,
 		recover: false,
 	}
 	for _, o := range o {
@@ -38,8 +38,9 @@ func NewUnaryServerInterceptor(o ...ServerOption) grpc.UnaryServerInterceptor {
 			return handler(ctx, req)
 		}
 		tx := opts.tracer.StartTransaction(info.FullMethod, "grpc")
-		ctx = elasticapm.ContextWithTransaction(ctx, tx)
+		ctx = apm.ContextWithTransaction(ctx, tx)
 		defer tx.End()
+		tx.Context.SetFramework("grpc", grpc.Version)
 
 		if tx.Sampled() {
 			p, ok := peer.FromContext(ctx)
@@ -59,7 +60,9 @@ func NewUnaryServerInterceptor(o ...ServerOption) grpc.UnaryServerInterceptor {
 		defer func() {
 			r := recover()
 			if r != nil {
-				e := opts.tracer.Recovered(r, tx)
+				e := opts.tracer.Recovered(r)
+				e.SetTransaction(tx)
+				e.Context.SetFramework("grpc", grpc.Version)
 				e.Handled = opts.recover
 				e.Send()
 				if opts.recover {
@@ -86,7 +89,7 @@ func NewUnaryServerInterceptor(o ...ServerOption) grpc.UnaryServerInterceptor {
 }
 
 type serverOptions struct {
-	tracer  *elasticapm.Tracer
+	tracer  *apm.Tracer
 	recover bool
 }
 
@@ -95,7 +98,7 @@ type ServerOption func(*serverOptions)
 
 // WithTracer returns a ServerOption which sets t as the tracer
 // to use for tracing server requests.
-func WithTracer(t *elasticapm.Tracer) ServerOption {
+func WithTracer(t *apm.Tracer) ServerOption {
 	if t == nil {
 		panic("t == nil")
 	}

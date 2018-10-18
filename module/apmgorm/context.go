@@ -8,9 +8,9 @@ import (
 
 	"github.com/jinzhu/gorm"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/internal/sqlutil"
-	"github.com/elastic/apm-agent-go/module/apmsql"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/internal/sqlutil"
+	"go.elastic.co/apm/module/apmsql"
 )
 
 const (
@@ -91,7 +91,7 @@ func newBeforeCallback(spanType string) func(*gorm.Scope) {
 		if !ok {
 			return
 		}
-		span, ctx := elasticapm.StartSpan(ctx, "", spanType)
+		span, ctx := apm.StartSpan(ctx, "", spanType)
 		if span.Dropped() {
 			span.End()
 			ctx = nil
@@ -106,12 +106,12 @@ func newAfterCallback(dsnInfo apmsql.DSNInfo) func(*gorm.Scope) {
 		if !ok {
 			return
 		}
-		span := elasticapm.SpanFromContext(ctx)
+		span := apm.SpanFromContext(ctx)
 		if span == nil {
 			return
 		}
 		span.Name = sqlutil.QuerySignature(scope.SQL)
-		span.Context.SetDatabase(elasticapm.DatabaseSpanContext{
+		span.Context.SetDatabase(apm.DatabaseSpanContext{
 			Instance:  dsnInfo.Database,
 			Statement: scope.SQL,
 			Type:      "sql",
@@ -124,7 +124,7 @@ func newAfterCallback(dsnInfo apmsql.DSNInfo) func(*gorm.Scope) {
 			if gorm.IsRecordNotFoundError(err) {
 				continue
 			}
-			if e := elasticapm.CaptureError(ctx, err); e != nil {
+			if e := apm.CaptureError(ctx, err); e != nil {
 				e.Send()
 			}
 		}

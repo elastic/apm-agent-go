@@ -1,11 +1,12 @@
 package apmhttp
 
 import (
-	"fmt"
 	"net/http"
-	"os"
 	"regexp"
 	"sync"
+
+	"go.elastic.co/apm/internal/apmconfig"
+	"go.elastic.co/apm/internal/wildcard"
 )
 
 const (
@@ -18,17 +19,14 @@ var (
 )
 
 // DefaultServerRequestIgnorer returns the default RequestIgnorer to use in
-// handlers. If ELASTIC_APM_IGNORE_URLS is set to a valid regular expression,
-// then it will be used to ignore matching requests; otherwise none are ignored.
+// handlers. If ELASTIC_APM_IGNORE_URLS is set, it will be treated as a
+// comma-separated list of wildcard patterns; requests that match any of the
+// patterns will be ignored.
 func DefaultServerRequestIgnorer() RequestIgnorerFunc {
 	defaultServerRequestIgnorerOnce.Do(func() {
-		value := os.Getenv(envIgnoreURLs)
-		if value == "" {
-			return
-		}
-		re, err := regexp.Compile(fmt.Sprintf("(?i:%s)", value))
-		if err == nil {
-			defaultServerRequestIgnorer = NewRegexpRequestIgnorer(re)
+		matchers := apmconfig.ParseWildcardPatternsEnv(envIgnoreURLs, nil)
+		if len(matchers) != 0 {
+			defaultServerRequestIgnorer = NewWildcardPatternsRequestIgnorer(matchers)
 		}
 	})
 	return defaultServerRequestIgnorer
@@ -43,8 +41,20 @@ func NewRegexpRequestIgnorer(re *regexp.Regexp) RequestIgnorerFunc {
 		panic("re == nil")
 	}
 	return func(r *http.Request) bool {
-		fmt.Println(re.String(), r.URL.String(), re.MatchString(r.URL.String()))
 		return re.MatchString(r.URL.String())
+	}
+}
+
+// NewWildcardPatternsRequestIgnorer returns a RequestIgnorerFunc which matches
+// requests' URLs against any of the matchers. Note that for server requests,
+// typically only Path and possibly RawQuery will be set, so the wildcard patterns
+// should take this into account.
+func NewWildcardPatternsRequestIgnorer(matchers wildcard.Matchers) RequestIgnorerFunc {
+	if len(matchers) == 0 {
+		panic("len(matchers) == 0")
+	}
+	return func(r *http.Request) bool {
+		return matchers.MatchAny(r.URL.String())
 	}
 }
 

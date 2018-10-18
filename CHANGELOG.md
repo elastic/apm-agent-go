@@ -2,6 +2,26 @@
 
 ## [Unreleased](https://github.com/elastic/apm-agent-go/compare/v0.5.2...master)
 
+ - Implement v2 intake protocol (#180)
+ - Unexport Transaction.Timestamp and Span.Timestamp (#207)
+ - Add jitter (+/-10%) to backoff on transport error (#212)
+ - Add support for span tags (#213)
+ - Require units for size configuration (#223)
+ - Require units for duration configuration (#211)
+ - Add support for multiple server URLs with failover (#233)
+ - Add support for mixing OpenTracing spans with native transactions/spans (#235)
+ - Drop SetHTTPResponseHeadersSent and SetHTTPResponseFinished methods from Context (#238)
+ - Stop setting custom context (gin.handler) in apmgin (#238)
+ - Set response context in errors reported by web modules (#238)
+ - module/apmredigo: introduce gomodule/redigo instrumentation (#248)
+ - Update Sampler interface to take TraceContext (#243)
+ - Truncate all strings to a maximum of 10000 chars (#244)
+ - Add leading slash to URLs in transaction/span context (#250)
+ - Add `Transaction.Context` method for setting framework (#252)
+ - Timestamps are now reported as usec since epoch, spans no longer use "start" offset (#257)
+ - `ELASTIC_APM_SANITIZE_FIELD_NAMES` and `ELASTIC_APM_IGNORE_URLS` now use wildcard matching (#260)
+ - Changed top-level package name to "apm", and canonical import path to "go.elastic.co/apm" (#202)
+
 ## [v0.5.2](https://github.com/elastic/apm-agent-go/releases/tag/v0.5.2)
 
  - Fixed premature Span.End() in apmgorm callback, causing a data-race with captured errors (#229)
