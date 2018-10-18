@@ -10,24 +10,14 @@ import (
 )
 
 func TestStartTransactionTraceContextOptions(t *testing.T) {
-	traceContext := startTransactionTraceContextOptions(t, false, false)
-	assert.False(t, traceContext.Options.Requested())
-	assert.False(t, traceContext.Options.MaybeRecorded())
+	traceContext := startTransactionTraceContextOptions(t, false)
+	assert.False(t, traceContext.Options.Recorded())
 
-	traceContext = startTransactionTraceContextOptions(t, false, true)
-	assert.False(t, traceContext.Options.Requested())
-	assert.False(t, traceContext.Options.MaybeRecorded())
-
-	traceContext = startTransactionTraceContextOptions(t, true, false)
-	assert.True(t, traceContext.Options.Requested())
-	assert.True(t, traceContext.Options.MaybeRecorded())
-
-	traceContext = startTransactionTraceContextOptions(t, true, true)
-	assert.True(t, traceContext.Options.Requested())
-	assert.True(t, traceContext.Options.MaybeRecorded())
+	traceContext = startTransactionTraceContextOptions(t, true)
+	assert.True(t, traceContext.Options.Recorded())
 }
 
-func startTransactionTraceContextOptions(t *testing.T, requested, maybeRecorded bool) apm.TraceContext {
+func startTransactionTraceContextOptions(t *testing.T, recorded bool) apm.TraceContext {
 	tracer, _ := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 	tracer.SetSampler(samplerFunc(func(apm.TraceContext) bool {
@@ -40,8 +30,7 @@ func startTransactionTraceContextOptions(t *testing.T, requested, maybeRecorded 
 			Span:  apm.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
 		},
 	}
-	opts.TraceContext.Options = opts.TraceContext.Options.WithRequested(requested)
-	opts.TraceContext.Options = opts.TraceContext.Options.WithMaybeRecorded(maybeRecorded)
+	opts.TraceContext.Options = opts.TraceContext.Options.WithRecorded(recorded)
 
 	tx := tracer.StartTransactionOptions("name", "type", opts)
 	result := tx.TraceContext()

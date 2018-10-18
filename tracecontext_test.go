@@ -26,21 +26,13 @@ func TestSpanID(t *testing.T) {
 
 func TestTraceOptions(t *testing.T) {
 	opts := apm.TraceOptions(0xFE)
-	assert.False(t, opts.Requested())
-	assert.True(t, opts.MaybeRecorded())
+	assert.False(t, opts.Recorded())
 
-	opts = opts.WithRequested(true)
-	assert.True(t, opts.Requested())
-	assert.True(t, opts.MaybeRecorded())
+	opts = opts.WithRecorded(true)
+	assert.True(t, opts.Recorded())
 	assert.Equal(t, apm.TraceOptions(0xFF), opts)
 
-	opts = opts.WithRequested(false)
-	assert.False(t, opts.Requested())
-	assert.True(t, opts.MaybeRecorded())
+	opts = opts.WithRecorded(false)
+	assert.False(t, opts.Recorded())
 	assert.Equal(t, apm.TraceOptions(0xFE), opts)
-
-	opts = opts.WithMaybeRecorded(false)
-	assert.False(t, opts.Requested())
-	assert.False(t, opts.MaybeRecorded())
-	assert.Equal(t, apm.TraceOptions(0xFC), opts)
 }
