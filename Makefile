@@ -40,6 +40,10 @@ test:
 coverage:
 	@sh scripts/test_coverage.sh
 
+.PHONY: fmt
+fmt:
+	@GOIMPORTSFLAGS=-w sh scripts/goimports.sh
+
 .PHONY: clean
 clean:
 	rm -fr docs/html
