@@ -67,9 +67,8 @@ func (f *Function) Invoke(req *messages.InvokeRequest, response *messages.Invoke
 			e.Send()
 		}
 	}()
-	if tx.Sampled() {
-		tx.Context.SetCustom("lambda", &lambdaContext)
-	}
+
+	// TODO(axw) define a schema for lambda/serverless/FaaS.
 
 	lambdaContext.RequestID = req.RequestId
 	lambdaContext.XAmznTraceID = req.XAmznTraceId
@@ -80,7 +79,6 @@ func (f *Function) Invoke(req *messages.InvokeRequest, response *messages.Invoke
 	if err != nil {
 		e := f.tracer.NewError(err)
 		e.SetTransaction(tx)
-		e.Context.SetCustom("lambda", &lambdaContext)
 		e.Send()
 		return err
 	}
@@ -91,7 +89,6 @@ func (f *Function) Invoke(req *messages.InvokeRequest, response *messages.Invoke
 	if response.Error != nil {
 		e := f.tracer.NewError(invokeResponseError{response.Error})
 		e.SetTransaction(tx)
-		e.Context.SetCustom("lambda", &lambdaContext)
 		e.Send()
 	}
 	return nil

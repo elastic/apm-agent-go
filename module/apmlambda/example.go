@@ -3,7 +3,7 @@
 package main
 
 import (
-	"context" // Trace lambda function invocations.
+	"context"
 
 	"github.com/aws/aws-lambda-go/lambda"
 
