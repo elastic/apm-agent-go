@@ -21,6 +21,7 @@
  - Timestamps are now reported as usec since epoch, spans no longer use "start" offset (#257)
  - `ELASTIC_APM_SANITIZE_FIELD_NAMES` and `ELASTIC_APM_IGNORE_URLS` now use wildcard matching (#260)
  - Changed top-level package name to "apm", and canonical import path to "go.elastic.co/apm" (#202)
+ - module/apmrestful: introduce emicklei/go-restful instrumentation (#270)
 
 ## [v0.5.2](https://github.com/elastic/apm-agent-go/releases/tag/v0.5.2)
 

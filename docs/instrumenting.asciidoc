@@ -295,9 +295,9 @@ used, and the context includes a transaction.
 
 [[builtin-modules-apmgorm]]
 ===== module/apmgorm
-Package apmgorm provides a means of instrumenting [gorm](http://gorm.io) database operations.
+Package apmgorm provides a means of instrumenting http://gorm.io[GORM] database operations.
 
-To trace GORM operations, import the appropriate `apmgorm/dialects` package (instead of the
+To trace `GORM` operations, import the appropriate `apmgorm/dialects` package (instead of the
 `gorm/dialects` package), and use `apmgorm.Open` (instead of `gorm.Open`). The parameters are
 exactly the same.
 
@@ -388,6 +388,37 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
 	// transaction.
 	conn := apmredigo.Wrap(redisPool.Get()).WithContext(req.Context())
 	defer conn.Close()
+	...
+}
+----
+
+[[builtin-modules-apmrestful]]
+===== module/apmrestful
+Package apmrestful provides a https://github.com/emicklei/go-restful[go-restful] filter
+for tracing requests, and capturing panics.
+
+For each request, a transaction is stored in the request context, which can be obtained via
+https://golang.org/pkg/net/http/#Request[http.Request]`.Context()` in your handler.
+
+[source,go]
+----
+import (
+	"github.com/emicklei/go-restful"
+
+	"go.elastic.co/apm/module/apmrestful"
+)
+
+func init() {
+	// Trace all requests to web services registered with the default container.
+	restful.Filter(apmrestful.Filter())
+}
+
+func main() {
+	var ws restful.WebService
+	ws.Path("/things").Consumes(restful.MIME_JSON, restful.MIME_XML).Produces(restful.MIME_JSON, restful.MIME_XML)
+	ws.Route(ws.GET("/{id:[0-1]+}").To(func(req *restful.Request, resp *restful.Response) {
+		// req.Request.Context() should be propagated to downstream operations such as database queries.
+	}))
 	...
 }
 ----

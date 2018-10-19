@@ -70,6 +70,15 @@ See <<builtin-modules-apmgorilla, module/apmgorilla>> for more information
 about gorilla/mux instrumentation.
 
 [float]
+==== go-restful
+
+We support https://github.com/emicklei/go-restful[go-restful],
+https://github.com/emicklei/go-restful/releases/tag/2.0.0[2.0.0] and greater.
+
+See <<builtin-modules-apmrestful, module/apmrestful>> for more information
+about go-restful instrumentation.
+
+[float]
 [[supported-tech-databases]]
 === Databases
 
