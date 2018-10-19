@@ -4,7 +4,6 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 
 	"go.elastic.co/apm"
@@ -42,20 +41,8 @@ func NewUnaryServerInterceptor(o ...ServerOption) grpc.UnaryServerInterceptor {
 		defer tx.End()
 		tx.Context.SetFramework("grpc", grpc.Version)
 
-		if tx.Sampled() {
-			p, ok := peer.FromContext(ctx)
-			if ok {
-				grpcContext := map[string]interface{}{
-					"peer.address": p.Addr.String(),
-				}
-				if p.AuthInfo != nil {
-					grpcContext["auth"] = map[string]interface{}{
-						"type": p.AuthInfo.AuthType(),
-					}
-				}
-				tx.Context.SetCustom("grpc", grpcContext)
-			}
-		}
+		// TODO(axw) define context schema for RPC,
+		// including at least the peer address.
 
 		defer func() {
 			r := recover()
