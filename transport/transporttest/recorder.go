@@ -35,6 +35,13 @@ type RecorderTransport struct {
 	payloads Payloads
 }
 
+// ResetPayloads clears out any recorded payloads.
+func (r *RecorderTransport) ResetPayloads() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.payloads = Payloads{}
+}
+
 // SendStream records the stream such that it can later be obtained via Payloads.
 func (r *RecorderTransport) SendStream(ctx context.Context, stream io.Reader) error {
 	return r.record(stream)
