@@ -11,7 +11,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 
+	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/module/apmgin"
 	"go.elastic.co/apm/transport/transporttest"
@@ -23,6 +25,23 @@ var (
 
 func init() {
 	log.SetOutput(&debugOutput)
+}
+
+func TestMiddlewareHTTPSuite(t *testing.T) {
+	tracer, recorder := transporttest.NewRecorderTracer()
+	e := gin.New()
+	e.Use(apmgin.Middleware(e, apmgin.WithTracer(tracer)))
+	e.GET("/implicit_write", func(c *gin.Context) {})
+	e.GET("/panic_before_write", func(c *gin.Context) { panic("boom") })
+	e.GET("/panic_after_write", func(c *gin.Context) {
+		c.String(200, "hello, world")
+		panic("boom")
+	})
+	suite.Run(t, &apmtest.HTTPTestSuite{
+		Handler:  e,
+		Tracer:   tracer,
+		Recorder: recorder,
+	})
 }
 
 func TestMiddleware(t *testing.T) {

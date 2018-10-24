@@ -10,12 +10,37 @@ import (
 	"github.com/emicklei/go-restful"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 
 	"go.elastic.co/apm"
+	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/module/apmrestful"
 	"go.elastic.co/apm/transport/transporttest"
 )
+
+func TestHandlerHTTPSuite(t *testing.T) {
+	tracer, recorder := transporttest.NewRecorderTracer()
+	var ws restful.WebService
+	ws.Path("/").Consumes(restful.MIME_JSON, restful.MIME_XML).Produces(restful.MIME_JSON, restful.MIME_XML)
+	ws.Route(ws.GET("/implicit_write").To(func(req *restful.Request, resp *restful.Response) {}))
+	ws.Route(ws.GET("/panic_before_write").To(func(req *restful.Request, resp *restful.Response) {
+		panic("boom")
+	}))
+	ws.Route(ws.GET("/panic_after_write").To(func(req *restful.Request, resp *restful.Response) {
+		resp.Write([]byte("hello, world"))
+		panic("boom")
+	}))
+	container := restful.NewContainer()
+	container.Add(&ws)
+	container.Filter(apmrestful.Filter(apmrestful.WithTracer(tracer)))
+
+	suite.Run(t, &apmtest.HTTPTestSuite{
+		Handler:  container,
+		Tracer:   tracer,
+		Recorder: recorder,
+	})
+}
 
 func TestContainerFilter(t *testing.T) {
 	type Thing struct {
@@ -111,12 +136,14 @@ func TestContainerFilterPanic(t *testing.T) {
 	resp, err := http.Get(server.URL + "/things/123/foo")
 	require.NoError(t, err)
 	require.NoError(t, resp.Body.Close())
+	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
 	tracer.Flush(nil)
 
 	payloads := transport.Payloads()
 	require.Len(t, payloads.Transactions, 1)
 	require.Len(t, payloads.Errors, 1)
 	panicError := payloads.Errors[0]
+	assert.Equal(t, payloads.Transactions[0].Context.Service, panicError.Context.Service)
 	assert.Equal(t, payloads.Transactions[0].ID, panicError.ParentID)
 	assert.Equal(t, "kablamo", panicError.Exception.Message)
 	assert.Equal(t, "handlePanic", panicError.Culprit)

@@ -10,11 +10,30 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 
+	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/module/apmecho"
 	"go.elastic.co/apm/transport/transporttest"
 )
+
+func TestMiddlewareHTTPSuite(t *testing.T) {
+	tracer, recorder := transporttest.NewRecorderTracer()
+	e := echo.New()
+	e.Use(apmecho.Middleware(apmecho.WithTracer(tracer)))
+	e.GET("/implicit_write", func(c echo.Context) error { return nil })
+	e.GET("/panic_before_write", func(c echo.Context) error { panic("boom") })
+	e.GET("/panic_after_write", func(c echo.Context) error {
+		c.String(200, "hello, world")
+		panic("boom")
+	})
+	suite.Run(t, &apmtest.HTTPTestSuite{
+		Handler:  e,
+		Tracer:   tracer,
+		Recorder: recorder,
+	})
+}
 
 func TestEchoMiddleware(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()

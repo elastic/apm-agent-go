@@ -60,11 +60,17 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	w, resp := WrapResponseWriter(w)
 	defer func() {
 		if v := recover(); v != nil {
+			if resp.StatusCode == 0 {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
 			h.recovery(w, req, resp, body, tx, v)
 		}
 		SetTransactionContext(tx, req, resp, body)
 	}()
 	h.handler.ServeHTTP(w, req)
+	if resp.StatusCode == 0 {
+		resp.StatusCode = http.StatusOK
+	}
 }
 
 // StartTransaction returns a new Transaction with name,
@@ -87,16 +93,18 @@ func StartTransaction(tracer *apm.Tracer, name string, req *http.Request) (*apm.
 }
 
 // SetTransactionContext sets tx.Result and, if the transaction is being
-// sampled, sets tx.Context with information from req, resp, and finished.
+// sampled, sets tx.Context with information from req, resp, and body.
 func SetTransactionContext(tx *apm.Transaction, req *http.Request, resp *Response, body *apm.BodyCapturer) {
 	tx.Result = StatusCodeResult(resp.StatusCode)
 	if !tx.Sampled() {
 		return
 	}
-	setContext(&tx.Context, req, resp, body)
+	SetContext(&tx.Context, req, resp, body)
 }
 
-func setContext(ctx *apm.Context, req *http.Request, resp *Response, body *apm.BodyCapturer) {
+// SetContext sets the context for a transaction or error using information
+// from req, resp, and body.
+func SetContext(ctx *apm.Context, req *http.Request, resp *Response, body *apm.BodyCapturer) {
 	ctx.SetHTTPRequest(req)
 	ctx.SetHTTPRequestBody(body)
 	ctx.SetHTTPStatusCode(resp.StatusCode)
@@ -106,7 +114,9 @@ func setContext(ctx *apm.Context, req *http.Request, resp *Response, body *apm.B
 // WrapResponseWriter wraps an http.ResponseWriter and returns the wrapped
 // value along with a *Response which will be filled in when the handler
 // is called. The *Response value must not be inspected until after the
-// request has been handled, to avoid data races.
+// request has been handled, to avoid data races. If neither of the
+// ResponseWriter's Write or WriteHeader methods are called, then the
+// response's StatusCode field will be zero.
 //
 // The returned http.ResponseWriter implements http.Pusher and http.Hijacker
 // if and only if the provided http.ResponseWriter does.
@@ -114,8 +124,7 @@ func WrapResponseWriter(w http.ResponseWriter) (http.ResponseWriter, *Response) 
 	rw := responseWriter{
 		ResponseWriter: w,
 		resp: Response{
-			StatusCode: http.StatusOK,
-			Headers:    w.Header(),
+			Headers: w.Header(),
 		},
 	}
 	h, _ := w.(http.Hijacker)
@@ -158,12 +167,22 @@ type responseWriter struct {
 	resp Response
 }
 
-// WriteHeader sets w.resp.StatusCode, and w.resp.HeadersWritten if there
-// are any headers set on the ResponseWriter, and calls through to the
-// embedded ResponseWriter.
+// WriteHeader sets w.resp.StatusCode and calls through to the embedded
+// ResponseWriter.
 func (w *responseWriter) WriteHeader(statusCode int) {
 	w.ResponseWriter.WriteHeader(statusCode)
 	w.resp.StatusCode = statusCode
+}
+
+// Write calls through to the embedded ResponseWriter, setting
+// w.resp.StatusCode to http.StatusOK if WriteHeader has not already
+// been called.
+func (w *responseWriter) Write(data []byte) (int, error) {
+	n, err := w.ResponseWriter.Write(data)
+	if w.resp.StatusCode == 0 {
+		w.resp.StatusCode = http.StatusOK
+	}
+	return n, err
 }
 
 // CloseNotify returns w.closeNotify() if w.closeNotify is non-nil,
