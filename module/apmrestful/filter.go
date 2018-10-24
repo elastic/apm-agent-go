@@ -45,29 +45,33 @@ func (f *filter) filter(req *restful.Request, resp *restful.Response, chain *res
 	req.Request = httpRequest
 	body := f.tracer.CaptureHTTPRequestBody(httpRequest)
 
+	const frameworkName = "go-restful"
+	const frameworkVersion = ""
+	if tx.Sampled() {
+		tx.Context.SetFramework(frameworkName, frameworkVersion)
+	}
+
+	origResponseWriter := resp.ResponseWriter
+	w, httpResp := apmhttp.WrapResponseWriter(origResponseWriter)
+	resp.ResponseWriter = w
 	defer func() {
+		resp.ResponseWriter = origResponseWriter
 		if v := recover(); v != nil {
+			if httpResp.StatusCode == 0 {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
 			e := f.tracer.Recovered(v)
 			e.SetTransaction(tx)
-			setContext(&e.Context, req, resp, body)
+			apmhttp.SetContext(&e.Context, req.Request, httpResp, body)
+			e.Context.SetFramework(frameworkName, frameworkVersion)
 			e.Send()
-			resp.WriteHeader(http.StatusInternalServerError)
 		}
+		apmhttp.SetTransactionContext(tx, req.Request, httpResp, body)
 	}()
 	chain.ProcessFilter(req, resp)
-
-	tx.Result = apmhttp.StatusCodeResult(resp.StatusCode())
-	if tx.Sampled() {
-		setContext(&tx.Context, req, resp, body)
+	if httpResp.StatusCode == 0 {
+		httpResp.StatusCode = http.StatusOK
 	}
-}
-
-func setContext(ctx *apm.Context, req *restful.Request, resp *restful.Response, body *apm.BodyCapturer) {
-	ctx.SetFramework("go-restful", "")
-	ctx.SetHTTPRequest(req.Request)
-	ctx.SetHTTPRequestBody(body)
-	ctx.SetHTTPStatusCode(resp.StatusCode())
-	ctx.SetHTTPResponseHeaders(resp.Header())
 }
 
 type options struct {

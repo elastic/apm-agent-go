@@ -41,11 +41,17 @@ func Wrap(h httprouter.Handle, route string, o ...Option) httprouter.Handle {
 		w, resp := apmhttp.WrapResponseWriter(w)
 		defer func() {
 			if v := recover(); v != nil {
+				if resp.StatusCode == 0 {
+					w.WriteHeader(http.StatusInternalServerError)
+				}
 				opts.recovery(w, req, resp, body, tx, v)
 			}
 			apmhttp.SetTransactionContext(tx, req, resp, body)
 		}()
 		h(w, req, p)
+		if resp.StatusCode == 0 {
+			resp.StatusCode = http.StatusOK
+		}
 	}
 }
 

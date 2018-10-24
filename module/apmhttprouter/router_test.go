@@ -8,11 +8,31 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 
+	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/module/apmhttprouter"
 	"go.elastic.co/apm/transport/transporttest"
 )
+
+func TestRouterHTTPSuite(t *testing.T) {
+	tracer, recorder := transporttest.NewRecorderTracer()
+	router := apmhttprouter.New(apmhttprouter.WithTracer(tracer))
+	router.GET("/implicit_write", func(http.ResponseWriter, *http.Request, httprouter.Params) {})
+	router.GET("/panic_before_write", func(http.ResponseWriter, *http.Request, httprouter.Params) {
+		panic("boom")
+	})
+	router.GET("/panic_after_write", func(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+		w.Write([]byte("hello, world"))
+		panic("boom")
+	})
+	suite.Run(t, &apmtest.HTTPTestSuite{
+		Handler:  router,
+		Tracer:   tracer,
+		Recorder: recorder,
+	})
+}
 
 func TestRouter(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()

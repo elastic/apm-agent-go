@@ -55,44 +55,46 @@ func (m *middleware) handle(c echo.Context) error {
 	body := m.tracer.CaptureHTTPRequestBody(req)
 
 	resp := c.Response()
+	var handlerErr error
 	defer func() {
 		if v := recover(); v != nil {
-			e := m.tracer.Recovered(v)
-			e.SetTransaction(tx)
-			setContext(&e.Context, req, resp, body)
 			err, ok := v.(error)
 			if !ok {
 				err = errors.New(fmt.Sprint(v))
 			}
-			e.Send()
 			c.Error(err)
+
+			e := m.tracer.Recovered(v)
+			e.SetTransaction(tx)
+			setContext(&e.Context, req, resp, body)
+			e.Send()
+		}
+		if handlerErr != nil {
+			e := m.tracer.NewError(handlerErr)
+			setContext(&e.Context, req, resp, body)
+			e.SetTransaction(tx)
+			e.Handled = true
+			e.Send()
+		}
+		tx.Result = apmhttp.StatusCodeResult(resp.Status)
+		if tx.Sampled() {
+			setContext(&tx.Context, req, resp, body)
 		}
 	}()
 
-	handlerErr := m.handler(c)
-	tx.Result = apmhttp.StatusCodeResult(resp.Status)
-	if tx.Sampled() {
-		setContext(&tx.Context, req, resp, body)
+	handlerErr = m.handler(c)
+	if handlerErr == nil && !resp.Committed {
+		resp.WriteHeader(http.StatusOK)
 	}
-	if handlerErr != nil {
-		e := m.tracer.NewError(handlerErr)
-		setContext(&e.Context, req, resp, body)
-		e.SetTransaction(tx)
-		e.Handled = true
-		e.Send()
-		return handlerErr
-	}
-	return nil
+	return handlerErr
 }
 
 func setContext(ctx *apm.Context, req *http.Request, resp *echo.Response, body *apm.BodyCapturer) {
 	ctx.SetFramework("echo", echo.Version)
 	ctx.SetHTTPRequest(req)
 	ctx.SetHTTPRequestBody(body)
-	if resp.Committed {
-		ctx.SetHTTPStatusCode(resp.Status)
-		ctx.SetHTTPResponseHeaders(resp.Header())
-	}
+	ctx.SetHTTPStatusCode(resp.Status)
+	ctx.SetHTTPResponseHeaders(resp.Header())
 }
 
 type options struct {
