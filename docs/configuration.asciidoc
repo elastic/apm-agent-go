@@ -183,8 +183,8 @@ Prefixing a pattern with `(?-i)` makes the matching case sensitive.
 
 [options="header"]
 |============
-| Environment                        | Default                                                                     | Example
-| `ELASTIC_APM_SANITIZE_FIELD_NAMES` | `password, passwd, pwd, secret, *key, *token*, *session*, *credit*, *card*` | `sekrits`
+| Environment                        | Default                                                                                                | Example
+| `ELASTIC_APM_SANITIZE_FIELD_NAMES` | `password, passwd, pwd, secret, *key, *token*, *session*, *credit*, *card*, authorization, set-cookie` | `sekrits`
 |============
 
 A list of patterns to match the names of HTTP cookies and POST form fields to refact.

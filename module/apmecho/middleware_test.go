@@ -73,15 +73,17 @@ func TestEchoMiddleware(t *testing.T) {
 			},
 			Method:      "GET",
 			HTTPVersion: "1.1",
-			Headers: &model.RequestHeaders{
-				UserAgent: "apmecho_test",
-			},
+			Headers: model.Headers{{
+				Key:    "User-Agent",
+				Values: []string{"apmecho_test"},
+			}},
 		},
 		Response: &model.Response{
 			StatusCode: 418,
-			Headers: &model.ResponseHeaders{
-				ContentType: "text/plain; charset=UTF-8",
-			},
+			Headers: model.Headers{{
+				Key:    "Content-Type",
+				Values: []string{"text/plain; charset=UTF-8"},
+			}},
 		},
 	}, transaction.Context)
 }

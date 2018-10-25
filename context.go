@@ -3,7 +3,6 @@ package apm
 import (
 	"fmt"
 	"net/http"
-	"strings"
 
 	"go.elastic.co/apm/internal/apmhttputil"
 	"go.elastic.co/apm/model"
@@ -14,10 +13,8 @@ type Context struct {
 	model            model.Context
 	request          model.Request
 	requestBody      model.RequestBody
-	requestHeaders   model.RequestHeaders
 	requestSocket    model.RequestSocket
 	response         model.Response
-	responseHeaders  model.ResponseHeaders
 	user             model.User
 	service          model.Service
 	serviceFramework model.Framework
@@ -46,6 +43,12 @@ func (c *Context) reset() {
 	*c = Context{
 		model:           modelContext,
 		captureBodyMask: c.captureBodyMask,
+		request: model.Request{
+			Headers: c.request.Headers[:0],
+		},
+		response: model.Response{
+			Headers: c.response.Headers[:0],
+		},
 	}
 }
 
@@ -140,13 +143,14 @@ func (c *Context) SetHTTPRequest(req *http.Request) {
 	}
 	c.model.Request = &c.request
 
-	c.requestHeaders = model.RequestHeaders{
-		ContentType: req.Header.Get("Content-Type"),
-		Cookie:      truncateString(strings.Join(req.Header["Cookie"], ";")),
-		UserAgent:   req.UserAgent(),
-	}
-	if c.requestHeaders != (model.RequestHeaders{}) {
-		c.request.Headers = &c.requestHeaders
+	for k, values := range req.Header {
+		if k == "Cookie" {
+			// We capture cookies in the request structure.
+			continue
+		}
+		c.request.Headers = append(c.request.Headers, model.Header{
+			Key: k, Values: values,
+		})
 	}
 
 	c.requestSocket = model.RequestSocket{
@@ -180,9 +184,12 @@ func (c *Context) SetHTTPRequestBody(bc *BodyCapturer) {
 
 // SetHTTPResponseHeaders sets the HTTP response headers in the context.
 func (c *Context) SetHTTPResponseHeaders(h http.Header) {
-	c.responseHeaders.ContentType = h.Get("Content-Type")
-	if c.responseHeaders.ContentType != "" {
-		c.response.Headers = &c.responseHeaders
+	for k, values := range h {
+		c.response.Headers = append(c.response.Headers, model.Header{
+			Key: k, Values: values,
+		})
+	}
+	if len(c.response.Headers) != 0 {
 		c.model.Response = &c.response
 	}
 }

@@ -77,9 +77,10 @@ func TestHandler(t *testing.T) {
 				Path:     "/foo",
 			},
 			Method: "GET",
-			Headers: &model.RequestHeaders{
-				UserAgent: "apmhttp_test",
-			},
+			Headers: model.Headers{{
+				Key:    "User-Agent",
+				Values: []string{"apmhttp_test"},
+			}},
 			HTTPVersion: "1.1",
 		},
 		Response: &model.Response{
@@ -136,9 +137,16 @@ func TestHandlerHTTP2(t *testing.T) {
 				Path:     "/foo",
 			},
 			Method: "GET",
-			Headers: &model.RequestHeaders{
-				UserAgent: "Go-http-client/2.0",
-			},
+			Headers: model.Headers{{
+				Key:    "Accept-Encoding",
+				Values: []string{"gzip"},
+			}, {
+				Key:    "User-Agent",
+				Values: []string{"Go-http-client/2.0"},
+			}, {
+				Key:    "X-Real-Ip",
+				Values: []string{"client.testing"},
+			}},
 			HTTPVersion: "2.0",
 		},
 		Response: &model.Response{

@@ -1,36 +1,23 @@
 package apm
 
 import (
-	"bytes"
-
 	"go.elastic.co/apm/internal/wildcard"
 	"go.elastic.co/apm/model"
 )
 
 const redacted = "[REDACTED]"
 
-// sanitizeRequest sanitizes HTTP request data, redacting
-// the values of cookies and forms whose corresponding keys
+// sanitizeRequest sanitizes HTTP request data, redacting the
+// values of cookies, headers and forms whose corresponding keys
 // match any of the given wildcard patterns.
 func sanitizeRequest(r *model.Request, matchers wildcard.Matchers) {
-	var anyCookiesRedacted bool
 	for _, c := range r.Cookies {
 		if !matchers.MatchAny(c.Name) {
 			continue
 		}
 		c.Value = redacted
-		anyCookiesRedacted = true
 	}
-	if anyCookiesRedacted && r.Headers != nil {
-		var b bytes.Buffer
-		for i, c := range r.Cookies {
-			if i != 0 {
-				b.WriteRune(';')
-			}
-			b.WriteString(c.String())
-		}
-		r.Headers.Cookie = b.String()
-	}
+	sanitizeHeaders(r.Headers, matchers)
 	if r.Body != nil && r.Body.Form != nil {
 		for key, values := range r.Body.Form {
 			if !matchers.MatchAny(key) {
@@ -40,5 +27,23 @@ func sanitizeRequest(r *model.Request, matchers wildcard.Matchers) {
 				values[i] = redacted
 			}
 		}
+	}
+}
+
+// sanitizeResponse sanitizes HTTP response data, redacting
+// the values of response headers whose corresponding keys
+// match any of the given wildcard patterns.
+func sanitizeResponse(r *model.Response, matchers wildcard.Matchers) {
+	sanitizeHeaders(r.Headers, matchers)
+}
+
+func sanitizeHeaders(headers model.Headers, matchers wildcard.Matchers) {
+	for i := range headers {
+		h := &headers[i]
+		if !matchers.MatchAny(h.Key) || len(h.Values) == 0 {
+			continue
+		}
+		h.Values = h.Values[:1]
+		h.Values[0] = redacted
 	}
 }

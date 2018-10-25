@@ -84,16 +84,18 @@ func TestMiddleware(t *testing.T) {
 				Path:     "/hello/isbel",
 			},
 			Method: "GET",
-			Headers: &model.RequestHeaders{
-				UserAgent: "apmgin_test",
-			},
+			Headers: model.Headers{{
+				Key:    "User-Agent",
+				Values: []string{"apmgin_test"},
+			}},
 			HTTPVersion: "1.1",
 		},
 		Response: &model.Response{
 			StatusCode: 200,
-			Headers: &model.ResponseHeaders{
-				ContentType: "text/plain; charset=utf-8",
-			},
+			Headers: model.Headers{{
+				Key:    "Content-Type",
+				Values: []string{"text/plain; charset=utf-8"},
+			}},
 		},
 	}, transaction.Context)
 }

@@ -106,15 +106,20 @@ func TestContainerFilter(t *testing.T) {
 			},
 			Method:      "GET",
 			HTTPVersion: "1.1",
-			Headers: &model.RequestHeaders{
-				UserAgent: "Go-http-client/1.1",
-			},
+			Headers: model.Headers{{
+				Key:    "Accept-Encoding",
+				Values: []string{"gzip"},
+			}, {
+				Key:    "User-Agent",
+				Values: []string{"Go-http-client/1.1"},
+			}},
 		},
 		Response: &model.Response{
 			StatusCode: 418,
-			Headers: &model.ResponseHeaders{
-				ContentType: "application/json",
-			},
+			Headers: model.Headers{{
+				Key:    "Content-Type",
+				Values: []string{"application/json"},
+			}},
 		},
 	}, transaction.Context)
 }
