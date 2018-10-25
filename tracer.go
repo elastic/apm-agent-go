@@ -12,13 +12,13 @@ import (
 
 	"go.elastic.co/apm/internal/apmconfig"
 	"go.elastic.co/apm/internal/apmdebug"
-	"go.elastic.co/apm/internal/fastjson"
 	"go.elastic.co/apm/internal/iochan"
 	"go.elastic.co/apm/internal/ringbuffer"
 	"go.elastic.co/apm/internal/wildcard"
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/stacktrace"
 	"go.elastic.co/apm/transport"
+	"go.elastic.co/fastjson"
 )
 
 const (

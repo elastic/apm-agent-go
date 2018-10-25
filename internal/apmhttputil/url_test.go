@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"go.elastic.co/apm/internal/apmhttputil"
-	"go.elastic.co/apm/internal/fastjson"
 	"go.elastic.co/apm/model"
+	"go.elastic.co/fastjson"
 )
 
 func TestRequestURLClient(t *testing.T) {
@@ -97,12 +97,13 @@ func TestRequestURLHeaders(t *testing.T) {
 
 			// Marshal the URL to gets its "full" representation.
 			var w fastjson.Writer
-			out.MarshalFastJSON(&w)
+			err := out.MarshalFastJSON(&w)
+			assert.NoError(t, err)
 
 			var decoded struct {
 				Full string
 			}
-			err := json.Unmarshal(w.Bytes(), &decoded)
+			err = json.Unmarshal(w.Bytes(), &decoded)
 			assert.NoError(t, err)
 			assert.Equal(t, test.full, decoded.Full)
 		})

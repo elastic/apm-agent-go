@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"go.elastic.co/apm/internal/fastjson"
+	"go.elastic.co/fastjson"
 )
 
 func BenchmarkMarshalTransactionFastJSON(b *testing.B) {

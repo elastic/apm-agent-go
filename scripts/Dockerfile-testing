@@ -32,6 +32,7 @@ RUN go get -v github.com/santhosh-tekuri/jsonschema
 RUN go get -v github.com/stretchr/testify/assert
 RUN go get -v github.com/stretchr/testify/require
 RUN go get -v github.com/stretchr/testify/suite
+RUN go get -v go.elastic.co/fastjson
 RUN go get -v golang.org/x/net/context
 RUN go get -v golang.org/x/net/context/ctxhttp
 RUN go get -v golang.org/x/net/http2
