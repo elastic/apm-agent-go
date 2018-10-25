@@ -51,7 +51,7 @@ func (c *SpanContext) SetTag(key, value string) {
 	if !validTagKey(key) {
 		return
 	}
-	value = truncateKeyword(value)
+	value = truncateString(value)
 	if c.model.Tags == nil {
 		c.model.Tags = map[string]string{key: value}
 	} else {
@@ -62,10 +62,10 @@ func (c *SpanContext) SetTag(key, value string) {
 // SetDatabase sets the span context for database-related operations.
 func (c *SpanContext) SetDatabase(db DatabaseSpanContext) {
 	c.database = model.DatabaseSpanContext{
-		Instance:  truncateKeyword(db.Instance),
-		Statement: truncateText(db.Statement),
-		Type:      truncateKeyword(db.Type),
-		User:      truncateKeyword(db.User),
+		Instance:  truncateString(db.Instance),
+		Statement: truncateLongString(db.Statement),
+		Type:      truncateString(db.Type),
+		User:      truncateString(db.User),
 	}
 	c.model.Database = &c.database
 }
