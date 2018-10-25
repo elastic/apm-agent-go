@@ -45,16 +45,16 @@ func getCurrentProcess() model.Process {
 	return model.Process{
 		Pid:   os.Getpid(),
 		Ppid:  &ppid,
-		Title: truncateKeyword(title),
+		Title: truncateString(title),
 		Argv:  os.Args,
 	}
 }
 
 func makeService(name, version, environment string) model.Service {
 	return model.Service{
-		Name:        truncateKeyword(name),
-		Version:     truncateKeyword(version),
-		Environment: truncateKeyword(environment),
+		Name:        truncateString(name),
+		Version:     truncateString(version),
+		Environment: truncateString(environment),
 		Agent:       &goAgent,
 		Language:    &goLanguage,
 		Runtime:     &goRuntime,
@@ -72,7 +72,7 @@ func getLocalSystem() model.System {
 			system.Hostname = hostname
 		}
 	}
-	system.Hostname = truncateKeyword(system.Hostname)
+	system.Hostname = truncateString(system.Hostname)
 	return system
 }
 
@@ -95,17 +95,18 @@ func sanitizeServiceName(name string) string {
 	return serviceNameInvalidRegexp.ReplaceAllString(name, "_")
 }
 
-func truncateKeyword(s string) string {
+func truncateString(s string) string {
 	// At the time of writing, all keyword length
 	// limits are 1024, enforced by JSON Schema.
 	return apmstrings.Truncate(s, 1024)
 }
 
-func truncateText(s string) string {
-	// Non-keyword string fields should be limited
-	// to 10000 characters/runes. This is not
-	// currently enforced by JSON Schema, as we
-	// may want to make it configurable.
+func truncateLongString(s string) string {
+	// Non-keyword string fields are not limited
+	// in length by JSON Schema, but we still
+	// truncate all strings. Some strings, such
+	// as database statement, we explicitly allow
+	// to be longer than others.
 	return apmstrings.Truncate(s, 10000)
 }
 

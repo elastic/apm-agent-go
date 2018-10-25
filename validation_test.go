@@ -76,7 +76,7 @@ func TestValidateDatabaseSpanContextInstance(t *testing.T) {
 	validateSpan(t, func(s *apm.Span) {
 		s.Context.SetDatabase(apm.DatabaseSpanContext{
 			Instance:  strings.Repeat("x", 1025),
-			Statement: strings.Repeat("x", 10001),
+			Statement: strings.Repeat("x", 1025),
 			Type:      strings.Repeat("x", 1025),
 			User:      strings.Repeat("x", 1025),
 		})
@@ -156,7 +156,7 @@ func TestValidateRequestBody(t *testing.T) {
 			tx := tracer.StartTransaction("name", "type")
 			defer tx.End()
 
-			body := strings.NewReader(strings.Repeat("x", 10001))
+			body := strings.NewReader(strings.Repeat("x", 1025))
 			req, _ := http.NewRequest("GET", "/", body)
 			captureBody := tracer.CaptureHTTPRequestBody(req)
 			tx.Context.SetHTTPRequest(req)
@@ -171,7 +171,7 @@ func TestValidateRequestBody(t *testing.T) {
 
 			req, _ := http.NewRequest("GET", "/", strings.NewReader("x"))
 			req.PostForm = url.Values{
-				"unsanitized_field": []string{strings.Repeat("x", 10001)},
+				"unsanitized_field": []string{strings.Repeat("x", 1025)},
 			}
 			captureBody := tracer.CaptureHTTPRequestBody(req)
 			tx.Context.SetHTTPRequest(req)
@@ -216,7 +216,7 @@ func TestValidateErrorException(t *testing.T) {
 	t.Run("long_message", func(t *testing.T) {
 		validatePayloads(t, func(tracer *apm.Tracer) {
 			tracer.NewError(&testError{
-				message: strings.Repeat("x", 10001),
+				message: strings.Repeat("x", 1025),
 			}).Send()
 		})
 	})
@@ -244,7 +244,7 @@ func TestValidateErrorLog(t *testing.T) {
 			Message: "",
 		},
 		"long_message": {
-			Message: strings.Repeat("x", 10001),
+			Message: strings.Repeat("x", 1025),
 		},
 		"level": {
 			Message: "x",
