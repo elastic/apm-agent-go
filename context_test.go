@@ -12,6 +12,18 @@ import (
 	"go.elastic.co/apm/model"
 )
 
+func TestContextTags(t *testing.T) {
+	tx := testSendTransaction(t, func(tx *apm.Transaction) {
+		tx.Context.SetTag("foo", "bar")
+		tx.Context.SetTag("foo", "bar!") // Last instance wins
+		tx.Context.SetTag("bar", "baz")
+	})
+	assert.Equal(t, model.StringMap{
+		{Key: "bar", Value: "baz"},
+		{Key: "foo", Value: "bar!"},
+	}, tx.Context.Tags)
+}
+
 func TestContextUser(t *testing.T) {
 	t.Run("email", func(t *testing.T) {
 		tx := testSendTransaction(t, func(tx *apm.Transaction) {

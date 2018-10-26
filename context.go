@@ -35,10 +35,10 @@ func (c *Context) build() *model.Context {
 }
 
 func (c *Context) reset() {
-	// TODO(axw) reuse space for tags
-	modelContext := model.Context{}
 	*c = Context{
-		model:           modelContext,
+		model: model.Context{
+			Tags: c.model.Tags[:0],
+		},
 		captureBodyMask: c.captureBodyMask,
 		request: model.Request{
 			Headers: c.request.Headers[:0],
@@ -56,11 +56,12 @@ func (c *Context) SetTag(key, value string) {
 		return
 	}
 	value = truncateString(value)
-	if c.model.Tags == nil {
-		c.model.Tags = map[string]string{key: value}
-	} else {
-		c.model.Tags[key] = value
-	}
+	// Note that we do not attempt to de-duplicate the keys.
+	// This is OK, since json.Unmarshal will always take the
+	// final instance.
+	c.model.Tags = append(c.model.Tags, model.StringMapItem{
+		Key: key, Value: value,
+	})
 }
 
 // SetFramework sets the framework name and version in the context.
