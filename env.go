@@ -54,6 +54,8 @@ var (
 		"*session*",
 		"*credit*",
 		"*card*",
+		"authorization",
+		"set-cookie",
 	}, ","))
 )
 

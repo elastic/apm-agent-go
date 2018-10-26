@@ -295,6 +295,74 @@ func (c *Cookies) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func (hs Headers) isZero() bool {
+	return len(hs) == 0
+}
+
+// MarshalFastJSON writes the JSON representation of h to w.
+func (hs Headers) MarshalFastJSON(w *fastjson.Writer) error {
+	w.RawByte('{')
+	for i, h := range hs {
+		if i != 0 {
+			w.RawByte(',')
+		}
+		w.String(h.Key)
+		w.RawByte(':')
+		if len(h.Values) == 1 {
+			// Just one item, add the item directly.
+			w.String(h.Values[0])
+		} else {
+			// Zero or multiple items, include them all.
+			w.RawByte('[')
+			for i, v := range h.Values {
+				if i != 0 {
+					w.RawByte(',')
+				}
+				w.String(v)
+			}
+			w.RawByte(']')
+		}
+	}
+	w.RawByte('}')
+	return nil
+}
+
+// MarshalFastJSON writes the JSON representation of h to w.
+func (*Header) MarshalFastJSON(w *fastjson.Writer) error {
+	panic("unreachable")
+}
+
+// UnmarshalJSON unmarshals the JSON data into c.
+func (hs *Headers) UnmarshalJSON(data []byte) error {
+	var m map[string]interface{}
+	if err := json.Unmarshal(data, &m); err != nil {
+		return err
+	}
+	for k, v := range m {
+		switch v := v.(type) {
+		case string:
+			*hs = append(*hs, Header{Key: k, Values: []string{v}})
+		case []interface{}:
+			var values []string
+			for _, v := range v {
+				switch v := v.(type) {
+				case string:
+					values = append(values, v)
+				default:
+					return errors.Errorf("expected string, got %T", v)
+				}
+			}
+			*hs = append(*hs, Header{Key: k, Values: values})
+		default:
+			return errors.Errorf("expected string or []string, got %T", v)
+		}
+	}
+	sort.Slice(*hs, func(i, j int) bool {
+		return (*hs)[i].Key < (*hs)[j].Key
+	})
+	return nil
+}
+
 // MarshalFastJSON writes the JSON representation of c to w.
 func (c *ExceptionCode) MarshalFastJSON(w *fastjson.Writer) error {
 	if c.String != "" {

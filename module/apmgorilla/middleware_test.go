@@ -46,14 +46,19 @@ func TestMuxMiddleware(t *testing.T) {
 				Path:     "/prefix/articles/fiction/123",
 				Search:   "foo=123",
 			},
-			Method:      "GET",
+			Method: "GET",
+			Headers: model.Headers{{
+				Key:    "X-Real-Ip",
+				Values: []string{"client.testing"},
+			}},
 			HTTPVersion: "1.1",
 		},
 		Response: &model.Response{
 			StatusCode: 200,
-			Headers: &model.ResponseHeaders{
-				ContentType: "text/plain; charset=utf-8",
-			},
+			Headers: model.Headers{{
+				Key:    "Content-Type",
+				Values: []string{"text/plain; charset=utf-8"},
+			}},
 		},
 	}, transaction.Context)
 }

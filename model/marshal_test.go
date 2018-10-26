@@ -50,8 +50,8 @@ func TestMarshalTransaction(t *testing.T) {
 				},
 				"method": "GET",
 				"headers": map[string]interface{}{
-					"user-agent": "Mosaic/0.2 (Windows 3.1)",
-					"cookie":     "monster=yumyum; random=junk",
+					"User-Agent": "Mosaic/0.2 (Windows 3.1)",
+					"Cookie":     "monster=yumyum; random=junk",
 				},
 				"body":         "ahoj",
 				"http_version": "1.1",
@@ -67,7 +67,7 @@ func TestMarshalTransaction(t *testing.T) {
 			"response": map[string]interface{}{
 				"status_code": float64(418),
 				"headers": map[string]interface{}{
-					"content-type": "text/html",
+					"Content-Type": "text/html",
 				},
 			},
 			"user": map[string]interface{}{
@@ -393,16 +393,17 @@ func TestMarshalResponse(t *testing.T) {
 	headersSent := true
 	response := model.Response{
 		Finished: &finished,
-		Headers: &model.ResponseHeaders{
-			ContentType: "text/plain",
-		},
+		Headers: model.Headers{{
+			Key:    "Content-Type",
+			Values: []string{"text/plain"},
+		}},
 		HeadersSent: &headersSent,
 		StatusCode:  200,
 	}
 	var w fastjson.Writer
 	response.MarshalFastJSON(&w)
 	assert.Equal(t,
-		`{"finished":true,"headers":{"content-type":"text/plain"},"headers_sent":true,"status_code":200}`,
+		`{"finished":true,"headers":{"Content-Type":"text/plain"},"headers_sent":true,"status_code":200}`,
 		string(w.Bytes()),
 	)
 }
@@ -507,10 +508,11 @@ func fakeTransaction() model.Transaction {
 					Hash:     "qux",
 				},
 				Method: "GET",
-				Headers: &model.RequestHeaders{
-					UserAgent: "Mosaic/0.2 (Windows 3.1)",
-					Cookie:    "monster=yumyum; random=junk",
-				},
+				Headers: model.Headers{{
+					Key: "Cookie", Values: []string{"monster=yumyum; random=junk"},
+				}, {
+					Key: "User-Agent", Values: []string{"Mosaic/0.2 (Windows 3.1)"},
+				}},
 				Body: &model.RequestBody{
 					Raw: "ahoj",
 				},
@@ -526,9 +528,9 @@ func fakeTransaction() model.Transaction {
 			},
 			Response: &model.Response{
 				StatusCode: 418,
-				Headers: &model.ResponseHeaders{
-					ContentType: "text/html",
-				},
+				Headers: model.Headers{{
+					Key: "Content-Type", Values: []string{"text/html"},
+				}},
 			},
 			User: &model.User{
 				Username: "wanda",

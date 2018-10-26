@@ -806,7 +806,7 @@ func (v *Request) MarshalFastJSON(w *fastjson.Writer) error {
 		}
 		w.RawByte('}')
 	}
-	if v.Headers != nil {
+	if !v.Headers.isZero() {
 		w.RawString(",\"headers\":")
 		if err := v.Headers.MarshalFastJSON(w); err != nil && firstErr == nil {
 			firstErr = err
@@ -824,43 +824,6 @@ func (v *Request) MarshalFastJSON(w *fastjson.Writer) error {
 	}
 	w.RawByte('}')
 	return firstErr
-}
-
-func (v *RequestHeaders) MarshalFastJSON(w *fastjson.Writer) error {
-	w.RawByte('{')
-	first := true
-	if v.ContentType != "" {
-		const prefix = ",\"content-type\":"
-		if first {
-			first = false
-			w.RawString(prefix[1:])
-		} else {
-			w.RawString(prefix)
-		}
-		w.String(v.ContentType)
-	}
-	if v.Cookie != "" {
-		const prefix = ",\"cookie\":"
-		if first {
-			first = false
-			w.RawString(prefix[1:])
-		} else {
-			w.RawString(prefix)
-		}
-		w.String(v.Cookie)
-	}
-	if v.UserAgent != "" {
-		const prefix = ",\"user-agent\":"
-		if first {
-			first = false
-			w.RawString(prefix[1:])
-		} else {
-			w.RawString(prefix)
-		}
-		w.String(v.UserAgent)
-	}
-	w.RawByte('}')
-	return nil
 }
 
 func (v *RequestSocket) MarshalFastJSON(w *fastjson.Writer) error {
@@ -904,7 +867,7 @@ func (v *Response) MarshalFastJSON(w *fastjson.Writer) error {
 		}
 		w.Bool(*v.Finished)
 	}
-	if v.Headers != nil {
+	if !v.Headers.isZero() {
 		const prefix = ",\"headers\":"
 		if first {
 			first = false
@@ -938,16 +901,6 @@ func (v *Response) MarshalFastJSON(w *fastjson.Writer) error {
 	}
 	w.RawByte('}')
 	return firstErr
-}
-
-func (v *ResponseHeaders) MarshalFastJSON(w *fastjson.Writer) error {
-	w.RawByte('{')
-	if v.ContentType != "" {
-		w.RawString("\"content-type\":")
-		w.String(v.ContentType)
-	}
-	w.RawByte('}')
-	return nil
 }
 
 func (v *Metrics) MarshalFastJSON(w *fastjson.Writer) error {

@@ -56,9 +56,10 @@ func TestWrap(t *testing.T) {
 				Path:     "/hello/go/go/bananas",
 			},
 			Method: "GET",
-			Headers: &model.RequestHeaders{
-				UserAgent: "apmhttp_test",
-			},
+			Headers: model.Headers{{
+				Key:    "User-Agent",
+				Values: []string{"apmhttp_test"},
+			}},
 			HTTPVersion: "1.1",
 		},
 		Response: &model.Response{
