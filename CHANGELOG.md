@@ -15,7 +15,7 @@
  - Set response context in errors reported by web modules (#238)
  - module/apmredigo: introduce gomodule/redigo instrumentation (#248)
  - Update Sampler interface to take TraceContext (#243)
- - Truncate all strings to a maximum of 10000 chars (#244)
+ - Truncate SQL statements to a maximum of 10000 chars, all other strings to 1024 (#244, #276)
  - Add leading slash to URLs in transaction/span context (#250)
  - Add `Transaction.Context` method for setting framework (#252)
  - Timestamps are now reported as usec since epoch, spans no longer use "start" offset (#257)
@@ -23,6 +23,8 @@
  - Changed top-level package name to "apm", and canonical import path to "go.elastic.co/apm" (#202)
  - module/apmrestful: introduce emicklei/go-restful instrumentation (#270)
  - Fix panic handling in web instrumentations (#273)
+ - Migrate internal/fastjson to go.elastic.co/fastjson (#275)
+ - Report all HTTP request/response headers (#280)
 
 ## [v0.5.2](https://github.com/elastic/apm-agent-go/releases/tag/v0.5.2)
 
