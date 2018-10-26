@@ -105,14 +105,14 @@ func ExampleTracer() {
 	//   transaction 0:
 	//     name: order
 	//     type: request
-	//     context: map[custom:map[product:fish fingers]]
+	//     context: map[tags:map[product:fish fingers]]
 	//     span 0:
 	//       name: store_order
 	//       type: rpc
 	//   transaction 1:
 	//     name: order
 	//     type: request
-	//     context: map[custom:map[product:detergent]]
+	//     context: map[tags:map[product:detergent]]
 	//     span 1:
 	//       name: store_order
 	//       type: rpc
@@ -127,7 +127,7 @@ func (api *api) handleOrder(ctx context.Context, product string) {
 	defer tx.End()
 	ctx = apm.ContextWithTransaction(ctx, tx)
 
-	tx.Context.SetCustom("product", product)
+	tx.Context.SetTag("product", product)
 
 	time.Sleep(10 * time.Millisecond)
 	storeOrder(ctx, product)

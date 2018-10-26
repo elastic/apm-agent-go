@@ -27,7 +27,6 @@ func (c *Context) build() *model.Context {
 	case c.model.Response != nil:
 	case c.model.User != nil:
 	case c.model.Service != nil:
-	case len(c.model.Custom) != 0:
 	case len(c.model.Tags) != 0:
 	default:
 		return nil
@@ -36,10 +35,8 @@ func (c *Context) build() *model.Context {
 }
 
 func (c *Context) reset() {
-	modelContext := model.Context{
-		// TODO(axw) reuse space for tags
-		Custom: c.model.Custom[:0],
-	}
+	// TODO(axw) reuse space for tags
+	modelContext := model.Context{}
 	*c = Context{
 		model:           modelContext,
 		captureBodyMask: c.captureBodyMask,
@@ -50,21 +47,6 @@ func (c *Context) reset() {
 			Headers: c.response.Headers[:0],
 		},
 	}
-}
-
-// SetCustom sets a custom context key/value pair. If the key is invalid
-// (contains '.', '*', or '"'), the call is a no-op. The value must be
-// JSON-encodable.
-//
-// If value implements interface{AppendJSON([]byte) []byte}, that will be
-// used to encode the value. Otherwise, value will be encoded using
-// json.Marshal. As a special case, values of type map[string]interface{}
-// will be traversed and values encoded according to the same rules.
-func (c *Context) SetCustom(key string, value interface{}) {
-	if !validTagKey(key) {
-		return
-	}
-	c.model.Custom.Set(key, value)
 }
 
 // SetTag sets a tag in the context. If the key is invalid

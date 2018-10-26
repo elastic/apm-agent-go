@@ -25,6 +25,7 @@
  - Fix panic handling in web instrumentations (#273)
  - Migrate internal/fastjson to go.elastic.co/fastjson (#275)
  - Report all HTTP request/response headers (#280)
+ - Drop Context.SetCustom (#284)
 
 ## [v0.5.2](https://github.com/elastic/apm-agent-go/releases/tag/v0.5.2)
 

@@ -239,9 +239,6 @@ type Context struct {
 	// transaction or error, if relevant.
 	User *User `json:"user,omitempty"`
 
-	// Custom holds arbitrary additional metadata.
-	Custom IfaceMap `json:"custom,omitempty"`
-
 	// Tags holds user-defined key/value pairs.
 	Tags map[string]string `json:"tags,omitempty"`
 
