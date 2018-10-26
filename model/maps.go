@@ -1,9 +1,5 @@
 package model
 
-import (
-	"sort"
-)
-
 // StringMap is a slice-representation of map[string]string,
 // optimized for fast JSON encoding.
 //
@@ -17,16 +13,4 @@ type StringMapItem struct {
 
 	// Value is the map item's value.
 	Value string
-}
-
-// Set sets the map item with given key and value.
-func (m *StringMap) Set(key, value string) {
-	i := sort.Search(len(*m), func(i int) bool {
-		return (*m)[i].Key >= key
-	})
-	if i < len(*m) && (*m)[i].Key == key {
-		(*m)[i].Value = value
-	} else {
-		*m = append(*m, StringMapItem{Key: key, Value: value})
-	}
 }

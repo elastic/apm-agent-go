@@ -339,7 +339,7 @@ func (v *SpanContext) MarshalFastJSON(w *fastjson.Writer) error {
 			firstErr = err
 		}
 	}
-	if v.Tags != nil {
+	if !v.Tags.isZero() {
 		const prefix = ",\"tags\":"
 		if first {
 			first = false
@@ -347,21 +347,9 @@ func (v *SpanContext) MarshalFastJSON(w *fastjson.Writer) error {
 		} else {
 			w.RawString(prefix)
 		}
-		w.RawByte('{')
-		{
-			first := true
-			for k, v := range v.Tags {
-				if first {
-					first = false
-				} else {
-					w.RawByte(',')
-				}
-				w.String(k)
-				w.RawByte(':')
-				w.String(v)
-			}
+		if err := v.Tags.MarshalFastJSON(w); err != nil && firstErr == nil {
+			firstErr = err
 		}
-		w.RawByte('}')
 	}
 	w.RawByte('}')
 	return firstErr
@@ -454,7 +442,7 @@ func (v *Context) MarshalFastJSON(w *fastjson.Writer) error {
 			firstErr = err
 		}
 	}
-	if v.Tags != nil {
+	if !v.Tags.isZero() {
 		const prefix = ",\"tags\":"
 		if first {
 			first = false
@@ -462,21 +450,9 @@ func (v *Context) MarshalFastJSON(w *fastjson.Writer) error {
 		} else {
 			w.RawString(prefix)
 		}
-		w.RawByte('{')
-		{
-			first := true
-			for k, v := range v.Tags {
-				if first {
-					first = false
-				} else {
-					w.RawByte(',')
-				}
-				w.String(k)
-				w.RawByte(':')
-				w.String(v)
-			}
+		if err := v.Tags.MarshalFastJSON(w); err != nil && firstErr == nil {
+			firstErr = err
 		}
-		w.RawByte('}')
 	}
 	if v.User != nil {
 		const prefix = ",\"user\":"

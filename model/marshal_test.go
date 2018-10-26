@@ -467,9 +467,9 @@ func fakeTransaction() model.Transaction {
 			User: &model.User{
 				Username: "wanda",
 			},
-			Tags: map[string]string{
-				"tag": "urit",
-			},
+			Tags: model.StringMap{{
+				Key: "tag", Value: "urit",
+			}},
 			Service: &model.Service{
 				Framework: &model.Framework{
 					Name:    "framework-name",

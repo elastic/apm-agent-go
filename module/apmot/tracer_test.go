@@ -215,8 +215,8 @@ func TestCustomTags(t *testing.T) {
 	payloads := recorder.Payloads()
 	require.Len(t, payloads.Transactions, 1)
 	require.Len(t, payloads.Spans, 1)
-	assert.Equal(t, map[string]string{"foo": "bar"}, payloads.Transactions[0].Context.Tags)
-	assert.Equal(t, map[string]string{"baz": "qux"}, payloads.Spans[0].Context.Tags)
+	assert.Equal(t, model.StringMap{{Key: "foo", Value: "bar"}}, payloads.Transactions[0].Context.Tags)
+	assert.Equal(t, model.StringMap{{Key: "baz", Value: "qux"}}, payloads.Spans[0].Context.Tags)
 }
 
 func TestStartSpanFromContextMixed(t *testing.T) {
