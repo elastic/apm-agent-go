@@ -2,7 +2,6 @@ package model_test
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/url"
 	"strings"
@@ -72,12 +71,6 @@ func TestMarshalTransaction(t *testing.T) {
 			},
 			"user": map[string]interface{}{
 				"username": "wanda",
-			},
-			"custom": map[string]interface{}{
-				"foo": map[string]interface{}{
-					"bar": "baz",
-					"qux": float64(123),
-				},
 			},
 			"tags": map[string]interface{}{
 				"tag": "urit",
@@ -327,67 +320,6 @@ func TestMarshalStacktraceFrame(t *testing.T) {
 	)
 }
 
-func TestMarshalContextCustomErrors(t *testing.T) {
-	context := model.Context{
-		Custom: model.IfaceMap{{
-			Key: "panic_value",
-			Value: marshalFunc(func() ([]byte, error) {
-				panic("aiee")
-			}),
-		}},
-	}
-	var w fastjson.Writer
-	context.MarshalFastJSON(&w)
-	assert.Equal(t,
-		`{"custom":{"panic_value":{"__PANIC__":"panic calling MarshalJSON for type model_test.marshalFunc: aiee"}}}`,
-		string(w.Bytes()),
-	)
-
-	context.Custom = model.IfaceMap{{
-		Key: "error_value",
-		Value: marshalFunc(func() ([]byte, error) {
-			return nil, errors.New("nope")
-		}),
-	}}
-	w.Reset()
-	context.MarshalFastJSON(&w)
-	assert.Equal(t,
-		`{"custom":{"error_value":{"__ERROR__":"json: error calling MarshalJSON for type model_test.marshalFunc: nope"}}}`,
-		string(w.Bytes()),
-	)
-}
-
-type marshalFunc func() ([]byte, error)
-
-func (f marshalFunc) MarshalJSON() ([]byte, error) {
-	return f()
-}
-
-func TestMarshalCustomInvalidJSON(t *testing.T) {
-	context := model.Context{
-		Custom: model.IfaceMap{{
-			Key: "k1",
-			Value: appenderFunc(func(in []byte) []byte {
-				return append(in, "123"...)
-			}),
-		}, {
-			Key: "k2",
-			Value: appenderFunc(func(in []byte) []byte {
-				return append(in, `"value"`...)
-			}),
-		}},
-	}
-	var w fastjson.Writer
-	context.MarshalFastJSON(&w)
-	assert.Equal(t, `{"custom":{"k1":123,"k2":"value"}}`, string(w.Bytes()))
-}
-
-type appenderFunc func([]byte) []byte
-
-func (f appenderFunc) AppendJSON(in []byte) []byte {
-	return f(in)
-}
-
 func TestMarshalResponse(t *testing.T) {
 	finished := true
 	headersSent := true
@@ -535,13 +467,6 @@ func fakeTransaction() model.Transaction {
 			User: &model.User{
 				Username: "wanda",
 			},
-			Custom: model.IfaceMap{{
-				Key: "foo",
-				Value: map[string]interface{}{
-					"bar": "baz",
-					"qux": float64(123),
-				},
-			}},
 			Tags: map[string]string{
 				"tag": "urit",
 			},

@@ -64,7 +64,6 @@ further describe the transaction.
 ----
 transaction.Result = "Success"
 transaction.Context.SetTag("region", "us-east-1")
-transaction.Context.SetCustom("key", "value")
 ----
 
 See <<context-api>> for more details on setting transaction context.
@@ -254,15 +253,6 @@ SetTag tags the transaction or error with the given key and value. The
 key must not contain any special characters (`.`, `*`, or `"`). Values
 longer than 1024 characters will be truncated. Tags will be indexed in
 Elasticsearch as keyword fields.
-
-[float]
-[[context-set-custom]]
-==== `func (*Context) SetCustom(key string, value interface{})`
-
-SetCustom associates arbitrary context with the transaction or error. The
-only restriction is that the name may not contain any special characters
-(`.`, `*`, or `"`), and the value must be JSON-encodable. Custom context
-will not be indexed in Elasticsearch, but will be included in the document.
 
 [float]
 [[context-set-username]]

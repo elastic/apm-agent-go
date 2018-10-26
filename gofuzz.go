@@ -44,9 +44,6 @@ func Fuzz(data []byte) int {
 		if in == nil {
 			return nil
 		}
-		for _, item := range in.Custom {
-			out.SetCustom(item.Key, item.Value)
-		}
 		for k, v := range in.Tags {
 			out.SetTag(k, v)
 		}

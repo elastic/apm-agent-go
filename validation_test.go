@@ -100,28 +100,6 @@ func TestValidateContextUserBasicAuth(t *testing.T) {
 	})
 }
 
-func TestValidateContextCustom(t *testing.T) {
-	t.Run("long_key", func(t *testing.T) {
-		// NOTE(axw) this should probably fail, but does not. See:
-		// https://github.com/elastic/apm-server/issues/910
-		validateTransaction(t, func(tx *apm.Transaction) {
-			tx.Context.SetCustom(strings.Repeat("x", 1025), "x")
-		})
-	})
-	t.Run("reserved_key_chars", func(t *testing.T) {
-		validateTransaction(t, func(tx *apm.Transaction) {
-			tx.Context.SetCustom("x.y", "z")
-		})
-	})
-	t.Run("newline_value", func(t *testing.T) {
-		validateTransaction(t, func(tx *apm.Transaction) {
-			// Newlines should be escaped by the JSON encoder,
-			// so they don't interfere with NDJSON encoding.
-			tx.Context.SetCustom("key", "value\nwith\nnewlines")
-		})
-	})
-}
-
 func TestValidateContextTags(t *testing.T) {
 	t.Run("long_key", func(t *testing.T) {
 		// NOTE(axw) this should probably fail, but does not. See:
