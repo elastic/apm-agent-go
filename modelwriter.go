@@ -1,10 +1,10 @@
 package apm
 
 import (
-	"go.elastic.co/apm/internal/fastjson"
 	"go.elastic.co/apm/internal/ringbuffer"
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/stacktrace"
+	"go.elastic.co/fastjson"
 )
 
 const (

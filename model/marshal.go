@@ -11,14 +11,15 @@ import (
 
 	"github.com/pkg/errors"
 
-	"go.elastic.co/apm/internal/fastjson"
+	"go.elastic.co/fastjson"
 )
 
-//go:generate go run ../internal/fastjson/generate.go -f -o marshal_fastjson.go .
+//go:generate go run ../../fastjson/cmd/generate-fastjson/main.go -f -o marshal_fastjson.go .
 
 // MarshalFastJSON writes the JSON representation of t to w.
-func (t Time) MarshalFastJSON(w *fastjson.Writer) {
+func (t Time) MarshalFastJSON(w *fastjson.Writer) error {
 	w.Int64(time.Time(t).UnixNano() / int64(time.Microsecond))
+	return nil
 }
 
 // UnmarshalJSON unmarshals the JSON data into t.
@@ -48,7 +49,7 @@ func (v *HTTPSpanContext) UnmarshalJSON(data []byte) error {
 }
 
 // MarshalFastJSON writes the JSON representation of v to w.
-func (v *HTTPSpanContext) MarshalFastJSON(w *fastjson.Writer) {
+func (v *HTTPSpanContext) MarshalFastJSON(w *fastjson.Writer) error {
 	w.RawByte('{')
 	beforeURL := w.Size()
 	w.RawString(`"url":"`)
@@ -58,6 +59,7 @@ func (v *HTTPSpanContext) MarshalFastJSON(w *fastjson.Writer) {
 		w.Rewind(beforeURL)
 	}
 	w.RawByte('}')
+	return nil
 }
 
 func (v *HTTPSpanContext) marshalURL(w *fastjson.Writer) bool {
@@ -90,7 +92,7 @@ func (v *HTTPSpanContext) marshalURL(w *fastjson.Writer) bool {
 }
 
 // MarshalFastJSON writes the JSON representation of v to w.
-func (v *URL) MarshalFastJSON(w *fastjson.Writer) {
+func (v *URL) MarshalFastJSON(w *fastjson.Writer) error {
 	w.RawByte('{')
 	first := true
 	if v.Hash != "" {
@@ -174,6 +176,7 @@ func (v *URL) MarshalFastJSON(w *fastjson.Writer) {
 		}
 	}
 	w.RawByte('}')
+	return nil
 }
 
 func marshalScheme(w *fastjson.Writer, scheme string) bool {
@@ -250,7 +253,7 @@ func (c Cookies) isZero() bool {
 }
 
 // MarshalFastJSON writes the JSON representation of c to w.
-func (c Cookies) MarshalFastJSON(w *fastjson.Writer) {
+func (c Cookies) MarshalFastJSON(w *fastjson.Writer) error {
 	w.RawByte('{')
 	first := true
 outer:
@@ -270,6 +273,7 @@ outer:
 		w.String(c[i].Value)
 	}
 	w.RawByte('}')
+	return nil
 }
 
 // UnmarshalJSON unmarshals the JSON data into c.
@@ -292,12 +296,13 @@ func (c *Cookies) UnmarshalJSON(data []byte) error {
 }
 
 // MarshalFastJSON writes the JSON representation of c to w.
-func (c *ExceptionCode) MarshalFastJSON(w *fastjson.Writer) {
+func (c *ExceptionCode) MarshalFastJSON(w *fastjson.Writer) error {
 	if c.String != "" {
 		w.String(c.String)
-		return
+	} else {
+		w.Float64(c.Number)
 	}
-	w.Float64(c.Number)
+	return nil
 }
 
 // UnmarshalJSON unmarshals the JSON data into c.
@@ -323,7 +328,7 @@ func (c *ExceptionCode) isZero() bool {
 }
 
 // MarshalFastJSON writes the JSON representation of b to w.
-func (b *RequestBody) MarshalFastJSON(w *fastjson.Writer) {
+func (b *RequestBody) MarshalFastJSON(w *fastjson.Writer) error {
 	if b.Form != nil {
 		w.RawByte('{')
 		first := true
@@ -357,6 +362,7 @@ func (b *RequestBody) MarshalFastJSON(w *fastjson.Writer) {
 	} else {
 		w.String(b.Raw)
 	}
+	return nil
 }
 
 // UnmarshalJSON unmarshals the JSON data into b.
@@ -400,7 +406,7 @@ func (m IfaceMap) isZero() bool {
 }
 
 // MarshalFastJSON writes the JSON representation of m to w.
-func (m IfaceMap) MarshalFastJSON(w *fastjson.Writer) {
+func (m IfaceMap) MarshalFastJSON(w *fastjson.Writer) (firstErr error) {
 	w.RawByte('{')
 	first := true
 	for _, item := range m {
@@ -411,9 +417,12 @@ func (m IfaceMap) MarshalFastJSON(w *fastjson.Writer) {
 		}
 		w.String(item.Key)
 		w.RawByte(':')
-		fastjson.Marshal(w, item.Value)
+		if err := fastjson.Marshal(w, item.Value); err != nil && firstErr == nil {
+			firstErr = err
+		}
 	}
 	w.RawByte('}')
+	return nil
 }
 
 // UnmarshalJSON unmarshals the JSON data into m.
@@ -433,7 +442,7 @@ func (m *IfaceMap) UnmarshalJSON(data []byte) error {
 }
 
 // MarshalFastJSON exists to prevent code generation for IfaceMapItem.
-func (*IfaceMapItem) MarshalFastJSON(*fastjson.Writer) {
+func (*IfaceMapItem) MarshalFastJSON(*fastjson.Writer) error {
 	panic("unreachable")
 }
 
@@ -442,7 +451,7 @@ func (m StringMap) isZero() bool {
 }
 
 // MarshalFastJSON writes the JSON representation of m to w.
-func (m StringMap) MarshalFastJSON(w *fastjson.Writer) {
+func (m StringMap) MarshalFastJSON(w *fastjson.Writer) (firstErr error) {
 	w.RawByte('{')
 	first := true
 	for _, item := range m {
@@ -453,9 +462,12 @@ func (m StringMap) MarshalFastJSON(w *fastjson.Writer) {
 		}
 		w.String(item.Key)
 		w.RawByte(':')
-		fastjson.Marshal(w, item.Value)
+		if err := fastjson.Marshal(w, item.Value); err != nil && firstErr == nil {
+			firstErr = err
+		}
 	}
 	w.RawByte('}')
+	return nil
 }
 
 // UnmarshalJSON unmarshals the JSON data into m.
@@ -475,7 +487,7 @@ func (m *StringMap) UnmarshalJSON(data []byte) error {
 }
 
 // MarshalFastJSON exists to prevent code generation for StringMapItem.
-func (*StringMapItem) MarshalFastJSON(*fastjson.Writer) {
+func (*StringMapItem) MarshalFastJSON(*fastjson.Writer) error {
 	panic("unreachable")
 }
 
@@ -484,10 +496,11 @@ func (id *TraceID) isZero() bool {
 }
 
 // MarshalFastJSON writes the JSON representation of id to w.
-func (id *TraceID) MarshalFastJSON(w *fastjson.Writer) {
+func (id *TraceID) MarshalFastJSON(w *fastjson.Writer) error {
 	w.RawByte('"')
 	writeHex(w, id[:])
 	w.RawByte('"')
+	return nil
 }
 
 // UnmarshalJSON unmarshals the JSON data into id.
@@ -507,10 +520,11 @@ func (id *SpanID) UnmarshalJSON(data []byte) error {
 }
 
 // MarshalFastJSON writes the JSON representation of id to w.
-func (id *SpanID) MarshalFastJSON(w *fastjson.Writer) {
+func (id *SpanID) MarshalFastJSON(w *fastjson.Writer) error {
 	w.RawByte('"')
 	writeHex(w, id[:])
 	w.RawByte('"')
+	return nil
 }
 
 func writeHex(w *fastjson.Writer, v []byte) {

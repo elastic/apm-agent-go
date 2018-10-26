@@ -18,9 +18,9 @@ import (
 	"github.com/santhosh-tekuri/jsonschema"
 
 	"go.elastic.co/apm/internal/apmschema"
-	"go.elastic.co/apm/internal/fastjson"
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/stacktrace"
+	"go.elastic.co/fastjson"
 )
 
 func Fuzz(data []byte) int {
@@ -224,21 +224,27 @@ type gofuzzTransport struct {
 
 func (t *gofuzzTransport) SendErrors(ctx context.Context, payload *model.ErrorsPayload) error {
 	t.writer.Reset()
-	payload.MarshalFastJSON(&t.writer)
+	if err := payload.MarshalFastJSON(&t.writer); err != nil {
+		return err
+	}
 	t.validate(apmschema.Errors)
 	return nil
 }
 
 func (t *gofuzzTransport) SendMetrics(ctx context.Context, payload *model.MetricsPayload) error {
 	t.writer.Reset()
-	payload.MarshalFastJSON(&t.writer)
+	if err := payload.MarshalFastJSON(&t.writer); err != nil {
+		return err
+	}
 	t.validate(apmschema.Metrics)
 	return nil
 }
 
 func (t *gofuzzTransport) SendTransactions(ctx context.Context, payload *model.TransactionsPayload) error {
 	t.writer.Reset()
-	payload.MarshalFastJSON(&t.writer)
+	if err := payload.MarshalFastJSON(&t.writer); err != nil {
+		return err
+	}
 	t.validate(apmschema.Transactions)
 	return nil
 }

@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 
 	"go.elastic.co/apm/internal/apmschema"
-	"go.elastic.co/apm/internal/fastjson"
+	"go.elastic.co/fastjson"
 )
 
 func Fuzz(data []byte) int {
@@ -38,7 +38,9 @@ func Fuzz(data []byte) int {
 			Errors:  payload.Errors,
 		}
 		var w fastjson.Writer
-		payload.MarshalFastJSON(&w)
+		if err := payload.MarshalFastJSON(&w); err != nil {
+			panic(err)
+		}
 		if err := apmschema.Errors.Validate(bytes.NewReader(w.Bytes())); err != nil {
 			panic(err)
 		}
@@ -52,7 +54,9 @@ func Fuzz(data []byte) int {
 			Transactions: payload.Transactions,
 		}
 		var w fastjson.Writer
-		payload.MarshalFastJSON(&w)
+		if err := payload.MarshalFastJSON(&w); err != nil {
+			panic(err)
+		}
 		if err := apmschema.Transactions.Validate(bytes.NewReader(w.Bytes())); err != nil {
 			panic(err)
 		}
