@@ -1,7 +1,10 @@
 package apmhttp
 
 import (
+	"io"
 	"net/http"
+	"sync/atomic"
+	"unsafe"
 
 	"go.elastic.co/apm"
 )
@@ -80,15 +83,53 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	spanType := "ext.http"
 	span := tx.StartSpan(name, spanType, apm.SpanFromContext(ctx))
 	span.Context.SetHTTPRequest(req)
-	defer span.End()
 	if !span.Dropped() {
 		traceContext = span.TraceContext()
+		ctx = apm.ContextWithSpan(ctx, span)
+		req = RequestWithContext(ctx, req)
+	} else {
+		span.End()
+		span = nil
 	}
 
 	req.Header.Set(TraceparentHeader, FormatTraceparentHeader(traceContext))
-	ctx = apm.ContextWithSpan(ctx, span)
-	req = RequestWithContext(ctx, req)
-	return r.r.RoundTrip(req)
+	resp, err := r.r.RoundTrip(req)
+	if span != nil {
+		if err != nil {
+			span.End()
+		} else {
+			resp.Body = &responseBody{span: span, body: resp.Body}
+		}
+	}
+	return resp, err
+}
+
+type responseBody struct {
+	span *apm.Span
+	body io.ReadCloser
+}
+
+// Close closes the response body, and ends the span if it hasn't already been ended.
+func (b *responseBody) Close() error {
+	b.endSpan()
+	return b.body.Close()
+}
+
+// Read reads from the response body, and ends the span when io.EOF is returend if
+// the span hasn't already been ended.
+func (b *responseBody) Read(p []byte) (n int, err error) {
+	n, err = b.body.Read(p)
+	if err == io.EOF {
+		b.endSpan()
+	}
+	return n, err
+}
+
+func (b *responseBody) endSpan() {
+	addr := (*unsafe.Pointer)(unsafe.Pointer(&b.span))
+	if old := atomic.SwapPointer(addr, nil); old != nil {
+		(*apm.Span)(old).End()
+	}
 }
 
 // ClientOption sets options for tracing client requests.
