@@ -193,10 +193,16 @@ func (t *HTTPTransport) sendRequest(req *http.Request) error {
 	if err == nil {
 		resp.Body = ioutil.NopCloser(bytes.NewReader(bodyContents))
 	}
-	return &HTTPError{
+	result := &HTTPError{
 		Response: resp,
 		Message:  strings.TrimSpace(string(bodyContents)),
 	}
+	if resp.StatusCode == http.StatusNotFound && result.Message == "404 page not found" {
+		// This may be an old (pre-6.5) APM server
+		// that does not support the v2 intake API.
+		result.Message = fmt.Sprintf("%s not found (requires APM Server 6.5.0 or newer)", req.URL)
+	}
+	return result
 }
 
 func (t *HTTPTransport) newRequest(url *url.URL) *http.Request {

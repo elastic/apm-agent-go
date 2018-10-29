@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net"
@@ -246,6 +247,18 @@ func TestHTTPTransportServerFailover(t *testing.T) {
 	assert.NotEqual(t, hosts[0], hosts[1])
 	assert.Equal(t, hosts[0], hosts[2])
 	assert.Equal(t, hosts[1], hosts[3])
+}
+
+func TestHTTPTransportV2NotFound(t *testing.T) {
+	server := httptest.NewServer(http.NotFoundHandler())
+	defer server.Close()
+
+	transport, err := transport.NewHTTPTransport()
+	require.NoError(t, err)
+	transport.SetServerURL(mustParseURL(server.URL))
+
+	err = transport.SendStream(context.Background(), strings.NewReader(""))
+	assert.EqualError(t, err, fmt.Sprintf("request failed with 404 Not Found: %s/intake/v2/events not found (requires APM Server 6.5.0 or newer)", server.URL))
 }
 
 func newHTTPTransport(t *testing.T, handler http.Handler) (*transport.HTTPTransport, *httptest.Server) {
