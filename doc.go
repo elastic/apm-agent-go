@@ -1,4 +1,4 @@
-// Package elasticapm provides an API for tracing
+// Package apm provides an API for tracing
 // transactions and capturing errors, sending the
 // data to Elastic APM.
-package elasticapm
+package apm // import "go.elastic.co/apm"

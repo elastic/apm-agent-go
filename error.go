@@ -1,4 +1,4 @@
-package elasticapm
+package apm
 
 import (
 	"crypto/rand"
@@ -11,33 +11,15 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/elastic/apm-agent-go/internal/fastjson"
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/stacktrace"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/stacktrace"
 )
-
-// Recover recovers panics, sending them as errors to
-// the Elastic APM server. Recover is expected to be
-// used in a deferred call.
-//
-// Recover simply calls t.Recovered(v, tx),
-// where v is the recovered value, and then calls the
-// resulting Error's Send method.
-func (t *Tracer) Recover(tx *Transaction) {
-	v := recover()
-	if v == nil {
-		return
-	}
-	t.Recovered(v, tx).Send()
-}
 
 // Recovered creates an Error with t.NewError(err), where
 // err is either v (if v implements error), or otherwise
 // fmt.Errorf("%v", v). The value v is expected to have
 // come from a panic.
-//
-// The resulting error's Transaction will be set to tx,
-func (t *Tracer) Recovered(v interface{}, tx *Transaction) *Error {
+func (t *Tracer) Recovered(v interface{}) *Error {
 	var e *Error
 	switch v := v.(type) {
 	case error:
@@ -45,7 +27,6 @@ func (t *Tracer) Recovered(v interface{}, tx *Transaction) *Error {
 	default:
 		e = t.NewError(fmt.Errorf("%v", v))
 	}
-	e.Transaction = tx
 	return e
 }
 
@@ -84,7 +65,7 @@ func (t *Tracer) NewError(err error) *Error {
 	}
 	e := t.newError()
 	rand.Read(e.ID[:]) // ignore error, can't do anything about it
-	e.model.Exception.Message = err.Error()
+	e.model.Exception.Message = truncateString(err.Error())
 	if e.model.Exception.Message == "" {
 		e.model.Exception.Message = "[EMPTY]"
 	}
@@ -105,7 +86,7 @@ func (t *Tracer) NewError(err error) *Error {
 func (t *Tracer) NewErrorLog(r ErrorLogRecord) *Error {
 	e := t.newError()
 	e.model.Log = model.Log{
-		Message:      r.Message,
+		Message:      truncateString(r.Message),
 		Level:        truncateString(r.Level),
 		LoggerName:   truncateString(r.LoggerName),
 		ParamMessage: truncateString(r.MessageFormat),
@@ -138,9 +119,25 @@ type Error struct {
 	stacktrace      []stacktrace.Frame
 	modelStacktrace []model.StacktraceFrame
 
-	// ID is the unique ID of the error. This is set by NewError,
-	// and can be used for correlating errors and log records.
+	// ID is the unique identifier of the error. This is set by
+	// the various error constructors, and is exposed only so
+	// the error ID can be logged or displayed to the user.
 	ID ErrorID
+
+	// TraceID is the unique identifier of the trace in which
+	// this error occurred. If the error is not associated with
+	// a trace, this will be the zero value.
+	TraceID TraceID
+
+	// TransactionID is the unique identifier of the transaction
+	// in which this error occurred. If the error is not associated
+	// with a transaction, this will be the zero value.
+	TransactionID SpanID
+
+	// ParentID is the unique identifier of the transaction or span
+	// in which this error occurred. If the error is not associated
+	// with a transaction or span, this will be the zero value.
+	ParentID SpanID
 
 	// Culprit is the name of the function that caused the error.
 	//
@@ -149,11 +146,6 @@ type Error struct {
 	// non-library frame in the stacktrace will be considered the
 	// culprit.
 	Culprit string
-
-	// Transaction is the transaction to which the error correspoonds,
-	// if any. If this is set, the error's Send method must be called
-	// before the transaction's End method.
-	Transaction *Transaction
 
 	// Timestamp records the time at which the error occurred.
 	// This is set when the Error object is created, but may
@@ -169,6 +161,27 @@ type Error struct {
 	Context Context
 }
 
+// SetTransaction sets TraceID, TransactionID, and ParentID to the transaction's IDs.
+//
+// This must be called before tx.End(). After SetTransaction returns, e may be sent
+// and tx ended in either order.
+func (e *Error) SetTransaction(tx *Transaction) {
+	e.TraceID = tx.traceContext.Trace
+	e.ParentID = tx.traceContext.Span
+	e.TransactionID = e.ParentID
+}
+
+// SetSpan sets TraceID, TransactionID, and ParentID to the span's IDs. If you call
+// this, it is not necessary to call SetTransaction.
+//
+// This must be called before s.End(). After SetSpanreturns, e may be sent and e ended
+// in either order.
+func (e *Error) SetSpan(s *Span) {
+	e.TraceID = s.traceContext.Trace
+	e.ParentID = s.traceContext.Span
+	e.TransactionID = s.transactionID
+}
+
 func (e *Error) reset() {
 	*e = Error{
 		tracer:          e.tracer,
@@ -177,6 +190,7 @@ func (e *Error) reset() {
 		Context:         e.Context,
 	}
 	e.Context.reset()
+	e.tracer.errorPool.Put(e)
 }
 
 // Send enqueues the error for sending to the Elastic APM server.
@@ -190,7 +204,6 @@ func (e *Error) Send() {
 		e.tracer.stats.ErrorsDropped++
 		e.tracer.statsMu.Unlock()
 		e.reset()
-		e.tracer.errorPool.Put(e)
 	}
 }
 
@@ -361,12 +374,9 @@ type ErrorLogRecord struct {
 }
 
 // ErrorID uniquely identifies an error.
-type ErrorID [16]byte
+type ErrorID TraceID
 
-// String returns id in the canonical v4 UUID hex-encoded format.
+// String returns id in its hex-encoded format.
 func (id ErrorID) String() string {
-	var jw fastjson.Writer
-	uuid := model.UUID(id)
-	uuid.MarshalFastJSON(&jw)
-	return string(jw.Bytes())
+	return TraceID(id).String()
 }

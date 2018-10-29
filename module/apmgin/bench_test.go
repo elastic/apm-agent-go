@@ -3,14 +3,15 @@ package apmgin_test
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/module/apmgin"
-	"github.com/elastic/apm-agent-go/transport"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/module/apmgin"
+	"go.elastic.co/apm/transport"
 )
 
 var benchmarkPaths = []string{"/hello/world", "/sleep/1ms"}
@@ -46,16 +47,21 @@ func benchmarkEngine(b *testing.B, path string, addMiddleware func(*gin.Engine))
 	}
 }
 
-func newTracer() *elasticapm.Tracer {
-	tracer, err := elasticapm.NewTracer("apmgin_test", "0.1")
+func newTracer() *apm.Tracer {
+	tracer, err := apm.NewTracer("apmgin_test", "0.1")
 	if err != nil {
 		panic(err)
 	}
 
-	httpTransport, err := transport.NewHTTPTransport("http://testing.invalid:8200", "")
+	invalidServerURL, err := url.Parse("http://testing.invalid:8200")
 	if err != nil {
 		panic(err)
 	}
+	httpTransport, err := transport.NewHTTPTransport()
+	if err != nil {
+		panic(err)
+	}
+	httpTransport.SetServerURL(invalidServerURL)
 	tracer.Transport = httpTransport
 	return tracer
 }

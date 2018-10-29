@@ -6,9 +6,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/module/apmhttp"
-	"github.com/elastic/apm-agent-go/stacktrace"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/module/apmhttp"
+	"go.elastic.co/apm/stacktrace"
 )
 
 func init() {
@@ -24,12 +24,12 @@ func init() {
 // This middleware will recover and report panics, so it can
 // be used instead of the standard gin.Recovery middleware.
 //
-// By default, the middleware will use elasticapm.DefaultTracer.
+// By default, the middleware will use apm.DefaultTracer.
 // Use WithTracer to specify an alternative tracer.
 func Middleware(engine *gin.Engine, o ...Option) gin.HandlerFunc {
 	m := &middleware{
 		engine:         engine,
-		tracer:         elasticapm.DefaultTracer,
+		tracer:         apm.DefaultTracer,
 		requestIgnorer: apmhttp.DefaultServerRequestIgnorer(),
 	}
 	for _, o := range o {
@@ -40,7 +40,7 @@ func Middleware(engine *gin.Engine, o ...Option) gin.HandlerFunc {
 
 type middleware struct {
 	engine         *gin.Engine
-	tracer         *elasticapm.Tracer
+	tracer         *apm.Tracer
 	requestIgnorer apmhttp.RequestIgnorerFunc
 
 	setRouteMapOnce sync.Once
@@ -82,33 +82,29 @@ func (m *middleware) handle(c *gin.Context) {
 	defer tx.End()
 
 	body := m.tracer.CaptureHTTPRequestBody(c.Request)
-	ginContext := ginContext{Handler: handlerName}
 	defer func() {
 		if v := recover(); v != nil {
-			c.AbortWithStatus(http.StatusInternalServerError)
-			e := m.tracer.Recovered(v, tx)
-			e.Context.SetHTTPRequest(c.Request)
-			e.Context.SetHTTPRequestBody(body)
+			if !c.Writer.Written() {
+				c.AbortWithStatus(http.StatusInternalServerError)
+			} else {
+				c.Abort()
+			}
+			e := m.tracer.Recovered(v)
+			e.SetTransaction(tx)
+			setContext(&e.Context, c, body)
 			e.Send()
 		}
+		c.Writer.WriteHeaderNow()
 		tx.Result = apmhttp.StatusCodeResult(c.Writer.Status())
 
 		if tx.Sampled() {
-			tx.Context.SetHTTPRequest(c.Request)
-			tx.Context.SetHTTPRequestBody(body)
-			tx.Context.SetHTTPStatusCode(c.Writer.Status())
-			tx.Context.SetHTTPResponseHeaders(c.Writer.Header())
-			tx.Context.SetHTTPResponseHeadersSent(c.Writer.Written())
-			tx.Context.SetHTTPResponseFinished(!c.IsAborted())
-			tx.Context.SetCustom("gin", ginContext)
+			setContext(&tx.Context, c, body)
 		}
 
 		for _, err := range c.Errors {
 			e := m.tracer.NewError(err.Err)
-			e.Context.SetHTTPRequest(c.Request)
-			e.Context.SetHTTPRequestBody(body)
-			e.Context.SetCustom("gin", ginContext)
-			e.Transaction = tx
+			e.SetTransaction(tx)
+			setContext(&e.Context, c, body)
 			e.Handled = true
 			e.Send()
 		}
@@ -116,8 +112,12 @@ func (m *middleware) handle(c *gin.Context) {
 	c.Next()
 }
 
-type ginContext struct {
-	Handler string `json:"handler"`
+func setContext(ctx *apm.Context, c *gin.Context, body *apm.BodyCapturer) {
+	ctx.SetFramework("gin", gin.Version)
+	ctx.SetHTTPRequest(c.Request)
+	ctx.SetHTTPRequestBody(body)
+	ctx.SetHTTPStatusCode(c.Writer.Status())
+	ctx.SetHTTPResponseHeaders(c.Writer.Header())
 }
 
 // Option sets options for tracing.
@@ -125,7 +125,7 @@ type Option func(*middleware)
 
 // WithTracer returns an Option which sets t as the tracer
 // to use for tracing server requests.
-func WithTracer(t *elasticapm.Tracer) Option {
+func WithTracer(t *apm.Tracer) Option {
 	if t == nil {
 		panic("t == nil")
 	}

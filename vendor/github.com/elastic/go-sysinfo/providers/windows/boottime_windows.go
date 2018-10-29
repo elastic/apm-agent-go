@@ -20,8 +20,9 @@ package windows
 import (
 	"time"
 
-	"github.com/elastic/go-windows"
 	"github.com/pkg/errors"
+
+	"github.com/elastic/go-windows"
 )
 
 func BootTime() (time.Time, error) {

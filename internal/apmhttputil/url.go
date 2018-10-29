@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/elastic/apm-agent-go/internal/apmstrings"
-	"github.com/elastic/apm-agent-go/model"
+	"go.elastic.co/apm/internal/apmstrings"
+	"go.elastic.co/apm/model"
 )
 
 // RequestURL returns a model.URL for req.

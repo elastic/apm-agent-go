@@ -1,11 +1,12 @@
 language: go
-
 go:
   - stable
   - "1.x"
   - "1.8.x"
   - "1.9.x"
   - "1.10.x"
+
+go_import_path: go.elastic.co/apm
 
 matrix:
   fast_finish: true
@@ -15,7 +16,7 @@ matrix:
 
 before_install:
   - go get -v golang.org/x/tools/cmd/goimports
-  - go get -v golang.org/x/lint/golint
+  - if (go run scripts/mingoversion.go 1.10 &>/dev/null); then go get -v golang.org/x/lint/golint; fi
 
 script:
   - make install check

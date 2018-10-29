@@ -70,6 +70,15 @@ See <<builtin-modules-apmgorilla, module/apmgorilla>> for more information
 about gorilla/mux instrumentation.
 
 [float]
+==== go-restful
+
+We support https://github.com/emicklei/go-restful[go-restful],
+https://github.com/emicklei/go-restful/releases/tag/2.0.0[2.0.0] and greater.
+
+See <<builtin-modules-apmrestful, module/apmrestful>> for more information
+about go-restful instrumentation.
+
+[float]
 [[supported-tech-databases]]
 === Databases
 
@@ -116,6 +125,16 @@ is created for each query in the batch.
 
 See <<builtin-modules-apmgocql, module/apmgocql>> for more information
 about GoCQL instrumentation.
+
+[float]
+==== Redis (gomodule/redigo)
+
+We support https://github.com/gomodule/redigo[Redigo],
+https://github.com/gomodule/redigo/tree/v2.0.0[v2.0.0] and greater.
+We provide helper functions for reporting Redis commands as spans.
+
+See <<builtin-modules-apmredigo, module/apmredigo>> for more information
+about Redigo instrumentation.
 
 [float]
 [[supported-tech-rpc]]

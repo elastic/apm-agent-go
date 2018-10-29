@@ -1,3 +1,5 @@
+TEST_TIMEOUT?=5m
+
 .PHONY: check
 check: precheck test
 
@@ -16,7 +18,9 @@ endif
 
 .PHONY: check-lint
 check-lint:
+ifeq ($(shell go run ./scripts/mingoversion.go -print 1.10),true)
 	go list ./... | grep -v vendor | xargs golint -set_exit_status
+endif
 
 .PHONY: check-vet
 check-vet:
@@ -26,13 +30,21 @@ check-vet:
 install:
 	go get -v -t ./...
 
+.PHONY: docker-test
+docker-test:
+	scripts/docker-compose-testing run -T --rm go-agent-tests make test
+
 .PHONY: test
 test:
-	go test -v ./...
+	go test -v -timeout=$(TEST_TIMEOUT) ./...
 
 .PHONY: coverage
 coverage:
 	@sh scripts/test_coverage.sh
+
+.PHONY: fmt
+fmt:
+	@GOIMPORTSFLAGS=-w sh scripts/goimports.sh
 
 .PHONY: clean
 clean:

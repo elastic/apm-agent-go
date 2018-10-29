@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/elastic/apm-agent-go/internal/sqlutil"
+	"go.elastic.co/apm/internal/sqlutil"
 )
 
 func TestQuerySignature(t *testing.T) {

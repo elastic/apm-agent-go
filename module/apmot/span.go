@@ -7,29 +7,34 @@ import (
 	"sync"
 
 	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/log"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/module/apmhttp"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/module/apmhttp"
 )
 
-// otSpan wraps elasticapm objects to implement the opentracing.Span interface.
+// otSpan wraps apm objects to implement the opentracing.Span interface.
 type otSpan struct {
 	tracer *otTracer
+	unsupportedSpanMethods
 
 	mu   sync.Mutex
-	tx   *elasticapm.Transaction
-	span *elasticapm.Span
+	span *apm.Span
 	tags opentracing.Tags
 	ctx  spanContext
 }
 
+// Span returns s.span, the underlying apm.Span. This is used to satisfy
+// SpanFromContext.
+func (s *otSpan) Span() *apm.Span {
+	return s.span
+}
+
 // SetOperationName sets or changes the operation name.
 func (s *otSpan) SetOperationName(operationName string) opentracing.Span {
-	if s.tx != nil {
-		s.tx.Name = operationName
-	} else {
+	if s.span != nil {
 		s.span.Name = operationName
+	} else {
+		s.ctx.tx.Name = operationName
 	}
 	return s
 }
@@ -58,10 +63,11 @@ func (s *otSpan) FinishWithOptions(opts opentracing.FinishOptions) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if !opts.FinishTime.IsZero() {
+		duration := opts.FinishTime.Sub(s.ctx.startTime)
 		if s.span != nil {
-			s.span.Duration = opts.FinishTime.Sub(s.span.Timestamp)
+			s.span.Duration = duration
 		} else {
-			s.tx.Duration = opts.FinishTime.Sub(s.tx.Timestamp)
+			s.ctx.tx.Duration = duration
 		}
 	}
 	if s.span != nil {
@@ -69,7 +75,11 @@ func (s *otSpan) FinishWithOptions(opts opentracing.FinishOptions) {
 		s.span.End()
 	} else {
 		s.setTransactionContext()
-		s.tx.End()
+		s.ctx.mu.Lock()
+		tx := s.ctx.tx
+		s.ctx.tx = nil
+		s.ctx.mu.Unlock()
+		tx.End()
 	}
 }
 
@@ -83,9 +93,7 @@ func (s *otSpan) Tracer() opentracing.Tracer {
 // It is valid to call Context after calling Finish or FinishWithOptions.
 // The resulting context is also valid after the span is finished.
 func (s *otSpan) Context() opentracing.SpanContext {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.ctx
+	return &s.ctx
 }
 
 // SetBaggageItem is a no-op; we do not support baggage.
@@ -94,34 +102,9 @@ func (s *otSpan) SetBaggageItem(key, val string) opentracing.Span {
 	return s
 }
 
-// BaggageItem returns the empty string; we do not support baggage.
-func (s *otSpan) BaggageItem(key string) string {
-	return ""
-}
-
-func (*otSpan) LogKV(keyValues ...interface{}) {
-	// No-op.
-}
-
-func (*otSpan) LogFields(fields ...log.Field) {
-	// No-op.
-}
-
-func (*otSpan) LogEvent(event string) {
-	// No-op.
-}
-
-func (*otSpan) LogEventWithPayload(event string, payload interface{}) {
-	// No-op.
-}
-
-func (*otSpan) Log(ld opentracing.LogData) {
-	// No-op.
-}
-
 func (s *otSpan) setSpanContext() {
 	var (
-		dbContext       elasticapm.DatabaseSpanContext
+		dbContext       apm.DatabaseSpanContext
 		component       string
 		httpURL         string
 		httpMethod      string
@@ -154,6 +137,9 @@ func (s *otSpan) setSpanContext() {
 		// Elastic APM-specific tags:
 		case "type":
 			s.span.Type = fmt.Sprint(v)
+
+		default:
+			s.span.Context.SetTag(k, fmt.Sprint(v))
 		}
 	}
 	switch {
@@ -213,35 +199,35 @@ func (s *otSpan) setTransactionContext() {
 
 		// Elastic APM-specific tags:
 		case "type":
-			s.tx.Type = fmt.Sprint(v)
+			s.ctx.tx.Type = fmt.Sprint(v)
 		case "result":
-			s.tx.Result = fmt.Sprint(v)
+			s.ctx.tx.Result = fmt.Sprint(v)
 		case "user.id":
-			s.tx.Context.SetUserID(fmt.Sprint(v))
+			s.ctx.tx.Context.SetUserID(fmt.Sprint(v))
 		case "user.email":
-			s.tx.Context.SetUserEmail(fmt.Sprint(v))
+			s.ctx.tx.Context.SetUserEmail(fmt.Sprint(v))
 		case "user.username":
-			s.tx.Context.SetUsername(fmt.Sprint(v))
+			s.ctx.tx.Context.SetUsername(fmt.Sprint(v))
 
 		default:
-			s.tx.Context.SetTag(k, fmt.Sprint(v))
+			s.ctx.tx.Context.SetTag(k, fmt.Sprint(v))
 		}
 	}
-	if s.tx.Type == "" {
+	if s.ctx.tx.Type == "" {
 		if httpURL != "" {
-			s.tx.Type = "request"
+			s.ctx.tx.Type = "request"
 		} else if component != "" {
-			s.tx.Type = component
+			s.ctx.tx.Type = component
 		} else {
-			s.tx.Type = "unknown"
+			s.ctx.tx.Type = "unknown"
 		}
 	}
-	if s.tx.Result == "" {
+	if s.ctx.tx.Result == "" {
 		if httpStatusCode != -1 {
-			s.tx.Result = apmhttp.StatusCodeResult(httpStatusCode)
-			s.tx.Context.SetHTTPStatusCode(httpStatusCode)
+			s.ctx.tx.Result = apmhttp.StatusCodeResult(httpStatusCode)
+			s.ctx.tx.Context.SetHTTPStatusCode(httpStatusCode)
 		} else if isError {
-			s.tx.Result = "error"
+			s.ctx.tx.Result = "error"
 		}
 	}
 	if httpURL != "" {
@@ -252,7 +238,7 @@ func (s *otSpan) setTransactionContext() {
 			req.ProtoMinor = 1
 			req.Method = httpMethod
 			req.URL = uri
-			s.tx.Context.SetHTTPRequest(&req)
+			s.ctx.tx.Context.SetHTTPRequest(&req)
 		}
 	}
 }

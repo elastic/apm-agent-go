@@ -5,5 +5,5 @@ package apmgormpostgres
 import (
 	_ "github.com/jinzhu/gorm/dialects/postgres" // import the postgres dialect
 
-	_ "github.com/elastic/apm-agent-go/module/apmsql/pq" // register lib/pq with apmsql
+	_ "go.elastic.co/apm/module/apmsql/pq" // register lib/pq with apmsql
 )

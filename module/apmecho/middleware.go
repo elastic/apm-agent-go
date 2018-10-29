@@ -3,11 +3,12 @@ package apmecho
 import (
 	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/labstack/echo"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/module/apmhttp"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/module/apmhttp"
 )
 
 // Middleware returns a new Echo middleware handler for tracing
@@ -16,11 +17,11 @@ import (
 // This middleware will recover and report panics, so it can
 // be used instead of echo/middleware.Recover.
 //
-// By default, the middleware will use elasticapm.DefaultTracer.
+// By default, the middleware will use apm.DefaultTracer.
 // Use WithTracer to specify an alternative tracer.
 func Middleware(o ...Option) echo.MiddlewareFunc {
 	opts := options{
-		tracer:         elasticapm.DefaultTracer,
+		tracer:         apm.DefaultTracer,
 		requestIgnorer: apmhttp.DefaultServerRequestIgnorer(),
 	}
 	for _, o := range o {
@@ -38,7 +39,7 @@ func Middleware(o ...Option) echo.MiddlewareFunc {
 
 type middleware struct {
 	handler        echo.HandlerFunc
-	tracer         *elasticapm.Tracer
+	tracer         *apm.Tracer
 	requestIgnorer apmhttp.RequestIgnorerFunc
 }
 
@@ -53,44 +54,51 @@ func (m *middleware) handle(c echo.Context) error {
 	c.SetRequest(req)
 	body := m.tracer.CaptureHTTPRequestBody(req)
 
+	resp := c.Response()
+	var handlerErr error
 	defer func() {
 		if v := recover(); v != nil {
-			e := m.tracer.Recovered(v, tx)
-			e.Context.SetHTTPRequest(req)
-			e.Context.SetHTTPRequestBody(body)
 			err, ok := v.(error)
 			if !ok {
 				err = errors.New(fmt.Sprint(v))
 			}
-			e.Send()
 			c.Error(err)
+
+			e := m.tracer.Recovered(v)
+			e.SetTransaction(tx)
+			setContext(&e.Context, req, resp, body)
+			e.Send()
+		}
+		if handlerErr != nil {
+			e := m.tracer.NewError(handlerErr)
+			setContext(&e.Context, req, resp, body)
+			e.SetTransaction(tx)
+			e.Handled = true
+			e.Send()
+		}
+		tx.Result = apmhttp.StatusCodeResult(resp.Status)
+		if tx.Sampled() {
+			setContext(&tx.Context, req, resp, body)
 		}
 	}()
 
-	resp := c.Response()
-	handlerErr := m.handler(c)
-	tx.Result = apmhttp.StatusCodeResult(resp.Status)
-	if tx.Sampled() {
-		tx.Context.SetHTTPRequest(req)
-		tx.Context.SetHTTPRequestBody(body)
-		tx.Context.SetHTTPStatusCode(resp.Status)
-		tx.Context.SetHTTPResponseHeaders(resp.Header())
-		tx.Context.SetHTTPResponseHeadersSent(resp.Committed)
+	handlerErr = m.handler(c)
+	if handlerErr == nil && !resp.Committed {
+		resp.WriteHeader(http.StatusOK)
 	}
-	if handlerErr != nil {
-		e := m.tracer.NewError(handlerErr)
-		e.Context.SetHTTPRequest(req)
-		e.Context.SetHTTPRequestBody(body)
-		e.Transaction = tx
-		e.Handled = true
-		e.Send()
-		return handlerErr
-	}
-	return nil
+	return handlerErr
+}
+
+func setContext(ctx *apm.Context, req *http.Request, resp *echo.Response, body *apm.BodyCapturer) {
+	ctx.SetFramework("echo", echo.Version)
+	ctx.SetHTTPRequest(req)
+	ctx.SetHTTPRequestBody(body)
+	ctx.SetHTTPStatusCode(resp.Status)
+	ctx.SetHTTPResponseHeaders(resp.Header())
 }
 
 type options struct {
-	tracer         *elasticapm.Tracer
+	tracer         *apm.Tracer
 	requestIgnorer apmhttp.RequestIgnorerFunc
 }
 
@@ -99,7 +107,7 @@ type Option func(*options)
 
 // WithTracer returns an Option which sets t as the tracer
 // to use for tracing server requests.
-func WithTracer(t *elasticapm.Tracer) Option {
+func WithTracer(t *apm.Tracer) Option {
 	if t == nil {
 		panic("t == nil")
 	}

@@ -1,11 +1,8 @@
-package elasticapm
+package apm
 
 import (
-	"fmt"
-	"math/rand"
 	"os"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -13,13 +10,12 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/elastic/apm-agent-go/internal/apmconfig"
+	"go.elastic.co/apm/internal/apmconfig"
+	"go.elastic.co/apm/internal/wildcard"
 )
 
 const (
-	envFlushInterval         = "ELASTIC_APM_FLUSH_INTERVAL"
 	envMetricsInterval       = "ELASTIC_APM_METRICS_INTERVAL"
-	envMaxQueueSize          = "ELASTIC_APM_MAX_QUEUE_SIZE"
 	envMaxSpans              = "ELASTIC_APM_TRANSACTION_MAX_SPANS"
 	envTransactionSampleRate = "ELASTIC_APM_TRANSACTION_SAMPLE_RATE"
 	envSanitizeFieldNames    = "ELASTIC_APM_SANITIZE_FIELD_NAMES"
@@ -29,48 +25,74 @@ const (
 	envEnvironment           = "ELASTIC_APM_ENVIRONMENT"
 	envSpanFramesMinDuration = "ELASTIC_APM_SPAN_FRAMES_MIN_DURATION"
 	envActive                = "ELASTIC_APM_ACTIVE"
-	envDistributedTracing    = "ELASTIC_APM_DISTRIBUTED_TRACING"
+	envAPIRequestSize        = "ELASTIC_APM_API_REQUEST_SIZE"
+	envAPIRequestTime        = "ELASTIC_APM_API_REQUEST_TIME"
+	envAPIBufferSize         = "ELASTIC_APM_API_BUFFER_SIZE"
 
-	defaultFlushInterval           = 10 * time.Second
-	defaultMetricsInterval         = 0 // disabled by default
-	defaultMaxTransactionQueueSize = 500
-	defaultMaxSpans                = 500
-	defaultCaptureBody             = CaptureBodyOff
-	defaultSpanFramesMinDuration   = 5 * time.Millisecond
+	defaultAPIRequestSize        = 750 * apmconfig.KByte
+	defaultAPIRequestTime        = 10 * time.Second
+	defaultAPIBufferSize         = 10 * apmconfig.MByte
+	defaultMetricsInterval       = 0 // disabled by default
+	defaultMaxSpans              = 500
+	defaultCaptureBody           = CaptureBodyOff
+	defaultSpanFramesMinDuration = 5 * time.Millisecond
+
+	minAPIBufferSize  = 10 * apmconfig.KByte
+	maxAPIBufferSize  = 100 * apmconfig.MByte
+	minAPIRequestSize = 1 * apmconfig.KByte
+	maxAPIRequestSize = 5 * apmconfig.MByte
 )
 
 var (
-	defaultSanitizedFieldNames = regexp.MustCompile(fmt.Sprintf("(?i:%s)", strings.Join([]string{
+	defaultSanitizedFieldNames = apmconfig.ParseWildcardPatterns(strings.Join([]string{
 		"password",
 		"passwd",
 		"pwd",
 		"secret",
-		".*key",
-		".*token",
-		".*session.*",
-		".*credit.*",
-		".*card.*",
-	}, "|")))
+		"*key",
+		"*token*",
+		"*session*",
+		"*credit*",
+		"*card*",
+		"authorization",
+		"set-cookie",
+	}, ","))
 )
 
-func initialFlushInterval() (time.Duration, error) {
-	return apmconfig.ParseDurationEnv(envFlushInterval, "s", defaultFlushInterval)
+func initialRequestDuration() (time.Duration, error) {
+	return apmconfig.ParseDurationEnv(envAPIRequestTime, defaultAPIRequestTime)
 }
 
 func initialMetricsInterval() (time.Duration, error) {
-	return apmconfig.ParseDurationEnv(envMetricsInterval, "s", defaultMetricsInterval)
+	return apmconfig.ParseDurationEnv(envMetricsInterval, defaultMetricsInterval)
 }
 
-func initialMaxTransactionQueueSize() (int, error) {
-	value := os.Getenv(envMaxQueueSize)
-	if value == "" {
-		return defaultMaxTransactionQueueSize, nil
-	}
-	size, err := strconv.Atoi(value)
+func initialAPIBufferSize() (int, error) {
+	size, err := apmconfig.ParseSizeEnv(envAPIBufferSize, defaultAPIBufferSize)
 	if err != nil {
-		return 0, errors.Wrapf(err, "failed to parse %s", envMaxQueueSize)
+		return 0, err
 	}
-	return size, nil
+	if size < minAPIBufferSize || size > maxAPIBufferSize {
+		return 0, errors.Errorf(
+			"%s must be at least %s and less than %s, got %s",
+			envAPIBufferSize, minAPIBufferSize, maxAPIBufferSize, size,
+		)
+	}
+	return int(size), nil
+}
+
+func initialAPIRequestSize() (int, error) {
+	size, err := apmconfig.ParseSizeEnv(envAPIRequestSize, defaultAPIRequestSize)
+	if err != nil {
+		return 0, err
+	}
+	if size < minAPIRequestSize || size > maxAPIRequestSize {
+		return 0, errors.Errorf(
+			"%s must be at least %s and less than %s, got %s",
+			envAPIRequestSize, minAPIRequestSize, maxAPIRequestSize, size,
+		)
+	}
+	return int(size), nil
 }
 
 func initialMaxSpans() (int, error) {
@@ -101,21 +123,11 @@ func initialSampler() (Sampler, error) {
 			envTransactionSampleRate, value,
 		)
 	}
-	source := rand.NewSource(time.Now().Unix())
-	return NewRatioSampler(ratio, source), nil
+	return NewRatioSampler(ratio), nil
 }
 
-func initialSanitizedFieldNamesRegexp() (*regexp.Regexp, error) {
-	value := os.Getenv(envSanitizeFieldNames)
-	if value == "" {
-		return defaultSanitizedFieldNames, nil
-	}
-	re, err := regexp.Compile(fmt.Sprintf("(?i:%s)", value))
-	if err != nil {
-		_, err = regexp.Compile(value)
-		return nil, errors.Wrapf(err, "invalid %s value", envSanitizeFieldNames)
-	}
-	return re, nil
+func initialSanitizedFieldNames() wildcard.Matchers {
+	return apmconfig.ParseWildcardPatternsEnv(envSanitizeFieldNames, defaultSanitizedFieldNames)
 }
 
 func initialCaptureBody() (CaptureBodyMode, error) {
@@ -151,13 +163,9 @@ func initialService() (name, version, environment string) {
 }
 
 func initialSpanFramesMinDuration() (time.Duration, error) {
-	return apmconfig.ParseDurationEnv(envSpanFramesMinDuration, "", defaultSpanFramesMinDuration)
+	return apmconfig.ParseDurationEnv(envSpanFramesMinDuration, defaultSpanFramesMinDuration)
 }
 
 func initialActive() (bool, error) {
 	return apmconfig.ParseBoolEnv(envActive, true)
-}
-
-func initialDistributedTracing() (bool, error) {
-	return apmconfig.ParseBoolEnv(envDistributedTracing, false)
 }

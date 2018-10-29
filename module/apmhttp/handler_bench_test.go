@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"path"
 	"testing"
 	"time"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/module/apmhttp"
-	"github.com/elastic/apm-agent-go/transport"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/module/apmhttp"
+	"go.elastic.co/apm/transport"
 )
 
 var benchmarkPaths = []string{"/hello/world", "/sleep/1ms"}
@@ -50,16 +51,22 @@ func benchmarkHandler(b *testing.B, path string, wrapHandler func(http.Handler) 
 	}
 }
 
-func newTracer() *elasticapm.Tracer {
-	tracer, err := elasticapm.NewTracer("apmhttp_test", "0.1")
+func newTracer() *apm.Tracer {
+	tracer, err := apm.NewTracer("apmhttp_test", "0.1")
 	if err != nil {
 		panic(err)
 	}
 
-	httpTransport, err := transport.NewHTTPTransport("http://testing.invalid:8200", "")
+	invalidServerURL, err := url.Parse("http://testing.invalid:8200")
 	if err != nil {
 		panic(err)
 	}
+
+	httpTransport, err := transport.NewHTTPTransport()
+	if err != nil {
+		panic(err)
+	}
+	httpTransport.SetServerURL(invalidServerURL)
 	tracer.Transport = httpTransport
 	return tracer
 }

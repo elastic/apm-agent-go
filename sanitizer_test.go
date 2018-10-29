@@ -1,4 +1,4 @@
-package elasticapm_test
+package apm_test
 
 import (
 	"net/http"
@@ -6,25 +6,33 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/module/apmhttp"
-	"github.com/elastic/apm-agent-go/transport/transporttest"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/module/apmhttp"
+	"go.elastic.co/apm/transport/transporttest"
 )
 
-func TestSanitizeRequest(t *testing.T) {
+func TestSanitizeRequestResponse(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
 	mux := http.NewServeMux()
 	mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		http.SetCookie(w, &http.Cookie{
+			Name:  "foo",
+			Value: "bar",
+		})
+		http.SetCookie(w, &http.Cookie{
+			Name:  "baz",
+			Value: "qux",
+		})
 		w.WriteHeader(http.StatusTeapot)
 	}))
 	h := apmhttp.Wrap(mux, apmhttp.WithTracer(tracer))
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "http://server.testing/", nil)
+	req.SetBasicAuth("foo", "bar")
 	for _, c := range []*http.Cookie{
 		{Name: "secret", Value: "top"},
 		{Name: "Custom-Credit-Card-Number", Value: "top"},
@@ -37,21 +45,25 @@ func TestSanitizeRequest(t *testing.T) {
 	tracer.Flush(nil)
 
 	payloads := transport.Payloads()
-	require.Len(t, payloads, 1)
-	transactions := payloads[0].Transactions()
-	require.Len(t, transactions, 1)
+	tx := payloads.Transactions[0]
 
-	tx := transactions[0]
 	assert.Equal(t, tx.Context.Request.Cookies, model.Cookies{
 		{Name: "Custom-Credit-Card-Number", Value: "[REDACTED]"},
 		{Name: "secret", Value: "[REDACTED]"},
 		{Name: "sessionid", Value: "[REDACTED]"},
 		{Name: "user_id", Value: "456"},
 	})
-	assert.Equal(t,
-		"secret=[REDACTED];Custom-Credit-Card-Number=[REDACTED];sessionid=[REDACTED];user_id=456",
-		tx.Context.Request.Headers.Cookie,
-	)
+	assert.Equal(t, model.Headers{{
+		Key:    "Authorization",
+		Values: []string{"[REDACTED]"},
+	}}, tx.Context.Request.Headers)
+
+	// NOTE: the response includes multiple Set-Cookie headers,
+	// but we only report a single "[REDACTED]" value.
+	assert.Equal(t, model.Headers{{
+		Key:    "Set-Cookie",
+		Values: []string{"[REDACTED]"},
+	}}, tx.Context.Response.Headers)
 }
 
 func TestSetSanitizedFieldNamesNone(t *testing.T) {
@@ -84,13 +96,9 @@ func testSetSanitizedFieldNames(t *testing.T, expect string, sanitized ...string
 	tracer.Flush(nil)
 
 	payloads := transport.Payloads()
-	require.Len(t, payloads, 1)
-	transactions := payloads[0].Transactions()
-	require.Len(t, transactions, 1)
+	tx := payloads.Transactions[0]
 
-	tx := transactions[0]
 	assert.Equal(t, tx.Context.Request.Cookies, model.Cookies{
 		{Name: "secret", Value: expect},
 	})
-	assert.Equal(t, "secret="+expect, tx.Context.Request.Headers.Cookie)
 }

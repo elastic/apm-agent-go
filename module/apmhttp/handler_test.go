@@ -7,20 +7,39 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 	"golang.org/x/net/http2"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/module/apmhttp"
-	"github.com/elastic/apm-agent-go/transport/transporttest"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/apmtest"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/module/apmhttp"
+	"go.elastic.co/apm/transport/transporttest"
 )
+
+func TestHandlerHTTPSuite(t *testing.T) {
+	tracer, recorder := transporttest.NewRecorderTracer()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/implicit_write", func(w http.ResponseWriter, req *http.Request) {})
+	mux.HandleFunc("/panic_before_write", func(w http.ResponseWriter, req *http.Request) {
+		panic("boom")
+	})
+	mux.HandleFunc("/panic_after_write", func(w http.ResponseWriter, req *http.Request) {
+		w.Write([]byte("hello, world"))
+		panic("boom")
+	})
+	suite.Run(t, &apmtest.HTTPTestSuite{
+		Handler:  apmhttp.Wrap(mux, apmhttp.WithTracer(tracer)),
+		Tracer:   tracer,
+		Recorder: recorder,
+	})
+}
 
 func TestHandler(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
@@ -41,13 +60,11 @@ func TestHandler(t *testing.T) {
 	tracer.Flush(nil)
 
 	payloads := transport.Payloads()
-	transactions := payloads[0].Transactions()
-	transaction := transactions[0]
+	transaction := payloads.Transactions[0]
 	assert.Equal(t, "GET /foo", transaction.Name)
 	assert.Equal(t, "request", transaction.Type)
 	assert.Equal(t, "HTTP 4xx", transaction.Result)
 
-	true_ := true
 	assert.Equal(t, &model.Context{
 		Request: &model.Request{
 			Socket: &model.RequestSocket{
@@ -60,14 +77,14 @@ func TestHandler(t *testing.T) {
 				Path:     "/foo",
 			},
 			Method: "GET",
-			Headers: &model.RequestHeaders{
-				UserAgent: "apmhttp_test",
-			},
+			Headers: model.Headers{{
+				Key:    "User-Agent",
+				Values: []string{"apmhttp_test"},
+			}},
 			HTTPVersion: "1.1",
 		},
 		Response: &model.Response{
 			StatusCode: 418,
-			Finished:   &true_,
 		},
 	}, transaction.Context)
 }
@@ -104,9 +121,8 @@ func TestHandlerHTTP2(t *testing.T) {
 	tracer.Flush(nil)
 
 	payloads := transport.Payloads()
-	transaction := payloads[0].Transactions()[0]
+	transaction := payloads.Transactions[0]
 
-	true_ := true
 	assert.Equal(t, &model.Context{
 		Request: &model.Request{
 			Socket: &model.RequestSocket{
@@ -121,14 +137,20 @@ func TestHandlerHTTP2(t *testing.T) {
 				Path:     "/foo",
 			},
 			Method: "GET",
-			Headers: &model.RequestHeaders{
-				UserAgent: "Go-http-client/2.0",
-			},
+			Headers: model.Headers{{
+				Key:    "Accept-Encoding",
+				Values: []string{"gzip"},
+			}, {
+				Key:    "User-Agent",
+				Values: []string{"Go-http-client/2.0"},
+			}, {
+				Key:    "X-Real-Ip",
+				Values: []string{"client.testing"},
+			}},
 			HTTPVersion: "2.0",
 		},
 		Response: &model.Response{
 			StatusCode: 418,
-			Finished:   &true_,
 		},
 	}, transaction.Context)
 }
@@ -137,7 +159,7 @@ func TestHandlerCaptureBodyRaw(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
-	tracer.SetCaptureBody(elasticapm.CaptureBodyTransactions)
+	tracer.SetCaptureBody(apm.CaptureBodyTransactions)
 	h := apmhttp.Wrap(
 		http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}),
 		apmhttp.WithTracer(tracer),
@@ -150,7 +172,7 @@ func TestHandlerCaptureBodyForm(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
-	tracer.SetCaptureBody(elasticapm.CaptureBodyTransactions)
+	tracer.SetCaptureBody(apm.CaptureBodyTransactions)
 	h := apmhttp.Wrap(
 		http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
 			if err := req.ParseForm(); err != nil {
@@ -171,7 +193,7 @@ func TestHandlerCaptureBodyError(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
-	tracer.SetCaptureBody(elasticapm.CaptureBodyAll)
+	tracer.SetCaptureBody(apm.CaptureBodyAll)
 	h := apmhttp.Wrap(
 		http.HandlerFunc(panicHandler),
 		apmhttp.WithTracer(tracer),
@@ -184,7 +206,7 @@ func TestHandlerCaptureBodyErrorIgnored(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
-	tracer.SetCaptureBody(elasticapm.CaptureBodyTransactions)
+	tracer.SetCaptureBody(apm.CaptureBodyTransactions)
 	h := apmhttp.Wrap(
 		http.HandlerFunc(panicHandler),
 		apmhttp.WithTracer(tracer),
@@ -193,22 +215,22 @@ func TestHandlerCaptureBodyErrorIgnored(t *testing.T) {
 	assert.Nil(t, e.Context.Request.Body) // only capturing for transactions
 }
 
-func testPostTransaction(h http.Handler, tracer *elasticapm.Tracer, transport *transporttest.RecorderTransport, body io.Reader) model.Transaction {
+func testPostTransaction(h http.Handler, tracer *apm.Tracer, transport *transporttest.RecorderTransport, body io.Reader) model.Transaction {
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("POST", "http://server.testing/foo", body)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	h.ServeHTTP(w, req)
 	tracer.Flush(nil)
-	return transport.Payloads()[0].Transactions()[0]
+	return transport.Payloads().Transactions[0]
 }
 
-func testPostError(h http.Handler, tracer *elasticapm.Tracer, transport *transporttest.RecorderTransport, body io.Reader) *model.Error {
+func testPostError(h http.Handler, tracer *apm.Tracer, transport *transporttest.RecorderTransport, body io.Reader) model.Error {
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("POST", "http://server.testing/foo", body)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	h.ServeHTTP(w, req)
 	tracer.Flush(nil)
-	return transport.Payloads()[0].Errors()[0]
+	return transport.Payloads().Errors[0]
 }
 
 func TestHandlerRecovery(t *testing.T) {
@@ -226,17 +248,45 @@ func TestHandlerRecovery(t *testing.T) {
 	tracer.Flush(nil)
 
 	payloads := transport.Payloads()
-	error0 := payloads[0].Errors()[0]
-	transaction := payloads[1].Transactions()[0]
+	error0 := payloads.Errors[0]
+	transaction := payloads.Transactions[0]
 
 	assert.Equal(t, "panicHandler", error0.Culprit)
 	assert.Equal(t, "foo", error0.Exception.Message)
 
-	true_ := true
 	assert.Equal(t, &model.Response{
-		Finished:   &true_,
 		StatusCode: 418,
 	}, transaction.Context.Response)
+}
+
+func TestHandlerRecoveryNoHeaders(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	h := apmhttp.Wrap(
+		http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			panic("foo")
+		}),
+		apmhttp.WithTracer(tracer),
+	)
+
+	server := httptest.NewServer(h)
+	defer server.Close()
+
+	resp, err := http.Get(server.URL)
+	require.NoError(t, err)
+	resp.Body.Close()
+
+	// Panic is translated into a 500 response.
+	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+	tracer.Flush(nil)
+
+	payloads := transport.Payloads()
+	error0 := payloads.Errors[0]
+	transaction := payloads.Transactions[0]
+
+	assert.Equal(t, &model.Response{StatusCode: resp.StatusCode}, transaction.Context.Response)
+	assert.Equal(t, &model.Response{StatusCode: resp.StatusCode}, error0.Context.Response)
 }
 
 func TestHandlerRequestIgnorer(t *testing.T) {
@@ -259,9 +309,6 @@ func TestHandlerRequestIgnorer(t *testing.T) {
 }
 
 func TestHandlerTraceparentHeader(t *testing.T) {
-	os.Setenv("ELASTIC_APM_DISTRIBUTED_TRACING", "true")
-	defer os.Unsetenv("ELASTIC_APM_DISTRIBUTED_TRACING")
-
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
@@ -281,12 +328,10 @@ func TestHandlerTraceparentHeader(t *testing.T) {
 	tracer.Flush(nil)
 
 	payloads := transport.Payloads()
-	transactions := payloads[0].Transactions()
-	transaction := transactions[0]
-	assert.Equal(t, "0af7651916cd43dd8448eb211c80319c", elasticapm.TraceID(transaction.TraceID).String())
-	assert.Equal(t, "b7ad6b7169203331", elasticapm.SpanID(transaction.ParentID).String())
-	assert.NotZero(t, transaction.ID.SpanID)
-	assert.Zero(t, transaction.ID.UUID)
+	transaction := payloads.Transactions[0]
+	assert.Equal(t, "0af7651916cd43dd8448eb211c80319c", apm.TraceID(transaction.TraceID).String())
+	assert.Equal(t, "b7ad6b7169203331", apm.SpanID(transaction.ParentID).String())
+	assert.NotZero(t, transaction.ID)
 	assert.Equal(t, "GET /foo", transaction.Name)
 	assert.Equal(t, "request", transaction.Type)
 	assert.Equal(t, "HTTP 4xx", transaction.Result)

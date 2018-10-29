@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql/driver"
 
-	"github.com/elastic/apm-agent-go"
+	"go.elastic.co/apm"
 )
 
 func newStmt(in driver.Stmt, conn *conn, query string) driver.Stmt {
@@ -36,7 +36,7 @@ type stmt struct {
 	stmtQueryContext  driver.StmtQueryContext
 }
 
-func (s *stmt) startSpan(ctx context.Context, spanType string) (*elasticapm.Span, context.Context) {
+func (s *stmt) startSpan(ctx context.Context, spanType string) (*apm.Span, context.Context) {
 	return s.conn.startSpan(ctx, s.signature, spanType, s.query)
 }
 

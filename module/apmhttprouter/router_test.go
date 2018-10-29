@@ -8,11 +8,31 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/module/apmhttprouter"
-	"github.com/elastic/apm-agent-go/transport/transporttest"
+	"go.elastic.co/apm/apmtest"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/module/apmhttprouter"
+	"go.elastic.co/apm/transport/transporttest"
 )
+
+func TestRouterHTTPSuite(t *testing.T) {
+	tracer, recorder := transporttest.NewRecorderTracer()
+	router := apmhttprouter.New(apmhttprouter.WithTracer(tracer))
+	router.GET("/implicit_write", func(http.ResponseWriter, *http.Request, httprouter.Params) {})
+	router.GET("/panic_before_write", func(http.ResponseWriter, *http.Request, httprouter.Params) {
+		panic("boom")
+	})
+	router.GET("/panic_after_write", func(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+		w.Write([]byte("hello, world"))
+		panic("boom")
+	})
+	suite.Run(t, &apmtest.HTTPTestSuite{
+		Handler:  router,
+		Tracer:   tracer,
+		Recorder: recorder,
+	})
+}
 
 func TestRouter(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
@@ -35,10 +55,8 @@ func TestRouter(t *testing.T) {
 	tracer.Flush(nil)
 
 	payloads := transport.Payloads()
-	require.Len(t, payloads, 1)
-	transactions := payloads[0].Transactions()
-	require.Len(t, transactions, len(methods))
-	names := transactionNames(transactions)
+	require.Len(t, payloads.Transactions, len(methods))
+	names := transactionNames(payloads.Transactions)
 	for _, method := range methods {
 		assert.Contains(t, names, method+" /"+method)
 	}
@@ -48,10 +66,8 @@ func TestRouter(t *testing.T) {
 	sendRequest(router, w, "GET", "/handle")
 	tracer.Flush(nil)
 	payloads = transport.Payloads()
-	require.Len(t, payloads, 2)
-	transactions = payloads[1].Transactions()
-	require.Len(t, transactions, 1)
-	assert.Equal(t, "GET /handle", transactions[0].Name)
+	transaction := payloads.Transactions[len(methods)]
+	assert.Equal(t, "GET /handle", transaction.Name)
 }
 
 func TestRouterHTTPHandler(t *testing.T) {
@@ -67,11 +83,9 @@ func TestRouterHTTPHandler(t *testing.T) {
 	sendRequest(router, w, "GET", "/handlerfunc")
 	tracer.Flush(nil)
 	payloads := transport.Payloads()
-	require.Len(t, payloads, 1)
-	transactions := payloads[0].Transactions()
-	require.Len(t, transactions, 2)
+	require.Len(t, payloads.Transactions, 2)
 
-	names := transactionNames(transactions)
+	names := transactionNames(payloads.Transactions)
 	assert.Contains(t, names, "GET /handler")
 	assert.Contains(t, names, "GET /handlerfunc")
 }

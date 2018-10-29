@@ -1,6 +1,7 @@
-package elasticapm_test
+package apm_test
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"runtime"
@@ -10,11 +11,24 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/stacktrace"
-	"github.com/elastic/apm-agent-go/transport/transporttest"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/apmtest"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/stacktrace"
+	"go.elastic.co/apm/transport/transporttest"
 )
+
+func TestErrorID(t *testing.T) {
+	var errorID apm.ErrorID
+	_, _, errors := apmtest.WithTransaction(func(ctx context.Context) {
+		e := apm.CaptureError(ctx, errors.New("boom"))
+		errorID = e.ID
+		e.Send()
+	})
+	require.Len(t, errors, 1)
+	assert.NotZero(t, errorID)
+	assert.Equal(t, model.TraceID(errorID), errors[0].ID)
+}
 
 func TestErrorsStackTrace(t *testing.T) {
 	modelError := sendError(t, &errorsStackTracer{
@@ -23,7 +37,7 @@ func TestErrorsStackTrace(t *testing.T) {
 	exception := modelError.Exception
 	stacktrace := exception.Stacktrace
 	assert.Equal(t, "zing", exception.Message)
-	assert.Equal(t, "github.com/elastic/apm-agent-go_test", exception.Module)
+	assert.Equal(t, "go.elastic.co/apm_test", exception.Module)
 	assert.Equal(t, "errorsStackTracer", exception.Type)
 	assert.Len(t, stacktrace, 2)
 	assert.Equal(t, "newErrorsStackTrace", stacktrace[0].Function)
@@ -43,7 +57,7 @@ func TestInternalStackTrace(t *testing.T) {
 	exception := modelError.Exception
 	stacktrace := exception.Stacktrace
 	assert.Equal(t, "zing", exception.Message)
-	assert.Equal(t, "github.com/elastic/apm-agent-go_test", exception.Module)
+	assert.Equal(t, "go.elastic.co/apm_test", exception.Module)
 	assert.Equal(t, "internalStackTracer", exception.Type)
 	assert.Equal(t, []model.StacktraceFrame{{
 		Function: "FuncName",
@@ -79,18 +93,14 @@ func TestErrorAutoStackTraceReuse(t *testing.T) {
 	tracer.Flush(nil)
 
 	payloads := r.Payloads()
-	assert.NotEmpty(t, payloads)
-	for _, p := range payloads {
-		errors := p.Errors()
-		assert.NotEmpty(t, errors)
-		for _, e := range errors {
-			assert.NotEqual(t, "", e.Culprit)
-			assert.NotEmpty(t, e.Exception.Stacktrace)
-		}
+	assert.NotEmpty(t, payloads.Errors)
+	for _, e := range payloads.Errors {
+		assert.NotEqual(t, "", e.Culprit)
+		assert.NotEmpty(t, e.Exception.Stacktrace)
 	}
 }
 
-func sendError(t *testing.T, err error, f ...func(*elasticapm.Error)) *model.Error {
+func sendError(t *testing.T, err error, f ...func(*apm.Error)) model.Error {
 	tracer, r := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
@@ -103,10 +113,7 @@ func sendError(t *testing.T, err error, f ...func(*elasticapm.Error)) *model.Err
 	tracer.Flush(nil)
 
 	payloads := r.Payloads()
-	require.Len(t, payloads, 1)
-	errors := payloads[0].Errors()
-	require.Len(t, errors, 1)
-	return errors[0]
+	return payloads.Errors[0]
 }
 
 type errorsStackTracer struct {

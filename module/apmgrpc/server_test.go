@@ -16,11 +16,11 @@ import (
 	pb "google.golang.org/grpc/examples/helloworld/helloworld"
 	"google.golang.org/grpc/status"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/module/apmgrpc"
-	"github.com/elastic/apm-agent-go/stacktrace"
-	"github.com/elastic/apm-agent-go/transport/transporttest"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/module/apmgrpc"
+	"go.elastic.co/apm/stacktrace"
+	"go.elastic.co/apm/transport/transporttest"
 )
 
 func init() {
@@ -61,7 +61,7 @@ type testParams struct {
 	server    *helloworldServer
 	conn      *grpc.ClientConn
 	client    pb.GreeterClient
-	tracer    *elasticapm.Tracer
+	tracer    *apm.Tracer
 	transport *transporttest.RecorderTransport
 }
 
@@ -73,21 +73,18 @@ func testServerTransactionHappy(t *testing.T, p testParams) {
 	assert.Equal(t, resp, &pb.HelloReply{Message: "hello, birita"})
 
 	p.tracer.Flush(nil)
-	tx := p.transport.Payloads()[0].Transactions()[0]
+	tx := p.transport.Payloads().Transactions[0]
 	assert.Equal(t, "/helloworld.Greeter/SayHello", tx.Name)
 	assert.Equal(t, "grpc", tx.Type)
 	assert.Equal(t, "OK", tx.Result)
 
-	require.Len(t, tx.Context.Custom, 1)
-	assert.Equal(t, "grpc", tx.Context.Custom[0].Key)
-	grpcContext := tx.Context.Custom[0].Value.(map[string]interface{})
-	assert.Contains(t, grpcContext, "peer.address")
-	delete(grpcContext, "peer.address")
 	assert.Equal(t, &model.Context{
-		Custom: model.IfaceMap{{
-			Key:   "grpc",
-			Value: map[string]interface{}{},
-		}},
+		Service: &model.Service{
+			Framework: &model.Framework{
+				Name:    "grpc",
+				Version: grpc.Version,
+			},
+		},
 	}, tx.Context)
 }
 
@@ -98,8 +95,7 @@ func testServerTransactionUnknownError(t *testing.T, p testParams) {
 
 	p.tracer.Flush(nil)
 	payloads := p.transport.Payloads()
-	require.Len(t, payloads, 1)
-	tx := payloads[0].Transactions()[0]
+	tx := payloads.Transactions[0]
 	assert.Equal(t, "/helloworld.Greeter/SayHello", tx.Name)
 	assert.Equal(t, "grpc", tx.Type)
 	assert.Equal(t, "Unknown", tx.Result)
@@ -112,8 +108,7 @@ func testServerTransactionStatusError(t *testing.T, p testParams) {
 
 	p.tracer.Flush(nil)
 	payloads := p.transport.Payloads()
-	require.Len(t, payloads, 1)
-	tx := payloads[0].Transactions()[0]
+	tx := payloads.Transactions[0]
 	assert.Equal(t, "/helloworld.Greeter/SayHello", tx.Name)
 	assert.Equal(t, "grpc", tx.Type)
 	assert.Equal(t, "DataLoss", tx.Result)
@@ -127,9 +122,8 @@ func testServerTransactionPanic(t *testing.T, p testParams) {
 
 	p.tracer.Flush(nil)
 	payloads := p.transport.Payloads()
-	require.Len(t, payloads, 2)
-	e := payloads[0].Errors()[0]
-	assert.NotEmpty(t, e.Transaction.ID)
+	e := payloads.Errors[0]
+	assert.NotEmpty(t, e.TransactionID)
 	assert.Equal(t, false, e.Exception.Handled)
 	assert.Equal(t, "(*helloworldServer).SayHello", e.Culprit)
 	assert.Equal(t, "boom", e.Exception.Message)
@@ -152,9 +146,8 @@ func TestServerRecovery(t *testing.T) {
 
 	tracer.Flush(nil)
 	payloads := transport.Payloads()
-	require.Len(t, payloads, 2)
-	e := payloads[0].Errors()[0]
-	assert.NotEmpty(t, e.Transaction.ID)
+	e := payloads.Errors[0]
+	assert.NotEmpty(t, e.TransactionID)
 
 	// Panic was recovered by the recovery interceptor and translated
 	// into an Internal error.
@@ -163,7 +156,7 @@ func TestServerRecovery(t *testing.T) {
 	assert.Equal(t, "boom", e.Exception.Message)
 }
 
-func newServer(t *testing.T, tracer *elasticapm.Tracer, opts ...apmgrpc.ServerOption) (*grpc.Server, *helloworldServer, net.Addr) {
+func newServer(t *testing.T, tracer *apm.Tracer, opts ...apmgrpc.ServerOption) (*grpc.Server, *helloworldServer, net.Addr) {
 	// We always install grpc_recovery first to avoid panics
 	// aborting the test process. We install it before the
 	// apmgrpc interceptor so that apmgrpc can recover panics
@@ -202,7 +195,7 @@ type helloworldServer struct {
 func (s *helloworldServer) SayHello(ctx context.Context, req *pb.HelloRequest) (*pb.HelloReply, error) {
 	// The context passed to the server should contain a Transaction
 	// for the gRPC request.
-	span, ctx := elasticapm.StartSpan(ctx, "server_span", "type")
+	span, ctx := apm.StartSpan(ctx, "server_span", "type")
 	span.End()
 	if s.panic {
 		panic(s.err)

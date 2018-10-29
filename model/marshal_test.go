@@ -2,7 +2,6 @@ package model_test
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/url"
 	"strings"
@@ -12,8 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/apm-agent-go/internal/fastjson"
-	"github.com/elastic/apm-agent-go/model"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/fastjson"
 )
 
 func TestMarshalTransaction(t *testing.T) {
@@ -22,21 +21,23 @@ func TestMarshalTransaction(t *testing.T) {
 	var w fastjson.Writer
 	tx.MarshalFastJSON(&w)
 
-	var in map[string]interface{}
-	if err := json.Unmarshal(w.Bytes(), &in); err != nil {
-		t.Fatalf("unmarshalling result failed: %v", err)
-	}
-
+	decoded := mustUnmarshalJSON(w)
 	expect := map[string]interface{}{
 		"trace_id":  "0102030405060708090a0b0c0d0e0f10",
 		"id":        "0102030405060708",
 		"parent_id": "0001020304050607",
 		"name":      "GET /foo/bar",
 		"type":      "request",
-		"timestamp": "1970-01-01T00:02:03Z",
+		"timestamp": float64(123000000),
 		"duration":  123.456,
 		"result":    "418",
 		"context": map[string]interface{}{
+			"service": map[string]interface{}{
+				"framework": map[string]interface{}{
+					"name":    "framework-name",
+					"version": "framework-version",
+				},
+			},
 			"request": map[string]interface{}{
 				"url": map[string]interface{}{
 					"full":     "https://testing.invalid/foo/bar?baz#qux",
@@ -48,8 +49,8 @@ func TestMarshalTransaction(t *testing.T) {
 				},
 				"method": "GET",
 				"headers": map[string]interface{}{
-					"user-agent": "Mosaic/0.2 (Windows 3.1)",
-					"cookie":     "monster=yumyum; random=junk",
+					"User-Agent": "Mosaic/0.2 (Windows 3.1)",
+					"Cookie":     "monster=yumyum; random=junk",
 				},
 				"body":         "ahoj",
 				"http_version": "1.1",
@@ -65,57 +66,73 @@ func TestMarshalTransaction(t *testing.T) {
 			"response": map[string]interface{}{
 				"status_code": float64(418),
 				"headers": map[string]interface{}{
-					"content-type": "text/html",
+					"Content-Type": "text/html",
 				},
 			},
 			"user": map[string]interface{}{
 				"username": "wanda",
-			},
-			"custom": map[string]interface{}{
-				"foo": map[string]interface{}{
-					"bar": "baz",
-					"qux": float64(123),
-				},
 			},
 			"tags": map[string]interface{}{
 				"tag": "urit",
 			},
 		},
 		"span_count": map[string]interface{}{
-			"dropped": map[string]interface{}{
-				"total": float64(4),
-			},
-		},
-		"spans": []interface{}{
-			map[string]interface{}{
-				"name":     "SELECT FROM bar",
-				"start":    float64(2),
-				"duration": float64(3),
-				"type":     "db.postgresql.query",
-				"context": map[string]interface{}{
-					"db": map[string]interface{}{
-						"instance":  "wat",
-						"statement": `SELECT foo FROM bar WHERE baz LIKE 'qu%x'`,
-						"type":      "sql",
-						"user":      "barb",
-					},
-				},
-			},
-			map[string]interface{}{
-				"name":     "GET testing.invalid:8000",
-				"start":    float64(3),
-				"duration": float64(4),
-				"type":     "ext.http",
-				"context": map[string]interface{}{
-					"http": map[string]interface{}{
-						"url": "http://testing.invalid:8000/path?query#fragment",
-					},
-				},
-			},
+			"started": float64(99),
+			"dropped": float64(4),
 		},
 	}
+	assert.Equal(t, expect, decoded)
+}
 
-	assert.Equal(t, expect, in)
+func TestMarshalSpan(t *testing.T) {
+	var w fastjson.Writer
+	span := fakeSpan()
+	span.Context = fakeDatabaseSpanContext()
+	span.MarshalFastJSON(&w)
+
+	decoded := mustUnmarshalJSON(w)
+	assert.Equal(t, map[string]interface{}{
+		"trace_id":       "000102030405060708090a0b0c0d0e0f",
+		"id":             "0001020304050607",
+		"parent_id":      "0001020304050607",
+		"transaction_id": "0001020304050607",
+		"name":           "SELECT FROM bar",
+		"timestamp":      float64(123000000),
+		"duration":       float64(3),
+		"type":           "db.postgresql.query",
+		"context": map[string]interface{}{
+			"db": map[string]interface{}{
+				"instance":  "wat",
+				"statement": `SELECT foo FROM bar WHERE baz LIKE 'qu%x'`,
+				"type":      "sql",
+				"user":      "barb",
+			},
+		},
+	}, decoded)
+
+	w.Reset()
+	span.Duration = 4
+	span.Name = "GET testing.invalid:8000"
+	span.Type = "ext.http"
+	span.ParentID = model.SpanID{} // parent_id is optional
+	span.Context = fakeHTTPSpanContext()
+	span.MarshalFastJSON(&w)
+
+	decoded = mustUnmarshalJSON(w)
+	assert.Equal(t, map[string]interface{}{
+		"trace_id":       "000102030405060708090a0b0c0d0e0f",
+		"id":             "0001020304050607",
+		"transaction_id": "0001020304050607",
+		"name":           "GET testing.invalid:8000",
+		"timestamp":      float64(123000000),
+		"duration":       float64(4),
+		"type":           "ext.http",
+		"context": map[string]interface{}{
+			"http": map[string]interface{}{
+				"url": "http://testing.invalid:8000/path?query#fragment",
+			},
+		},
+	}, decoded)
 }
 
 func TestMarshalMetrics(t *testing.T) {
@@ -124,13 +141,9 @@ func TestMarshalMetrics(t *testing.T) {
 	var w fastjson.Writer
 	metrics.MarshalFastJSON(&w)
 
-	var in map[string]interface{}
-	if err := json.Unmarshal(w.Bytes(), &in); err != nil {
-		t.Fatalf("unmarshalling result failed: %v", err)
-	}
-
+	decoded := mustUnmarshalJSON(w)
 	expect := map[string]interface{}{
-		"timestamp": "1970-01-01T00:02:03Z",
+		"timestamp": float64(123000000),
 		"labels": map[string]interface{}{
 			"foo": "bar",
 		},
@@ -143,90 +156,7 @@ func TestMarshalMetrics(t *testing.T) {
 			},
 		},
 	}
-
-	assert.Equal(t, expect, in)
-}
-
-func TestMarshalPayloads(t *testing.T) {
-	tp := fakeTransactionsPayload(0)
-	var w fastjson.Writer
-	tp.MarshalFastJSON(&w)
-
-	var in map[string]interface{}
-	if err := json.Unmarshal(w.Bytes(), &in); err != nil {
-		t.Fatalf("unmarshalling result failed: %v", err)
-	}
-
-	expect := map[string]interface{}{
-		"process": map[string]interface{}{
-			"pid":   float64(1234),
-			"ppid":  float64(1),
-			"title": "my-fake-service",
-			"argv":  []interface{}{"my-fake-service", "-f", "config.yml"},
-		},
-		"service": map[string]interface{}{
-			"environment": "dev",
-			"agent": map[string]interface{}{
-				"name":    "go",
-				"version": "0.1.0",
-			},
-			"framework": map[string]interface{}{
-				"name":    "gin",
-				"version": "1.0",
-			},
-			"language": map[string]interface{}{
-				"name":    "go",
-				"version": "1.10",
-			},
-			"runtime": map[string]interface{}{
-				"name":    "go",
-				"version": "gc 1.10",
-			},
-			"name":    "fake-service",
-			"version": "1.0.0-rc1",
-		},
-		"system": map[string]interface{}{
-			"architecture": "x86_64",
-			"hostname":     "host.example",
-			"platform":     "linux",
-		},
-		"transactions": []interface{}{},
-	}
-	assert.Equal(t, expect, in)
-
-	ep := &model.ErrorsPayload{
-		Service: tp.Service,
-		Process: tp.Process,
-		System:  tp.System,
-		Errors:  []*model.Error{},
-	}
-	w.Reset()
-	ep.MarshalFastJSON(&w)
-
-	in = make(map[string]interface{})
-	if err := json.Unmarshal(w.Bytes(), &in); err != nil {
-		t.Fatalf("unmarshalling result failed: %v", err)
-	}
-	delete(expect, "transactions")
-	expect["errors"] = []interface{}{}
-	assert.Equal(t, expect, in)
-
-	mp := &model.MetricsPayload{
-		Service: tp.Service,
-		Process: tp.Process,
-		System:  tp.System,
-		Metrics: []*model.Metrics{},
-	}
-	w.Reset()
-	mp.MarshalFastJSON(&w)
-
-	in = make(map[string]interface{})
-	if err := json.Unmarshal(w.Bytes(), &in); err != nil {
-		t.Fatalf("unmarshalling result failed: %v", err)
-	}
-	delete(expect, "errors")
-	expect["metrics"] = []interface{}{}
-	assert.Equal(t, expect, in)
+	assert.Equal(t, expect, decoded)
 }
 
 func TestMarshalError(t *testing.T) {
@@ -235,25 +165,19 @@ func TestMarshalError(t *testing.T) {
 	assert.NoError(t, err)
 	e.Timestamp = model.Time(time)
 
+	// The primary error ID is required, all other IDs are optional
 	var w fastjson.Writer
 	e.MarshalFastJSON(&w)
-	assert.Equal(t, `{"timestamp":"1970-01-01T00:02:03Z"}`, string(w.Bytes()))
+	assert.Equal(t, `{"id":"00000000000000000000000000000000","timestamp":123000000}`, string(w.Bytes()))
 
-	e.Transaction.ID = model.UUID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
-	w.Reset()
-	e.MarshalFastJSON(&w)
-	assert.Equal(t,
-		`{"timestamp":"1970-01-01T00:02:03Z","transaction":{"id":"01020304-0506-0708-090a-0b0c0d0e0f10"}}`,
-		string(w.Bytes()),
-	)
-
-	e.Transaction.ID = model.UUID{}
+	e.ID = model.TraceID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
+	e.TransactionID = model.SpanID{1, 2, 3, 4, 5, 6, 7, 8}
 	e.TraceID = model.TraceID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	e.ParentID = model.SpanID{1, 2, 3, 4, 5, 6, 7, 8}
 	w.Reset()
 	e.MarshalFastJSON(&w)
 	assert.Equal(t,
-		`{"timestamp":"1970-01-01T00:02:03Z","parent_id":"0102030405060708","trace_id":"0102030405060708090a0b0c0d0e0f10"}`,
+		`{"id":"000102030405060708090a0b0c0d0e0f","timestamp":123000000,"parent_id":"0102030405060708","trace_id":"0102030405060708090a0b0c0d0e0f10","transaction_id":"0102030405060708"}`,
 		string(w.Bytes()),
 	)
 }
@@ -285,16 +209,13 @@ func TestMarshalRequestBody(t *testing.T) {
 	w.Reset()
 	body.MarshalFastJSON(&w)
 
-	var in map[string]interface{}
-	if err := json.Unmarshal(w.Bytes(), &in); err != nil {
-		t.Fatalf("unmarshalling result failed: %v", err)
-	}
+	decoded := mustUnmarshalJSON(w)
 	expect := map[string]interface{}{
 		"first":    "jackie",
 		"last":     "brown",
 		"keywords": []interface{}{"rum", "punch"},
 	}
-	assert.Equal(t, expect, in)
+	assert.Equal(t, expect, decoded)
 }
 
 func TestMarshalLog(t *testing.T) {
@@ -399,82 +320,22 @@ func TestMarshalStacktraceFrame(t *testing.T) {
 	)
 }
 
-func TestMarshalContextCustomErrors(t *testing.T) {
-	context := model.Context{
-		Custom: model.IfaceMap{{
-			Key: "panic_value",
-			Value: marshalFunc(func() ([]byte, error) {
-				panic("aiee")
-			}),
-		}},
-	}
-	var w fastjson.Writer
-	context.MarshalFastJSON(&w)
-	assert.Equal(t,
-		`{"custom":{"panic_value":{"__PANIC__":"panic calling MarshalJSON for type model_test.marshalFunc: aiee"}}}`,
-		string(w.Bytes()),
-	)
-
-	context.Custom = model.IfaceMap{{
-		Key: "error_value",
-		Value: marshalFunc(func() ([]byte, error) {
-			return nil, errors.New("nope")
-		}),
-	}}
-	w.Reset()
-	context.MarshalFastJSON(&w)
-	assert.Equal(t,
-		`{"custom":{"error_value":{"__ERROR__":"json: error calling MarshalJSON for type model_test.marshalFunc: nope"}}}`,
-		string(w.Bytes()),
-	)
-}
-
-type marshalFunc func() ([]byte, error)
-
-func (f marshalFunc) MarshalJSON() ([]byte, error) {
-	return f()
-}
-
-func TestMarshalCustomInvalidJSON(t *testing.T) {
-	context := model.Context{
-		Custom: model.IfaceMap{{
-			Key: "k1",
-			Value: appenderFunc(func(in []byte) []byte {
-				return append(in, "123"...)
-			}),
-		}, {
-			Key: "k2",
-			Value: appenderFunc(func(in []byte) []byte {
-				return append(in, `"value"`...)
-			}),
-		}},
-	}
-	var w fastjson.Writer
-	context.MarshalFastJSON(&w)
-	assert.Equal(t, `{"custom":{"k1":123,"k2":"value"}}`, string(w.Bytes()))
-}
-
-type appenderFunc func([]byte) []byte
-
-func (f appenderFunc) AppendJSON(in []byte) []byte {
-	return f(in)
-}
-
 func TestMarshalResponse(t *testing.T) {
 	finished := true
 	headersSent := true
 	response := model.Response{
 		Finished: &finished,
-		Headers: &model.ResponseHeaders{
-			ContentType: "text/plain",
-		},
+		Headers: model.Headers{{
+			Key:    "Content-Type",
+			Values: []string{"text/plain"},
+		}},
 		HeadersSent: &headersSent,
 		StatusCode:  200,
 	}
 	var w fastjson.Writer
 	response.MarshalFastJSON(&w)
 	assert.Equal(t,
-		`{"finished":true,"headers":{"content-type":"text/plain"},"headers_sent":true,"status_code":200}`,
+		`{"finished":true,"headers":{"Content-Type":"text/plain"},"headers_sent":true,"status_code":200}`,
 		string(w.Bytes()),
 	)
 }
@@ -503,25 +364,65 @@ func TestMarshalURL(t *testing.T) {
 	assert.Equal(t, in, out)
 }
 
-func TestUnmarshalJSON(t *testing.T) {
-	tp := fakeTransactionsPayload(2)
-	tp.Transactions[1].ID.SpanID = model.SpanID{}
-	tp.Transactions[1].ID.UUID = model.UUID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
-	var w fastjson.Writer
-	tp.MarshalFastJSON(&w)
+func TestMarshalURLPathLeadingSlashMissing(t *testing.T) {
+	in := model.URL{
+		Path:     "foo",
+		Search:   "abc=def",
+		Hostname: "testing.invalid",
+		Port:     "999",
+		Protocol: "http",
+	}
 
-	var out model.TransactionsPayload
+	var w fastjson.Writer
+	in.MarshalFastJSON(&w)
+
+	var out model.URL
 	err := json.Unmarshal(w.Bytes(), &out)
 	require.NoError(t, err)
-	assert.Equal(t, &tp, &out)
+
+	assert.Equal(t, "http://testing.invalid:999/foo?abc=def", out.Full)
+	out.Full = ""
+
+	// Leading slash should have been added during marshalling. We do it
+	// here rather than when building the model to avoid allocation.
+	in.Path = "/foo"
+
+	assert.Equal(t, in, out)
+}
+
+func TestMarshalHTTPSpanContextURLPathLeadingSlashMissing(t *testing.T) {
+	httpSpanContext := model.HTTPSpanContext{
+		URL: mustParseURL("http://testing.invalid:8000/path?query#fragment"),
+	}
+	httpSpanContext.URL.Path = "path"
+
+	var w fastjson.Writer
+	httpSpanContext.MarshalFastJSON(&w)
+
+	var out model.HTTPSpanContext
+	err := json.Unmarshal(w.Bytes(), &out)
+	require.NoError(t, err)
+
+	// Leading slash should have been added during marshalling.
+	httpSpanContext.URL.Path = "/path"
+	assert.Equal(t, httpSpanContext.URL, out.URL)
+}
+
+func TestTransactionUnmarshalJSON(t *testing.T) {
+	tx := fakeTransaction()
+	var w fastjson.Writer
+	tx.MarshalFastJSON(&w)
+
+	var out model.Transaction
+	err := json.Unmarshal(w.Bytes(), &out)
+	require.NoError(t, err)
+	assert.Equal(t, tx, out)
 }
 
 func fakeTransaction() model.Transaction {
 	return model.Transaction{
-		TraceID: model.TraceID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
-		ID: model.TransactionID{
-			SpanID: model.SpanID{1, 2, 3, 4, 5, 6, 7, 8},
-		},
+		TraceID:   model.TraceID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
+		ID:        model.SpanID{1, 2, 3, 4, 5, 6, 7, 8},
 		ParentID:  model.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
 		Name:      "GET /foo/bar",
 		Type:      "request",
@@ -539,10 +440,11 @@ func fakeTransaction() model.Transaction {
 					Hash:     "qux",
 				},
 				Method: "GET",
-				Headers: &model.RequestHeaders{
-					UserAgent: "Mosaic/0.2 (Windows 3.1)",
-					Cookie:    "monster=yumyum; random=junk",
-				},
+				Headers: model.Headers{{
+					Key: "Cookie", Values: []string{"monster=yumyum; random=junk"},
+				}, {
+					Key: "User-Agent", Values: []string{"Mosaic/0.2 (Windows 3.1)"},
+				}},
 				Body: &model.RequestBody{
 					Raw: "ahoj",
 				},
@@ -558,53 +460,60 @@ func fakeTransaction() model.Transaction {
 			},
 			Response: &model.Response{
 				StatusCode: 418,
-				Headers: &model.ResponseHeaders{
-					ContentType: "text/html",
-				},
+				Headers: model.Headers{{
+					Key: "Content-Type", Values: []string{"text/html"},
+				}},
 			},
 			User: &model.User{
 				Username: "wanda",
 			},
-			Custom: model.IfaceMap{{
-				Key: "foo",
-				Value: map[string]interface{}{
-					"bar": "baz",
-					"qux": float64(123),
-				},
+			Tags: model.StringMap{{
+				Key: "tag", Value: "urit",
 			}},
-			Tags: map[string]string{
-				"tag": "urit",
+			Service: &model.Service{
+				Framework: &model.Framework{
+					Name:    "framework-name",
+					Version: "framework-version",
+				},
 			},
 		},
 		SpanCount: model.SpanCount{
-			Dropped: model.SpanCountDropped{
-				Total: 4,
-			},
+			Started: 99,
+			Dropped: 4,
 		},
-		Spans: []model.Span{{
-			Name:     "SELECT FROM bar",
-			Start:    2,
-			Duration: 3,
-			Type:     "db.postgresql.query",
-			Context: &model.SpanContext{
-				Database: &model.DatabaseSpanContext{
-					Instance:  "wat",
-					Statement: `SELECT foo FROM bar WHERE baz LIKE 'qu%x'`,
-					Type:      "sql",
-					User:      "barb",
-				},
-			},
-		}, {
-			Name:     "GET testing.invalid:8000",
-			Start:    3,
-			Duration: 4,
-			Type:     "ext.http",
-			Context: &model.SpanContext{
-				HTTP: &model.HTTPSpanContext{
-					URL: mustParseURL("http://testing.invalid:8000/path?query#fragment"),
-				},
-			},
-		}},
+	}
+}
+
+func fakeSpan() model.Span {
+	return model.Span{
+		Name:          "SELECT FROM bar",
+		ID:            model.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
+		ParentID:      model.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
+		TransactionID: model.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
+		TraceID:       model.TraceID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+		Timestamp:     model.Time(time.Unix(123, 0).UTC()),
+		Duration:      3,
+		Type:          "db.postgresql.query",
+		Context:       fakeDatabaseSpanContext(),
+	}
+}
+
+func fakeDatabaseSpanContext() *model.SpanContext {
+	return &model.SpanContext{
+		Database: &model.DatabaseSpanContext{
+			Instance:  "wat",
+			Statement: `SELECT foo FROM bar WHERE baz LIKE 'qu%x'`,
+			Type:      "sql",
+			User:      "barb",
+		},
+	}
+}
+
+func fakeHTTPSpanContext() *model.SpanContext {
+	return &model.SpanContext{
+		HTTP: &model.HTTPSpanContext{
+			URL: mustParseURL("http://testing.invalid:8000/path?query#fragment"),
+		},
 	}
 }
 
@@ -624,7 +533,7 @@ func fakeService() *model.Service {
 		Name:        "fake-service",
 		Version:     "1.0.0-rc1",
 		Environment: "dev",
-		Agent: model.Agent{
+		Agent: &model.Agent{
 			Name:    "go",
 			Version: "0.1.0",
 		},
@@ -661,20 +570,6 @@ func fakeProcess() *model.Process {
 	}
 }
 
-func fakeTransactionsPayload(n int) model.TransactionsPayload {
-	transactions := make([]model.Transaction, n)
-	tx := fakeTransaction()
-	for i := range transactions {
-		transactions[i] = tx
-	}
-	return model.TransactionsPayload{
-		Service:      fakeService(),
-		Process:      fakeProcess(),
-		System:       fakeSystem(),
-		Transactions: transactions,
-	}
-}
-
 func mustParseURL(s string) *url.URL {
 	u, err := url.Parse(s)
 	if err != nil {
@@ -689,4 +584,13 @@ func newUint64(v uint64) *uint64 {
 
 func newFloat64(v float64) *float64 {
 	return &v
+}
+
+func mustUnmarshalJSON(w fastjson.Writer) interface{} {
+	var out interface{}
+	err := json.Unmarshal(w.Bytes(), &out)
+	if err != nil {
+		panic(err)
+	}
+	return out
 }

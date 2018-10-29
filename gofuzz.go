@@ -1,6 +1,6 @@
 // +build gofuzz
 
-package elasticapm
+package apm
 
 import (
 	"bytes"
@@ -17,10 +17,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/santhosh-tekuri/jsonschema"
 
-	"github.com/elastic/apm-agent-go/internal/apmschema"
-	"github.com/elastic/apm-agent-go/internal/fastjson"
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/stacktrace"
+	"go.elastic.co/apm/internal/apmschema"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/stacktrace"
+	"go.elastic.co/fastjson"
 )
 
 func Fuzz(data []byte) int {
@@ -43,9 +43,6 @@ func Fuzz(data []byte) int {
 	setContext := func(in *model.Context, out *Context) error {
 		if in == nil {
 			return nil
-		}
-		for _, item := range in.Custom {
-			out.SetCustom(item.Key, item.Value)
 		}
 		for k, v := range in.Tags {
 			out.SetTag(k, v)
@@ -224,21 +221,27 @@ type gofuzzTransport struct {
 
 func (t *gofuzzTransport) SendErrors(ctx context.Context, payload *model.ErrorsPayload) error {
 	t.writer.Reset()
-	payload.MarshalFastJSON(&t.writer)
+	if err := payload.MarshalFastJSON(&t.writer); err != nil {
+		return err
+	}
 	t.validate(apmschema.Errors)
 	return nil
 }
 
 func (t *gofuzzTransport) SendMetrics(ctx context.Context, payload *model.MetricsPayload) error {
 	t.writer.Reset()
-	payload.MarshalFastJSON(&t.writer)
+	if err := payload.MarshalFastJSON(&t.writer); err != nil {
+		return err
+	}
 	t.validate(apmschema.Metrics)
 	return nil
 }
 
 func (t *gofuzzTransport) SendTransactions(ctx context.Context, payload *model.TransactionsPayload) error {
 	t.writer.Reset()
-	payload.MarshalFastJSON(&t.writer)
+	if err := payload.MarshalFastJSON(&t.writer); err != nil {
+		return err
+	}
 	t.validate(apmschema.Transactions)
 	return nil
 }

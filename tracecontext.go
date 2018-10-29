@@ -1,4 +1,4 @@
-package elasticapm
+package apm
 
 import (
 	"encoding/hex"
@@ -11,8 +11,7 @@ var (
 )
 
 const (
-	traceOptionsRequestedFlag = 0x01
-	traceOptionsRecordedFlag  = 0x02
+	traceOptionsRecordedFlag = 0x01
 )
 
 // TraceContext holds trace context for an incoming or outgoing request.
@@ -74,31 +73,15 @@ func (id SpanID) String() string {
 // TraceOptions describes the options for a trace.
 type TraceOptions uint8
 
-// Requested reports whether or not it has been requested that this
-// transaction/span be recorded.
-func (o TraceOptions) Requested() bool {
-	return (o & traceOptionsRequestedFlag) == traceOptionsRequestedFlag
-}
-
-// MaybeRecorded reports whether or not the transaction/span may have been
-// (or may be) recorded.
-func (o TraceOptions) MaybeRecorded() bool {
+// Recorded reports whether or not the transaction/span may have been (or may be) recorded.
+func (o TraceOptions) Recorded() bool {
 	return (o & traceOptionsRecordedFlag) == traceOptionsRecordedFlag
 }
 
-// WithRequested changes the "requested" flag, and returns the new options without
-// modifying the original value.
-func (o TraceOptions) WithRequested(requested bool) TraceOptions {
-	if requested {
-		return o | traceOptionsRequestedFlag
-	}
-	return o & (0xFF ^ traceOptionsRequestedFlag)
-}
-
-// WithMaybeRecorded changes the "recorded" flag, and returns the new options
+// WithRecorded changes the "recorded" flag, and returns the new options
 // without modifying the original value.
-func (o TraceOptions) WithMaybeRecorded(maybeRecorded bool) TraceOptions {
-	if maybeRecorded {
+func (o TraceOptions) WithRecorded(recorded bool) TraceOptions {
+	if recorded {
 		return o | traceOptionsRecordedFlag
 	}
 	return o & (0xFF ^ traceOptionsRecordedFlag)

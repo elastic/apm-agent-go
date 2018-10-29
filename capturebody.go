@@ -1,4 +1,4 @@
-package elasticapm
+package apm
 
 import (
 	"bytes"
@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/elastic/apm-agent-go/model"
+	"go.elastic.co/apm/model"
 )
 
 // CaptureBodyMode holds a value indicating how a tracer should capture
@@ -84,7 +84,9 @@ func (bc *BodyCapturer) setContext(out *model.RequestBody) bool {
 		postForm := make(url.Values, len(bc.request.PostForm))
 		for k, v := range bc.request.PostForm {
 			vcopy := make([]string, len(v))
-			copy(vcopy, v)
+			for i := range vcopy {
+				vcopy[i] = truncateString(v[i])
+			}
 			postForm[k] = vcopy
 		}
 		out.Form = postForm
@@ -98,6 +100,6 @@ func (bc *BodyCapturer) setContext(out *model.RequestBody) bool {
 		// TODO(axw) log error?
 		return false
 	}
-	out.Raw = string(all)
+	out.Raw = truncateString(string(all))
 	return true
 }

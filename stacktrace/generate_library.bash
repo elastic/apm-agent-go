@@ -12,7 +12,7 @@ package stacktrace
 import (
 	"strings"
 
-	"github.com/elastic/apm-agent-go/internal/radix"
+	"go.elastic.co/apm/internal/radix"
 )
 
 var libraryPackages = newLibraryPackagesRadixTree(

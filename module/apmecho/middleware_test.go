@@ -10,11 +10,30 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/module/apmecho"
-	"github.com/elastic/apm-agent-go/transport/transporttest"
+	"go.elastic.co/apm/apmtest"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/module/apmecho"
+	"go.elastic.co/apm/transport/transporttest"
 )
+
+func TestMiddlewareHTTPSuite(t *testing.T) {
+	tracer, recorder := transporttest.NewRecorderTracer()
+	e := echo.New()
+	e.Use(apmecho.Middleware(apmecho.WithTracer(tracer)))
+	e.GET("/implicit_write", func(c echo.Context) error { return nil })
+	e.GET("/panic_before_write", func(c echo.Context) error { panic("boom") })
+	e.GET("/panic_after_write", func(c echo.Context) error {
+		c.String(200, "hello, world")
+		panic("boom")
+	})
+	suite.Run(t, &apmtest.HTTPTestSuite{
+		Handler:  e,
+		Tracer:   tracer,
+		Recorder: recorder,
+	})
+}
 
 func TestEchoMiddleware(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
@@ -29,14 +48,19 @@ func TestEchoMiddleware(t *testing.T) {
 	tracer.Flush(nil)
 
 	payloads := transport.Payloads()
-	transaction := payloads[0].Transactions()[0]
+	transaction := payloads.Transactions[0]
 
 	assert.Equal(t, "GET /hello/:name", transaction.Name)
 	assert.Equal(t, "request", transaction.Type)
 	assert.Equal(t, "HTTP 4xx", transaction.Result)
 
-	true_ := true
 	assert.Equal(t, &model.Context{
+		Service: &model.Service{
+			Framework: &model.Framework{
+				Name:    "echo",
+				Version: echo.Version,
+			},
+		},
 		Request: &model.Request{
 			Socket: &model.RequestSocket{
 				RemoteAddress: "client.testing",
@@ -49,16 +73,17 @@ func TestEchoMiddleware(t *testing.T) {
 			},
 			Method:      "GET",
 			HTTPVersion: "1.1",
-			Headers: &model.RequestHeaders{
-				UserAgent: "apmecho_test",
-			},
+			Headers: model.Headers{{
+				Key:    "User-Agent",
+				Values: []string{"apmecho_test"},
+			}},
 		},
 		Response: &model.Response{
-			StatusCode:  418,
-			HeadersSent: &true_,
-			Headers: &model.ResponseHeaders{
-				ContentType: "text/plain; charset=UTF-8",
-			},
+			StatusCode: 418,
+			Headers: model.Headers{{
+				Key:    "Content-Type",
+				Values: []string{"text/plain; charset=UTF-8"},
+			}},
 		},
 	}, transaction.Context)
 }
@@ -77,6 +102,20 @@ func TestEchoMiddlewarePanic(t *testing.T) {
 	assertError(t, transport.Payloads(), "handlePanic", "boom", false)
 }
 
+func TestEchoMiddlewarePanicHeadersSent(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	e := echo.New()
+	e.Use(apmecho.Middleware(apmecho.WithTracer(tracer)))
+	e.GET("/panic", handlePanicAfterHeaders)
+
+	w := doRequest(e, "GET", "http://server.testing/panic")
+	assert.Equal(t, http.StatusOK, w.Code)
+	tracer.Flush(nil)
+	assertError(t, transport.Payloads(), "handlePanicAfterHeaders", "boom", false)
+}
+
 func TestEchoMiddlewareError(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
@@ -91,15 +130,16 @@ func TestEchoMiddlewareError(t *testing.T) {
 	assertError(t, transport.Payloads(), "handleError", "wot", true)
 }
 
-func assertError(t *testing.T, payloads transporttest.Payloads, culprit, message string, handled bool) {
-	error0 := payloads[0].Errors()[0]
+func assertError(t *testing.T, payloads transporttest.Payloads, culprit, message string, handled bool) model.Error {
+	error0 := payloads.Errors[0]
 
 	require.NotNil(t, error0.Context)
 	require.NotNil(t, error0.Exception)
-	assert.NotEmpty(t, error0.Transaction.ID)
+	assert.NotEmpty(t, error0.TransactionID)
 	assert.Equal(t, culprit, error0.Culprit)
 	assert.Equal(t, message, error0.Exception.Message)
 	assert.Equal(t, handled, error0.Exception.Handled)
+	return error0
 }
 
 func handleHello(c echo.Context) error {
@@ -107,6 +147,11 @@ func handleHello(c echo.Context) error {
 }
 
 func handlePanic(c echo.Context) error {
+	panic("boom")
+}
+
+func handlePanicAfterHeaders(c echo.Context) error {
+	c.String(200, "")
 	panic("boom")
 }
 

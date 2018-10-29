@@ -1,25 +1,24 @@
-package elasticapm
+package apm
 
 import (
 	"fmt"
 	"net/http"
-	"strings"
 
-	"github.com/elastic/apm-agent-go/internal/apmhttputil"
-	"github.com/elastic/apm-agent-go/model"
+	"go.elastic.co/apm/internal/apmhttputil"
+	"go.elastic.co/apm/model"
 )
 
 // Context provides methods for setting transaction and error context.
 type Context struct {
-	model           model.Context
-	request         model.Request
-	requestBody     model.RequestBody
-	requestHeaders  model.RequestHeaders
-	requestSocket   model.RequestSocket
-	response        model.Response
-	responseHeaders model.ResponseHeaders
-	user            model.User
-	captureBodyMask CaptureBodyMode
+	model            model.Context
+	request          model.Request
+	requestBody      model.RequestBody
+	requestSocket    model.RequestSocket
+	response         model.Response
+	user             model.User
+	service          model.Service
+	serviceFramework model.Framework
+	captureBodyMask  CaptureBodyMode
 }
 
 func (c *Context) build() *model.Context {
@@ -27,7 +26,7 @@ func (c *Context) build() *model.Context {
 	case c.model.Request != nil:
 	case c.model.Response != nil:
 	case c.model.User != nil:
-	case len(c.model.Custom) != 0:
+	case c.model.Service != nil:
 	case len(c.model.Tags) != 0:
 	default:
 		return nil
@@ -36,29 +35,18 @@ func (c *Context) build() *model.Context {
 }
 
 func (c *Context) reset() {
-	modelContext := model.Context{
-		// TODO(axw) reuse space for tags
-		Custom: c.model.Custom[:0],
-	}
 	*c = Context{
-		model:           modelContext,
+		model: model.Context{
+			Tags: c.model.Tags[:0],
+		},
 		captureBodyMask: c.captureBodyMask,
+		request: model.Request{
+			Headers: c.request.Headers[:0],
+		},
+		response: model.Response{
+			Headers: c.response.Headers[:0],
+		},
 	}
-}
-
-// SetCustom sets a custom context key/value pair. If the key is invalid
-// (contains '.', '*', or '"'), the call is a no-op. The value must be
-// JSON-encodable.
-//
-// If value implements interface{AppendJSON([]byte) []byte}, that will be
-// used to encode the value. Otherwise, value will be encoded using
-// json.Marshal. As a special case, values of type map[string]interface{}
-// will be traversed and values encoded according to the same rules.
-func (c *Context) SetCustom(key string, value interface{}) {
-	if !validTagKey(key) {
-		return
-	}
-	c.model.Custom.Set(key, value)
 }
 
 // SetTag sets a tag in the context. If the key is invalid
@@ -68,11 +56,35 @@ func (c *Context) SetTag(key, value string) {
 		return
 	}
 	value = truncateString(value)
-	if c.model.Tags == nil {
-		c.model.Tags = map[string]string{key: value}
-	} else {
-		c.model.Tags[key] = value
+	// Note that we do not attempt to de-duplicate the keys.
+	// This is OK, since json.Unmarshal will always take the
+	// final instance.
+	c.model.Tags = append(c.model.Tags, model.StringMapItem{
+		Key: key, Value: value,
+	})
+}
+
+// SetFramework sets the framework name and version in the context.
+//
+// This is used for identifying the framework in which the context
+// was created, such as Gin or Echo.
+//
+// If the name is empty, this is a no-op. If version is empty, then
+// it will be set to "unspecified".
+func (c *Context) SetFramework(name, version string) {
+	if name == "" {
+		return
 	}
+	if version == "" {
+		// Framework version is required.
+		version = "unspecified"
+	}
+	c.serviceFramework = model.Framework{
+		Name:    truncateString(name),
+		Version: truncateString(version),
+	}
+	c.service.Framework = &c.serviceFramework
+	c.model.Service = &c.service
 }
 
 // SetHTTPRequest sets details of the HTTP request in the context.
@@ -114,13 +126,14 @@ func (c *Context) SetHTTPRequest(req *http.Request) {
 	}
 	c.model.Request = &c.request
 
-	c.requestHeaders = model.RequestHeaders{
-		ContentType: req.Header.Get("Content-Type"),
-		Cookie:      strings.Join(req.Header["Cookie"], ";"),
-		UserAgent:   req.UserAgent(),
-	}
-	if c.requestHeaders != (model.RequestHeaders{}) {
-		c.request.Headers = &c.requestHeaders
+	for k, values := range req.Header {
+		if k == "Cookie" {
+			// We capture cookies in the request structure.
+			continue
+		}
+		c.request.Headers = append(c.request.Headers, model.Header{
+			Key: k, Values: values,
+		})
 	}
 
 	c.requestSocket = model.RequestSocket{
@@ -154,23 +167,14 @@ func (c *Context) SetHTTPRequestBody(bc *BodyCapturer) {
 
 // SetHTTPResponseHeaders sets the HTTP response headers in the context.
 func (c *Context) SetHTTPResponseHeaders(h http.Header) {
-	c.responseHeaders.ContentType = h.Get("Content-Type")
-	if c.responseHeaders.ContentType != "" {
-		c.response.Headers = &c.responseHeaders
+	for k, values := range h {
+		c.response.Headers = append(c.response.Headers, model.Header{
+			Key: k, Values: values,
+		})
+	}
+	if len(c.response.Headers) != 0 {
 		c.model.Response = &c.response
 	}
-}
-
-// SetHTTPResponseHeadersSent records whether or not response were sent.
-func (c *Context) SetHTTPResponseHeadersSent(headersSent bool) {
-	c.response.HeadersSent = &headersSent
-	c.model.Response = &c.response
-}
-
-// SetHTTPResponseFinished records whether or not the response was finished.
-func (c *Context) SetHTTPResponseFinished(finished bool) {
-	c.response.Finished = &finished
-	c.model.Response = &c.response
 }
 
 // SetHTTPStatusCode records the HTTP response status code.

@@ -5,7 +5,7 @@ package apmgocql
 import (
 	"strings"
 
-	"github.com/elastic/apm-agent-go/internal/sqlscanner"
+	"go.elastic.co/apm/internal/sqlscanner"
 )
 
 // querySignature returns the "signature" for a Cassandra query:

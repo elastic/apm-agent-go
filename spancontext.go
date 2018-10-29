@@ -1,9 +1,9 @@
-package elasticapm
+package apm
 
 import (
 	"net/http"
 
-	"github.com/elastic/apm-agent-go/model"
+	"go.elastic.co/apm/model"
 )
 
 // SpanContext provides methods for setting span context.
@@ -31,6 +31,7 @@ type DatabaseSpanContext struct {
 
 func (c *SpanContext) build() *model.SpanContext {
 	switch {
+	case len(c.model.Tags) != 0:
 	case c.model.Database != nil:
 	case c.model.HTTP != nil:
 	default:
@@ -40,12 +41,37 @@ func (c *SpanContext) build() *model.SpanContext {
 }
 
 func (c *SpanContext) reset() {
-	*c = SpanContext{}
+	// TODO(axw) reuse space for tags
+	*c = SpanContext{
+		model: model.SpanContext{
+			Tags: c.model.Tags[:0],
+		},
+	}
+}
+
+// SetTag sets a tag in the context. If the key is invalid
+// (contains '.', '*', or '"'), the call is a no-op.
+func (c *SpanContext) SetTag(key, value string) {
+	if !validTagKey(key) {
+		return
+	}
+	value = truncateString(value)
+	// Note that we do not attempt to de-duplicate the keys.
+	// This is OK, since json.Unmarshal will always take the
+	// final instance.
+	c.model.Tags = append(c.model.Tags, model.StringMapItem{
+		Key: key, Value: value,
+	})
 }
 
 // SetDatabase sets the span context for database-related operations.
 func (c *SpanContext) SetDatabase(db DatabaseSpanContext) {
-	c.database = model.DatabaseSpanContext(db)
+	c.database = model.DatabaseSpanContext{
+		Instance:  truncateString(db.Instance),
+		Statement: truncateLongString(db.Statement),
+		Type:      truncateString(db.Type),
+		User:      truncateString(db.User),
+	}
 	c.model.Database = &c.database
 }
 

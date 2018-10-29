@@ -1,20 +1,24 @@
 package transporttest
 
 import (
+	"compress/zlib"
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"sync"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/internal/fastjson"
-	"github.com/elastic/apm-agent-go/model"
+	"github.com/google/go-cmp/cmp"
+
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/model"
 )
 
-// NewRecorderTracer returns a new elasticapm.Tracer and
+// NewRecorderTracer returns a new apm.Tracer and
 // RecorderTransport, which is set as the tracer's transport.
-func NewRecorderTracer() (*elasticapm.Tracer, *RecorderTransport) {
+func NewRecorderTracer() (*apm.Tracer, *RecorderTransport) {
 	var transport RecorderTransport
-	tracer, err := elasticapm.NewTracer("transporttest", "")
+	tracer, err := apm.NewTracer("transporttest", "")
 	if err != nil {
 		panic(err)
 	}
@@ -22,78 +26,115 @@ func NewRecorderTracer() (*elasticapm.Tracer, *RecorderTransport) {
 	return tracer, &transport
 }
 
-// RecorderTransport implements transport.Transport,
-// recording the payloads sent. The payloads can be
-// retrieved using the Payloads method.
+// RecorderTransport implements transport.Transport, recording the
+// streams sent. The streams can be retrieved using the Payloads
+// method.
 type RecorderTransport struct {
 	mu       sync.Mutex
+	metadata *metadata
 	payloads Payloads
 }
 
-// SendTransactions records the transactions payload such that it can later be
-// obtained via Payloads.
-func (r *RecorderTransport) SendTransactions(ctx context.Context, payload *model.TransactionsPayload) error {
-	return r.record(payload, &model.TransactionsPayload{})
+// ResetPayloads clears out any recorded payloads.
+func (r *RecorderTransport) ResetPayloads() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.payloads = Payloads{}
 }
 
-// SendErrors records the errors payload such that it can later be obtained via
-// Payloads.
-func (r *RecorderTransport) SendErrors(ctx context.Context, payload *model.ErrorsPayload) error {
-	return r.record(payload, &model.ErrorsPayload{})
+// SendStream records the stream such that it can later be obtained via Payloads.
+func (r *RecorderTransport) SendStream(ctx context.Context, stream io.Reader) error {
+	return r.record(stream)
 }
 
-// SendMetrics records the metrics payload such that it can later be obtained via
-// Payloads.
-func (r *RecorderTransport) SendMetrics(ctx context.Context, payload *model.MetricsPayload) error {
-	return r.record(payload, &model.MetricsPayload{})
+// Metadata returns the metadata recorded by the transport. If metadata is yet to
+// be received, this method will panic.
+func (r *RecorderTransport) Metadata() (model.System, model.Process, model.Service) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.metadata.System, r.metadata.Process, r.metadata.Service
 }
 
-// Payloads returns the payloads recorded by SendTransactions and SendErrors.
-// Each element of Payloads is a deep copy of the *model.TransactionsPayload
-// or *model.ErrorsPayload, produced by encoding/decoding the payload to/from
-// JSON.
+// Payloads returns the payloads recorded by SendStream.
 func (r *RecorderTransport) Payloads() Payloads {
 	r.mu.Lock()
-	payloads := r.payloads[:]
-	r.mu.Unlock()
-	return payloads
+	defer r.mu.Unlock()
+	return r.payloads
 }
 
-func (r *RecorderTransport) record(payload, zeroPayload interface{}) error {
-	var w fastjson.Writer
-	fastjson.Marshal(&w, payload)
-	if err := json.Unmarshal(w.Bytes(), zeroPayload); err != nil {
+func (r *RecorderTransport) record(stream io.Reader) error {
+	reader, err := zlib.NewReader(stream)
+	if err != nil {
 		panic(err)
 	}
-	r.mu.Lock()
-	r.payloads = append(r.payloads, Payload{zeroPayload})
-	r.mu.Unlock()
+	decoder := json.NewDecoder(reader)
+
+	// The first object of any request must be a metadata struct.
+	var metadataPayload struct {
+		Metadata metadata `json:"metadata"`
+	}
+	if err := decoder.Decode(&metadataPayload); err != nil {
+		panic(err)
+	}
+	r.recordMetadata(&metadataPayload.Metadata)
+
+	for {
+		var payload struct {
+			Error       *model.Error       `json:"error"`
+			Metrics     *model.Metrics     `json:"metricset"`
+			Span        *model.Span        `json:"span"`
+			Transaction *model.Transaction `json:"transaction"`
+		}
+		err := decoder.Decode(&payload)
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			panic(err)
+		}
+		r.mu.Lock()
+		switch {
+		case payload.Error != nil:
+			r.payloads.Errors = append(r.payloads.Errors, *payload.Error)
+		case payload.Metrics != nil:
+			r.payloads.Metrics = append(r.payloads.Metrics, *payload.Metrics)
+		case payload.Span != nil:
+			r.payloads.Spans = append(r.payloads.Spans, *payload.Span)
+		case payload.Transaction != nil:
+			r.payloads.Transactions = append(r.payloads.Transactions, *payload.Transaction)
+		}
+		r.mu.Unlock()
+	}
 	return nil
 }
 
-// Payloads is a slice of Payload.
-type Payloads []Payload
-
-// Payload wraps an untyped payload value. Use the methods to obtain the
-// appropriate payload type fields.
-type Payload struct {
-	Value interface{}
+func (r *RecorderTransport) recordMetadata(m *metadata) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.metadata == nil {
+		r.metadata = m
+	} else {
+		// Make sure the metadata doesn't change between requests.
+		if diff := cmp.Diff(r.metadata, m); diff != "" {
+			panic(fmt.Errorf("metadata changed\n%s", diff))
+		}
+	}
 }
 
-// Transactions returns the transactions within the payload. If the payload
-// is not a transactions payload, this will panic.
-func (p Payload) Transactions() []model.Transaction {
-	return p.Value.(*model.TransactionsPayload).Transactions
+// Payloads holds the recorded payloads.
+type Payloads struct {
+	Errors       []model.Error
+	Metrics      []model.Metrics
+	Spans        []model.Span
+	Transactions []model.Transaction
 }
 
-// Errors returns the errors within the payload. If the payload
-// is not an errors payload, this will panic.
-func (p Payload) Errors() []*model.Error {
-	return p.Value.(*model.ErrorsPayload).Errors
+// Len returns the number of recorded payloads.
+func (p *Payloads) Len() int {
+	return len(p.Transactions) + len(p.Errors) + len(p.Metrics)
 }
 
-// Metrics returns the metrics within the payload. If the payload
-// is not a metrics payload, this will panic.
-func (p Payload) Metrics() []*model.Metrics {
-	return p.Value.(*model.MetricsPayload).Metrics
+type metadata struct {
+	System  model.System  `json:"system"`
+	Process model.Process `json:"process"`
+	Service model.Service `json:"service"`
 }

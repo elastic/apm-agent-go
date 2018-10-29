@@ -11,7 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/elastic/apm-agent-go/module/apmhttp"
+	"go.elastic.co/apm/module/apmhttp"
 )
 
 func TestDefaultServerRequestIgnorer(t *testing.T) {
@@ -22,20 +22,20 @@ func TestDefaultServerRequestIgnorer(t *testing.T) {
 	testDefaultServerRequestIgnorer(t, "", r1, false)
 	testDefaultServerRequestIgnorer(t, "", r2, false)
 	testDefaultServerRequestIgnorer(t, "", r3, false)
-	testDefaultServerRequestIgnorer(t, "[", r1, false) // invalid regexp matches nothing
+	testDefaultServerRequestIgnorer(t, ",", r1, false) // equivalent to empty
 
-	testDefaultServerRequestIgnorer(t, "/foo", r1, true)
-	testDefaultServerRequestIgnorer(t, "/foo", r2, true)
-	testDefaultServerRequestIgnorer(t, "/foo", r3, true)
-	testDefaultServerRequestIgnorer(t, "/FOO", r3, true) // case insensitive by default
+	testDefaultServerRequestIgnorer(t, "*/foo*", r1, true)
+	testDefaultServerRequestIgnorer(t, "*/foo*", r2, true)
+	testDefaultServerRequestIgnorer(t, "*/foo*", r3, true)
+	testDefaultServerRequestIgnorer(t, "*/FOO*", r3, true) // case insensitive by default
 
-	testDefaultServerRequestIgnorer(t, "/foo\\?bar=baz", r1, false)
-	testDefaultServerRequestIgnorer(t, "/foo\\?bar=baz", r2, true)
-	testDefaultServerRequestIgnorer(t, "/foo\\?bar=baz", r3, true)
+	testDefaultServerRequestIgnorer(t, "*/foo?bar=baz", r1, false)
+	testDefaultServerRequestIgnorer(t, "*/foo?bar=baz", r2, true)
+	testDefaultServerRequestIgnorer(t, "*/foo?bar=baz", r3, true)
 
-	testDefaultServerRequestIgnorer(t, "http://.*", r1, false)
-	testDefaultServerRequestIgnorer(t, "http://.*", r2, false)
-	testDefaultServerRequestIgnorer(t, "http://.*", r3, true)
+	testDefaultServerRequestIgnorer(t, "http://*", r1, false)
+	testDefaultServerRequestIgnorer(t, "http://*", r2, false)
+	testDefaultServerRequestIgnorer(t, "http://*", r3, true)
 }
 
 func testDefaultServerRequestIgnorer(t *testing.T, ignoreURLs string, r *http.Request, expect bool) {

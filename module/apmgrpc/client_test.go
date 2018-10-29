@@ -8,8 +8,8 @@ import (
 	"golang.org/x/net/context"
 	pb "google.golang.org/grpc/examples/helloworld/helloworld"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/transport/transporttest"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/transport/transporttest"
 )
 
 func TestClientSpan(t *testing.T) {
@@ -27,17 +27,17 @@ func TestClientSpan(t *testing.T) {
 
 	// The client interceptor starts no transactions, only spans.
 	tracer.Flush(nil)
-	require.Len(t, transport.Payloads(), 0)
+	require.Zero(t, transport.Payloads())
 
 	tx := tracer.StartTransaction("name", "type")
-	ctx := elasticapm.ContextWithTransaction(context.Background(), tx)
+	ctx := apm.ContextWithTransaction(context.Background(), tx)
 	resp, err = client.SayHello(ctx, &pb.HelloRequest{Name: "birita"})
 	require.NoError(t, err)
 	assert.Equal(t, resp, &pb.HelloReply{Message: "hello, birita"})
 	tx.End()
 
 	tracer.Flush(nil)
-	out := transport.Payloads()[0].Transactions()[0]
-	require.Len(t, out.Spans, 1)
-	assert.Equal(t, "/helloworld.Greeter/SayHello", out.Spans[0].Name)
+	spans := transport.Payloads().Spans
+	require.Len(t, spans, 1)
+	assert.Equal(t, "/helloworld.Greeter/SayHello", spans[0].Name)
 }

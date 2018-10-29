@@ -3,7 +3,7 @@ package apmpq
 import (
 	"github.com/lib/pq"
 
-	"github.com/elastic/apm-agent-go/module/apmsql"
+	"go.elastic.co/apm/module/apmsql"
 )
 
 func init() {

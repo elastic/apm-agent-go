@@ -5,7 +5,7 @@ import (
 	"database/sql/driver"
 	"errors"
 
-	"github.com/elastic/apm-agent-go"
+	"go.elastic.co/apm"
 )
 
 func newConn(in driver.Conn, d *tracingDriver, dsnInfo DSNInfo) driver.Conn {
@@ -42,14 +42,14 @@ type conn struct {
 	connBeginTx        driver.ConnBeginTx
 }
 
-func (c *conn) startStmtSpan(ctx context.Context, stmt, spanType string) (*elasticapm.Span, context.Context) {
+func (c *conn) startStmtSpan(ctx context.Context, stmt, spanType string) (*apm.Span, context.Context) {
 	return c.startSpan(ctx, c.driver.querySignature(stmt), spanType, stmt)
 }
 
-func (c *conn) startSpan(ctx context.Context, name, spanType, stmt string) (*elasticapm.Span, context.Context) {
-	span, ctx := elasticapm.StartSpan(ctx, name, spanType)
+func (c *conn) startSpan(ctx context.Context, name, spanType, stmt string) (*apm.Span, context.Context) {
+	span, ctx := apm.StartSpan(ctx, name, spanType)
 	if !span.Dropped() {
-		span.Context.SetDatabase(elasticapm.DatabaseSpanContext{
+		span.Context.SetDatabase(apm.DatabaseSpanContext{
 			Instance:  c.dsnInfo.Database,
 			Statement: stmt,
 			Type:      "sql",
@@ -59,7 +59,7 @@ func (c *conn) startSpan(ctx context.Context, name, spanType, stmt string) (*ela
 	return span, ctx
 }
 
-func (c *conn) finishSpan(ctx context.Context, span *elasticapm.Span, resultError *error) {
+func (c *conn) finishSpan(ctx context.Context, span *apm.Span, resultError *error) {
 	if *resultError == driver.ErrSkip {
 		// TODO(axw) mark span as abandoned,
 		// so it's not sent and not counted
@@ -69,7 +69,7 @@ func (c *conn) finishSpan(ctx context.Context, span *elasticapm.Span, resultErro
 		return
 	}
 	span.End()
-	if e := elasticapm.CaptureError(ctx, *resultError); e != nil {
+	if e := apm.CaptureError(ctx, *resultError); e != nil {
 		e.Send()
 	}
 }

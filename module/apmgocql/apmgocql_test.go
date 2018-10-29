@@ -13,9 +13,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/apm-agent-go/apmtest"
-	"github.com/elastic/apm-agent-go/model"
-	"github.com/elastic/apm-agent-go/module/apmgocql"
+	"go.elastic.co/apm/apmtest"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/module/apmgocql"
 )
 
 const (
@@ -32,7 +32,7 @@ var cassandraHost = os.Getenv("CASSANDRA_HOST")
 func TestQueryObserver(t *testing.T) {
 	var start time.Time
 	observer := apmgocql.NewObserver()
-	tx, errors := apmtest.WithTransaction(func(ctx context.Context) {
+	_, spans, errors := apmtest.WithTransaction(func(ctx context.Context) {
 		start = time.Now()
 		observer.ObserveQuery(ctx, gocql.ObservedQuery{
 			Start:     start,
@@ -43,11 +43,11 @@ func TestQueryObserver(t *testing.T) {
 		})
 	})
 
-	require.Len(t, tx.Spans, 1)
-	assert.Equal(t, "db.cassandra.query", tx.Spans[0].Type)
-	assert.Equal(t, "SELECT FROM foo.bar", tx.Spans[0].Name)
+	require.Len(t, spans, 1)
+	assert.Equal(t, "db.cassandra.query", spans[0].Type)
+	assert.Equal(t, "SELECT FROM foo.bar", spans[0].Name)
 	assert.WithinDuration(t,
-		time.Time(tx.Timestamp).Add(time.Duration((tx.Spans[0].Start+tx.Spans[0].Duration)*1000000)),
+		time.Time(spans[0].Timestamp).Add(time.Duration(spans[0].Duration*1000000)),
 		start.Add(3*time.Second),
 		100*time.Millisecond, // allow some leeway for slow systems
 	)
@@ -57,7 +57,7 @@ func TestQueryObserver(t *testing.T) {
 			Instance:  "quay ",
 			Statement: "SELECT * FROM foo.bar",
 		},
-	}, tx.Spans[0].Context)
+	}, spans[0].Context)
 
 	require.Len(t, errors, 1)
 	assert.Equal(t, "TestQueryObserver.func1", errors[0].Culprit)
@@ -66,7 +66,7 @@ func TestQueryObserver(t *testing.T) {
 func TestBatchObserver(t *testing.T) {
 	var start time.Time
 	observer := apmgocql.NewObserver()
-	tx, errors := apmtest.WithTransaction(func(ctx context.Context) {
+	_, spans, errors := apmtest.WithTransaction(func(ctx context.Context) {
 		start = time.Now()
 		observer.ObserveBatch(ctx, gocql.ObservedBatch{
 			Start:    start,
@@ -80,24 +80,24 @@ func TestBatchObserver(t *testing.T) {
 		})
 	})
 
-	require.Len(t, tx.Spans, 3)
-	assert.Equal(t, "db.cassandra.batch", tx.Spans[0].Type)
-	for _, span := range tx.Spans[1:] {
-		assert.Equal(t, tx.Spans[0].ID, span.ParentID)
-		assert.Equal(t, tx.Spans[0].TraceID, span.TraceID)
+	require.Len(t, spans, 3)
+	assert.Equal(t, "db.cassandra.batch", spans[2].Type) // sent last
+	for _, span := range spans[:2] {
+		assert.Equal(t, spans[2].ID, span.ParentID)
+		assert.Equal(t, spans[2].TraceID, span.TraceID)
 		assert.Equal(t, "db.cassandra.query", span.Type)
 	}
 
-	assert.Equal(t, "BATCH", tx.Spans[0].Name)
-	assert.Equal(t, "INSERT INTO foo.bar", tx.Spans[1].Name)
-	assert.Equal(t, "UPDATE foo.bar", tx.Spans[2].Name)
+	assert.Equal(t, "INSERT INTO foo.bar", spans[0].Name)
+	assert.Equal(t, "UPDATE foo.bar", spans[1].Name)
+	assert.Equal(t, "BATCH", spans[2].Name)
 
 	assert.Equal(t, &model.SpanContext{
 		Database: &model.DatabaseSpanContext{
 			Type:     "cassandra",
 			Instance: "quay ",
 		},
-	}, tx.Spans[0].Context)
+	}, spans[2].Context)
 
 	assert.Equal(t, &model.SpanContext{
 		Database: &model.DatabaseSpanContext{
@@ -105,7 +105,7 @@ func TestBatchObserver(t *testing.T) {
 			Instance:  "quay ",
 			Statement: "INSERT INTO foo.bar(id) VALUES(1)",
 		},
-	}, tx.Spans[1].Context)
+	}, spans[0].Context)
 
 	require.Len(t, errors, 1)
 	assert.Equal(t, "TestBatchObserver.func1", errors[0].Culprit)
@@ -115,7 +115,7 @@ func TestQueryObserverIntegration(t *testing.T) {
 	session := newSession(t)
 	defer session.Close()
 
-	tx, _ := apmtest.WithTransaction(func(ctx context.Context) {
+	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
 		err := execQuery(ctx, session, createKeyspaceStatement)
 		assert.NoError(t, err)
 
@@ -126,20 +126,20 @@ func TestQueryObserverIntegration(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	require.Len(t, tx.Spans, 3)
-	for _, span := range tx.Spans {
+	require.Len(t, spans, 3)
+	for _, span := range spans {
 		assert.Equal(t, "db.cassandra.query", span.Type)
 	}
-	assert.Equal(t, "db.cassandra.query", tx.Spans[1].Type)
-	assert.Equal(t, "CREATE", tx.Spans[0].Name)
+	assert.Equal(t, "db.cassandra.query", spans[1].Type)
+	assert.Equal(t, "CREATE", spans[0].Name)
 	assert.Equal(t, &model.SpanContext{
 		Database: &model.DatabaseSpanContext{
 			Type:      "cassandra",
 			Statement: createKeyspaceStatement,
 		},
-	}, tx.Spans[0].Context)
-	assert.Equal(t, "CREATE", tx.Spans[1].Name)
-	assert.Equal(t, "INSERT INTO foo.bar", tx.Spans[2].Name)
+	}, spans[0].Context)
+	assert.Equal(t, "CREATE", spans[1].Name)
+	assert.Equal(t, "INSERT INTO foo.bar", spans[2].Name)
 }
 
 func TestBatchObserverIntegration(t *testing.T) {
@@ -152,7 +152,7 @@ func TestBatchObserverIntegration(t *testing.T) {
 	err = execQuery(context.Background(), session, `CREATE TABLE IF NOT EXISTS foo.bar (id int, PRIMARY KEY(id));`)
 	assert.NoError(t, err)
 
-	tx, _ := apmtest.WithTransaction(func(ctx context.Context) {
+	tx, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
 		batch := session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
 		batch.Query("INSERT INTO foo.bar(id) VALUES(1)")
 		batch.Query("INSERT INTO foo.bar(id) VALUES(2)")
@@ -160,32 +160,32 @@ func TestBatchObserverIntegration(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	require.Len(t, tx.Spans, 3)
-	assert.Equal(t, "db.cassandra.batch", tx.Spans[0].Type)
-	assert.Equal(t, tx.ID.SpanID, tx.Spans[0].ParentID)
-	assert.Equal(t, tx.TraceID, tx.Spans[0].TraceID)
-	for _, span := range tx.Spans[1:] {
-		assert.Equal(t, tx.Spans[0].ID, span.ParentID)
-		assert.Equal(t, tx.Spans[0].TraceID, span.TraceID)
+	require.Len(t, spans, 3)
+	assert.Equal(t, "db.cassandra.batch", spans[2].Type) // sent last
+	assert.Equal(t, tx.ID, spans[2].ParentID)
+	assert.Equal(t, tx.TraceID, spans[2].TraceID)
+	for _, span := range spans[:2] {
+		assert.Equal(t, spans[2].ID, span.ParentID)
+		assert.Equal(t, spans[2].TraceID, span.TraceID)
 		assert.Equal(t, "db.cassandra.query", span.Type)
 	}
 
-	assert.Equal(t, "BATCH", tx.Spans[0].Name)
-	assert.Equal(t, "INSERT INTO foo.bar", tx.Spans[1].Name)
-	assert.Equal(t, "INSERT INTO foo.bar", tx.Spans[2].Name)
+	assert.Equal(t, "INSERT INTO foo.bar", spans[0].Name)
+	assert.Equal(t, "INSERT INTO foo.bar", spans[1].Name)
+	assert.Equal(t, "BATCH", spans[2].Name)
 
 	assert.Equal(t, &model.SpanContext{
 		Database: &model.DatabaseSpanContext{
 			Type: "cassandra",
 		},
-	}, tx.Spans[0].Context)
+	}, spans[2].Context)
 
 	assert.Equal(t, &model.SpanContext{
 		Database: &model.DatabaseSpanContext{
 			Type:      "cassandra",
 			Statement: "INSERT INTO foo.bar(id) VALUES(1)",
 		},
-	}, tx.Spans[1].Context)
+	}, spans[0].Context)
 }
 
 func TestQueryObserverErrorIntegration(t *testing.T) {
@@ -193,12 +193,16 @@ func TestQueryObserverErrorIntegration(t *testing.T) {
 	defer session.Close()
 
 	var queryError error
-	tx, errors := apmtest.WithTransaction(func(ctx context.Context) {
+	_, spans, errors := apmtest.WithTransaction(func(ctx context.Context) {
 		queryError = execQuery(ctx, session, "ZINGA")
 	})
 	require.Len(t, errors, 1)
-	require.Len(t, tx.Spans, 1)
-	assert.Equal(t, errors[0].Culprit, "execQuery")
+	require.Len(t, spans, 1)
+
+	// BUG(axw) gocql executes queries, and notifies observers, in another
+	// goroutine whose stack does not include the original caller.
+	// See https://go.elastic.co/apm/issues/258.
+	assert.Equal(t, errors[0].Culprit, "")
 	assert.EqualError(t, queryError, errors[0].Exception.Message)
 }
 

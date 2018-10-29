@@ -17,7 +17,7 @@ Install the Elastic APM Go agent package using `go get`:
 
 [source,bash]
 ----
-go get github.com/elastic/apm-agent-go
+go get go.elastic.co/apm
 ----
 
 ==== Requirements
@@ -52,7 +52,7 @@ https://godoc.org/github.com/labstack/echo#Context[echo.Context]`.Request().Cont
 ----
 import (
 	"github.com/labstack/echo"
-	"github.com/elastic/apm-agent-go/module/apmecho"
+	"go.elastic.co/apm/module/apmecho"
 )
 
 func main() {
@@ -75,7 +75,7 @@ https://godoc.org/github.com/gin-gonic/gin#Context[gin.Context]`.Request.Context
 [source,go]
 ----
 import (
-	"github.com/elastic/apm-agent-go/module/apmgin"
+	"go.elastic.co/apm/module/apmgin"
 )
 
 func main() {
@@ -99,7 +99,7 @@ https://golang.org/pkg/net/http/#Request[http.Request]`.Context()` in your handl
 import (
 	"github.com/gorilla/mux"
 
-	"github.com/elastic/apm-agent-go/module/apmgorilla"
+	"go.elastic.co/apm/module/apmgorilla"
 )
 
 func main() {
@@ -121,7 +121,7 @@ context passed into the method.
 [source,go]
 ----
 import (
-	"github.com/elastic/apm-agent-go/module/apmgrpc"
+	"go.elastic.co/apm/module/apmgrpc"
 )
 
 func main() {
@@ -161,7 +161,7 @@ https://golang.org/pkg/net/http/#Request[http.Request]`.Context()` in your handl
 [source,go]
 ----
 import (
-	"github.com/elastic/apm-agent-go/module/apmhttp"
+	"go.elastic.co/apm/module/apmhttp"
 )
 
 func main() {
@@ -180,7 +180,7 @@ such that outgoing requests are traced as spans, if the request context includes
 import (
 	"net/http"
 	"golang.org/x/net/context/ctxhttp"
-	"github.com/elastic/apm-agent-go/module/apmhttp"
+	"go.elastic.co/apm/module/apmhttp"
 )
 
 var tracingClient = apmhttp.WrapClient(http.DefaultClient)
@@ -207,7 +207,7 @@ https://golang.org/pkg/net/http/#Request[http.Request]`.Context()` in your handl
 import (
 	"github.com/julienschmidt/httprouter"
 
-	"github.com/elastic/apm-agent-go/module/apmhttprouter"
+	"go.elastic.co/apm/module/apmhttprouter"
 )
 
 func main() {
@@ -231,7 +231,7 @@ is `*apmhttprouter.Router`, and not `*httprouter.Router`.
 import (
 	"github.com/julienschmidt/httprouter"
 
-	"github.com/elastic/apm-agent-go/module/apmhttprouter"
+	"go.elastic.co/apm/module/apmhttprouter"
 )
 
 func main() {
@@ -252,7 +252,7 @@ Importing the package is enough to report the function invocations.
 [source,go]
 ----
 import (
-	_ "github.com/elastic/apm-agent-go/module/apmlambda"
+	_ "go.elastic.co/apm/module/apmlambda"
 )
 ----
 
@@ -279,9 +279,9 @@ with apmsql.Register:
 [source,go]
 ----
 import (
-	"github.com/elastic/apm-agent-go/module/apmsql"
-	_ "github.com/elastic/apm-agent-go/module/apmsql/pq"
-	_ "github.com/elastic/apm-agent-go/module/apmsql/sqlite3"
+	"go.elastic.co/apm/module/apmsql"
+	_ "go.elastic.co/apm/module/apmsql/pq"
+	_ "go.elastic.co/apm/module/apmsql/sqlite3"
 )
 
 func main() {
@@ -295,9 +295,9 @@ used, and the context includes a transaction.
 
 [[builtin-modules-apmgorm]]
 ===== module/apmgorm
-Package apmgorm provides a means of instrumenting [gorm](http://gorm.io) database operations.
+Package apmgorm provides a means of instrumenting http://gorm.io[GORM] database operations.
 
-To trace GORM operations, import the appropriate `apmgorm/dialects` package (instead of the
+To trace `GORM` operations, import the appropriate `apmgorm/dialects` package (instead of the
 `gorm/dialects` package), and use `apmgorm.Open` (instead of `gorm.Open`). The parameters are
 exactly the same.
 
@@ -307,8 +307,8 @@ propagate a context containing a transaction to the operations:
 [source,go]
 ----
 import (
-	"github.com/elastic/apm-agent-go/module/apmgorm"
-	_ "github.com/elastic/apm-agent-go/module/apmgorm/dialects/postgres"
+	"go.elastic.co/apm/module/apmgorm"
+	_ "go.elastic.co/apm/module/apmgorm/dialects/postgres"
 )
 
 func main() {
@@ -336,7 +336,7 @@ context includes a transaction.
 import (
 	"github.com/gocql/gocql"
 
-	"github.com/elastic/apm-agent-go/module/apmgocql"
+	"go.elastic.co/apm/module/apmgocql"
 )
 
 func main() {
@@ -348,6 +348,77 @@ func main() {
 	session, err := config.CreateSession()
 	...
 	err = session.Query("SELECT * FROM foo").WithContext(ctx).Exec()
+	...
+}
+----
+
+[[builtin-modules-apmredigo]]
+===== module/apmredigo
+Package apmredigo provides a means of instrumenting https://github.com/gomodule/redigo[Redigo]
+so that Redis commands are reported as spans within the current transaction.
+
+To report Redis commands, you can use the top-level `Do` or `DoWithTimeout` functions.
+These functions have the same signature as the `redis.Conn` equivalents apart from an
+initial `context.Context` parameter. If the context passed in contains a sampled
+transaction, a span will be reported for the Redis command.
+
+Another top-level function, `Wrap`, is provided to wrap a `redis.Conn` such that its
+`Do` and `DoWithTimeout` methods call the above mentioned functions. Initially, the
+wrapped connection will be associated with the background context; its `WithContext`
+method may be used to obtain a shallow copy with another context. For example, in an
+HTTP middleware you might bind a connection to the request context, which would
+associate spans with the request's APM transaction.
+
+[source,go]
+----
+import (
+	"net/http"
+
+	"github.com/gomodule/redigo/redis"
+
+	"go.elastic.co/apm/module/apmredigo"
+)
+
+var redisPool *redis.Pool // initialized at program startup
+
+func handleRequest(w http.ResponseWriter, req *http.Request) {
+	// Wrap and bind redis.Conn to request context. If the HTTP
+	// server is instrumented with Elastic APM (e.g. with apmhttp),
+	// Redis commands will be reported as spans within the request's
+	// transaction.
+	conn := apmredigo.Wrap(redisPool.Get()).WithContext(req.Context())
+	defer conn.Close()
+	...
+}
+----
+
+[[builtin-modules-apmrestful]]
+===== module/apmrestful
+Package apmrestful provides a https://github.com/emicklei/go-restful[go-restful] filter
+for tracing requests, and capturing panics.
+
+For each request, a transaction is stored in the request context, which can be obtained via
+https://golang.org/pkg/net/http/#Request[http.Request]`.Context()` in your handler.
+
+[source,go]
+----
+import (
+	"github.com/emicklei/go-restful"
+
+	"go.elastic.co/apm/module/apmrestful"
+)
+
+func init() {
+	// Trace all requests to web services registered with the default container.
+	restful.Filter(apmrestful.Filter())
+}
+
+func main() {
+	var ws restful.WebService
+	ws.Path("/things").Consumes(restful.MIME_JSON, restful.MIME_XML).Produces(restful.MIME_JSON, restful.MIME_XML)
+	ws.Route(ws.GET("/{id:[0-1]+}").To(func(req *restful.Request, resp *restful.Response) {
+		// req.Request.Context() should be propagated to downstream operations such as database queries.
+	}))
 	...
 }
 ----
@@ -366,14 +437,14 @@ A transaction represents a top-level operation in your application, such as an H
 request. A span represents an operation within a transaction, such as a database query, or
 a request to another service. Errors may refer to Go errors, or panics.
 
-To report these things, you will use a <<tracer-api, elasticapm.Tracer>> -- typically
-`elasticapm.DefaultTracer`, which is configured via environment variables. In the code
-examples below we will refer to `elasticapm.DefaultTracer`. Please refer to the <<api, API documentation>>
+To report these things, you will use a <<tracer-api, apm.Tracer>> -- typically
+`apm.DefaultTracer`, which is configured via environment variables. In the code
+examples below we will refer to `apm.DefaultTracer`. Please refer to the <<api, API documentation>>
 for a more thorough description of the types and methods.
 
 ===== Transactions
 
-To report a transaction, you call <<tracer-api-start-transaction, elasticapm.DefaultTracer.StartTransaction>>
+To report a transaction, you call <<tracer-api-start-transaction, apm.DefaultTracer.StartTransaction>>
 with the transaction name and type. This returns a `Transaction` object; the transaction
 can be customized with additional context before you call its `End` method to indicate
 that the transaction has completed. Once the transaction's `End` method is called, it
@@ -381,7 +452,7 @@ will be enqueued for sending to the Elastic APM server, and made available to th
 
 [source,go]
 ----
-tx := elasticapm.DefaultTracer.StartTransaction("GET /api/v1", "request")
+tx := apm.DefaultTracer.StartTransaction("GET /api/v1", "request")
 defer tx.End()
 ...
 tx.Result = "HTTP 2xx"
@@ -400,26 +471,26 @@ for more details.
 
 [source,go]
 ----
-ctx = elasticapm.ContextWithTransaction(ctx, tx)
+ctx = apm.ContextWithTransaction(ctx, tx)
 ----
 
 [[custom-instrumentation-spans]]
 ===== Spans
 
 To report an operation within a transaction, you should use <<transaction-start-span, Transaction.StartSpan>>
-or <<elasticapm-start-span, elasticapm.StartSpan>> to start a span given a transaction or a `context`
+or <<apm-start-span, apm.StartSpan>> to start a span given a transaction or a `context`
 containing a transaction, respectively. Like a transaction, a span has a name and a type. In addition,
-a span can have a parent span within the same transaction. If the context provided to `elasticapm.StartSpan`
+a span can have a parent span within the same transaction. If the context provided to `apm.StartSpan`
 contains a span, then that will be considered the parent. See <<custom-instrumentation-propagation, context propagation>>
 for more details.
 
 [source,go]
 ----
-span, ctx := elasticapm.StartSpan(ctx, "SELECT FROM foo", "db.mysql.query")
+span, ctx := apm.StartSpan(ctx, "SELECT FROM foo", "db.mysql.query")
 defer span.End()
 ----
 
-`Transaction.StartSpan` and `elasticapm.StartSpan` will always return a non-nil `Span`, even if the
+`Transaction.StartSpan` and `apm.StartSpan` will always return a non-nil `Span`, even if the
 transaction is nil. It is always safe to defer a call to the span's End method. If setting the span's
 context would incur significant overhead, you may want to check if the span is dropped first, by calling
 the `Span.Dropped` method.
@@ -433,11 +504,11 @@ each request contains an independent context object, which allows adding values 
 request.
 
 When you start a transaction, you can add it to a context object using
-<<elasticapm-context-with-transaction, elasticapm.ContextWithTransaction>>. This context object can be
-later passed to <<elasticapm-transaction-from-context, elasticapm.TransactionFromContext>> to obtain
-the transaction, or into <<elasticapm-start-span, elasticapm.StartSpan>> to start a span.
+<<apm-context-with-transaction, apm.ContextWithTransaction>>. This context object can be
+later passed to <<apm-transaction-from-context, apm.TransactionFromContext>> to obtain
+the transaction, or into <<apm-start-span, apm.StartSpan>> to start a span.
 
-The simplest way to create and propagate a span is by using <<elasticapm-start-span, elasticapm.StartSpan>>,
+The simplest way to create and propagate a span is by using <<apm-start-span, apm.StartSpan>>,
 which takes a context and returns a span. The span will be created as a child of the span most recently
 added to this context, or a transaction added to the context as described above. If the context contains
 neither a transaction nor a span, then the span will be dropped (i.e. will not be reported to the APM Server.)
@@ -452,10 +523,10 @@ in order to create spans within that transaction, e.g. to measure the duration o
 import (
 	"net/http"
 
-	"github.com/elastic/apm-agent-go"
-	"github.com/elastic/apm-agent-go/module/apmhttp"
-	"github.com/elastic/apm-agent-go/module/apmsql"
-	_ "github.com/elastic/apm-agent-go/module/apmsql/pq"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/module/apmhttp"
+	"go.elastic.co/apm/module/apmsql"
+	_ "go.elastic.co/apm/module/apmsql/pq"
 )
 
 var db *sql.DB
@@ -494,7 +565,7 @@ func getList(ctx context.Context) (
 	//         Span: getList
 	//             Span: SELECT FROM items
 	//
-	span, ctx := elasticapm.StartSpan(ctx, "getList", "custom")
+	span, ctx := apm.StartSpan(ctx, "getList", "custom")
 	defer span.End()
 
 	// NOTE: The context object ctx returned by StartSpan above contains
@@ -512,14 +583,19 @@ func getList(ctx context.Context) (
 ===== Panic recovery and errors
 
 If you want to recover panics, and report them along with your transaction, you can use the
-<<tracer-recover, Tracer.Recover>> or <<tracer-recovered, Tracer.Recovered>> methods. The former should be
-used as a deferred call, while the latter can be used if you have your own recovery logic. There are also
-methods for reporting non-panic errors: <<tracer-new-error, Tracer.NewError>>,
-<<tracer-new-error-log, Tracer.NewErrorLog>>, and <<elasticapm-captureerror, elasticapm.CaptureError>>.
+<<tracer-recovered, Tracer.Recovered>> method in a recovery function. There are also methods for reporting
+non-panic errors: <<tracer-new-error, Tracer.NewError>>, <<tracer-new-error-log, Tracer.NewErrorLog>>, and
+<<apm-captureerror, apm.CaptureError>>.
 
 [source,go]
 ----
-defer elasticapm.DefaultTracer.Recover(tx)
+defer func() {
+	if v := recover(); v != nil {
+		e := apm.DefaultTracer.Recovered()
+		e.SetTransaction(tx) // or e.SetSpan(span)
+		e.Send()
+	}
+}()
 ----
 
 See the <<error-api, Error API>> for details and examples of the other methods.

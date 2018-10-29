@@ -10,18 +10,24 @@ import (
 )
 
 var (
-	// Transactions is the compiled JSON Schema for a transactions payload.
-	Transactions *jsonschema.Schema
+	// Error is the compiled JSON Schema for an error.
+	Error *jsonschema.Schema
 
-	// Errors is the compiled JSON Schema for an errors payload.
-	Errors *jsonschema.Schema
+	// Metadata is the compiled JSON Schema for metadata.
+	Metadata *jsonschema.Schema
 
-	// Metrics is the compiled JSON Schema for a metrics payload.
-	Metrics *jsonschema.Schema
+	// MetricSet is the compiled JSON Schema for a set of metrics.
+	MetricSet *jsonschema.Schema
+
+	// Span is the compiled JSON Schema for a span.
+	Span *jsonschema.Schema
+
+	// Transaction is the compiled JSON Schema for a transaction.
+	Transaction *jsonschema.Schema
 )
 
 func init() {
-	pkg, err := build.Default.Import("github.com/elastic/apm-agent-go/internal/apmschema", "", build.FindOnly)
+	pkg, err := build.Default.Import("go.elastic.co/apm/internal/apmschema", "", build.FindOnly)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -35,7 +41,9 @@ func init() {
 		}
 		*out = schema
 	}
-	compile("transactions/payload.json", &Transactions)
-	compile("errors/payload.json", &Errors)
-	compile("metrics/payload.json", &Metrics)
+	compile("errors/v2_error.json", &Error)
+	compile("metadata.json", &Metadata)
+	compile("metricsets/v2_metricset.json", &MetricSet)
+	compile("spans/v2_span.json", &Span)
+	compile("transactions/v2_transaction.json", &Transaction)
 }
