@@ -21,6 +21,19 @@ services:
       - postgres
       - redis
 
+  trace-context-service:
+    build:
+      context: ..
+      dockerfile: internal/tracecontexttest/Dockerfile
+
+  trace-context-harness:
+    build:
+      context: ../internal/tracecontexttest
+      dockerfile: Dockerfile-harness
+    command: /bin/bash -c 'HARNESS_HOST=$$HOSTNAME python test/test.py http://trace-context-service:5000/'
+    depends_on:
+      - trace-context-service
+
   mysql:
     image: mysql:latest
     environment:
