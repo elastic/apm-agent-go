@@ -31,7 +31,7 @@ pipeline {
     booleanParam(name: 'linux_ci', defaultValue: true, description: 'Enable Linux build')
     booleanParam(name: 'test_ci', defaultValue: true, description: 'Enable test')
     booleanParam(name: 'integration_test_ci', defaultValue: true, description: 'Enable run integration test')
-    booleanParam(name: 'integration_test_pr_ci', defaultValue: true, description: 'Enable run integgration test')
+    booleanParam(name: 'integration_test_pr_ci', defaultValue: true, description: 'Enable run integration test')
     booleanParam(name: 'integration_test_master_ci', defaultValue: true, description: 'Enable run integgration test')
     booleanParam(name: 'bench_ci', defaultValue: true, description: 'Enable benchmarks')
     booleanParam(name: 'doc_ci', defaultValue: true, description: 'Enable build documentation')
