@@ -3,8 +3,8 @@ set -ex
 export GOPATH=$WORKSPACE
 eval "$(gvm $GO_VERSION)"
 go get -v -u github.com/jstemmer/go-junit-report
-go get -v -u github.com/matm/gocov-html
 go get -v -u github.com/axw/gocov/...
+go get -v -u github.com/matm/gocov-html
 go get -v -u github.com/AlekSi/gocov-xml
 
 go get -v -t ./...
