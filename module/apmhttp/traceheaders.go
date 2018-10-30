@@ -50,6 +50,12 @@ func ParseTraceparentHeader(h string) (apm.TraceContext, error) {
 	h = h[3:]
 
 	switch version {
+	case 255:
+		// "Version 255 is invalid."
+		return out, errors.Errorf("traceparent header version 255 is forbidden")
+	default:
+		// "If higher version is detected - implementation SHOULD try to parse it."
+		fallthrough
 	case 0:
 		// Version 00:
 		//
@@ -64,24 +70,25 @@ func ParseTraceparentHeader(h string) (apm.TraceContext, error) {
 			traceOptionsStart = spanIDEnd + 1
 			traceOptionsEnd   = traceOptionsStart + 2
 		)
-		if len(h) != traceOptionsEnd || h[traceIDEnd] != '-' || h[spanIDEnd] != '-' {
-			return out, errors.Errorf("invalid version 0 traceparent header %q", h)
+		switch {
+		case len(h) < traceOptionsEnd,
+			h[traceIDEnd] != '-',
+			h[spanIDEnd] != '-',
+			version == 0 && len(h) != traceOptionsEnd,
+			version > 0 && len(h) > traceOptionsEnd && h[traceOptionsEnd] != '-':
+			return out, errors.Errorf("invalid version %d traceparent header %q", version, h)
 		}
 		if _, err := hex.Decode(out.Trace[:], []byte(h[:traceIDEnd])); err != nil {
-			return out, errors.Wrap(err, "error decoding trace-id")
+			return out, errors.Wrapf(err, "error decoding trace-id for version %d", version)
 		}
 		if _, err := hex.Decode(out.Span[:], []byte(h[spanIDStart:spanIDEnd])); err != nil {
-			return out, errors.Wrap(err, "error decoding span-id")
+			return out, errors.Wrapf(err, "error decoding span-id for version %d", version)
 		}
 		var traceOptions [1]byte
 		if _, err := hex.Decode(traceOptions[:], []byte(h[traceOptionsStart:traceOptionsEnd])); err != nil {
-			return out, errors.Wrap(err, "error decoding trace-options")
+			return out, errors.Wrapf(err, "error decoding trace-options for version %d", version)
 		}
 		out.Options = apm.TraceOptions(traceOptions[0])
 		return out, nil
-	case 255:
-		return out, errors.Errorf("traceparent header version 255 is forbidden")
-	default:
-		return out, errors.Errorf("traceparent header version %d is unknown", version)
 	}
 }
