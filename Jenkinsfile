@@ -144,7 +144,7 @@ pipeline {
           }
           post { 
             always {
-              coverageReport("${BASE_DIR}/build")
+              coverageReport("${BASE_DIR}/build/coverage")
               junit(allowEmptyResults: true, 
                 keepLongStdio: true, 
                 testResults: "${BASE_DIR}/build/junit-*.xml")
@@ -178,40 +178,6 @@ pipeline {
           } 
           post {
             always {
-              junit(allowEmptyResults: true, 
-                keepLongStdio: true, 
-                testResults: "${BASE_DIR}/build/junit-*.xml")
-            }
-          }
-        }
-        stage('Docker tests') {
-          agent { label 'linux && docker' }
-          environment {
-            PATH = "${env.PATH}:${env.HUDSON_HOME}/go/bin/:${env.WORKSPACE}/bin"
-            GOPATH = "${env.WORKSPACE}"
-          }
-          
-          when { 
-            beforeAgent true
-            allOf { 
-              //branch 'master';
-              environment name: 'integration_test_ci', value: 'true' 
-            }
-          }
-          steps {
-            withEnvWrapper() {
-              unstash 'source'
-              dir("${BASE_DIR}"){    
-                sh """#!/bin/bash
-                ./scripts/jenkins/docker-test.sh
-                """
-                codecov('apm-agent-go')
-              }
-            }
-          }
-          post { 
-            always { 
-              coverageReport("${BASE_DIR}/build")
               junit(allowEmptyResults: true, 
                 keepLongStdio: true, 
                 testResults: "${BASE_DIR}/build/junit-*.xml")
