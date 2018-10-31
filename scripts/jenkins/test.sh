@@ -3,7 +3,6 @@ set -e
 export GOPATH=$WORKSPACE
 eval "$(gvm $GO_VERSION)"
 go get -v -u github.com/jstemmer/go-junit-report
-go get -v -u code.google.com/p/go.tools/cmd/cover
 go get -v -u github.com/t-yuki/gocover-cobertura
 go get -v -t ./...
 
