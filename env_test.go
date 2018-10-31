@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -48,6 +49,8 @@ func TestTracerRequestTimeEnv(t *testing.T) {
 	clientStart := time.Now()
 	for i := 0; i < 1000; i++ {
 		tracer.StartTransaction("name", "type").End()
+		// Yield to the tracer for more predictable timing.
+		runtime.Gosched()
 	}
 	<-requestHandled
 	clientEnd := time.Now()
