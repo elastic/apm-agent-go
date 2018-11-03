@@ -32,7 +32,7 @@ pipeline {
     booleanParam(name: 'test_ci', defaultValue: true, description: 'Enable test')
     booleanParam(name: 'integration_test_ci', defaultValue: true, description: 'Enable run integration test')
     booleanParam(name: 'integration_test_pr_ci', defaultValue: true, description: 'Enable run integration test')
-    booleanParam(name: 'integration_test_master_ci', defaultValue: true, description: 'Enable run integration test')
+    booleanParam(name: 'integration_test_master_ci', defaultValue: false, description: 'Enable run integration test')
     booleanParam(name: 'bench_ci', defaultValue: true, description: 'Enable benchmarks')
     booleanParam(name: 'doc_ci', defaultValue: true, description: 'Enable build documentation')
   }
@@ -84,7 +84,6 @@ pipeline {
               on_pull_request {
                 echo "build cause PR"
               }
-              gitCreateTag()
             }
           }
           stash allowEmpty: true, name: 'source'
@@ -316,7 +315,6 @@ pipeline {
   post {
     always { 
       echo 'Post Actions'
-      gitDeleteTag()
     }
     success { 
       echo 'Success Post Actions'
