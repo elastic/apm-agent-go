@@ -27,6 +27,9 @@
  - Report all HTTP request/response headers (#280)
  - Drop Context.SetCustom (#284)
  - Reuse memory for tags (#286)
+ - Return a more helpful error message when /intake/v2/events 404s, to detect old servers (#290)
+ - Implement test service for w3c/distributed-tracing test harness (#293)
+ - End HTTP client spans on response body closure (#289)
 
 ## [v0.5.2](https://github.com/elastic/apm-agent-go/releases/tag/v0.5.2)
 

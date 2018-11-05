@@ -24,6 +24,14 @@ script:
 jobs:
   include:
     - os: osx     
+
+    - name: "W3C Distributed Tracing Validation"
+      sudo: required
+      services:
+        - docker
+      script:
+        - scripts/docker-compose-testing run -T --rm trace-context-harness
+
     - stage: coverage
       sudo: required
       services:

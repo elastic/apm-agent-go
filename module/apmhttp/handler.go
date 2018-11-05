@@ -80,9 +80,8 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 // returned with the transaction added to its context.
 func StartTransaction(tracer *apm.Tracer, name string, req *http.Request) (*apm.Transaction, *http.Request) {
 	var opts apm.TransactionOptions
-	if v := req.Header.Get(TraceparentHeader); v != "" {
-		c, err := ParseTraceparentHeader(v)
-		if err == nil {
+	if values := req.Header[TraceparentHeader]; len(values) == 1 && values[0] != "" {
+		if c, err := ParseTraceparentHeader(values[0]); err == nil {
 			opts.TraceContext = c
 		}
 	}
