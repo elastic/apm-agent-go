@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -exo pipefail
 
 srcdir=`dirname $0`
 test -z "$srcdir" && srcdir=.
@@ -14,6 +14,5 @@ go get -v -t ./...
 
 export OUT_FILE="build/bench.out"
 mkdir -p build
-go test -run=NONE -benchmem -bench=. ./... -v 2>&1 | tee ${OUT_FILE}
+go test -run=NONE -benchmem -bench=. ./... -v > ${OUT_FILE} 2>&1 
 cat ${OUT_FILE} | go-junit-report > build/junit-apm-agent-go-bench.xml
-exit 0
