@@ -8,5 +8,6 @@ test -z "$srcdir" && srcdir=.
 jenkins_setup
 
 go get -u -v golang.org/x/tools/cmd/goimports
+go get -u -v golang.org/x/lint/golint
 
 make install check
