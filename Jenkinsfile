@@ -110,7 +110,7 @@ pipeline {
           unstash 'source'
           dir("${BASE_DIR}"){    
             sh """#!/bin/bash
-            make install check
+            ./scripts/jenkins/build.sh
             """
           }
         }
