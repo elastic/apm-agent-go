@@ -12,6 +12,7 @@ pipeline {
     HOME = "${env.HUDSON_HOME}"
     BASE_DIR="src/go.elastic.co/apm"
     JOB_GIT_CREDENTIALS = "f6c7695a-671e-4f4f-a331-acdce44ff9ba"
+    GO_VERSION = "1.10.3"
   }
   triggers {
     cron('0 0 * * 1-5')
