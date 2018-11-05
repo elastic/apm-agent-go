@@ -16,3 +16,4 @@ export OUT_FILE="build/bench.out"
 mkdir -p build
 go test -run=NONE -benchmem -bench=. ./... -v 2>&1 | tee ${OUT_FILE}
 cat ${OUT_FILE} | go-junit-report > build/junit-apm-agent-go-bench.xml
+exit 0
