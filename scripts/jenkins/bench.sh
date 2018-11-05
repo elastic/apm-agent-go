@@ -1,5 +1,12 @@
 #!/bin/bash
 set -e
+
+srcdir=`dirname $0`
+test -z "$srcdir" && srcdir=.
+. ${srcdir}//common.bash
+
+jenkins_setup
+
 export GOPATH=$WORKSPACE
 eval "$(gvm $GO_VERSION)"
 go get -v -u github.com/jstemmer/go-junit-report

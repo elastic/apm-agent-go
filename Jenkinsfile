@@ -109,8 +109,7 @@ pipeline {
         withEnvWrapper() {
           unstash 'source'
           dir("${BASE_DIR}"){    
-            sh """#!/usr/local/bin/runbld
-            echo \$PATH
+            sh """#!/bin/bash
             make install check
             """
           }
