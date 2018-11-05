@@ -12,7 +12,6 @@ pipeline {
     HOME = "${env.HUDSON_HOME}"
     BASE_DIR="src/go.elastic.co/apm"
     JOB_GIT_CREDENTIALS = "f6c7695a-671e-4f4f-a331-acdce44ff9ba"
-    GO_VERSION = "1.10.3"
   }
   triggers {
     cron('0 0 * * 1-5')
@@ -28,7 +27,8 @@ pipeline {
     durabilityHint('PERFORMANCE_OPTIMIZED')
   }
   parameters {
-    string(name: 'branch_specifier', defaultValue: "", description: "the Git branch specifier to build (<branchName>, <tagName>, <commitId>, etc.)")    
+    string(name: 'branch_specifier', defaultValue: "", description: "the Git branch specifier to build (<branchName>, <tagName>, <commitId>, etc.)")
+    string(name: 'GO_VERSION', defaultValue: "1.10.3", description: "Go version to use.")
     booleanParam(name: 'linux_ci', defaultValue: true, description: 'Enable Linux build')
     booleanParam(name: 'test_ci', defaultValue: true, description: 'Enable test')
     booleanParam(name: 'integration_test_ci', defaultValue: true, description: 'Enable run integration test')
