@@ -3,7 +3,7 @@ set -e
 
 srcdir=`dirname $0`
 test -z "$srcdir" && srcdir=.
-. ${srcdir}//common.bash
+. ${srcdir}/common.bash
 
 jenkins_setup
 
