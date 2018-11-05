@@ -1,5 +1,5 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -euxo pipefail
 
 srcdir=`dirname $0`
 test -z "$srcdir" && srcdir=.
