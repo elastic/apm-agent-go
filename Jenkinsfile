@@ -53,7 +53,7 @@ pipeline {
         withEnvWrapper() {
           dir("${BASE_DIR}"){
             script{
-              if(!branch_specifier){
+              if(!env?.branch_specifier){
                 echo "Checkout SCM ${GIT_BRANCH}"
                 checkout scm
               } else {
