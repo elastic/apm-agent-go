@@ -47,7 +47,7 @@ pipeline {
         id
         free
         ps aux|grep java
-        cat /service/jenkins/log/current
+        cat /service/jenkins/log/main/current
         """
       }
     }
