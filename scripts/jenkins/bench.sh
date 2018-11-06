@@ -7,8 +7,6 @@ test -z "$srcdir" && srcdir=.
 
 jenkins_setup
 
-export GOPATH=$WORKSPACE
-eval "$(gvm $GO_VERSION)"
 go get -v -u github.com/jstemmer/go-junit-report
 go get -v -t ./...
 
