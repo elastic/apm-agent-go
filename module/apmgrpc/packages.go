@@ -1,3 +1,5 @@
+// +build go1.9
+
 package apmgrpc
 
 import "go.elastic.co/apm/stacktrace"
