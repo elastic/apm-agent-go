@@ -143,7 +143,7 @@ func (s *traceState) init(vs ...string) bool {
 	for _, v := range vs {
 		v = strings.TrimSpace(v)
 		if v == "" {
-			return false
+			continue
 		}
 		for _, field := range strings.Split(v, ",") {
 			kv := strings.SplitN(strings.TrimSpace(field), "=", 2)
