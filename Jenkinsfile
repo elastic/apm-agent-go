@@ -40,6 +40,16 @@ pipeline {
   }
   
   stages {
+    stage('get Master info'){
+      agent { label 'master' }
+      steps {
+        sh """
+        id
+        free
+        ps aux|grep java  
+        """
+      }
+    }
     /**
      Checkout the code and stash it, to use it on other stages.
     */
@@ -173,7 +183,7 @@ pipeline {
                 sh """#!/bin/bash
                 ./scripts/jenkins/bench.sh
                 """
-                sendBenchmarks(file: 'build/bench.out')
+                sendBenchmarks(file: 'build/bench.out', index: "benchmark-go")
               }
             }
           } 
