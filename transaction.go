@@ -92,7 +92,6 @@ type Transaction struct {
 	Context      Context
 	Result       string
 	traceContext TraceContext
-	parentSpan   SpanID
 	timestamp    time.Time
 
 	tracer                *Tracer
@@ -100,6 +99,7 @@ type Transaction struct {
 	spanFramesMinDuration time.Duration
 
 	mu           sync.Mutex
+	parentSpan   SpanID
 	spansCreated int
 	spansDropped int
 	rand         *rand.Rand // for ID generation
@@ -126,12 +126,45 @@ func (tx *Transaction) Discard() {
 
 // Sampled reports whether or not the transaction is sampled.
 func (tx *Transaction) Sampled() bool {
+	if tx == nil {
+		return false
+	}
 	return tx.traceContext.Options.Recorded()
 }
 
 // TraceContext returns the transaction's TraceContext.
+//
+// The resulting TraceContext's Span field holds the transaction's ID.
+// If tx is nil, a zero (invalid) TraceContext is returned.
 func (tx *Transaction) TraceContext() TraceContext {
+	if tx == nil {
+		return TraceContext{}
+	}
 	return tx.traceContext
+}
+
+// EnsureParent returns the span ID for for tx's parent, generating a
+// parent span ID if one has not already been set. If tx is nil, a zero
+// (invalid) SpanID is returned.
+//
+// This method can be used for generating a span ID for the RUM
+// (Real User Monitoring) agent, where the RUM agent is initialized
+// after the backend service returns.
+func (tx *Transaction) EnsureParent() SpanID {
+	if tx == nil {
+		return SpanID{}
+	}
+	tx.mu.Lock()
+	if tx.parentSpan.isZero() {
+		// parentSpan can only be zero if tx is a root transaction
+		// for which GenerateParentTraceContext() has not previously
+		// been called. Reuse the latter half of the trace ID for
+		// the parent span ID; the first half is used for the
+		// transaction ID.
+		copy(tx.parentSpan[:], tx.traceContext.Trace[8:])
+	}
+	tx.mu.Unlock()
+	return tx.parentSpan
 }
 
 // End enqueues tx for sending to the Elastic APM server; tx must not
