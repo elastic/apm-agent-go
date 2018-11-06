@@ -149,9 +149,7 @@ func initialPageHandler(w http.ResponseWriter, req *http.Request) {
 }
 ----
 
-See the
-https://www.elastic.co/guide/en/apm/agent/js-base/current/distributed-tracing-guide.html[JavaScript RUM agent documentation]
-for more information.
+See the {apm-rum-ref}/index.html[JavaScript RUM agent documentation] for more information.
 
 [float]
 [[apm-context-with-transaction]]
