@@ -31,7 +31,7 @@ const (
 
 	defaultAPIRequestSize        = 750 * apmconfig.KByte
 	defaultAPIRequestTime        = 10 * time.Second
-	defaultAPIBufferSize         = 10 * apmconfig.MByte
+	defaultAPIBufferSize         = 1 * apmconfig.MByte
 	defaultMetricsInterval       = 0 // disabled by default
 	defaultMaxSpans              = 500
 	defaultCaptureBody           = CaptureBodyOff
