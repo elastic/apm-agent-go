@@ -40,6 +40,22 @@ pipeline {
   }
   
   stages {
+    stage('get Master info'){
+      agent { label 'master' }
+      steps {
+        sh """
+        id
+        free
+        ps aux|grep java
+        ls -la /service/jenkins/log/main/
+        cat '/service/jenkins/log/main/@400000005be1ba6f0585d374.s'
+        cat '/service/jenkins/log/main/@400000005be1eebf3413db14.s'
+        cat '/service/jenkins/log/main/@400000005be2bd3b12157694.s'
+        cat '/service/jenkins/log/main/@400000005be2d68f29a97954.s'
+        '/service/jenkins/log/main/current'
+        """
+      }
+    }
     /**
      Checkout the code and stash it, to use it on other stages.
     */
