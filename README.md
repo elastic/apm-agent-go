@@ -1,4 +1,4 @@
-[![Build Status](https://apm-ci.elastic.co/buildStatus/icon?job=apm-agent-go/apm-agent-go-mbp/master)](https://apm-ci.elastic.co/job/apm-agent-go/job/apm-agent-go-mbp//job/master/)
+[![Build Status](https://apm-ci.elastic.co/buildStatus/icon?job=apm-agent-go/apm-agent-go-mbp/master)](https://apm-ci.elastic.co/job/apm-agent-go/job/apm-agent-go-mbp/job/master/)
 [![GoDoc](https://godoc.org/go.elastic.co/apm?status.svg)](http://godoc.org/go.elastic.co/apm)
 [![Travis-CI](https://travis-ci.org/elastic/apm-agent-go.svg)](https://travis-ci.org/elastic/apm-agent-go)
 [![AppVeyor](https://ci.appveyor.com/api/projects/status/28fhswvqqc7p90f7?svg=true)](https://ci.appveyor.com/project/AndrewWilkins/apm-agent-go)
