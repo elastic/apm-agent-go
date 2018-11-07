@@ -5,6 +5,7 @@ import (
 	"log"
 	"path"
 	"path/filepath"
+	"runtime"
 
 	"github.com/santhosh-tekuri/jsonschema"
 )
@@ -34,6 +35,9 @@ func init() {
 	compiler := jsonschema.NewCompiler()
 	compiler.Draft = jsonschema.Draft4
 	schemaDir := path.Join(filepath.ToSlash(pkg.Dir), "jsonschema")
+	if runtime.GOOS == "windows" {
+		schemaDir = "/" + schemaDir
+	}
 	compile := func(filepath string, out **jsonschema.Schema) {
 		schema, err := compiler.Compile("file://" + path.Join(schemaDir, filepath))
 		if err != nil {

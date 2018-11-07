@@ -260,7 +260,7 @@ to the APM server.
 [options="header"]           
 |============
 | Environment                   | Default | Minimum | Maximum
-| `ELASTIC_APM_API_BUFFER_SIZE` | `10MB`  | `10KB`  | `100MB`
+| `ELASTIC_APM_API_BUFFER_SIZE` | `1MB`   | `10KB`  | `100MB`
 |============
 
 The maximum number of bytes of uncompressed, encoded events to store in memory

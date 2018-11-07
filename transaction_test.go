@@ -4,20 +4,19 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"go.elastic.co/apm"
+	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/transport/transporttest"
 )
 
 func TestStartTransactionTraceContextOptions(t *testing.T) {
-	traceContext := startTransactionTraceContextOptions(t, false)
-	assert.False(t, traceContext.Options.Recorded())
-
-	traceContext = startTransactionTraceContextOptions(t, true)
-	assert.True(t, traceContext.Options.Recorded())
+	testStartTransactionTraceContextOptions(t, false)
+	testStartTransactionTraceContextOptions(t, true)
 }
 
-func startTransactionTraceContextOptions(t *testing.T, recorded bool) apm.TraceContext {
+func testStartTransactionTraceContextOptions(t *testing.T, recorded bool) {
 	tracer, _ := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 	tracer.SetSampler(samplerFunc(func(apm.TraceContext) bool {
@@ -34,8 +33,8 @@ func startTransactionTraceContextOptions(t *testing.T, recorded bool) apm.TraceC
 
 	tx := tracer.StartTransactionOptions("name", "type", opts)
 	result := tx.TraceContext()
+	assert.Equal(t, recorded, result.Options.Recorded())
 	tx.Discard()
-	return result
 }
 
 func TestStartTransactionInvalidTraceContext(t *testing.T) {
@@ -61,8 +60,30 @@ func startTransactionInvalidTraceContext(t *testing.T, traceContext apm.TraceCon
 
 	opts := apm.TransactionOptions{TraceContext: traceContext}
 	tx := tracer.StartTransactionOptions("name", "type", opts)
-	tx.Discard()
 	assert.True(t, samplerCalled)
+	tx.Discard()
+}
+
+func TestTransactionEnsureParent(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	tx := tracer.StartTransaction("name", "type")
+	traceContext := tx.TraceContext()
+
+	parentSpan := tx.EnsureParent()
+	assert.NotZero(t, parentSpan)
+	assert.NotEqual(t, traceContext.Span, parentSpan)
+
+	// EnsureParent is idempotent.
+	parentSpan2 := tx.EnsureParent()
+	assert.Equal(t, parentSpan, parentSpan2)
+
+	tx.End()
+	tracer.Flush(nil)
+	payloads := transport.Payloads()
+	require.Len(t, payloads.Transactions, 1)
+	assert.Equal(t, model.SpanID(parentSpan), payloads.Transactions[0].ParentID)
 }
 
 type samplerFunc func(apm.TraceContext) bool

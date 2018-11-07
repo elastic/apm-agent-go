@@ -1,4 +1,5 @@
 #!/bin/sh
+set -e
 
 out=$(GOIMPORTSFLAGS=-l ./scripts/goimports.sh)
 if [ -n "$out" ]; then
