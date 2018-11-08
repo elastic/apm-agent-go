@@ -16,7 +16,6 @@ pipeline {
   }
   triggers {
     cron('0 0 * * 1-5')
-    githubPush()
   }
   options {
     timeout(time: 1, unit: 'HOURS') 
