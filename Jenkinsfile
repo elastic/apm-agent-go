@@ -139,7 +139,6 @@ pipeline {
                 sh """#!/bin/bash
                 ./scripts/jenkins/test.sh
                 """
-                codecov('apm-agent-go')
               }
             }
           }
