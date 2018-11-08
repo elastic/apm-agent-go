@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"runtime"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -259,6 +260,8 @@ func TestTracerRequestSize(t *testing.T) {
 	clientStart := time.Now()
 	for i := 0; i < 500; i++ {
 		tracer.StartTransaction("name", "type").End()
+		// Yield to the tracer for more predictable timing.
+		runtime.Gosched()
 	}
 	serverTimes := <-requestHandled
 	clientEnd := time.Now()

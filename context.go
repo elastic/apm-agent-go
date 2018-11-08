@@ -49,18 +49,16 @@ func (c *Context) reset() {
 	}
 }
 
-// SetTag sets a tag in the context. If the key is invalid
-// (contains '.', '*', or '"'), the call is a no-op.
+// SetTag sets a tag in the context. Invalid characters
+// ('.', '*', and '"') in the key will be replaced with
+// an underscore.
 func (c *Context) SetTag(key, value string) {
-	if !validTagKey(key) {
-		return
-	}
-	value = truncateString(value)
 	// Note that we do not attempt to de-duplicate the keys.
 	// This is OK, since json.Unmarshal will always take the
 	// final instance.
 	c.model.Tags = append(c.model.Tags, model.StringMapItem{
-		Key: key, Value: value,
+		Key:   cleanTagKey(key),
+		Value: truncateString(value),
 	})
 }
 

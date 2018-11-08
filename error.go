@@ -196,6 +196,9 @@ func (e *Error) reset() {
 // Send enqueues the error for sending to the Elastic APM server.
 // The Error must not be used after this.
 func (e *Error) Send() {
+	if e == nil {
+		return
+	}
 	select {
 	case e.tracer.errors <- e:
 	default:

@@ -100,6 +100,17 @@ func TestErrorAutoStackTraceReuse(t *testing.T) {
 	}
 }
 
+func TestCaptureErrorNoTransaction(t *testing.T) {
+	// When there's no transaction or span in the context,
+	// CaptureError returns nil as it has no tracer with
+	// which it can create the error.
+	e := apm.CaptureError(context.Background(), errors.New("boom"))
+	assert.Nil(t, e)
+
+	// Send is a no-op on a nil Error.
+	e.Send()
+}
+
 func sendError(t *testing.T, err error, f ...func(*apm.Error)) model.Error {
 	tracer, r := transporttest.NewRecorderTracer()
 	defer tracer.Close()
