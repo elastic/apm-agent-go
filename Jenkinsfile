@@ -49,7 +49,6 @@ pipeline {
         PATH = "${env.PATH}:${env.HUDSON_HOME}/go/bin/:${env.WORKSPACE}/bin"
         GOPATH = "${env.WORKSPACE}"
       }
-      
       steps {
         withEnvWrapper() {
           dir("${BASE_DIR}"){
@@ -118,39 +117,39 @@ pipeline {
         }
       }
     }
+    stage('test') {
+      agent { label 'linux && immutable' }
+      environment {
+        PATH = "${env.PATH}:${env.HUDSON_HOME}/go/bin/:${env.WORKSPACE}/bin"
+        GOPATH = "${env.WORKSPACE}"
+      }
+      
+      when { 
+        beforeAgent true
+        environment name: 'test_ci', value: 'true' 
+      }
+      steps {
+        withEnvWrapper() {
+          unstash 'source'
+          dir("${BASE_DIR}"){    
+            sh """#!/bin/bash
+            ./scripts/jenkins/test.sh
+            """
+          }
+        }
+      }
+      post { 
+        always {
+          coverageReport("${BASE_DIR}/build/coverage")
+          junit(allowEmptyResults: true, 
+            keepLongStdio: true, 
+            testResults: "${BASE_DIR}/build/junit-*.xml")
+        }
+      }
+    }
     stage('Parallel stages') {
       failFast true
       parallel {
-        stage('test') {
-          agent { label 'linux && immutable' }
-          environment {
-            PATH = "${env.PATH}:${env.HUDSON_HOME}/go/bin/:${env.WORKSPACE}/bin"
-            GOPATH = "${env.WORKSPACE}"
-          }
-          
-          when { 
-            beforeAgent true
-            environment name: 'test_ci', value: 'true' 
-          }
-          steps {
-            withEnvWrapper() {
-              unstash 'source'
-              dir("${BASE_DIR}"){    
-                sh """#!/bin/bash
-                ./scripts/jenkins/test.sh
-                """
-              }
-            }
-          }
-          post { 
-            always {
-              coverageReport("${BASE_DIR}/build/coverage")
-              junit(allowEmptyResults: true, 
-                keepLongStdio: true, 
-                testResults: "${BASE_DIR}/build/junit-*.xml")
-            }
-          }
-        }
         stage('Benchmarks') {
           agent { label 'linux && immutable' }
           environment {
