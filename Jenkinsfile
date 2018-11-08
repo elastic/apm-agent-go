@@ -139,7 +139,6 @@ pipeline {
       }
       post { 
         always {
-          coverageReport("${BASE_DIR}/build/coverage")
           junit(allowEmptyResults: true, 
             keepLongStdio: true, 
             testResults: "${BASE_DIR}/build/junit-*.xml")
@@ -159,7 +158,7 @@ pipeline {
           when { 
             beforeAgent true
             allOf { 
-              //branch 'master';
+              branch 'master';
               environment name: 'bench_ci', value: 'true' 
             }
           }
@@ -191,10 +190,7 @@ pipeline {
           
           when { 
             beforeAgent true
-            allOf { 
-              //branch 'master';
-              environment name: 'integration_test_ci', value: 'true' 
-            }
+            environment name: 'integration_test_ci', value: 'true' 
           }
           steps {
             withEnvWrapper() {
@@ -225,7 +221,7 @@ pipeline {
           when { 
             beforeAgent true
             allOf { 
-              //branch 'master';
+              branch 'master';
               environment name: 'integration_test_master_ci', value: 'true' 
             }
           }
@@ -287,7 +283,7 @@ pipeline {
       when { 
         beforeAgent true
         allOf { 
-          //branch 'master';
+          branch 'master';
           environment name: 'doc_ci', value: 'true' 
         }
       }
@@ -308,6 +304,14 @@ pipeline {
         success {
           tar(file: "doc-files.tgz", archive: true, dir: "html", pathPrefix: "${BASE_DIR}/docs")
         }
+      }
+    }
+    stage('Full log') { 
+      when { 
+          environment name: 'Never', value: 'true' 
+      }
+      steps {
+        echo "NOOP"
       }
     }
   }
