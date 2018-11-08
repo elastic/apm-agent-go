@@ -8,15 +8,10 @@ test -z "$srcdir" && srcdir=.
 jenkins_setup
 
 go get -v -u github.com/jstemmer/go-junit-report
-go get -v -u github.com/t-yuki/gocover-cobertura
 go get -v -t ./...
 
-export COV_FILE="build/coverage/coverage.cov"
 export OUT_FILE="build/test-report.out"
-mkdir -p build/coverage
+mkdir -p build
 
-(go test -race ./... -v -coverprofile="${COV_FILE}" -coverpkg=go.elastic.co/apm/... 2>&1 | tee ${OUT_FILE}) || echo -e "\033[31;49mTests FAILED\033[0m"
+(go test -race ./... -v 2>&1 | tee ${OUT_FILE}) || echo -e "\033[31;49mTests FAILED\033[0m"
 cat ${OUT_FILE} | go-junit-report > build/junit-apm-agent-go.xml
-
-go tool cover -html="${COV_FILE}" -o build/coverage/coverage-apm-agent-go-report.html
-gocover-cobertura < "${COV_FILE}" > build/coverage/coverage-apm-agent-go-report.xml
