@@ -23,6 +23,7 @@ var (
 	localSystem    model.System
 
 	serviceNameInvalidRegexp = regexp.MustCompile("[^" + serviceNameValidClass + "]")
+	tagKeyReplacer           = strings.NewReplacer(`.`, `_`, `*`, `_`, `"`, `_`)
 )
 
 const (
@@ -76,8 +77,8 @@ func getLocalSystem() model.System {
 	return system
 }
 
-func validTagKey(k string) bool {
-	return !strings.ContainsAny(k, `.*"`)
+func cleanTagKey(k string) string {
+	return tagKeyReplacer.Replace(k)
 }
 
 func validateServiceName(name string) error {

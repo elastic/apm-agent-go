@@ -292,10 +292,10 @@ custom context and tags.
 [[context-set-tag]]
 ==== `func (*Context) SetTag(key, value string)`
 
-SetTag tags the transaction or error with the given key and value. The
-key must not contain any special characters (`.`, `*`, or `"`). Values
-longer than 1024 characters will be truncated. Tags will be indexed in
-Elasticsearch as keyword fields.
+SetTag tags the transaction or error with the given key and value. If the
+key contains any special characters (`.`, `*`, `"`), they will be replaced
+with underscores. Values longer than 1024 characters will be truncated.
+Tags will be indexed in Elasticsearch as keyword fields.
 
 [float]
 [[context-set-username]]
