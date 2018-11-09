@@ -32,6 +32,7 @@
  - End HTTP client spans on response body closure (#289)
  - module/apmgrpc requires Go 1.9+ (#300)
  - Invalid tag key characters are replaced with underscores (#308)
+ - `ELASTIC_APM_LOG_FILE` and `ELASTIC_APM_LOG_LEVEL` introduced (#313)
 
 ## [v0.5.2](https://github.com/elastic/apm-agent-go/releases/tag/v0.5.2)
 
