@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"go.elastic.co/apm/internal/apmconfig"
-	"go.elastic.co/apm/internal/apmdebug"
+	"go.elastic.co/apm/internal/apmlog"
 	"go.elastic.co/apm/internal/iochan"
 	"go.elastic.co/apm/internal/ringbuffer"
 	"go.elastic.co/apm/internal/wildcard"
@@ -263,8 +263,8 @@ func newTracer(opts options) *Tracer {
 		cfg.preContext = defaultPreContext
 		cfg.postContext = defaultPostContext
 		cfg.metricsGatherers = []MetricsGatherer{newBuiltinMetricsGatherer(t)}
-		if apmdebug.DebugLog {
-			cfg.logger = apmdebug.LogLogger{}
+		if apmlog.DefaultLogger != nil {
+			cfg.logger = apmlog.DefaultLogger
 		}
 	}
 	return t
@@ -346,14 +346,11 @@ func (t *Tracer) SetContextSetter(setter stacktrace.ContextSetter) {
 
 // SetLogger sets the Logger to be used for logging the operation of
 // the tracer.
+//
+// The tracer is initialized with a default logger configured with the
+// environment variables ELASTIC_APM_LOG_FILE and ELASTIC_APM_LOG_LEVEL.
+// Calling SetLogger will replace the default logger.
 func (t *Tracer) SetLogger(logger Logger) {
-	if apmdebug.DebugLog {
-		if logger == nil {
-			logger = apmdebug.LogLogger{}
-		} else {
-			logger = apmdebug.ChainedLogger{apmdebug.LogLogger{}, logger}
-		}
-	}
 	t.sendConfigCommand(func(cfg *tracerConfig) {
 		cfg.logger = logger
 	})
@@ -608,7 +605,13 @@ func (t *Tracer) loop() {
 				stats.Errors.SendStream++
 				gracePeriod = nextGracePeriod(gracePeriod)
 				if cfg.logger != nil {
-					cfg.logger.Debugf("request failed: %s (next request in ~%s)", err, gracePeriod)
+					logf := cfg.logger.Debugf
+					if err, ok := err.(*transport.HTTPError); ok && err.Response.StatusCode == 404 {
+						// 404 typically means the server is too old, meaning
+						// the error is due to a misconfigured environment.
+						logf = cfg.logger.Errorf
+					}
+					logf("request failed: %s (next request in ~%s)", err, gracePeriod)
 				}
 			} else {
 				gracePeriod = -1 // Reset grace period after success.
