@@ -20,6 +20,7 @@ var notSampled = false
 
 type modelWriter struct {
 	buffer          *ringbuffer.Buffer
+	metricsBuffer   *ringbuffer.Buffer
 	cfg             *tracerConfig
 	stats           *TracerStats
 	json            fastjson.Writer
@@ -61,13 +62,16 @@ func (w *modelWriter) writeError(e *ErrorData) {
 	e.reset()
 }
 
-// writeMetrics encodes m as JSON to the buffer, and then resets m.
+// writeMetrics encodes m as JSON to the w.metricsBuffer, and then resets m.
+//
+// Note that we do not write metrics to the main ring buffer (w.buffer), as
+// periodic metrics would be evicted by transactions/spans in a busy system.
 func (w *modelWriter) writeMetrics(m *Metrics) {
 	for _, m := range m.metrics {
 		w.json.RawString(`{"metricset":`)
 		m.MarshalFastJSON(&w.json)
-		w.json.RawByte('}')
-		w.buffer.WriteBlock(w.json.Bytes(), metricsBlockTag)
+		w.json.RawString("}")
+		w.metricsBuffer.WriteBlock(w.json.Bytes(), metricsBlockTag)
 		w.json.Reset()
 	}
 	m.reset()

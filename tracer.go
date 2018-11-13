@@ -53,6 +53,7 @@ type options struct {
 	maxSpans              int
 	requestSize           int
 	bufferSize            int
+	metricsBufferSize     int
 	sampler               Sampler
 	sanitizedFieldNames   wildcard.Matchers
 	captureBody           CaptureBodyMode
@@ -96,6 +97,12 @@ func (opts *options) init(continueOnError bool) error {
 		errs = append(errs, err)
 	}
 
+	metricsBufferSize, err := initialMetricsBufferSize()
+	if err != nil {
+		metricsBufferSize = int(defaultMetricsBufferSize)
+		errs = append(errs, err)
+	}
+
 	maxSpans, err := initialMaxSpans()
 	if failed(err) {
 		maxSpans = defaultMaxSpans
@@ -132,6 +139,7 @@ func (opts *options) init(continueOnError bool) error {
 	opts.metricsInterval = metricsInterval
 	opts.requestSize = requestSize
 	opts.bufferSize = bufferSize
+	opts.metricsBufferSize = metricsBufferSize
 	opts.maxSpans = maxSpans
 	opts.sampler = sampler
 	opts.sanitizedFieldNames = initialSanitizedFieldNames()
@@ -172,16 +180,17 @@ type Tracer struct {
 	process *model.Process
 	system  *model.System
 
-	active           bool
-	bufferSize       int
-	closing          chan struct{}
-	closed           chan struct{}
-	forceFlush       chan chan<- struct{}
-	forceSendMetrics chan chan<- struct{}
-	configCommands   chan tracerConfigCommand
-	transactions     chan *TransactionData
-	spans            chan *SpanData
-	errors           chan *ErrorData
+	active            bool
+	bufferSize        int
+	metricsBufferSize int
+	closing           chan struct{}
+	closed            chan struct{}
+	forceFlush        chan chan<- struct{}
+	forceSendMetrics  chan chan<- struct{}
+	configCommands    chan tracerConfigCommand
+	transactions      chan *TransactionData
+	spans             chan *SpanData
+	errors            chan *ErrorData
 
 	statsMu sync.Mutex
 	stats   TracerStats
@@ -244,6 +253,7 @@ func newTracer(opts options) *Tracer {
 		spanFramesMinDuration: opts.spanFramesMinDuration,
 		active:                opts.active,
 		bufferSize:            opts.bufferSize,
+		metricsBufferSize:     opts.metricsBufferSize,
 	}
 	t.Service.Name = opts.serviceName
 	t.Service.Version = opts.serviceVersion
@@ -477,7 +487,7 @@ func (t *Tracer) loop() {
 	var metadata []byte
 	var gracePeriod time.Duration = -1
 	var flushed chan<- struct{}
-	var requestBufTransactions, requestBufSpans, requestBufErrors, requestBufMetrics uint64
+	var requestBufTransactions, requestBufSpans, requestBufErrors, requestBufMetricsets uint64
 	zlibWriter, _ := zlib.NewWriterLevel(&requestBuf, zlib.BestSpeed)
 	zlibFlushed := true
 	zlibClosed := false
@@ -510,9 +520,11 @@ func (t *Tracer) loop() {
 		}
 	}()
 
+	var stats TracerStats
 	var metrics Metrics
 	var sentMetrics chan<- struct{}
 	var gatheringMetrics bool
+	metricsBuffer := ringbuffer.New(t.metricsBufferSize)
 	gatheredMetrics := make(chan struct{}, 1)
 	metricsTimer := time.NewTimer(0)
 	metricsTimerActive := false
@@ -520,7 +532,6 @@ func (t *Tracer) loop() {
 		<-metricsTimer.C
 	}
 
-	var stats TracerStats
 	var cfg tracerConfig
 	buffer := ringbuffer.New(t.bufferSize)
 	buffer.Evicted = func(h ringbuffer.BlockHeader) {
@@ -534,9 +545,10 @@ func (t *Tracer) loop() {
 		}
 	}
 	modelWriter := modelWriter{
-		buffer: buffer,
-		cfg:    &cfg,
-		stats:  &stats,
+		buffer:        buffer,
+		metricsBuffer: metricsBuffer,
+		cfg:           &cfg,
+		stats:         &stats,
 	}
 
 	for {
@@ -549,9 +561,16 @@ func (t *Tracer) loop() {
 		case cmd := <-t.configCommands:
 			oldMetricsInterval := cfg.metricsInterval
 			cmd(&cfg)
-			if !gatheringMetrics && oldMetricsInterval <= 0 && cfg.metricsInterval > 0 {
-				metricsTimer.Reset(cfg.metricsInterval)
-				metricsTimerActive = true
+			if cfg.metricsInterval != oldMetricsInterval {
+				if !metricsTimerActive && !gatheringMetrics && oldMetricsInterval <= 0 && cfg.metricsInterval > 0 {
+					metricsTimer.Reset(cfg.metricsInterval)
+					metricsTimerActive = true
+				} else if metricsTimerActive && oldMetricsInterval > 0 && cfg.metricsInterval <= 0 {
+					if !metricsTimer.Stop() {
+						<-metricsTimer.C
+					}
+					metricsTimerActive = false
+				}
 			}
 			continue
 		case tx := <-t.transactions:
@@ -579,7 +598,7 @@ func (t *Tracer) loop() {
 		case <-gatheredMetrics:
 			modelWriter.writeMetrics(&metrics)
 			gatheringMetrics = false
-			closeRequest = true
+			flushRequest = true
 			if cfg.metricsInterval > 0 {
 				metricsTimerActive = true
 				metricsTimer.Reset(cfg.metricsInterval)
@@ -595,7 +614,7 @@ func (t *Tracer) loop() {
 			for n := len(t.errors); n > 0; n-- {
 				modelWriter.writeError(<-t.errors)
 			}
-			if !requestActive && buffer.Len() == 0 {
+			if !requestActive && buffer.Len() == 0 && metricsBuffer.Len() == 0 {
 				flushed <- struct{}{}
 				continue
 			}
@@ -627,11 +646,11 @@ func (t *Tracer) loop() {
 						return ""
 					}
 					cfg.logger.Debugf(
-						"sent request with %d transaction%s, %d span%s, %d error%s, %d metric%s",
+						"sent request with %d transaction%s, %d span%s, %d error%s, %d metricset%s",
 						requestBufTransactions, s(requestBufTransactions),
 						requestBufSpans, s(requestBufSpans),
 						requestBufErrors, s(requestBufErrors),
-						requestBufMetrics, s(requestBufMetrics),
+						requestBufMetricsets, s(requestBufMetricsets),
 					)
 				}
 			}
@@ -641,7 +660,7 @@ func (t *Tracer) loop() {
 				t.statsMu.Unlock()
 				stats = TracerStats{}
 			}
-			if sentMetrics != nil {
+			if sentMetrics != nil && requestBufMetricsets > 0 {
 				sentMetrics <- struct{}{}
 				sentMetrics = nil
 			}
@@ -663,7 +682,7 @@ func (t *Tracer) loop() {
 			requestBufTransactions = 0
 			requestBufSpans = 0
 			requestBufErrors = 0
-			requestBufMetrics = 0
+			requestBufMetricsets = 0
 			if requestTimerActive {
 				if !requestTimer.Stop() {
 					<-requestTimer.C
@@ -688,7 +707,7 @@ func (t *Tracer) loop() {
 		}
 
 		if !requestActive {
-			if buffer.Len() == 0 {
+			if buffer.Len() == 0 && metricsBuffer.Len() == 0 {
 				continue
 			}
 			sendStreamRequest <- gracePeriod
@@ -705,7 +724,24 @@ func (t *Tracer) loop() {
 		}
 
 		if !closeRequest || !zlibClosed {
-			for requestBytesRead+requestBuf.Len() < cfg.requestSize && buffer.Len() > 0 {
+			for requestBytesRead+requestBuf.Len() < cfg.requestSize {
+				if metricsBuffer.Len() > 0 {
+					if _, _, err := metricsBuffer.WriteBlockTo(zlibWriter); err == nil {
+						requestBufMetricsets++
+						zlibWriter.Write([]byte("\n"))
+						zlibFlushed = false
+						if sentMetrics != nil {
+							// SendMetrics was called: close the request
+							// off so we can inform the user when the
+							// metrics have been processed.
+							closeRequest = true
+						}
+					}
+					continue
+				}
+				if buffer.Len() == 0 {
+					break
+				}
 				if h, _, err := buffer.WriteBlockTo(zlibWriter); err == nil {
 					switch h.Tag {
 					case transactionBlockTag:
@@ -714,8 +750,6 @@ func (t *Tracer) loop() {
 						requestBufSpans++
 					case errorBlockTag:
 						requestBufErrors++
-					case metricsBlockTag:
-						requestBufMetrics++
 					}
 					zlibWriter.Write([]byte("\n"))
 					zlibFlushed = false
