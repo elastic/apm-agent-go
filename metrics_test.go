@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"os"
 	"runtime"
 	"sort"
 	"strconv"
@@ -165,6 +167,36 @@ func TestTracerMetricsDeregister(t *testing.T) {
 	require.Len(t, metrics, 1) // just the builtin/unlabeled metrics
 }
 
+func TestTracerMetricsBusyTracer(t *testing.T) {
+	os.Setenv("ELASTIC_APM_API_BUFFER_SIZE", "10KB")
+	defer os.Unsetenv("ELASTIC_APM_API_BUFFER_SIZE")
+
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	unblock := make(chan struct{})
+	tracer.Transport = sendStreamFunc(func(ctx context.Context, r io.Reader) error {
+		<-unblock
+		return transport.SendStream(ctx, r)
+	})
+
+	const interval = 100 * time.Millisecond
+	tracer.SetMetricsInterval(interval)
+
+	deadline := time.After(time.Second)
+	for {
+		select {
+		case <-deadline:
+			close(unblock)
+			tracer.Flush(nil)
+			assert.NotEmpty(t, transport.Payloads().Metrics)
+			return
+		default:
+			tracer.StartTransaction("name", "type").End()
+		}
+	}
+}
+
 // busyWork does meaningless work for the specified duration,
 // so we can observe CPU usage.
 func busyWork(d time.Duration) int {
@@ -178,4 +210,10 @@ func busyWork(d time.Duration) int {
 			n++
 		}
 	}
+}
+
+type sendStreamFunc func(context.Context, io.Reader) error
+
+func (f sendStreamFunc) SendStream(ctx context.Context, r io.Reader) error {
+	return f(ctx, r)
 }
