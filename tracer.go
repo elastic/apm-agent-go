@@ -543,6 +543,7 @@ func (t *Tracer) loop() {
 		var gatherMetrics bool
 		select {
 		case <-t.closing:
+			cancelContext() // informs transport that EOF is expected
 			iochanReader.CloseRead(io.EOF)
 			return
 		case cmd := <-t.configCommands:
