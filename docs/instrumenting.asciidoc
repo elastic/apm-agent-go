@@ -517,6 +517,45 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
 }
 ----
 
+[[builtin-modules-apmzerolog]]
+===== module/apmzerolog
+Package apmzerolog provides an implementation of https://github.com/rs/zerolog[Zerolog]'s
+`LevelWriter` interface for sending error records to Elastic APM, as well as functions
+for adding trace context and detailed error stack traces to log records.
+
+[source,go]
+----
+import (
+	"net/http"
+
+	"github.com/rs/zerolog"
+
+	"go.elastic.co/apm/module/apmzerolog"
+)
+
+// apmzerolog.Writer will send log records with the level error or greater to Elastic APM.
+var logger = zerolog.New(zerolog.MultiLevelWriter(os.Stdout, &apmzerolog.Writer{}))
+
+func init() {
+	// apmzerolog.MarshalErrorStack will extract stack traces from
+	// errors produced by github.com/pkg/errors. The main difference
+	// with github.com/rs/zerolog/pkgerrors.MarshalStack is that
+	// the apmzerolog implementation records fully-qualified function
+	// names, enabling errors reported to Elastic APM to be attributed
+	// to the correct package.
+	zerolog.ErrorStackMarshaler = apmzerolog.MarshalErrorStack
+}
+
+func traceLoggingMiddleware(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		ctx := req.Context()
+		logger := zerolog.Ctx(ctx).Hook(apmzerolog.TraceContextHook(ctx))
+		req = req.WithContext(logger.WithContext(ctx))
+		h.ServeHTTP(w, req)
+	})
+}
+----
+
 [[builtin-modules-apmelasticsearch]]
 ===== module/apmelasticsearch
 Package apmelasticsearch provides a means of instrumenting the HTTP transport
