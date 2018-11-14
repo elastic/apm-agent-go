@@ -24,6 +24,8 @@ go get -u go.elastic.co/apm
 
 Tested with Go 1.8+ on Linux, Windows and MacOS.
 
+Requires [APM Server](https://github.com/elastic/apm-server) v6.5 or newer.
+
 ## License
 
 Apache 2.0.
