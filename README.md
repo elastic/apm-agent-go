@@ -4,7 +4,7 @@
 [![Go Report Card](https://goreportcard.com/badge/go.elastic.co/apm)](https://goreportcard.com/report/go.elastic.co/apm)
 [![codecov.io](https://codecov.io/github/elastic/apm-agent-go/coverage.svg?branch=master)](https://codecov.io/github/elastic/apm-agent-go?branch=master)
 
-# apm-agent-go: APM Agent for Go (beta)
+# apm-agent-go: APM Agent for Go
 
 This is the official Go package for [Elastic APM](https://www.elastic.co/solutions/apm).
 
