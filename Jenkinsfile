@@ -248,7 +248,7 @@ pipeline {
           when { 
             beforeAgent true
             allOf { 
-              not { branch 'master' };
+              changeRequest()
               environment name: 'integration_test_pr_ci', value: 'true' 
             }
           }
