@@ -81,6 +81,18 @@
 			"revisionTime": "2018-07-05T12:18:52Z"
 		},
 		{
+			"checksumSHA1": "T/lob1RP4yp9bcpPJUhAgegIz74=",
+			"path": "github.com/rs/zerolog",
+			"revision": "8e30c7136954547e35720dbc2e5a50fd140f60af",
+			"revisionTime": "2018-11-08T22:49:44Z"
+		},
+		{
+			"checksumSHA1": "e0b96rsdqg3fNtCDQOdZA4M+MNo=",
+			"path": "github.com/rs/zerolog/internal/json",
+			"revision": "8e30c7136954547e35720dbc2e5a50fd140f60af",
+			"revisionTime": "2018-11-08T22:49:44Z"
+		},
+		{
 			"checksumSHA1": "PqZlazU/dKCEc8I353TYnUJNobw=",
 			"path": "golang.org/x/sys/windows",
 			"revision": "e072cadbbdc8dd3d3ffa82b8b4b9304c261d9311",

@@ -1,6 +1,8 @@
 # Changelog
 
-## [Unreleased](https://github.com/elastic/apm-agent-go/compare/v0.5.2...master)
+## [Unreleased](https://github.com/elastic/apm-agent-go/compare/v1.0.0...master)
+
+## [v1.0.0](https://github.com/elastic/apm-agent-go/releases/tag/v1.0.0)
 
  - Implement v2 intake protocol (#180)
  - Unexport Transaction.Timestamp and Span.Timestamp (#207)
@@ -32,6 +34,7 @@
  - End HTTP client spans on response body closure (#289)
  - module/apmgrpc requires Go 1.9+ (#300)
  - Invalid tag key characters are replaced with underscores (#308)
+ - `ELASTIC_APM_LOG_FILE` and `ELASTIC_APM_LOG_LEVEL` introduced (#313)
 
 ## [v0.5.2](https://github.com/elastic/apm-agent-go/releases/tag/v0.5.2)
 

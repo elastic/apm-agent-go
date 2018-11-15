@@ -330,19 +330,36 @@ HTTPS connection to the APM server. Verification can be disabled by
 changing this setting to `false`.
 
 [float]
-[[config-debug]]
-=== `ELASTIC_APM_DEBUG`
+[[config-log-file]]
+=== `ELASTIC_APM_LOG_FILE`
 
 [options="header"]
 |============
-| Environment         | Default
-| `ELASTIC_APM_DEBUG` |
+| Environment            | Default
+| `ELASTIC_APM_LOG_FILE` |
 |============
 
-`ELASTIC_APM_DEBUG` can be used to debug issues with the Elastic APM Go agent
-or your instrumentation. The value should be a comma-separated list of key=value
-debug directives. Currently we support just one: `log=1`.
+`ELASTIC_APM_LOG_FILE` specifies the output file for the agent's default, internal
+logger. The file will be created, or truncated if it exists, when the process starts.
+By default, logging is disabled. You must specify `ELASTIC_APM_LOG_FILE` to enable
+it. This environment variable will be ignored if a logger is configured programatically.
 
-By setting `ELASTIC_APM_DEBUG="log=1"`, the Go agent will log messages to the
-terminal, as well as to the tracer's programatically configured logger, if any.
+There are two special file names that the agent recognizes: `stdout` and `stderr`.
+These will configure the logger to write to standard output and standard error
+respectively.
 
+[float]
+[[config-log-level]]
+=== `ELASTIC_APM_LOG_LEVEL`
+
+[options="header"]
+|============
+| Environment             | Default
+| `ELASTIC_APM_LOG_LEVEL` | `"error"`
+|============
+
+`ELASTIC_APM_LOG_LEVEL` specifies the log level for the agent's default, internal
+logger. The only two levels used by the logger are "error" and "debug". By default,
+logging is disabled. You must specify `ELASTIC_APM_LOG_FILE` to enable it.
+
+This environment variable will be ignored if a logger is configured programatically.
