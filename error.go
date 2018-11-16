@@ -99,9 +99,9 @@ func (t *Tracer) NewErrorLog(r ErrorLogRecord) *Error {
 
 // newError returns a new Error associated with the Tracer.
 func (t *Tracer) newError() *Error {
-	e, _ := t.errorPool.Get().(*Error)
+	e, _ := t.errorDataPool.Get().(*ErrorData)
 	if e == nil {
-		e = &Error{
+		e = &ErrorData{
 			tracer: t,
 			Context: Context{
 				captureBodyMask: CaptureBodyErrors,
@@ -109,11 +109,19 @@ func (t *Tracer) newError() *Error {
 		}
 	}
 	e.Timestamp = time.Now()
-	return e
+	return &Error{ErrorData: e}
 }
 
 // Error describes an error occurring in the monitored service.
 type Error struct {
+	// ErrorData holds the error data. This field is set to nil when
+	// the error's Send method is called.
+	*ErrorData
+}
+
+// ErrorData holds the details for an error, and is embedded inside Error.
+// When the error is sent, its ErrorData field will be set to nil.
+type ErrorData struct {
 	model           model.Error
 	tracer          *Tracer
 	stacktrace      []stacktrace.Frame
@@ -163,42 +171,56 @@ type Error struct {
 
 // SetTransaction sets TraceID, TransactionID, and ParentID to the transaction's IDs.
 //
-// This must be called before tx.End(). After SetTransaction returns, e may be sent
-// and tx ended in either order.
+// SetTransaction has no effect if called with an ended transaction.
 func (e *Error) SetTransaction(tx *Transaction) {
-	e.TraceID = tx.traceContext.Trace
-	e.ParentID = tx.traceContext.Span
+	tx.mu.RLock()
+	if !tx.ended() {
+		e.setTransactionData(tx.TransactionData)
+	}
+	tx.mu.RUnlock()
+}
+
+func (e *Error) setTransactionData(td *TransactionData) {
+	e.TraceID = td.traceContext.Trace
+	e.ParentID = td.traceContext.Span
 	e.TransactionID = e.ParentID
 }
 
 // SetSpan sets TraceID, TransactionID, and ParentID to the span's IDs. If you call
 // this, it is not necessary to call SetTransaction.
 //
-// This must be called before s.End(). After SetSpanreturns, e may be sent and e ended
-// in either order.
+// SetSpan has no effect if called with an ended span.
 func (e *Error) SetSpan(s *Span) {
+	s.mu.RLock()
+	if !s.ended() {
+		e.setSpanData(s.SpanData)
+	}
+	s.mu.RUnlock()
+}
+
+func (e *Error) setSpanData(s *SpanData) {
 	e.TraceID = s.traceContext.Trace
 	e.ParentID = s.traceContext.Span
 	e.TransactionID = s.transactionID
 }
 
-func (e *Error) reset() {
-	*e = Error{
-		tracer:          e.tracer,
-		stacktrace:      e.stacktrace[:0],
-		modelStacktrace: e.modelStacktrace[:0],
-		Context:         e.Context,
-	}
-	e.Context.reset()
-	e.tracer.errorPool.Put(e)
-}
-
 // Send enqueues the error for sending to the Elastic APM server.
-// The Error must not be used after this.
+//
+// Send will set e.ErrorData to nil, so the error must not be
+// modified after Send returns.
 func (e *Error) Send() {
-	if e == nil {
+	if e == nil || e.sent() {
 		return
 	}
+	e.ErrorData.enqueue()
+	e.ErrorData = nil
+}
+
+func (e *Error) sent() bool {
+	return e.ErrorData == nil
+}
+
+func (e *ErrorData) enqueue() {
 	select {
 	case e.tracer.errors <- e:
 	default:
@@ -210,7 +232,18 @@ func (e *Error) Send() {
 	}
 }
 
-func (e *Error) setStacktrace() {
+func (e *ErrorData) reset() {
+	*e = ErrorData{
+		tracer:          e.tracer,
+		stacktrace:      e.stacktrace[:0],
+		modelStacktrace: e.modelStacktrace[:0],
+		Context:         e.Context,
+	}
+	e.Context.reset()
+	e.tracer.errorDataPool.Put(e)
+}
+
+func (e *ErrorData) setStacktrace() {
 	if len(e.stacktrace) == 0 {
 		return
 	}
@@ -219,7 +252,7 @@ func (e *Error) setStacktrace() {
 	e.model.Exception.Stacktrace = e.modelStacktrace
 }
 
-func (e *Error) setCulprit() {
+func (e *ErrorData) setCulprit() {
 	if e.Culprit != "" {
 		e.model.Culprit = e.Culprit
 	} else if e.modelStacktrace != nil {

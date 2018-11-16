@@ -179,9 +179,9 @@ type Tracer struct {
 	forceFlush       chan chan<- struct{}
 	forceSendMetrics chan chan<- struct{}
 	configCommands   chan tracerConfigCommand
-	transactions     chan *Transaction
-	spans            chan *Span
-	errors           chan *Error
+	transactions     chan *TransactionData
+	spans            chan *SpanData
+	errors           chan *ErrorData
 
 	statsMu sync.Mutex
 	stats   TracerStats
@@ -198,9 +198,9 @@ type Tracer struct {
 	captureBodyMu sync.RWMutex
 	captureBody   CaptureBodyMode
 
-	errorPool       sync.Pool
-	spanPool        sync.Pool
-	transactionPool sync.Pool
+	errorDataPool       sync.Pool
+	spanDataPool        sync.Pool
+	transactionDataPool sync.Pool
 }
 
 // NewTracer returns a new Tracer, using the default transport,
@@ -235,9 +235,9 @@ func newTracer(opts options) *Tracer {
 		forceFlush:            make(chan chan<- struct{}),
 		forceSendMetrics:      make(chan chan<- struct{}),
 		configCommands:        make(chan tracerConfigCommand),
-		transactions:          make(chan *Transaction, transactionsChannelCap),
-		spans:                 make(chan *Span, spansChannelCap),
-		errors:                make(chan *Error, errorsChannelCap),
+		transactions:          make(chan *TransactionData, transactionsChannelCap),
+		spans:                 make(chan *SpanData, spansChannelCap),
+		errors:                make(chan *ErrorData, errorsChannelCap),
 		maxSpans:              opts.maxSpans,
 		sampler:               opts.sampler,
 		captureBody:           opts.captureBody,
