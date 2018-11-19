@@ -59,23 +59,31 @@ func StartSpanOptions(ctx context.Context, name, spanType string, opts SpanOptio
 // from err. The Error.Handled field will be set to true, and a stacktrace
 // set either from err, or from the caller.
 //
-// If there is no span or transaction in the context, or the transaction
-// is not being sampled, CaptureError returns nil. As a convenience, if
-// the provided error is nil, then CaptureError will also return nil.
+// If there is no span or transaction in the context, CaptureError returns
+// nil. As a convenience, if the provided error is nil, then CaptureError
+// will also return nil.
 func CaptureError(ctx context.Context, err error) *Error {
 	if err == nil {
 		return nil
 	}
 	var e *Error
 	if span := SpanFromContext(ctx); span != nil {
-		e = span.tracer.NewError(err)
-		e.SetSpan(span)
-	} else if tx := TransactionFromContext(ctx); tx != nil && tx.Sampled() {
-		e = tx.tracer.NewError(err)
-		e.SetTransaction(tx)
-	} else {
-		return nil
+		span.mu.RLock()
+		if !span.ended() {
+			e = span.tracer.NewError(err)
+			e.setSpanData(span.SpanData)
+		}
+		span.mu.RUnlock()
+	} else if tx := TransactionFromContext(ctx); tx != nil {
+		tx.mu.RLock()
+		if !tx.ended() {
+			e = tx.tracer.NewError(err)
+			e.setTransactionData(tx.TransactionData)
+		}
+		tx.mu.RUnlock()
 	}
-	e.Handled = true
+	if e != nil {
+		e.Handled = true
+	}
 	return e
 }

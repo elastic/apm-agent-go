@@ -79,12 +79,11 @@ func (o *Observer) ObserveQuery(ctx context.Context, query gocql.ObservedQuery) 
 		Instance:  query.Keyspace,
 		Statement: query.Statement,
 	})
-	span.End()
-
 	if e := apm.CaptureError(ctx, query.Err); e != nil {
 		e.Timestamp = query.End
 		e.Send()
 	}
+	span.End()
 }
 
 type options struct {

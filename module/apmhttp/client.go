@@ -74,7 +74,7 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	req = &reqCopy
 
 	traceContext := tx.TraceContext()
-	if !tx.Sampled() {
+	if !traceContext.Options.Recorded() {
 		req.Header.Set(TraceparentHeader, FormatTraceparentHeader(traceContext))
 		return r.r.RoundTrip(req)
 	}

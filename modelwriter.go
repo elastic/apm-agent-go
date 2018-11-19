@@ -27,7 +27,7 @@ type modelWriter struct {
 }
 
 // writeTransaction encodes tx as JSON to the buffer, and then resets tx.
-func (w *modelWriter) writeTransaction(tx *Transaction) {
+func (w *modelWriter) writeTransaction(tx *TransactionData) {
 	var modelTx model.Transaction
 	w.buildModelTransaction(&modelTx, tx)
 	w.json.RawString(`{"transaction":`)
@@ -39,7 +39,7 @@ func (w *modelWriter) writeTransaction(tx *Transaction) {
 }
 
 // writeSpan encodes s as JSON to the buffer, and then resets s.
-func (w *modelWriter) writeSpan(s *Span) {
+func (w *modelWriter) writeSpan(s *SpanData) {
 	var modelSpan model.Span
 	w.buildModelSpan(&modelSpan, s)
 	w.json.RawString(`{"span":`)
@@ -51,7 +51,7 @@ func (w *modelWriter) writeSpan(s *Span) {
 }
 
 // writeError encodes e as JSON to the buffer, and then resets e.
-func (w *modelWriter) writeError(e *Error) {
+func (w *modelWriter) writeError(e *ErrorData) {
 	w.buildModelError(e)
 	w.json.RawString(`{"error":`)
 	e.model.MarshalFastJSON(&w.json)
@@ -73,7 +73,7 @@ func (w *modelWriter) writeMetrics(m *Metrics) {
 	m.reset()
 }
 
-func (w *modelWriter) buildModelTransaction(out *model.Transaction, tx *Transaction) {
+func (w *modelWriter) buildModelTransaction(out *model.Transaction, tx *TransactionData) {
 	out.ID = model.SpanID(tx.traceContext.Span)
 	out.TraceID = model.TraceID(tx.traceContext.Trace)
 	out.ParentID = model.SpanID(tx.parentSpan)
@@ -86,7 +86,7 @@ func (w *modelWriter) buildModelTransaction(out *model.Transaction, tx *Transact
 	out.SpanCount.Started = tx.spansCreated
 	out.SpanCount.Dropped = tx.spansDropped
 
-	if !tx.Sampled() {
+	if !tx.traceContext.Options.Recorded() {
 		out.Sampled = &notSampled
 	}
 
@@ -101,7 +101,7 @@ func (w *modelWriter) buildModelTransaction(out *model.Transaction, tx *Transact
 	}
 }
 
-func (w *modelWriter) buildModelSpan(out *model.Span, span *Span) {
+func (w *modelWriter) buildModelSpan(out *model.Span, span *SpanData) {
 	w.modelStacktrace = w.modelStacktrace[:0]
 	out.ID = model.SpanID(span.traceContext.Span)
 	out.TraceID = model.TraceID(span.traceContext.Trace)
@@ -119,7 +119,7 @@ func (w *modelWriter) buildModelSpan(out *model.Span, span *Span) {
 	w.setStacktraceContext(out.Stacktrace)
 }
 
-func (w *modelWriter) buildModelError(e *Error) {
+func (w *modelWriter) buildModelError(e *ErrorData) {
 	// TODO(axw) move the model type outside of Error
 	e.model.ID = model.TraceID(e.ID)
 	e.model.TraceID = model.TraceID(e.TraceID)

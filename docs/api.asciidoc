@@ -90,7 +90,7 @@ transaction := apm.DefaultTracer.StartTransactionOptions("GET /", "request", opt
 ==== `func (*Transaction) End()`
 
 End enqueues the transaction for sending to the Elastic APM server.
-The Transaction must not be used after this.
+The Transaction must not be modified after this.
 
 The transaction's duration will be calculated as the amount of time
 elapsed since the transaction was started until this call. To override
@@ -239,7 +239,7 @@ span, ctx := apm.StartSpan(ctx, "SELECT FROM foo", "db.mysql.query")
 [[span-end]]
 ==== `func (*Span) End()`
 
-End marks the span as complete; it must not be used after this.
+End marks the span as complete. The Span must not be modified after this.
 
 The span's duration will be calculated as the amount of time elapsed
 since the span was started until this call. To override this behaviour,
@@ -250,8 +250,8 @@ the span's Duration field may be set before calling End.
 ==== `func (*Span) Dropped() bool`
 
 Dropped indicates whether or not the span is dropped, meaning it will not be reported to
-the APM server. Spans are dropped when the created via a nil or non-sampled transaction,
-or one whose max spans limit has been reached.
+the APM server. Spans are dropped when the created with a nil, ended, or non-sampled
+transaction, or one whose max spans limit has been reached.
 
 [float]
 [[span-tracecontext]]
@@ -427,21 +427,20 @@ e.Send()
 [[error-set-transaction]]
 ==== `func (*Error) SetTransaction(*Transaction)`
 
-SetTransaction associates the error with the given transaction. The transaction's End method must
-not yet have been called.
+SetTransaction associates the error with the given transaction.
 
 [float]
 [[error-set-span]]
 ==== `func (*Error) SetSpan(*Span)`
 
 SetSpan associates the error with the given span, and the span's transaction. When calling SetSpan,
-it is not necessary to also call SetTransaction. The span's End method must not yet have been called.
+it is not necessary to also call SetTransaction.
 
 [float]
 [[error-send]]
 ==== `func (*Error) Send()`
 
-Send enqueues the error for sending to the Elastic APM server. The Error must not be used after this.
+Send enqueues the error for sending to the Elastic APM server.
 
 [float]
 [[tracer-recovered]]
