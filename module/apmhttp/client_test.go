@@ -2,7 +2,6 @@ package apmhttp_test
 
 import (
 	"context"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -43,13 +42,8 @@ func TestClient(t *testing.T) {
 
 	tx := tracer.StartTransaction("name", "type")
 	ctx := apm.ContextWithTransaction(context.Background(), tx)
-	client := apmhttp.WrapClient(http.DefaultClient)
-	resp, err := ctxhttp.Get(ctx, client, requestURL.String())
-	assert.NoError(t, err)
-	responseBody, err := ioutil.ReadAll(resp.Body)
-	assert.NoError(t, err)
-	resp.Body.Close()
-	assert.Equal(t, http.StatusTeapot, resp.StatusCode)
+	statusCode, responseBody := mustGET(ctx, requestURL.String())
+	assert.Equal(t, http.StatusTeapot, statusCode)
 	tx.End()
 	tracer.Flush(nil)
 
@@ -68,7 +62,7 @@ func TestClient(t *testing.T) {
 		},
 	}, span.Context)
 
-	clientTraceContext, err := apmhttp.ParseTraceparentHeader(string(responseBody))
+	clientTraceContext, err := apmhttp.ParseTraceparentHeader(responseBody)
 	assert.NoError(t, err)
 	assert.Equal(t, span.TraceID, model.TraceID(clientTraceContext.Trace))
 	assert.Equal(t, span.ID, model.SpanID(clientTraceContext.Span))
@@ -90,14 +84,7 @@ func TestClientSpanDropped(t *testing.T) {
 
 	var responseBodies []string
 	for i := 0; i < 2; i++ {
-		client := apmhttp.WrapClient(http.DefaultClient)
-		resp, err := ctxhttp.Get(ctx, client, server.URL)
-		assert.NoError(t, err)
-		responseBody, err := ioutil.ReadAll(resp.Body)
-		if !assert.NoError(t, err) {
-			resp.Body.Close()
-			return
-		}
+		_, responseBody := mustGET(ctx, server.URL)
 		responseBodies = append(responseBodies, string(responseBody))
 	}
 
@@ -114,6 +101,33 @@ func TestClientSpanDropped(t *testing.T) {
 	assert.Equal(t, span.ID, model.SpanID(clientTraceContext.Span))
 
 	clientTraceContext, err = apmhttp.ParseTraceparentHeader(string(responseBodies[1]))
+	require.NoError(t, err)
+	assert.Equal(t, transaction.TraceID, model.TraceID(clientTraceContext.Trace))
+	assert.Equal(t, transaction.ID, model.SpanID(clientTraceContext.Span))
+}
+
+func TestClientTransactionUnsampled(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.Write([]byte(req.Header.Get("Elastic-Apm-Traceparent")))
+	}))
+	defer server.Close()
+
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+	tracer.SetSampler(apm.NewRatioSampler(0)) // sample nothing
+
+	tx := tracer.StartTransaction("name", "type")
+	ctx := apm.ContextWithTransaction(context.Background(), tx)
+	_, responseBody := mustGET(ctx, server.URL)
+	tx.End()
+	tracer.Flush(nil)
+
+	payloads := transport.Payloads()
+	require.Len(t, payloads.Transactions, 1)
+	require.Len(t, payloads.Spans, 0)
+	transaction := payloads.Transactions[0]
+
+	clientTraceContext, err := apmhttp.ParseTraceparentHeader(string(responseBody))
 	require.NoError(t, err)
 	assert.Equal(t, transaction.TraceID, model.TraceID(clientTraceContext.Trace))
 	assert.Equal(t, transaction.ID, model.SpanID(clientTraceContext.Span))
@@ -141,12 +155,8 @@ func TestClientDuration(t *testing.T) {
 	defer server.Close()
 
 	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
-		client := apmhttp.WrapClient(http.DefaultClient)
-
-		resp, err := ctxhttp.Get(ctx, client, server.URL)
-		assert.NoError(t, err)
-		defer resp.Body.Close()
-		io.Copy(ioutil.Discard, resp.Body)
+		// mustGET reads the body, so it should not return until the handler completes.
+		mustGET(ctx, server.URL)
 	})
 
 	require.Len(t, spans, 1)
@@ -155,4 +165,19 @@ func TestClientDuration(t *testing.T) {
 	assert.Equal(t, "GET "+server.Listener.Addr().String(), span.Name)
 	assert.Equal(t, "ext.http", span.Type)
 	assert.InDelta(t, delay/time.Millisecond, span.Duration, 100)
+}
+
+func mustGET(ctx context.Context, url string) (statusCode int, responseBody string) {
+	client := apmhttp.WrapClient(http.DefaultClient)
+	resp, err := ctxhttp.Get(ctx, client, url)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+	return resp.StatusCode, string(body)
 }
