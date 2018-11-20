@@ -28,6 +28,7 @@ const (
 	LPAREN // (
 	RPAREN // )
 
+	AS
 	CALL
 	DELETE
 	FROM
@@ -56,6 +57,7 @@ var tokenStrings = [...]string{
 	LPAREN: "(",
 	RPAREN: ")",
 
+	AS:       "AS",
 	CALL:     "CALL",
 	DELETE:   "DELETE",
 	FROM:     "FROM",
@@ -73,7 +75,7 @@ var tokenStrings = [...]string{
 // keywords contains keyword tokens, indexed
 // at the position of keyword length.
 var keywords = [...][]Token{
-	2: []Token{OR},
+	2: []Token{AS, OR},
 	3: []Token{SET},
 	4: []Token{CALL, FROM, INTO},
 	5: []Token{TABLE},

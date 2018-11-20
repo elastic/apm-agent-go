@@ -37,6 +37,7 @@ func TestQuerySignature(t *testing.T) {
 
 	assertSignatureEqual("DELETE FROM foo.bar", "DELETE FROM foo.bar WHERE baz=1")
 	assertSignatureEqual("UPDATE foo.bar", "UPDATE IGNORE foo.bar SET bar=1 WHERE baz=2")
+	assertSignatureEqual("UPDATE foo", "UPDATE ONLY foo AS bar SET baz=1")
 	assertSignatureEqual("INSERT INTO foo.bar", "INSERT INTO foo.bar (col) VALUES(?)")
 	assertSignatureEqual("INSERT INTO foo.bar", "INSERT LOW_PRIORITY IGNORE INTO foo.bar (col) VALUES(?)")
 	assertSignatureEqual("CALL foo", "CALL foo(bar, 123)")
