@@ -44,7 +44,7 @@ func (r *RecorderTransport) ResetPayloads() {
 
 // SendStream records the stream such that it can later be obtained via Payloads.
 func (r *RecorderTransport) SendStream(ctx context.Context, stream io.Reader) error {
-	return r.record(stream)
+	return r.record(ctx, stream)
 }
 
 // Metadata returns the metadata recorded by the transport. If metadata is yet to
@@ -62,9 +62,15 @@ func (r *RecorderTransport) Payloads() Payloads {
 	return r.payloads
 }
 
-func (r *RecorderTransport) record(stream io.Reader) error {
+func (r *RecorderTransport) record(ctx context.Context, stream io.Reader) error {
 	reader, err := zlib.NewReader(stream)
 	if err != nil {
+		if err == io.ErrUnexpectedEOF {
+			if contextDone(ctx) {
+				return ctx.Err()
+			}
+			// truly unexpected
+		}
 		panic(err)
 	}
 	decoder := json.NewDecoder(reader)
@@ -86,7 +92,7 @@ func (r *RecorderTransport) record(stream io.Reader) error {
 			Transaction *model.Transaction `json:"transaction"`
 		}
 		err := decoder.Decode(&payload)
-		if err == io.EOF {
+		if err == io.EOF || (err == io.ErrUnexpectedEOF && contextDone(ctx)) {
 			break
 		} else if err != nil {
 			panic(err)
@@ -117,6 +123,15 @@ func (r *RecorderTransport) recordMetadata(m *metadata) {
 		if diff := cmp.Diff(r.metadata, m); diff != "" {
 			panic(fmt.Errorf("metadata changed\n%s", diff))
 		}
+	}
+}
+
+func contextDone(ctx context.Context) bool {
+	select {
+	case <-ctx.Done():
+		return true
+	default:
+		return false
 	}
 }
 

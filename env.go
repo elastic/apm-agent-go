@@ -28,19 +28,23 @@ const (
 	envAPIRequestSize        = "ELASTIC_APM_API_REQUEST_SIZE"
 	envAPIRequestTime        = "ELASTIC_APM_API_REQUEST_TIME"
 	envAPIBufferSize         = "ELASTIC_APM_API_BUFFER_SIZE"
+	envMetricsBufferSize     = "ELASTIC_APM_METRICS_BUFFER_SIZE"
 
 	defaultAPIRequestSize        = 750 * apmconfig.KByte
 	defaultAPIRequestTime        = 10 * time.Second
 	defaultAPIBufferSize         = 1 * apmconfig.MByte
+	defaultMetricsBufferSize     = 100 * apmconfig.KByte
 	defaultMetricsInterval       = 0 // disabled by default
 	defaultMaxSpans              = 500
 	defaultCaptureBody           = CaptureBodyOff
 	defaultSpanFramesMinDuration = 5 * time.Millisecond
 
-	minAPIBufferSize  = 10 * apmconfig.KByte
-	maxAPIBufferSize  = 100 * apmconfig.MByte
-	minAPIRequestSize = 1 * apmconfig.KByte
-	maxAPIRequestSize = 5 * apmconfig.MByte
+	minAPIBufferSize     = 10 * apmconfig.KByte
+	maxAPIBufferSize     = 100 * apmconfig.MByte
+	minAPIRequestSize    = 1 * apmconfig.KByte
+	maxAPIRequestSize    = 5 * apmconfig.MByte
+	minMetricsBufferSize = 10 * apmconfig.KByte
+	maxMetricsBufferSize = 100 * apmconfig.MByte
 )
 
 var (
@@ -65,6 +69,20 @@ func initialRequestDuration() (time.Duration, error) {
 
 func initialMetricsInterval() (time.Duration, error) {
 	return apmconfig.ParseDurationEnv(envMetricsInterval, defaultMetricsInterval)
+}
+
+func initialMetricsBufferSize() (int, error) {
+	size, err := apmconfig.ParseSizeEnv(envMetricsBufferSize, defaultMetricsBufferSize)
+	if err != nil {
+		return 0, err
+	}
+	if size < minMetricsBufferSize || size > maxMetricsBufferSize {
+		return 0, errors.Errorf(
+			"%s must be at least %s and less than %s, got %s",
+			envMetricsBufferSize, minMetricsBufferSize, maxMetricsBufferSize, size,
+		)
+	}
+	return int(size), nil
 }
 
 func initialAPIBufferSize() (int, error) {
