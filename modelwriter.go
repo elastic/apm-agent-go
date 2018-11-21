@@ -53,9 +53,10 @@ func (w *modelWriter) writeSpan(s *SpanData) {
 
 // writeError encodes e as JSON to the buffer, and then resets e.
 func (w *modelWriter) writeError(e *ErrorData) {
-	w.buildModelError(e)
+	var modelError model.Error
+	w.buildModelError(&modelError, e)
 	w.json.RawString(`{"error":`)
-	e.model.MarshalFastJSON(&w.json)
+	modelError.MarshalFastJSON(&w.json)
 	w.json.RawByte('}')
 	w.buffer.WriteBlock(w.json.Bytes(), errorBlockTag)
 	w.json.Reset()
@@ -123,19 +124,60 @@ func (w *modelWriter) buildModelSpan(out *model.Span, span *SpanData) {
 	w.setStacktraceContext(out.Stacktrace)
 }
 
-func (w *modelWriter) buildModelError(e *ErrorData) {
-	// TODO(axw) move the model type outside of Error
-	e.model.ID = model.TraceID(e.ID)
-	e.model.TraceID = model.TraceID(e.TraceID)
-	e.model.ParentID = model.SpanID(e.ParentID)
-	e.model.TransactionID = model.SpanID(e.TransactionID)
-	e.model.Timestamp = model.Time(e.Timestamp.UTC())
-	e.model.Context = e.Context.build()
-	e.model.Exception.Handled = e.Handled
+func (w *modelWriter) buildModelError(out *model.Error, e *ErrorData) {
+	out.ID = model.TraceID(e.ID)
+	out.TraceID = model.TraceID(e.TraceID)
+	out.ParentID = model.SpanID(e.ParentID)
+	out.TransactionID = model.SpanID(e.TransactionID)
+	out.Timestamp = model.Time(e.Timestamp.UTC())
+	out.Context = e.Context.build()
+	out.Culprit = e.Culprit
 
-	e.setStacktrace()
-	e.setCulprit()
-	w.setStacktraceContext(e.modelStacktrace)
+	w.modelStacktrace = w.modelStacktrace[:0]
+	if len(e.stacktrace) != 0 {
+		w.modelStacktrace = appendModelStacktraceFrames(w.modelStacktrace, e.stacktrace)
+		w.setStacktraceContext(w.modelStacktrace)
+		out.Log.Stacktrace = w.modelStacktrace
+		out.Exception.Stacktrace = w.modelStacktrace
+		if out.Culprit == "" {
+			out.Culprit = stacktraceCulprit(w.modelStacktrace)
+		}
+	}
+
+	switch e.kind {
+	case errorKindException:
+		out.Exception = model.Exception{
+			Message: e.exception.message,
+			Code: model.ExceptionCode{
+				String: e.exception.codeString,
+				Number: e.exception.codeNumber,
+			},
+			Type:       e.exception.typeName,
+			Module:     e.exception.typePackagePath,
+			Handled:    e.Handled,
+			Stacktrace: w.modelStacktrace,
+		}
+		if len(e.exception.attrs) != 0 {
+			out.Exception.Attributes = e.exception.attrs
+		}
+	case errorKindLog:
+		out.Log = model.Log{
+			Message:      e.log.Message,
+			Level:        e.log.Level,
+			LoggerName:   e.log.LoggerName,
+			ParamMessage: e.log.MessageFormat,
+			Stacktrace:   w.modelStacktrace,
+		}
+	}
+}
+
+func stacktraceCulprit(frames []model.StacktraceFrame) string {
+	for _, frame := range frames {
+		if !frame.LibraryFrame {
+			return frame.Function
+		}
+	}
+	return ""
 }
 
 func (w *modelWriter) setStacktraceContext(stack []model.StacktraceFrame) {
