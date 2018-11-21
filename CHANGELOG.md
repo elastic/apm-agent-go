@@ -3,6 +3,7 @@
 ## [Unreleased](https://github.com/elastic/apm-agent-go/compare/v1.0.0...master)
 
  - Stop pooling Transaction/Span/Error, introduce internal pooled objects (#319)
+ - Enable metrics collection with default interval of 30s (#322)
 
 ## [v1.0.0](https://github.com/elastic/apm-agent-go/releases/tag/v1.0.0)
 

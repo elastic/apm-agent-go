@@ -524,10 +524,10 @@ func (t *Tracer) loop() {
 	var metrics Metrics
 	var sentMetrics chan<- struct{}
 	var gatheringMetrics bool
+	var metricsTimerStart time.Time
 	metricsBuffer := ringbuffer.New(t.metricsBufferSize)
 	gatheredMetrics := make(chan struct{}, 1)
 	metricsTimer := time.NewTimer(0)
-	metricsTimerActive := false
 	if !metricsTimer.Stop() {
 		<-metricsTimer.C
 	}
@@ -561,15 +561,26 @@ func (t *Tracer) loop() {
 		case cmd := <-t.configCommands:
 			oldMetricsInterval := cfg.metricsInterval
 			cmd(&cfg)
-			if cfg.metricsInterval != oldMetricsInterval {
-				if !metricsTimerActive && !gatheringMetrics && oldMetricsInterval <= 0 && cfg.metricsInterval > 0 {
-					metricsTimer.Reset(cfg.metricsInterval)
-					metricsTimerActive = true
-				} else if metricsTimerActive && oldMetricsInterval > 0 && cfg.metricsInterval <= 0 {
-					if !metricsTimer.Stop() {
-						<-metricsTimer.C
+			if !gatheringMetrics && cfg.metricsInterval != oldMetricsInterval {
+				if metricsTimerStart.IsZero() {
+					if cfg.metricsInterval > 0 {
+						metricsTimer.Reset(cfg.metricsInterval)
+						metricsTimerStart = time.Now()
 					}
-					metricsTimerActive = false
+				} else {
+					if cfg.metricsInterval <= 0 {
+						metricsTimerStart = time.Time{}
+						if !metricsTimer.Stop() {
+							<-metricsTimer.C
+						}
+					} else {
+						alreadyPassed := time.Since(metricsTimerStart)
+						if alreadyPassed >= cfg.metricsInterval {
+							metricsTimer.Reset(0)
+						} else {
+							metricsTimer.Reset(cfg.metricsInterval - alreadyPassed)
+						}
+					}
 				}
 			}
 			continue
@@ -585,14 +596,14 @@ func (t *Tracer) loop() {
 			requestTimerActive = false
 			closeRequest = true
 		case <-metricsTimer.C:
-			metricsTimerActive = false
+			metricsTimerStart = time.Time{}
 			gatherMetrics = !gatheringMetrics
 		case sentMetrics = <-t.forceSendMetrics:
-			if metricsTimerActive {
+			if !metricsTimerStart.IsZero() {
 				if !metricsTimer.Stop() {
 					<-metricsTimer.C
 				}
-				metricsTimerActive = false
+				metricsTimerStart = time.Time{}
 			}
 			gatherMetrics = !gatheringMetrics
 		case <-gatheredMetrics:
@@ -600,7 +611,7 @@ func (t *Tracer) loop() {
 			gatheringMetrics = false
 			flushRequest = true
 			if cfg.metricsInterval > 0 {
-				metricsTimerActive = true
+				metricsTimerStart = time.Now()
 				metricsTimer.Reset(cfg.metricsInterval)
 			}
 		case flushed = <-t.forceFlush:
