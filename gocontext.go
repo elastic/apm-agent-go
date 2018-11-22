@@ -47,7 +47,10 @@ func StartSpan(ctx context.Context, name, spanType string) (*Span, context.Conte
 // when the span completes.
 func StartSpanOptions(ctx context.Context, name, spanType string, opts SpanOptions) (*Span, context.Context) {
 	tx := TransactionFromContext(ctx)
-	span := tx.StartSpan(name, spanType, SpanFromContext(ctx))
+	if opts.Parent == (TraceContext{}) {
+		opts.Parent = tx.traceContext
+	}
+	span := tx.StartSpanOptions(name, spanType, opts)
 	if !span.Dropped() {
 		ctx = ContextWithSpan(ctx, span)
 	}
