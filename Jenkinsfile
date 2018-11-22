@@ -1,10 +1,10 @@
 #!/usr/bin/env groovy
 
-library identifier: 'apm@master', 
+library identifier: 'apm@master',
 changelog: false,
 retriever: modernSCM(
-  [$class: 'GitSCMSource', 
-  credentialsId: 'f6c7695a-671e-4f4f-a331-acdce44ff9ba', 
+  [$class: 'GitSCMSource',
+  credentialsId: 'f6c7695a-671e-4f4f-a331-acdce44ff9ba',
   remote: 'git@github.com:elastic/apm-pipeline-library.git'])
 
 pipeline {
@@ -18,7 +18,7 @@ pipeline {
     cron('0 0 * * 1-5')
   }
   options {
-    timeout(time: 1, unit: 'HOURS') 
+    timeout(time: 1, unit: 'HOURS')
     buildDiscarder(logRotator(numToKeepStr: '3', artifactNumToKeepStr: '2', daysToKeepStr: '30'))
     timestamps()
     preserveStashes()
@@ -37,13 +37,13 @@ pipeline {
     booleanParam(name: 'bench_ci', defaultValue: true, description: 'Enable benchmarks')
     booleanParam(name: 'doc_ci', defaultValue: true, description: 'Enable build documentation')
   }
-  
   stages {
     /**
      Checkout the code and stash it, to use it on other stages.
     */
     stage('Checkout') {
       agent { label 'master || linux' }
+      options { skipDefaultCheckout() }
       environment {
         PATH = "${env.PATH}:${env.HUDSON_HOME}/go/bin/:${env.WORKSPACE}/bin"
         GOPATH = "${env.WORKSPACE}"
@@ -57,58 +57,40 @@ pipeline {
                 checkout scm
               } else {
                 echo "Checkout ${branch_specifier}"
-                checkout([$class: 'GitSCM', branches: [[name: "${branch_specifier}"]], 
-                  doGenerateSubmoduleConfigurations: false, 
+                checkout([$class: 'GitSCM', branches: [[name: "${branch_specifier}"]],
+                  doGenerateSubmoduleConfigurations: false,
                   extensions: [],
                   submoduleCfg: [],
-                  userRemoteConfigs: [[credentialsId: "${JOB_GIT_CREDENTIALS}", 
+                  userRemoteConfigs: [[credentialsId: "${JOB_GIT_CREDENTIALS}",
                   url: "${GIT_URL}"]]])
               }
               env.JOB_GIT_COMMIT = getGitCommitSha()
               env.JOB_GIT_URL = "${GIT_URL}"
-              
               github_enterprise_constructor()
-              
-              on_change{
-                echo "build cause a change (commit or PR)"
-              }
-              
-              on_commit {
-                echo "build cause a commit"
-              }
-              
-              on_merge {
-                echo "build cause a merge"
-              }
-              
-              on_pull_request {
-                echo "build cause PR"
-              }
             }
           }
           stash allowEmpty: true, name: 'source', useDefaultExcludes: false
         }
       }
     }
-    
     /**
     Build on a linux environment.
     */
-    stage('build') { 
+    stage('build') {
       agent { label 'linux && immutable' }
+      options { skipDefaultCheckout() }
       environment {
         PATH = "${env.PATH}:${env.HUDSON_HOME}/go/bin/:${env.WORKSPACE}/bin"
         GOPATH = "${env.WORKSPACE}"
       }
-      
-      when { 
+      when {
         beforeAgent true
-        environment name: 'linux_ci', value: 'true' 
+        environment name: 'linux_ci', value: 'true'
       }
       steps {
         withEnvWrapper() {
           unstash 'source'
-          dir("${BASE_DIR}"){    
+          dir("${BASE_DIR}"){
             sh """#!/bin/bash
             ./scripts/jenkins/build.sh
             """
@@ -116,31 +98,34 @@ pipeline {
         }
       }
     }
+    /**
+      Run unit tests and store the results in Jenkins.
+    */
     stage('test') {
       agent { label 'linux && immutable' }
+      options { skipDefaultCheckout() }
       environment {
         PATH = "${env.PATH}:${env.HUDSON_HOME}/go/bin/:${env.WORKSPACE}/bin"
         GOPATH = "${env.WORKSPACE}"
       }
-      
-      when { 
+      when {
         beforeAgent true
-        environment name: 'test_ci', value: 'true' 
+        environment name: 'test_ci', value: 'true'
       }
       steps {
         withEnvWrapper() {
           unstash 'source'
-          dir("${BASE_DIR}"){    
+          dir("${BASE_DIR}"){
             sh """#!/bin/bash
             ./scripts/jenkins/test.sh
             """
           }
         }
       }
-      post { 
+      post {
         always {
-          junit(allowEmptyResults: true, 
-            keepLongStdio: true, 
+          junit(allowEmptyResults: true,
+            keepLongStdio: true,
             testResults: "${BASE_DIR}/build/junit-*.xml")
         }
       }
@@ -148,54 +133,60 @@ pipeline {
     stage('Parallel stages') {
       failFast true
       parallel {
+        /**
+          Run Benchmarks and send the results to ES.
+        */
         stage('Benchmarks') {
           agent { label 'linux && immutable' }
+          options { skipDefaultCheckout() }
           environment {
             PATH = "${env.PATH}:${env.HUDSON_HOME}/go/bin/:${env.WORKSPACE}/bin"
             GOPATH = "${env.WORKSPACE}"
           }
-          
-          when { 
+          when {
             beforeAgent true
-            allOf { 
+            allOf {
               branch 'master';
-              environment name: 'bench_ci', value: 'true' 
+              environment name: 'bench_ci', value: 'true'
             }
           }
           steps {
             withEnvWrapper() {
               unstash 'source'
-              dir("${BASE_DIR}"){    
+              dir("${BASE_DIR}"){
                 sh """#!/bin/bash
                 ./scripts/jenkins/bench.sh
                 """
                 sendBenchmarks(file: 'build/bench.out', index: "benchmark-go")
               }
             }
-          } 
+          }
           post {
             always {
-              junit(allowEmptyResults: true, 
-                keepLongStdio: true, 
+              junit(allowEmptyResults: true,
+                keepLongStdio: true,
                 testResults: "${BASE_DIR}/build/junit-*.xml")
             }
           }
         }
+        /**
+          Run tests in a docker container and store the results in jenkins and codecov.
+        */
         stage('Docker tests') {
           agent { label 'linux && docker && immutable' }
+          options { skipDefaultCheckout() }
           environment {
             PATH = "${env.PATH}:${env.HUDSON_HOME}/go/bin/:${env.WORKSPACE}/bin"
             GOPATH = "${env.WORKSPACE}"
           }
-          
-          when { 
+          when {
             beforeAgent true
-            environment name: 'integration_test_ci', value: 'true' 
+            environment name: 'integration_test_ci', value: 'true'
           }
           steps {
             withEnvWrapper() {
               unstash 'source'
-              dir("${BASE_DIR}"){    
+              dir("${BASE_DIR}"){
                 sh """#!/bin/bash
                 ./scripts/jenkins/docker-test.sh
                 """
@@ -203,31 +194,31 @@ pipeline {
               }
             }
           }
-          post { 
-            always { 
+          post {
+            always {
               coverageReport("${BASE_DIR}/build/coverage")
-              junit(allowEmptyResults: true, 
-                keepLongStdio: true, 
+              junit(allowEmptyResults: true,
+                keepLongStdio: true,
                 testResults: "${BASE_DIR}/build/junit-*.xml")
             }
           }
         }
-        
         /**
          run Go integration test with the commit version on master branch.
         */
-        stage('Integration test master') { 
+        stage('Integration test master') {
           agent { label 'linux && immutable' }
-          when { 
+          options { skipDefaultCheckout() }
+          when {
             beforeAgent true
-            allOf { 
+            allOf {
               branch 'master';
-              environment name: 'integration_test_master_ci', value: 'true' 
+              environment name: 'integration_test_master_ci', value: 'true'
             }
           }
           steps {
             build(
-              job: 'apm-server-ci/apm-integration-test-axis-pipeline', 
+              job: 'apm-server-ci/apm-integration-test-axis-pipeline',
               parameters: [
                 string(name: 'BUILD_DESCRIPTION', value: "${BUILD_TAG}-INTEST"),
                 booleanParam(name: "go_Test", value: true),
@@ -239,22 +230,22 @@ pipeline {
               propagate: true)
           }
         }
-        
         /**
          run Go integration test with the commit version on a PR.
         */
-        stage('Integration test PR') { 
+        stage('Integration test PR') {
           agent { label 'linux && immutable' }
-          when { 
+          options { skipDefaultCheckout() }
+          when {
             beforeAgent true
-            allOf { 
+            allOf {
               changeRequest()
-              environment name: 'integration_test_pr_ci', value: 'true' 
+              environment name: 'integration_test_pr_ci', value: 'true'
             }
           }
           steps {
             build(
-              job: 'apm-server-ci/apm-integration-test-pipeline', 
+              job: 'apm-server-ci/apm-integration-test-pipeline',
               parameters: [
                 string(name: 'BUILD_DESCRIPTION', value: "${BUILD_TAG}-INTEST"),
                 string(name: 'APM_AGENT_GO_PKG', value: "${BUILD_TAG}"),
@@ -271,20 +262,22 @@ pipeline {
         }
       }
     }
-        
-    stage('Documentation') { 
+    /**
+      Build the documenattions.
+    */
+    stage('Documentation') {
       agent { label 'linux && immutable' }
+      options { skipDefaultCheckout() }
       environment {
         PATH = "${env.PATH}:${env.HUDSON_HOME}/go/bin/:${env.WORKSPACE}/bin"
         GOPATH = "${env.WORKSPACE}"
         ELASTIC_DOCS = "${env.WORKSPACE}/elastic/docs"
       }
-      
-      when { 
+      when {
         beforeAgent true
-        allOf { 
+        allOf {
           branch 'master';
-          environment name: 'doc_ci', value: 'true' 
+          environment name: 'doc_ci', value: 'true'
         }
       }
       steps {
@@ -293,7 +286,7 @@ pipeline {
           dir("${ELASTIC_DOCS}"){
             git "https://github.com/elastic/docs.git"
           }
-          dir("${BASE_DIR}"){    
+          dir("${BASE_DIR}"){
             sh """#!/bin/bash
             make docs
             """
@@ -306,14 +299,6 @@ pipeline {
         }
       }
     }
-    stage('Full log') { 
-      when { 
-          environment name: 'Never', value: 'true' 
-      }
-      steps {
-        echo "NOOP"
-      }
-    }
   }
   post {
     success {
@@ -322,11 +307,11 @@ pipeline {
     aborted {
       echoColor(text: '[ABORTED]', colorfg: 'magenta', colorbg: 'default')
     }
-    failure { 
+    failure {
       echoColor(text: '[FAILURE]', colorfg: 'red', colorbg: 'default')
       //step([$class: 'Mailer', notifyEveryUnstableBuild: true, recipients: "${NOTIFY_TO}", sendToIndividuals: false])
     }
-    unstable { 
+    unstable {
       echoColor(text: '[UNSTABLE]', colorfg: 'yellow', colorbg: 'default')
     }
   }
