@@ -190,7 +190,6 @@ pipeline {
                 sh """#!/bin/bash
                 ./scripts/jenkins/docker-test.sh
                 """
-                codecov('apm-agent-go')
               }
             }
           }
@@ -200,6 +199,7 @@ pipeline {
               junit(allowEmptyResults: true,
                 keepLongStdio: true,
                 testResults: "${BASE_DIR}/build/junit-*.xml")
+              codecov(repo: 'apm-agent-go', basedir: "${BASE_DIR}")
             }
           }
         }
