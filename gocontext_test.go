@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -59,6 +60,35 @@ func TestContextStartSpanSpanEnded(t *testing.T) {
 				assert.True(t, span2.Dropped())
 				span2.End()
 				tx.End()
+			}
+		}()
+	}
+	tracer.Flush(nil)
+	wg.Wait()
+}
+
+func TestContextSpanOptionStart(t *testing.T) {
+	tracer, err := apm.NewTracer("tracer_testing", "")
+	assert.NoError(t, err)
+	defer tracer.Close()
+	tracer.Transport = transporttest.Discard
+
+	var wg sync.WaitGroup
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := 0; i < 1000; i++ {
+				tx := tracer.StartTransaction("name", "type")
+				ctx := apm.ContextWithTransaction(context.Background(), tx)
+
+				now := time.Now()
+				past := now.Add(-time.Minute)
+				span, _ := apm.StartSpanOptions(ctx, "name", "type", apm.SpanOptions{Start: past})
+				dur := now.Sub(span.SpanData.Timestamp)
+				assert.True(t, dur >= time.Minute)
+
+				span.End()
 			}
 		}()
 	}

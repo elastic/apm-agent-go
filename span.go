@@ -150,7 +150,7 @@ func (t *Tracer) startSpan(name, spanType string, transactionID SpanID, opts Spa
 	span.traceContext = opts.Parent
 	span.parentID = opts.Parent.Span
 	span.transactionID = transactionID
-	span.timestamp = opts.Start
+	span.Timestamp = opts.Start
 	return span
 }
 
@@ -228,7 +228,7 @@ func (s *Span) End() {
 		return
 	}
 	if s.Duration < 0 {
-		s.Duration = time.Since(s.timestamp)
+		s.Duration = time.Since(s.Timestamp)
 	}
 	if len(s.stacktrace) == 0 && s.Duration >= s.stackFramesMinDuration {
 		s.setStacktrace(1)
@@ -250,7 +250,6 @@ type SpanData struct {
 	parentID               SpanID
 	transactionID          SpanID
 	stackFramesMinDuration time.Duration
-	timestamp              time.Time
 
 	// Name holds the span name, initialized with the value passed to StartSpan.
 	Name string
@@ -263,6 +262,9 @@ type SpanData struct {
 	// If you do not update Duration, calling Span.End will calculate the
 	// duration based on the elapsed time since the span's start time.
 	Duration time.Duration
+
+	// Start time
+	Timestamp time.Time
 
 	// Context describes the context in which span occurs.
 	Context SpanContext
