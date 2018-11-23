@@ -52,10 +52,10 @@ var tokenStrings = [...]string{
 	NUMBER: "NUMBER",
 	STRING: "STRING",
 
-	PERIOD: ".",
-	COMMA:  ",",
-	LPAREN: "(",
-	RPAREN: ")",
+	PERIOD: "PERIOD",
+	COMMA:  "COMMA",
+	LPAREN: "LPAREN",
+	RPAREN: "RPAREN",
 
 	AS:       "AS",
 	CALL:     "CALL",

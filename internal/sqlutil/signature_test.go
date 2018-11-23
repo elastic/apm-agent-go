@@ -1,58 +1,44 @@
 package sqlutil_test
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"go.elastic.co/apm/internal/sqlutil"
 )
 
+type test struct {
+	Comment string `json:"comment,omitempty"`
+	Input   string `json:"input"`
+	Output  string `json:"output"`
+}
+
 func TestQuerySignature(t *testing.T) {
-	assertSignatureEqual := func(expect, stmt string) {
-		out := sqlutil.QuerySignature(stmt)
-		assert.Equal(t, expect, out, "%s", stmt)
+	var tests []test
+	data, err := ioutil.ReadFile("testdata/tests.json")
+	require.NoError(t, err)
+	err = json.Unmarshal(data, &tests)
+	require.NoError(t, err)
+
+	for _, test := range tests {
+		msgFormat := "%s"
+		args := []interface{}{test.Input}
+		if test.Comment != "" {
+			msgFormat += " (%s)"
+			args = append(args, test.Comment)
+		}
+		out := sqlutil.QuerySignature(test.Input)
+		if assert.Equal(t, test.Output, out, append([]interface{}{msgFormat}, args...)) {
+			if test.Comment != "" {
+				t.Logf("// %s", test.Comment)
+			}
+			t.Logf("%q => %q", test.Input, test.Output)
+		}
 	}
-
-	assertSignatureEqual("", "")
-	assertSignatureEqual("", " ")
-
-	assertSignatureEqual("SELECT FROM foo.bar", "SELECT * FROM foo.bar")
-	assertSignatureEqual("SELECT FROM foo.bar.baz", "SELECT * FROM foo.bar.baz")
-	assertSignatureEqual("SELECT FROM foo.bar", "SELECT * FROM `foo.bar`")
-	assertSignatureEqual("SELECT FROM foo.bar", "SELECT * FROM \"foo.bar\"")
-	assertSignatureEqual("SELECT FROM foo.bar", "SELECT * FROM [foo.bar]")
-	assertSignatureEqual("SELECT FROM foo", "SELECT (x, y) FROM foo,bar,baz")
-	assertSignatureEqual("SELECT FROM foo", "SELECT * FROM foo JOIN bar")
-	assertSignatureEqual("SELECT FROM dollar$bill", "SELECT * FROM dollar$bill")
-	assertSignatureEqual("SELECT FROM myta\n-æøåble", "SELECT id FROM \"myta\n-æøåble\" WHERE id = 2323")
-	assertSignatureEqual("SELECT FROM foo.bar", "SELECT * FROM foo-- abc\n./*def*/bar")
-
-	// We capture the first table of the outermost select statement.
-	assertSignatureEqual("SELECT FROM table1", "SELECT *,(SELECT COUNT(*) FROM table2 WHERE table2.field1 = table1.id) AS count FROM table1 WHERE table1.field1 = 'value'")
-
-	// If the outermost select operates on derived tables, then we
-	// just return "SELECT" (i.e. the fallback).
-	assertSignatureEqual("SELECT", "SELECT * FROM (SELECT foo FROM bar) AS foo_bar")
-
-	assertSignatureEqual("DELETE FROM foo.bar", "DELETE FROM foo.bar WHERE baz=1")
-	assertSignatureEqual("UPDATE foo.bar", "UPDATE IGNORE foo.bar SET bar=1 WHERE baz=2")
-	assertSignatureEqual("UPDATE foo", "UPDATE ONLY foo AS bar SET baz=1")
-	assertSignatureEqual("INSERT INTO foo.bar", "INSERT INTO foo.bar (col) VALUES(?)")
-	assertSignatureEqual("INSERT INTO foo.bar", "INSERT LOW_PRIORITY IGNORE INTO foo.bar (col) VALUES(?)")
-	assertSignatureEqual("CALL foo", "CALL foo(bar, 123)")
-
-	// For all of the below (DDL, miscellaneous, and broken statements)
-	// we just capture the initial token:
-	assertSignatureEqual("ALTER", "ALTER TABLE foo ADD ()")
-	assertSignatureEqual("CREATE", "CREATE TABLE foo ...")
-	assertSignatureEqual("DROP", "DROP TABLE foo")
-	assertSignatureEqual("SAVEPOINT", "SAVEPOINT x_asd1234")
-	assertSignatureEqual("BEGIN", "BEGIN")
-	assertSignatureEqual("COMMIT", "COMMIT")
-	assertSignatureEqual("ROLLBACK", "ROLLBACK")
-	assertSignatureEqual("SELECT", "SELECT * FROM (SELECT EOF")
-	assertSignatureEqual("SELECT", "SELECT 'neverending literal FROM (SELECT * FROM ...")
 }
 
 func BenchmarkQuerySignature(b *testing.B) {
