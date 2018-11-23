@@ -129,7 +129,7 @@ func QuerySignature(query string) string {
 				haveFirstPeriod = true
 				havePeriod = true
 				tableName += "."
-			case sqlscanner.SET:
+			default:
 				return "UPDATE " + tableName
 			}
 		}
