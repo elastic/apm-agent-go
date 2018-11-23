@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -29,6 +30,7 @@ func init() {
 	os.Unsetenv("ELASTIC_APM_SERVER_URLS")
 	os.Unsetenv("ELASTIC_APM_SERVER_URL")
 	os.Unsetenv("ELASTIC_APM_SECRET_TOKEN")
+	os.Unsetenv("ELASTIC_APM_SERVER_CERT")
 	os.Unsetenv("ELASTIC_APM_VERIFY_SERVER_CERT")
 }
 
@@ -259,6 +261,71 @@ func TestHTTPTransportV2NotFound(t *testing.T) {
 
 	err = transport.SendStream(context.Background(), strings.NewReader(""))
 	assert.EqualError(t, err, fmt.Sprintf("request failed with 404 Not Found: %s/intake/v2/events not found (requires APM Server 6.5.0 or newer)", server.URL))
+}
+
+func TestHTTPTransportServerCert(t *testing.T) {
+	var h recordingHandler
+	server := httptest.NewUnstartedServer(&h)
+	server.Config.ErrorLog = log.New(ioutil.Discard, "", 0)
+	server.StartTLS()
+	defer server.Close()
+	defer patchEnv("ELASTIC_APM_SERVER_URLS", server.URL)()
+
+	p := strings.NewReader("")
+
+	newTransport := func() *transport.HTTPTransport {
+		transport, err := transport.NewHTTPTransport()
+		require.NoError(t, err)
+		return transport
+	}
+
+	// SendStream should fail, because we haven't told the client about
+	// the server certificate, nor disabled certificate verification.
+	transport := newTransport()
+	err := transport.SendStream(context.Background(), p)
+	assert.Error(t, err)
+
+	// Set a certificate that doesn't match, SendStream should still fail.
+	defer patchEnv("ELASTIC_APM_SERVER_CERT", "./testdata/cert.pem")()
+	transport = newTransport()
+	err = transport.SendStream(context.Background(), p)
+	assert.Error(t, err)
+
+	f, err := ioutil.TempFile("", "apm-test")
+	require.NoError(t, err)
+	defer os.Remove(f.Name())
+	defer f.Close()
+	defer patchEnv("ELASTIC_APM_SERVER_CERT", f.Name())()
+
+	// Reconfigure the transport so that it knows about the
+	// CA certificate. We avoid using server.Client here, as
+	// it is not available in older versions of Go.
+	err = pem.Encode(f, &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: server.TLS.Certificates[0].Certificate[0],
+	})
+	require.NoError(t, err)
+
+	transport = newTransport()
+	err = transport.SendStream(context.Background(), p)
+	assert.NoError(t, err)
+}
+
+func TestHTTPTransportServerCertInvalid(t *testing.T) {
+	f, err := ioutil.TempFile("", "apm-test")
+	require.NoError(t, err)
+	defer os.Remove(f.Name())
+	defer f.Close()
+	defer patchEnv("ELASTIC_APM_SERVER_CERT", f.Name())()
+
+	fmt.Fprintln(f, `
+-----BEGIN GARBAGE-----
+garbage
+-----END GARBAGE-----
+`[1:])
+
+	_, err = transport.NewHTTPTransport()
+	assert.EqualError(t, err, fmt.Sprintf("failed to load certificate from %s: missing or invalid certificate", f.Name()))
 }
 
 func newHTTPTransport(t *testing.T, handler http.Handler) (*transport.HTTPTransport, *httptest.Server) {
