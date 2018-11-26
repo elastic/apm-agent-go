@@ -82,6 +82,9 @@ type System struct {
 
 	// Platform is the system's platform, or operating system name.
 	Platform string `json:"platform,omitempty"`
+
+	// Container describes the container running the service.
+	Container *Container `json:"container,omitempty"`
 }
 
 // Process represents an operating system process.
@@ -97,6 +100,12 @@ type Process struct {
 
 	// Argv holds the command line arguments used to start the process.
 	Argv []string `json:"argv,omitempty"`
+}
+
+// Container represents the container (e.g. Docker) running the service.
+type Container struct {
+	// ID is the unique container ID.
+	ID string `json:"id"`
 }
 
 // Transaction represents a transaction handled by the service.
