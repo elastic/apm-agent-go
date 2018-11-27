@@ -37,10 +37,10 @@ func Example() {
 	}
 
 	// Output:
-	// transaction: Parent/unknown
-	// span: span_0/unknown
-	// span: span_1/unknown
-	// span: span_2/unknown
-	// span: span_3/unknown
-	// span: span_4/unknown
+	// transaction: Parent/custom
+	// span: span_0/custom
+	// span: span_1/custom
+	// span: span_2/custom
+	// span: span_3/custom
+	// span: span_4/custom
 }
