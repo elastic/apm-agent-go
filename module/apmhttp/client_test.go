@@ -54,7 +54,8 @@ func TestClient(t *testing.T) {
 	span := payloads.Spans[0]
 
 	assert.Equal(t, "GET "+server.Listener.Addr().String(), span.Name)
-	assert.Equal(t, "ext.http", span.Type)
+	assert.Equal(t, "external", span.Type)
+	assert.Equal(t, "http", span.Subtype)
 	assert.Equal(t, &model.SpanContext{
 		HTTP: &model.HTTPSpanContext{
 			// Note no user info included in server.URL.
@@ -163,7 +164,6 @@ func TestClientDuration(t *testing.T) {
 	span := spans[0]
 
 	assert.Equal(t, "GET "+server.Listener.Addr().String(), span.Name)
-	assert.Equal(t, "ext.http", span.Type)
 	assert.InDelta(t, delay/time.Millisecond, span.Duration, 100)
 }
 
