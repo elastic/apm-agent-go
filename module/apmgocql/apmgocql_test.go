@@ -44,7 +44,9 @@ func TestQueryObserver(t *testing.T) {
 	})
 
 	require.Len(t, spans, 1)
-	assert.Equal(t, "db.cassandra.query", spans[0].Type)
+	assert.Equal(t, "db", spans[0].Type)
+	assert.Equal(t, "cassandra", spans[0].Subtype)
+	assert.Equal(t, "query", spans[0].Action)
 	assert.Equal(t, "SELECT FROM foo.bar", spans[0].Name)
 	assert.WithinDuration(t,
 		time.Time(spans[0].Timestamp).Add(time.Duration(spans[0].Duration*1000000)),
@@ -81,11 +83,15 @@ func TestBatchObserver(t *testing.T) {
 	})
 
 	require.Len(t, spans, 3)
-	assert.Equal(t, "db.cassandra.batch", spans[2].Type) // sent last
+	assert.Equal(t, "db", spans[2].Type)
+	assert.Equal(t, "cassandra", spans[2].Subtype)
+	assert.Equal(t, "batch", spans[2].Action) // sent last
 	for _, span := range spans[:2] {
 		assert.Equal(t, spans[2].ID, span.ParentID)
 		assert.Equal(t, spans[2].TraceID, span.TraceID)
-		assert.Equal(t, "db.cassandra.query", span.Type)
+		assert.Equal(t, "db", span.Type)
+		assert.Equal(t, "cassandra", span.Subtype)
+		assert.Equal(t, "query", span.Action)
 	}
 
 	assert.Equal(t, "INSERT INTO foo.bar", spans[0].Name)
@@ -128,9 +134,10 @@ func TestQueryObserverIntegration(t *testing.T) {
 
 	require.Len(t, spans, 3)
 	for _, span := range spans {
-		assert.Equal(t, "db.cassandra.query", span.Type)
+		assert.Equal(t, "db", span.Type)
+		assert.Equal(t, "cassandra", span.Subtype)
+		assert.Equal(t, "query", span.Action)
 	}
-	assert.Equal(t, "db.cassandra.query", spans[1].Type)
 	assert.Equal(t, "CREATE", spans[0].Name)
 	assert.Equal(t, &model.SpanContext{
 		Database: &model.DatabaseSpanContext{
@@ -161,13 +168,11 @@ func TestBatchObserverIntegration(t *testing.T) {
 	})
 
 	require.Len(t, spans, 3)
-	assert.Equal(t, "db.cassandra.batch", spans[2].Type) // sent last
 	assert.Equal(t, tx.ID, spans[2].ParentID)
 	assert.Equal(t, tx.TraceID, spans[2].TraceID)
 	for _, span := range spans[:2] {
 		assert.Equal(t, spans[2].ID, span.ParentID)
 		assert.Equal(t, spans[2].TraceID, span.TraceID)
-		assert.Equal(t, "db.cassandra.query", span.Type)
 	}
 
 	assert.Equal(t, "INSERT INTO foo.bar", spans[0].Name)
