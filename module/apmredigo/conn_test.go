@@ -23,7 +23,8 @@ func TestWrap(t *testing.T) {
 	})
 	require.Len(t, spans, 1)
 	assert.Equal(t, "PING", spans[0].Name)
-	assert.Equal(t, "cache.redis", spans[0].Type)
+	assert.Equal(t, "db", spans[0].Type)
+	assert.Equal(t, "redis", spans[0].Subtype)
 }
 
 func TestWithContext(t *testing.T) {
@@ -55,7 +56,6 @@ func TestConnWithTimeout(t *testing.T) {
 	})
 	require.Len(t, spans, 1)
 	assert.Equal(t, "PING", spans[0].Name)
-	assert.Equal(t, "cache.redis", spans[0].Type)
 }
 
 func TestWrapPipeline(t *testing.T) {
