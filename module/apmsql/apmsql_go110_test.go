@@ -26,7 +26,7 @@ func TestConnect(t *testing.T) {
 	})
 	require.Len(t, spans, 2)
 	assert.Equal(t, "connect", spans[0].Name)
-	assert.Equal(t, "db.sqlite3.connect", spans[0].Type)
+	assert.Equal(t, "connect", spans[0].Action)
 	assert.Equal(t, "ping", spans[1].Name)
-	assert.Equal(t, "db.sqlite3.ping", spans[1].Type)
+	assert.Equal(t, "ping", spans[1].Action)
 }
