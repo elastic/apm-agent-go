@@ -68,10 +68,10 @@ func (c *conn) finishSpan(ctx context.Context, span *apm.Span, resultError *erro
 		// in check.
 		return
 	}
-	span.End()
 	if e := apm.CaptureError(ctx, *resultError); e != nil {
 		e.Send()
 	}
+	span.End()
 }
 
 func (c *conn) Ping(ctx context.Context) (resultError error) {

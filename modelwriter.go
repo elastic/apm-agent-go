@@ -20,6 +20,7 @@ var notSampled = false
 
 type modelWriter struct {
 	buffer          *ringbuffer.Buffer
+	metricsBuffer   *ringbuffer.Buffer
 	cfg             *tracerConfig
 	stats           *TracerStats
 	json            fastjson.Writer
@@ -27,7 +28,7 @@ type modelWriter struct {
 }
 
 // writeTransaction encodes tx as JSON to the buffer, and then resets tx.
-func (w *modelWriter) writeTransaction(tx *Transaction) {
+func (w *modelWriter) writeTransaction(tx *TransactionData) {
 	var modelTx model.Transaction
 	w.buildModelTransaction(&modelTx, tx)
 	w.json.RawString(`{"transaction":`)
@@ -39,7 +40,7 @@ func (w *modelWriter) writeTransaction(tx *Transaction) {
 }
 
 // writeSpan encodes s as JSON to the buffer, and then resets s.
-func (w *modelWriter) writeSpan(s *Span) {
+func (w *modelWriter) writeSpan(s *SpanData) {
 	var modelSpan model.Span
 	w.buildModelSpan(&modelSpan, s)
 	w.json.RawString(`{"span":`)
@@ -51,29 +52,33 @@ func (w *modelWriter) writeSpan(s *Span) {
 }
 
 // writeError encodes e as JSON to the buffer, and then resets e.
-func (w *modelWriter) writeError(e *Error) {
-	w.buildModelError(e)
+func (w *modelWriter) writeError(e *ErrorData) {
+	var modelError model.Error
+	w.buildModelError(&modelError, e)
 	w.json.RawString(`{"error":`)
-	e.model.MarshalFastJSON(&w.json)
+	modelError.MarshalFastJSON(&w.json)
 	w.json.RawByte('}')
 	w.buffer.WriteBlock(w.json.Bytes(), errorBlockTag)
 	w.json.Reset()
 	e.reset()
 }
 
-// writeMetrics encodes m as JSON to the buffer, and then resets m.
+// writeMetrics encodes m as JSON to the w.metricsBuffer, and then resets m.
+//
+// Note that we do not write metrics to the main ring buffer (w.buffer), as
+// periodic metrics would be evicted by transactions/spans in a busy system.
 func (w *modelWriter) writeMetrics(m *Metrics) {
 	for _, m := range m.metrics {
 		w.json.RawString(`{"metricset":`)
 		m.MarshalFastJSON(&w.json)
-		w.json.RawByte('}')
-		w.buffer.WriteBlock(w.json.Bytes(), metricsBlockTag)
+		w.json.RawString("}")
+		w.metricsBuffer.WriteBlock(w.json.Bytes(), metricsBlockTag)
 		w.json.Reset()
 	}
 	m.reset()
 }
 
-func (w *modelWriter) buildModelTransaction(out *model.Transaction, tx *Transaction) {
+func (w *modelWriter) buildModelTransaction(out *model.Transaction, tx *TransactionData) {
 	out.ID = model.SpanID(tx.traceContext.Span)
 	out.TraceID = model.TraceID(tx.traceContext.Trace)
 	out.ParentID = model.SpanID(tx.parentSpan)
@@ -86,7 +91,7 @@ func (w *modelWriter) buildModelTransaction(out *model.Transaction, tx *Transact
 	out.SpanCount.Started = tx.spansCreated
 	out.SpanCount.Dropped = tx.spansDropped
 
-	if !tx.Sampled() {
+	if !tx.traceContext.Options.Recorded() {
 		out.Sampled = &notSampled
 	}
 
@@ -101,7 +106,7 @@ func (w *modelWriter) buildModelTransaction(out *model.Transaction, tx *Transact
 	}
 }
 
-func (w *modelWriter) buildModelSpan(out *model.Span, span *Span) {
+func (w *modelWriter) buildModelSpan(out *model.Span, span *SpanData) {
 	w.modelStacktrace = w.modelStacktrace[:0]
 	out.ID = model.SpanID(span.traceContext.Span)
 	out.TraceID = model.TraceID(span.traceContext.Trace)
@@ -119,19 +124,60 @@ func (w *modelWriter) buildModelSpan(out *model.Span, span *Span) {
 	w.setStacktraceContext(out.Stacktrace)
 }
 
-func (w *modelWriter) buildModelError(e *Error) {
-	// TODO(axw) move the model type outside of Error
-	e.model.ID = model.TraceID(e.ID)
-	e.model.TraceID = model.TraceID(e.TraceID)
-	e.model.ParentID = model.SpanID(e.ParentID)
-	e.model.TransactionID = model.SpanID(e.TransactionID)
-	e.model.Timestamp = model.Time(e.Timestamp.UTC())
-	e.model.Context = e.Context.build()
-	e.model.Exception.Handled = e.Handled
+func (w *modelWriter) buildModelError(out *model.Error, e *ErrorData) {
+	out.ID = model.TraceID(e.ID)
+	out.TraceID = model.TraceID(e.TraceID)
+	out.ParentID = model.SpanID(e.ParentID)
+	out.TransactionID = model.SpanID(e.TransactionID)
+	out.Timestamp = model.Time(e.Timestamp.UTC())
+	out.Context = e.Context.build()
+	out.Culprit = e.Culprit
 
-	e.setStacktrace()
-	e.setCulprit()
-	w.setStacktraceContext(e.modelStacktrace)
+	w.modelStacktrace = w.modelStacktrace[:0]
+	if len(e.stacktrace) != 0 {
+		w.modelStacktrace = appendModelStacktraceFrames(w.modelStacktrace, e.stacktrace)
+		w.setStacktraceContext(w.modelStacktrace)
+		out.Log.Stacktrace = w.modelStacktrace
+		out.Exception.Stacktrace = w.modelStacktrace
+		if out.Culprit == "" {
+			out.Culprit = stacktraceCulprit(w.modelStacktrace)
+		}
+	}
+
+	switch e.kind {
+	case errorKindException:
+		out.Exception = model.Exception{
+			Message: e.exception.message,
+			Code: model.ExceptionCode{
+				String: e.exception.codeString,
+				Number: e.exception.codeNumber,
+			},
+			Type:       e.exception.typeName,
+			Module:     e.exception.typePackagePath,
+			Handled:    e.Handled,
+			Stacktrace: w.modelStacktrace,
+		}
+		if len(e.exception.attrs) != 0 {
+			out.Exception.Attributes = e.exception.attrs
+		}
+	case errorKindLog:
+		out.Log = model.Log{
+			Message:      e.log.Message,
+			Level:        e.log.Level,
+			LoggerName:   e.log.LoggerName,
+			ParamMessage: e.log.MessageFormat,
+			Stacktrace:   w.modelStacktrace,
+		}
+	}
+}
+
+func stacktraceCulprit(frames []model.StacktraceFrame) string {
+	for _, frame := range frames {
+		if !frame.LibraryFrame {
+			return frame.Function
+		}
+	}
+	return ""
 }
 
 func (w *modelWriter) setStacktraceContext(stack []model.StacktraceFrame) {

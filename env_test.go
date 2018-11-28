@@ -104,6 +104,21 @@ func TestTracerBufferSizeEnvInvalid(t *testing.T) {
 	})
 }
 
+func TestTracerMetricsBufferSizeEnvInvalid(t *testing.T) {
+	t.Run("too_small", func(t *testing.T) {
+		os.Setenv("ELASTIC_APM_METRICS_BUFFER_SIZE", "1B")
+		defer os.Unsetenv("ELASTIC_APM_METRICS_BUFFER_SIZE")
+		_, err := apm.NewTracer("tracer_testing", "")
+		assert.EqualError(t, err, "ELASTIC_APM_METRICS_BUFFER_SIZE must be at least 10KB and less than 100MB, got 1B")
+	})
+	t.Run("too_large", func(t *testing.T) {
+		os.Setenv("ELASTIC_APM_METRICS_BUFFER_SIZE", "500GB")
+		defer os.Unsetenv("ELASTIC_APM_METRICS_BUFFER_SIZE")
+		_, err := apm.NewTracer("tracer_testing", "")
+		assert.EqualError(t, err, "ELASTIC_APM_METRICS_BUFFER_SIZE must be at least 10KB and less than 100MB, got 500GB")
+	})
+}
+
 func TestTracerTransactionRateEnv(t *testing.T) {
 	t.Run("0.5", func(t *testing.T) {
 		testTracerTransactionRateEnv(t, "0.5", 0.5)

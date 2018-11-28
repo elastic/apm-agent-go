@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"os"
 	"runtime"
 	"sort"
 	"strconv"
+	"strings"
 	"testing"
 	"text/tabwriter"
 	"time"
@@ -165,6 +168,83 @@ func TestTracerMetricsDeregister(t *testing.T) {
 	require.Len(t, metrics, 1) // just the builtin/unlabeled metrics
 }
 
+func TestTracerMetricsBusyTracer(t *testing.T) {
+	os.Setenv("ELASTIC_APM_API_BUFFER_SIZE", "10KB")
+	defer os.Unsetenv("ELASTIC_APM_API_BUFFER_SIZE")
+
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	firstRequestDone := make(chan struct{})
+	tracer.Transport = sendStreamFunc(func(ctx context.Context, r io.Reader) error {
+		if firstRequestDone != nil {
+			firstRequestDone <- struct{}{}
+			firstRequestDone = nil
+			return nil
+		}
+		return transport.SendStream(ctx, r)
+	})
+
+	// Force a complete request to be flushed, preventing metrics from
+	// being added to the request buffer until we unblock the transport.
+	nonblocking := make(chan struct{})
+	close(nonblocking)
+	tracer.StartTransaction("name", "type").End()
+	tracer.Flush(nonblocking)
+
+	const interval = 100 * time.Millisecond
+	tracer.SetMetricsInterval(interval)
+	for i := 0; i < 5; i++ {
+		time.Sleep(interval)
+	}
+	for i := 0; i < 1000; i++ {
+		tx := tracer.StartTransaction(
+			strings.Repeat("x", 1024),
+			strings.Repeat("y", 1024),
+		)
+		tx.Context.SetTag(strings.Repeat("a", 7000), "v")
+		tx.End()
+	}
+
+	<-firstRequestDone
+	tracer.Flush(nil) // wait for possibly-latent flush
+	tracer.Flush(nil) // wait for buffered events to be flushed
+
+	assert.NotZero(t, transport.Payloads().Metrics)
+}
+
+func TestTracerMetricsBuffered(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	unblock := make(chan struct{})
+	tracer.Transport = sendStreamFunc(func(ctx context.Context, r io.Reader) error {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-unblock:
+			return transport.SendStream(ctx, r)
+		}
+	})
+
+	const interval = 50 * time.Millisecond
+	tracer.SetMetricsInterval(interval)
+
+	// Sleep for a while, allowing metrics to be gathered several times.
+	// The transport is unblocked after we wake up, at which point all
+	// of the metrics should be sent.
+	time.Sleep(interval * 10)
+	unblock <- struct{}{}
+	tracer.Flush(nil) // wait for buffered metrics to be flushed
+
+	metrics := transport.Payloads().Metrics
+	if assert.Conditionf(t, func() bool { return len(metrics) >= 5 }, "len(metrics): %d", len(metrics)) {
+		for i, m := range metrics[1:] {
+			assert.NotEqual(t, metrics[i].Timestamp, m.Timestamp)
+		}
+	}
+}
+
 // busyWork does meaningless work for the specified duration,
 // so we can observe CPU usage.
 func busyWork(d time.Duration) int {
@@ -178,4 +258,10 @@ func busyWork(d time.Duration) int {
 			n++
 		}
 	}
+}
+
+type sendStreamFunc func(context.Context, io.Reader) error
+
+func (f sendStreamFunc) SendStream(ctx context.Context, r io.Reader) error {
+	return f(ctx, r)
 }
