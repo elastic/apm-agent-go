@@ -11,6 +11,9 @@ import (
 	"go.elastic.co/apm/module/apmhttp"
 )
 
+// TxContextKey is used as a key to get *apm.Transaction from echo.Context
+const TxContextKey = "apm-transaction"
+
 // Middleware returns a new Echo middleware handler for tracing
 // requests and reporting errors.
 //
@@ -51,6 +54,7 @@ func (m *middleware) handle(c echo.Context) error {
 	name := req.Method + " " + c.Path()
 	tx, req := apmhttp.StartTransaction(m.tracer, name, req)
 	defer tx.End()
+	c.Set(TxContextKey, tx)
 	c.SetRequest(req)
 	body := m.tracer.CaptureHTTPRequestBody(req)
 
