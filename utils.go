@@ -75,12 +75,49 @@ func getLocalSystem() model.System {
 		}
 	}
 	system.Hostname = truncateString(system.Hostname)
-	if containerID, err := apmhostutil.ContainerID(); err == nil {
-		system.Container = &model.Container{
-			ID: containerID,
+	if container, err := apmhostutil.Container(); err == nil {
+		system.Container = container
+	}
+	system.Kubernetes = getKubernetesMetadata()
+	return system
+}
+
+func getKubernetesMetadata() *model.Kubernetes {
+	kubernetes, err := apmhostutil.Kubernetes()
+	if err != nil {
+		kubernetes = nil
+	}
+	namespace := os.Getenv("KUBERNETES_NAMESPACE")
+	podName := os.Getenv("KUBERNETES_POD_NAME")
+	podUID := os.Getenv("KUBERNETES_POD_UID")
+	nodeName := os.Getenv("KUBERNETES_NODE_NAME")
+	if namespace == "" && podName == "" && podUID == "" && nodeName == "" {
+		return kubernetes
+	}
+	if kubernetes == nil {
+		kubernetes = &model.Kubernetes{}
+	}
+	if namespace != "" {
+		kubernetes.Namespace = namespace
+	}
+	if nodeName != "" {
+		if kubernetes.Node == nil {
+			kubernetes.Node = &model.KubernetesNode{}
+		}
+		kubernetes.Node.Name = nodeName
+	}
+	if podName != "" || podUID != "" {
+		if kubernetes.Pod == nil {
+			kubernetes.Pod = &model.KubernetesPod{}
+		}
+		if podName != "" {
+			kubernetes.Pod.Name = podName
+		}
+		if podUID != "" {
+			kubernetes.Pod.UID = podUID
 		}
 	}
-	return system
+	return kubernetes
 }
 
 func cleanTagKey(k string) string {

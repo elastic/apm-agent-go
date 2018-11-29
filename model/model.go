@@ -85,6 +85,9 @@ type System struct {
 
 	// Container describes the container running the service.
 	Container *Container `json:"container,omitempty"`
+
+	// Kubernetes describes the kubernetes node and pod running the service.
+	Kubernetes *Kubernetes `json:"kubernetes,omitempty"`
 }
 
 // Process represents an operating system process.
@@ -106,6 +109,34 @@ type Process struct {
 type Container struct {
 	// ID is the unique container ID.
 	ID string `json:"id"`
+}
+
+// Kubernetes describes properties of the Kubernetes node and pod in which
+// the service is running.
+type Kubernetes struct {
+	// Namespace names the Kubernetes namespace in which the pod exists.
+	Namespace string `json:"namespace,omitempty"`
+
+	// Node describes the Kubernetes node running the service's pod.
+	Node *KubernetesNode `json:"node,omitempty"`
+
+	// Pod describes the Kubernetes pod running the service.
+	Pod *KubernetesPod `json:"pod,omitempty"`
+}
+
+// KubernetesNode describes a Kubernetes node.
+type KubernetesNode struct {
+	// Name holds the node name.
+	Name string `json:"name,omitempty"`
+}
+
+// KubernetesPod describes a Kubernetes pod.
+type KubernetesPod struct {
+	// Name holds the pod name.
+	Name string `json:"name,omitempty"`
+
+	// UID holds the pod UID.
+	UID string `json:"uid,omitempty"`
 }
 
 // Transaction represents a transaction handled by the service.
