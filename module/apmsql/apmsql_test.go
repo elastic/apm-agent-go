@@ -26,7 +26,9 @@ func TestPingContext(t *testing.T) {
 	})
 	require.Len(t, spans, 1)
 	assert.Equal(t, "ping", spans[0].Name)
-	assert.Equal(t, "db.sqlite3.ping", spans[0].Type)
+	assert.Equal(t, "db", spans[0].Type)
+	assert.Equal(t, "sqlite3", spans[0].Subtype)
+	assert.Equal(t, "ping", spans[0].Action)
 }
 
 func TestExecContext(t *testing.T) {
@@ -41,7 +43,9 @@ func TestExecContext(t *testing.T) {
 	})
 	require.Len(t, spans, 1)
 	assert.Equal(t, "CREATE", spans[0].Name)
-	assert.Equal(t, "db.sqlite3.exec", spans[0].Type)
+	assert.Equal(t, "db", spans[0].Type)
+	assert.Equal(t, "sqlite3", spans[0].Subtype)
+	assert.Equal(t, "exec", spans[0].Action)
 }
 
 func TestQueryContext(t *testing.T) {
@@ -61,7 +65,9 @@ func TestQueryContext(t *testing.T) {
 
 	assert.NotNil(t, spans[0].ID)
 	assert.Equal(t, "SELECT FROM foo", spans[0].Name)
-	assert.Equal(t, "db.sqlite3.query", spans[0].Type)
+	assert.Equal(t, "db", spans[0].Type)
+	assert.Equal(t, "sqlite3", spans[0].Subtype)
+	assert.Equal(t, "query", spans[0].Action)
 	assert.Equal(t, &model.SpanContext{
 		Database: &model.DatabaseSpanContext{
 			Instance:  ":memory:",
@@ -86,7 +92,9 @@ func TestPrepareContext(t *testing.T) {
 	})
 	require.Len(t, spans, 1)
 	assert.Equal(t, "CREATE", spans[0].Name)
-	assert.Equal(t, "db.sqlite3.prepare", spans[0].Type)
+	assert.Equal(t, "db", spans[0].Type)
+	assert.Equal(t, "sqlite3", spans[0].Subtype)
+	assert.Equal(t, "prepare", spans[0].Action)
 }
 
 func TestStmtExecContext(t *testing.T) {
@@ -107,7 +115,9 @@ func TestStmtExecContext(t *testing.T) {
 	})
 	require.Len(t, spans, 1)
 	assert.Equal(t, "DELETE FROM foo", spans[0].Name)
-	assert.Equal(t, "db.sqlite3.exec", spans[0].Type)
+	assert.Equal(t, "db", spans[0].Type)
+	assert.Equal(t, "sqlite3", spans[0].Subtype)
+	assert.Equal(t, "exec", spans[0].Action)
 }
 
 func TestStmtQueryContext(t *testing.T) {
@@ -129,7 +139,9 @@ func TestStmtQueryContext(t *testing.T) {
 	})
 	require.Len(t, spans, 1)
 	assert.Equal(t, "SELECT FROM foo", spans[0].Name)
-	assert.Equal(t, "db.sqlite3.query", spans[0].Type)
+	assert.Equal(t, "db", spans[0].Type)
+	assert.Equal(t, "sqlite3", spans[0].Subtype)
+	assert.Equal(t, "query", spans[0].Action)
 }
 
 func TestTxStmtQueryContext(t *testing.T) {
@@ -156,7 +168,9 @@ func TestTxStmtQueryContext(t *testing.T) {
 	})
 	require.Len(t, spans, 1)
 	assert.Equal(t, "SELECT FROM foo", spans[0].Name)
-	assert.Equal(t, "db.sqlite3.query", spans[0].Type)
+	assert.Equal(t, "db", spans[0].Type)
+	assert.Equal(t, "sqlite3", spans[0].Subtype)
+	assert.Equal(t, "query", spans[0].Action)
 }
 
 func TestCaptureErrors(t *testing.T) {
@@ -172,6 +186,8 @@ func TestCaptureErrors(t *testing.T) {
 	require.Len(t, spans, 1)
 	require.Len(t, errors, 1)
 	assert.Equal(t, "SELECT FROM thin_air", spans[0].Name)
-	assert.Equal(t, "db.sqlite3.query", spans[0].Type)
+	assert.Equal(t, "db", spans[0].Type)
+	assert.Equal(t, "sqlite3", spans[0].Subtype)
+	assert.Equal(t, "query", spans[0].Action)
 	assert.Equal(t, "no such table: thin_air", errors[0].Exception.Message)
 }

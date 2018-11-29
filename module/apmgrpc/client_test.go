@@ -10,7 +10,7 @@ import (
 	"golang.org/x/net/context"
 	pb "google.golang.org/grpc/examples/helloworld/helloworld"
 
-	"go.elastic.co/apm"
+	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/transport/transporttest"
 )
 
@@ -33,18 +33,16 @@ func TestClientSpan(t *testing.T) {
 	tracer.Flush(nil)
 	require.Zero(t, transport.Payloads())
 
-	tx := tracer.StartTransaction("name", "type")
-	ctx := apm.ContextWithTransaction(context.Background(), tx)
-	resp, err = client.SayHello(ctx, &pb.HelloRequest{Name: "birita"})
-	require.NoError(t, err)
-	assert.Equal(t, resp, &pb.HelloReply{Message: "hello, birita"})
-	tx.End()
+	_, clientSpans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+		resp, err = client.SayHello(ctx, &pb.HelloRequest{Name: "birita"})
+		require.NoError(t, err)
+		assert.Equal(t, resp, &pb.HelloReply{Message: "hello, birita"})
+	})
 
-	tracer.Flush(nil)
-	clientSpans := transport.Payloads().Spans
 	require.Len(t, clientSpans, 1)
 	assert.Equal(t, "/helloworld.Greeter/SayHello", clientSpans[0].Name)
-	assert.Equal(t, "external.grpc", clientSpans[0].Type)
+	assert.Equal(t, "external", clientSpans[0].Type)
+	assert.Equal(t, "grpc", clientSpans[0].Subtype)
 
 	serverTracer.Flush(nil)
 	serverTransactions := serverTransport.Payloads().Transactions

@@ -27,7 +27,7 @@ func TestTransactionType(t *testing.T) {
 	tests := []test{
 		{Tag: opentracing.Tag{Key: "component", Value: "foo"}, Type: "foo"},
 		{Tag: opentracing.Tag{Key: "http.url", Value: "http://host/path"}, Type: "request"},
-		{Tag: opentracing.Tag{Key: "foo", Value: "bar"}, Type: "unknown"}, // default
+		{Tag: opentracing.Tag{Key: "foo", Value: "bar"}, Type: "custom"}, // default
 		{Tag: opentracing.Tag{Key: "type", Value: "baz"}, Type: "baz"},
 	}
 	for _, test := range tests {
@@ -76,14 +76,15 @@ func TestSpanType(t *testing.T) {
 	defer apmtracer.Close()
 
 	type test struct {
-		Tag  opentracing.Tag
-		Type string
+		Tag     opentracing.Tag
+		Type    string
+		Subtype string
 	}
 	tests := []test{
-		{Tag: opentracing.Tag{Key: "component", Value: "foo"}, Type: "foo"},
-		{Tag: opentracing.Tag{Key: "db.type", Value: "sql"}, Type: "db.sql.query"},
-		{Tag: opentracing.Tag{Key: "http.url", Value: "http://testing.invalid:8000"}, Type: "ext.http"},
-		{Tag: opentracing.Tag{Key: "foo", Value: "bar"}, Type: "unknown"}, // default
+		{Tag: opentracing.Tag{Key: "component", Value: "foo"}, Type: "custom", Subtype: "foo"},
+		{Tag: opentracing.Tag{Key: "db.type", Value: "sql"}, Type: "db", Subtype: "sql"},
+		{Tag: opentracing.Tag{Key: "http.url", Value: "http://testing.invalid:8000"}, Type: "external", Subtype: "http"},
+		{Tag: opentracing.Tag{Key: "foo", Value: "bar"}, Type: "custom"}, // default
 		{Tag: opentracing.Tag{Key: "type", Value: "baz"}, Type: "baz"},
 	}
 
@@ -121,7 +122,8 @@ func TestDBSpan(t *testing.T) {
 	payloads := recorder.Payloads()
 	require.Len(t, payloads.Spans, 1)
 	modelSpan := payloads.Spans[0]
-	assert.Equal(t, "db.hbase.query", modelSpan.Type)
+	assert.Equal(t, "db", modelSpan.Type)
+	assert.Equal(t, "hbase", modelSpan.Subtype)
 	assert.Equal(t, &model.SpanContext{
 		Database: &model.DatabaseSpanContext{
 			Instance:  "test_db",
@@ -152,7 +154,8 @@ func TestHTTPSpan(t *testing.T) {
 	payloads := recorder.Payloads()
 	require.Len(t, payloads.Spans, 1)
 	modelSpan := payloads.Spans[0]
-	assert.Equal(t, "ext.http", modelSpan.Type)
+	assert.Equal(t, "external", modelSpan.Type)
+	assert.Equal(t, "http", modelSpan.Subtype)
 	assert.Equal(t, &model.SpanContext{
 		HTTP: &model.HTTPSpanContext{URL: url},
 	}, modelSpan.Context)

@@ -35,7 +35,7 @@ func TestQueryContext(t *testing.T) {
 
 	assert.NotNil(t, spans[0].ID)
 	assert.Equal(t, "SELECT FROM foo", spans[0].Name)
-	assert.Equal(t, "db.postgresql.query", spans[0].Type)
+	assert.Equal(t, "postgresql", spans[0].Subtype)
 	assert.Equal(t, &model.SpanContext{
 		Database: &model.DatabaseSpanContext{
 			Instance:  "test_db",

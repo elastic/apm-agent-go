@@ -76,7 +76,7 @@ func Do(ctx context.Context, conn redis.Conn, commandName string, args ...interf
 	if spanName == "" {
 		spanName = "(flush pipeline)"
 	}
-	span, _ := apm.StartSpan(ctx, spanName, "cache.redis")
+	span, _ := apm.StartSpan(ctx, spanName, "db.redis")
 	defer span.End()
 	return conn.Do(commandName, args...)
 }
@@ -87,7 +87,7 @@ func DoWithTimeout(ctx context.Context, conn redis.Conn, timeout time.Duration, 
 	if spanName == "" {
 		spanName = "(flush pipeline)"
 	}
-	span, _ := apm.StartSpan(ctx, spanName, "cache.redis")
+	span, _ := apm.StartSpan(ctx, spanName, "db.redis")
 	defer span.End()
 	return redis.DoWithTimeout(conn, timeout, commandName, args...)
 }

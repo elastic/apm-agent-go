@@ -10,6 +10,7 @@ import (
 
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/apmtest"
+	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/transport/transporttest"
 )
 
@@ -85,4 +86,25 @@ func TestSpanTiming(t *testing.T) {
 		float64(100*time.Millisecond),
 	)
 	assert.InDelta(t, span.Duration, 200, 100)
+}
+
+func TestSpanType(t *testing.T) {
+	spanTypes := []string{"type", "type.subtype", "type.subtype.action", "type.subtype.action.figure"}
+	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+		for _, spanType := range spanTypes {
+			span, _ := apm.StartSpan(ctx, "name", spanType)
+			span.End()
+		}
+	})
+	require.Len(t, spans, 4)
+
+	check := func(s model.Span, spanType, spanSubtype, spanAction string) {
+		assert.Equal(t, spanType, s.Type)
+		assert.Equal(t, spanSubtype, s.Subtype)
+		assert.Equal(t, spanAction, s.Action)
+	}
+	check(spans[0], "type", "", "")
+	check(spans[1], "type", "subtype", "")
+	check(spans[2], "type", "subtype", "action")
+	check(spans[3], "type", "subtype", "action.figure")
 }

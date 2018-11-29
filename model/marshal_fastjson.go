@@ -303,6 +303,10 @@ func (v *Span) MarshalFastJSON(w *fastjson.Writer) error {
 	}
 	w.RawString(",\"type\":")
 	w.String(v.Type)
+	if v.Action != "" {
+		w.RawString(",\"action\":")
+		w.String(v.Action)
+	}
 	if v.Context != nil {
 		w.RawString(",\"context\":")
 		if err := v.Context.MarshalFastJSON(w); err != nil && firstErr == nil {
@@ -327,6 +331,10 @@ func (v *Span) MarshalFastJSON(w *fastjson.Writer) error {
 			}
 		}
 		w.RawByte(']')
+	}
+	if v.Subtype != "" {
+		w.RawString(",\"subtype\":")
+		w.String(v.Subtype)
 	}
 	w.RawByte('}')
 	return firstErr

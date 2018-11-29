@@ -3,6 +3,7 @@ package apm
 import (
 	cryptorand "crypto/rand"
 	"encoding/binary"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,6 +21,10 @@ var droppedSpanDataPool sync.Pool
 //
 // StartSpan always returns a non-nil Span, with a non-nil SpanData
 // field. Its End method must be called when the span completes.
+//
+// If the span type contains two dots, they are assumed to separate
+// the span type, subtype, and action; a single dot separates span
+// type and subtype, and the action will not be set.
 //
 // StartSpan is equivalent to calling StartSpanOptions with
 // SpanOptions.Parent set to the trace context of parent if
@@ -45,6 +50,10 @@ func (tx *Transaction) StartSpan(name, spanType string, parent *Span) *Span {
 //
 // StartSpan always returns a non-nil Span. Its End method must
 // be called when the span completes.
+//
+// If the span type contains two dots, they are assumed to separate
+// the span type, subtype, and action; a single dot separates span
+// type and subtype, and the action will not be set.
 func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions) *Span {
 	if tx == nil {
 		return newDroppedSpan()
@@ -146,11 +155,18 @@ func (t *Tracer) startSpan(name, spanType string, transactionID SpanID, opts Spa
 	}
 	span := &Span{SpanData: sd}
 	span.Name = name
-	span.Type = spanType
 	span.traceContext = opts.Parent
 	span.parentID = opts.Parent.Span
 	span.transactionID = transactionID
 	span.timestamp = opts.Start
+	span.Type = spanType
+	if dot := strings.IndexRune(spanType, '.'); dot != -1 {
+		span.Type = spanType[:dot]
+		span.Subtype = spanType[dot+1:]
+		if dot := strings.IndexRune(span.Subtype, '.'); dot != -1 {
+			span.Subtype, span.Action = span.Subtype[:dot], span.Subtype[dot+1:]
+		}
+	}
 	return span
 }
 
@@ -255,8 +271,17 @@ type SpanData struct {
 	// Name holds the span name, initialized with the value passed to StartSpan.
 	Name string
 
-	// Type holds the span type, initialized with the value passed to StartSpan.
+	// Type holds the overarching span type, such as "db", and will be initialized
+	// with the value passed to StartSpan.
 	Type string
+
+	// Subtype holds the span subtype, such as "mysql". This will initially be empty,
+	// and can be set after starting the span.
+	Subtype string
+
+	// Action holds the span action, such as "query". This will initially be empty,
+	// and can be set after starting the span.
+	Action string
 
 	// Duration holds the span duration, initialized to -1.
 	//
