@@ -5,8 +5,10 @@ package apmgrpc
 import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 
 	"go.elastic.co/apm"
+	"go.elastic.co/apm/module/apmhttp"
 )
 
 // NewUnaryClientInterceptor returns a grpc.UnaryClientInterceptor that
@@ -28,10 +30,26 @@ func NewUnaryClientInterceptor(o ...ClientOption) grpc.UnaryClientInterceptor {
 		invoker grpc.UnaryInvoker,
 		opts ...grpc.CallOption,
 	) error {
-		span, ctx := apm.StartSpan(ctx, method, "grpc")
+		span, ctx := startSpan(ctx, method)
 		defer span.End()
 		return invoker(ctx, method, req, resp, cc, opts...)
 	}
+}
+
+func startSpan(ctx context.Context, name string) (*apm.Span, context.Context) {
+	span, ctx := apm.StartSpan(ctx, name, "external.grpc")
+	if span.Dropped() {
+		return span, ctx
+	}
+	traceparentValue := apmhttp.FormatTraceparentHeader(span.TraceContext())
+	md, ok := metadata.FromOutgoingContext(ctx)
+	if !ok {
+		md = metadata.Pairs(traceparentHeader, traceparentValue)
+	} else {
+		md = md.Copy()
+		md.Set(traceparentHeader, traceparentValue)
+	}
+	return span, metadata.NewOutgoingContext(ctx, md)
 }
 
 type clientOptions struct {

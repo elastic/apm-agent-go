@@ -4,6 +4,7 @@ package apmgrpc_test
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"reflect"
 	"testing"
@@ -16,11 +17,13 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	pb "google.golang.org/grpc/examples/helloworld/helloworld"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/module/apmgrpc"
+	"go.elastic.co/apm/module/apmhttp"
 	"go.elastic.co/apm/stacktrace"
 	"go.elastic.co/apm/transport/transporttest"
 )
@@ -68,17 +71,24 @@ type testParams struct {
 }
 
 func testServerTransactionHappy(t *testing.T, p testParams) {
-	resp, err := p.client.SayHello(context.Background(), &pb.HelloRequest{
-		Name: "birita",
-	})
+	traceID := apm.TraceID{0x0a, 0xf7, 0x65, 0x19, 0x16, 0xcd, 0x43, 0xdd, 0x84, 0x48, 0xeb, 0x21, 0x1c, 0x80, 0x31, 0x9c}
+	clientSpanID := apm.SpanID{0xb7, 0xad, 0x6b, 0x71, 0x69, 0x20, 0x33, 0x31}
+
+	ctx := metadata.AppendToOutgoingContext(
+		context.Background(),
+		apmhttp.TraceparentHeader, fmt.Sprintf("00-%s-%s-01", traceID, clientSpanID),
+	)
+	resp, err := p.client.SayHello(ctx, &pb.HelloRequest{Name: "birita"})
 	require.NoError(t, err)
 	assert.Equal(t, resp, &pb.HelloReply{Message: "hello, birita"})
 
 	p.tracer.Flush(nil)
 	tx := p.transport.Payloads().Transactions[0]
 	assert.Equal(t, "/helloworld.Greeter/SayHello", tx.Name)
-	assert.Equal(t, "grpc", tx.Type)
+	assert.Equal(t, "request", tx.Type)
 	assert.Equal(t, "OK", tx.Result)
+	assert.Equal(t, model.TraceID(traceID), tx.TraceID)
+	assert.Equal(t, model.SpanID(clientSpanID), tx.ParentID)
 
 	assert.Equal(t, &model.Context{
 		Service: &model.Service{
@@ -99,7 +109,7 @@ func testServerTransactionUnknownError(t *testing.T, p testParams) {
 	payloads := p.transport.Payloads()
 	tx := payloads.Transactions[0]
 	assert.Equal(t, "/helloworld.Greeter/SayHello", tx.Name)
-	assert.Equal(t, "grpc", tx.Type)
+	assert.Equal(t, "request", tx.Type)
 	assert.Equal(t, "Unknown", tx.Result)
 }
 
@@ -112,7 +122,7 @@ func testServerTransactionStatusError(t *testing.T, p testParams) {
 	payloads := p.transport.Payloads()
 	tx := payloads.Transactions[0]
 	assert.Equal(t, "/helloworld.Greeter/SayHello", tx.Name)
-	assert.Equal(t, "grpc", tx.Type)
+	assert.Equal(t, "request", tx.Type)
 	assert.Equal(t, "DataLoss", tx.Result)
 }
 

@@ -39,6 +39,7 @@ RUN go get -v golang.org/x/net/http2
 RUN go get -v google.golang.org/grpc
 RUN go get -v google.golang.org/grpc/codes
 RUN go get -v google.golang.org/grpc/examples/helloworld/helloworld
+RUN go get -v google.golang.org/grpc/metadata
 RUN go get -v google.golang.org/grpc/status
 
 ADD . /go/src/go.elastic.co/apm
