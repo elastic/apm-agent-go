@@ -9,14 +9,19 @@ import (
 	"go.elastic.co/apm/transport/transporttest"
 )
 
-// WithTransaction calls f with a new context containing a transaction,
-// flushes the transaction to a test server, and returns the decoded
-// transaction and any associated errors.
+// WithTransaction is equivalent to calling WithTransactionOptions with a zero TransactionOptions.
 func WithTransaction(f func(ctx context.Context)) (model.Transaction, []model.Span, []model.Error) {
+	return WithTransactionOptions(apm.TransactionOptions{}, f)
+}
+
+// WithTransactionOptions calls f with a new context containing a transaction
+// and transaction options, flushes the transaction to a test server, and returns
+// the decoded transaction and any associated spans and errors.
+func WithTransactionOptions(opts apm.TransactionOptions, f func(ctx context.Context)) (model.Transaction, []model.Span, []model.Error) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
-	tx := tracer.StartTransaction("name", "type")
+	tx := tracer.StartTransactionOptions("name", "type", opts)
 	ctx := apm.ContextWithTransaction(context.Background(), tx)
 	f(ctx)
 

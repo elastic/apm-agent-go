@@ -43,25 +43,14 @@ func StartSpan(ctx context.Context, name, spanType string) (*Span, context.Conte
 // and parent span in the context, if any. If the span isn't dropped, it will be
 // stored in the resulting context.
 //
+// If opts.Parent is non-zero, its value will be used in preference to any parent
+// span in ctx.
+//
 // StartSpanOptions always returns a non-nil Span. Its End method must be called
 // when the span completes.
 func StartSpanOptions(ctx context.Context, name, spanType string, opts SpanOptions) (*Span, context.Context) {
-	parent := SpanFromContext(ctx)
-	var parentTraceContext TraceContext
-	if parent != nil {
-		parent.mu.RLock()
-		if parent.ended() {
-			parent.mu.RUnlock()
-			return newDroppedSpan(), ctx
-		}
-		parentTraceContext = parent.TraceContext()
-		parent.mu.RUnlock()
-	}
-
-	if opts.Parent == (TraceContext{}) {
-		opts.Parent = parentTraceContext
-	}
 	tx := TransactionFromContext(ctx)
+	opts.parent = SpanFromContext(ctx)
 	span := tx.StartSpanOptions(name, spanType, opts)
 	if !span.Dropped() {
 		ctx = ContextWithSpan(ctx, span)

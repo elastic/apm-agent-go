@@ -25,18 +25,8 @@ var droppedSpanDataPool sync.Pool
 // SpanOptions.Parent set to the trace context of parent if
 // parent is non-nil.
 func (tx *Transaction) StartSpan(name, spanType string, parent *Span) *Span {
-	var parentTraceContext TraceContext
-	if parent != nil {
-		parent.mu.RLock()
-		if parent.ended() {
-			parent.mu.RUnlock()
-			return newDroppedSpan()
-		}
-		parentTraceContext = parent.TraceContext()
-		parent.mu.RUnlock()
-	}
 	return tx.StartSpanOptions(name, spanType, SpanOptions{
-		Parent: parentTraceContext,
+		parent: parent,
 	})
 }
 
@@ -48,6 +38,18 @@ func (tx *Transaction) StartSpan(name, spanType string, parent *Span) *Span {
 func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions) *Span {
 	if tx == nil {
 		return newDroppedSpan()
+	}
+
+	haveParent := opts.Parent != TraceContext{}
+	if !haveParent && opts.parent != nil {
+		opts.parent.mu.RLock()
+		if opts.parent.ended() {
+			opts.parent.mu.RUnlock()
+			return newDroppedSpan()
+		}
+		opts.Parent = opts.parent.TraceContext()
+		opts.parent.mu.RUnlock()
+		haveParent = true
 	}
 
 	// Prevent tx from being ended while we're starting a span.
@@ -67,7 +69,7 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 		return newDroppedSpan()
 	}
 	transactionID := tx.traceContext.Span
-	if opts.Parent == (TraceContext{}) {
+	if !haveParent {
 		opts.Parent = tx.traceContext
 	}
 	// Calculate the span time relative to the transaction timestamp so
@@ -121,6 +123,12 @@ type SpanOptions struct {
 	// Parent, if non-zero, holds the trace context of the parent span.
 	Parent TraceContext
 
+	// parent, if non-nil, holds the parent span.
+	//
+	// This is only used if Parent is zero, and is only available to internal
+	// callers of Transaction.StartSpanOptions.
+	parent *Span
+
 	// Start is the start time of the span. If this has the zero value,
 	// time.Now() will be used instead.
 	//
@@ -150,7 +158,7 @@ func (t *Tracer) startSpan(name, spanType string, transactionID SpanID, opts Spa
 	span.traceContext = opts.Parent
 	span.parentID = opts.Parent.Span
 	span.transactionID = transactionID
-	span.Timestamp = opts.Start
+	span.timestamp = opts.Start
 	return span
 }
 
@@ -228,7 +236,7 @@ func (s *Span) End() {
 		return
 	}
 	if s.Duration < 0 {
-		s.Duration = time.Since(s.Timestamp)
+		s.Duration = time.Since(s.timestamp)
 	}
 	if len(s.stacktrace) == 0 && s.Duration >= s.stackFramesMinDuration {
 		s.setStacktrace(1)
@@ -250,6 +258,7 @@ type SpanData struct {
 	parentID               SpanID
 	transactionID          SpanID
 	stackFramesMinDuration time.Duration
+	timestamp              time.Time
 
 	// Name holds the span name, initialized with the value passed to StartSpan.
 	Name string
@@ -262,9 +271,6 @@ type SpanData struct {
 	// If you do not update Duration, calling Span.End will calculate the
 	// duration based on the elapsed time since the span's start time.
 	Duration time.Duration
-
-	// Start time
-	Timestamp time.Time
 
 	// Context describes the context in which span occurs.
 	Context SpanContext

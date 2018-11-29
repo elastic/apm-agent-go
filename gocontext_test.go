@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"go.elastic.co/apm"
+	"go.elastic.co/apm/apmtest"
+	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/transport/transporttest"
 )
 
@@ -67,31 +69,46 @@ func TestContextStartSpanSpanEnded(t *testing.T) {
 	wg.Wait()
 }
 
-func TestContextSpanOptionStart(t *testing.T) {
-	tracer, err := apm.NewTracer("tracer_testing", "")
-	assert.NoError(t, err)
-	defer tracer.Close()
-	tracer.Transport = transporttest.Discard
+func TestContextStartSpanOptions(t *testing.T) {
+	txTimestamp := time.Now().Add(-time.Hour)
+	tx, spans, _ := apmtest.WithTransactionOptions(apm.TransactionOptions{
+		Start: txTimestamp,
+	}, func(ctx context.Context) {
+		span0, ctx := apm.StartSpanOptions(ctx, "span0", "type", apm.SpanOptions{
+			Start: txTimestamp.Add(time.Minute),
+		})
+		assert.False(t, span0.Dropped())
+		defer span0.End()
 
-	var wg sync.WaitGroup
-	for i := 0; i < 100; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for i := 0; i < 1000; i++ {
-				tx := tracer.StartTransaction("name", "type")
-				ctx := apm.ContextWithTransaction(context.Background(), tx)
+		// span1 should use span0 as its parent, as span0 has not been ended yet.
+		span1, ctx := apm.StartSpanOptions(ctx, "span1", "type", apm.SpanOptions{})
+		assert.False(t, span1.Dropped())
+		span1TraceContext := span1.TraceContext()
+		span1.End()
 
-				now := time.Now()
-				past := now.Add(-time.Minute)
-				span, _ := apm.StartSpanOptions(ctx, "name", "type", apm.SpanOptions{Start: past})
-				dur := now.Sub(span.SpanData.Timestamp)
-				assert.True(t, dur >= time.Minute)
+		// span2 should not be dropped. The parent span in ctx should be
+		// completely disregarded, since Parent is specified in options.
+		span2, ctx := apm.StartSpanOptions(ctx, "span2", "type", apm.SpanOptions{
+			Parent: span1TraceContext,
+		})
+		assert.False(t, span2.Dropped())
+		span2.End()
 
-				span.End()
-			}
-		}()
-	}
-	tracer.Flush(nil)
-	wg.Wait()
+		// span3 should be dropped. The parent in ctx has been ended, and
+		// Parent was not specified in options.
+		span3, ctx := apm.StartSpanOptions(ctx, "name", "type", apm.SpanOptions{})
+		assert.True(t, span3.Dropped())
+		span3.End()
+	})
+
+	assert.Equal(t, "span0", spans[2].Name) // span 0 ended last
+	assert.Equal(t, "span1", spans[0].Name)
+	assert.Equal(t, "span2", spans[1].Name)
+
+	assert.Equal(t, tx.ID, spans[2].ParentID)
+	assert.Equal(t, spans[2].ID, spans[0].ParentID)
+	assert.Equal(t, spans[0].ID, spans[1].ParentID)
+
+	span0Start := time.Time(tx.Timestamp).Add(time.Minute)
+	assert.Equal(t, model.Time(span0Start), spans[2].Timestamp)
 }
