@@ -273,9 +273,7 @@ pipeline {
       steps {
         withEnvWrapper() {
           unstash 'source'
-          dir("${ELASTIC_DOCS}"){
-            git "https://github.com/elastic/docs.git"
-          }
+          checkoutElasticDocsTools(basedir: "${ELASTIC_DOCS}")
           dir("${BASE_DIR}"){
             sh """#!/bin/bash
             make docs
