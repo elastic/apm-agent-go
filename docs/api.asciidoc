@@ -189,6 +189,9 @@ type, and optional parent span, and with the start time set to the current time.
 If you need to set the timestamp or parent <<trace-context, trace context>>, you should
 use <<transaction-start-span-options, Transaction.StartSpanOptions>>.
 
+If the span type contains two dots, they are assumed to separate the span type, subtype,
+and action; a single dot separates span type and subtype, and the action will not be set.
+
 If the transaction is sampled, then the span's ID will be set, and its stacktrace will
 be set if the tracer is configured accordingly. If the transaction is not sampled, then
 the returned span will be silently discarded when its End method is called. You can
@@ -491,8 +494,7 @@ transaction or span belongs, and trace options such as flags relating to samplin
 propagated between processes, e.g. in HTTP headers, in order to correlate events originating from
 related services.
 
-Elastic APM's trace context is based on the https://w3c.github.io/distributed-tracing/report-trace-context.html[W3C Trace Context]
-draft.
+Elastic APM's trace context is based on the https://w3c.github.io/trace-context/[W3C Trace Context] draft.
 
 [float]
 [[error-context]]

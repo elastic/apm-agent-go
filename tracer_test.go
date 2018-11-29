@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"go.elastic.co/apm"
+	"go.elastic.co/apm/internal/apmhostutil"
 	"go.elastic.co/apm/transport"
 	"go.elastic.co/apm/transport/transporttest"
 )
@@ -350,6 +351,24 @@ func TestTracerBodyUnread(t *testing.T) {
 		tracer.StartTransaction("name", "type").End()
 	}
 	tracer.Flush(nil)
+}
+
+func TestTracerMetadata(t *testing.T) {
+	tracer, recorder := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	tracer.StartTransaction("name", "type").End()
+	tracer.Flush(nil)
+
+	// TODO(axw) check other metadata
+	system, _, _ := recorder.Metadata()
+	containerID, err := apmhostutil.ContainerID()
+	if err != nil {
+		assert.Nil(t, system.Container)
+	} else {
+		require.NotNil(t, system.Container)
+		assert.Equal(t, containerID, system.Container.ID)
+	}
 }
 
 type blockedTransport struct {

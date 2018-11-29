@@ -5,6 +5,9 @@
  - Stop pooling Transaction/Span/Error, introduce internal pooled objects (#319)
  - Enable metrics collection with default interval of 30s (#322)
  - `ELASTIC_APM_SERVER_CERT` enables server certificate pinning (#325)
+ - Add Docker container ID to metadata (#330)
+ - Added distributed trace context propagation to apmgrpc (#335)
+ - Introduce `Span.Subtype`, `Span.Action` (#332)
 
 ## [v1.0.0](https://github.com/elastic/apm-agent-go/releases/tag/v1.0.0)
 

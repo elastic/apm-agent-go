@@ -115,6 +115,8 @@ func (w *modelWriter) buildModelSpan(out *model.Span, span *SpanData) {
 
 	out.Name = truncateString(span.Name)
 	out.Type = truncateString(span.Type)
+	out.Subtype = truncateString(span.Subtype)
+	out.Action = truncateString(span.Action)
 	out.Timestamp = model.Time(span.timestamp.UTC())
 	out.Duration = span.Duration.Seconds() * 1000
 	out.Context = span.Context.build()

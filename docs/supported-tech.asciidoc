@@ -151,3 +151,17 @@ the client interceptor will create a span for each outgoing request.
 
 See <<builtin-modules-apmgrpc, module/apmgrpc>> for more information
 about gRPC instrumentation.
+
+[float]
+[[supported-tech-services]]
+=== Service Frameworks
+
+[float]
+==== Go kit
+
+We support tracing https://gokit.io/[Go kit] clients and servers when
+using the gRPC or HTTP transport, by way of <<builtin-modules-apmgrpc, module/apmgrpc>>
+and <<builtin-modules-apmhttp, module/apmhttp>> respectively.
+
+Code examples are available at https://godoc.org/go.elastic.co/apm/module/apmgokit
+for getting started.

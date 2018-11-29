@@ -145,7 +145,8 @@ func (s *otSpan) setSpanContext() {
 	switch {
 	case haveHTTPContext:
 		if s.span.Type == "" {
-			s.span.Type = "ext.http"
+			s.span.Type = "external"
+			s.span.Subtype = "http"
 		}
 		url, err := url.Parse(httpURL)
 		if err == nil {
@@ -158,19 +159,14 @@ func (s *otSpan) setSpanContext() {
 		}
 	case haveDBContext:
 		if s.span.Type == "" {
-			dbType := "sql"
-			if dbContext.Type != "" {
-				dbType = dbContext.Type
-			}
-			s.span.Type = fmt.Sprintf("db.%s.query", dbType)
+			s.span.Type = "db"
+			s.span.Subtype = dbContext.Type
 		}
 		s.span.Context.SetDatabase(dbContext)
 	}
 	if s.span.Type == "" {
-		s.span.Type = component
-		if s.span.Type == "" {
-			s.span.Type = "unknown"
-		}
+		s.span.Type = "custom"
+		s.span.Subtype = component
 	}
 }
 
@@ -219,7 +215,7 @@ func (s *otSpan) setTransactionContext() {
 		} else if component != "" {
 			s.ctx.tx.Type = component
 		} else {
-			s.ctx.tx.Type = "unknown"
+			s.ctx.tx.Type = "custom"
 		}
 	}
 	if s.ctx.tx.Result == "" {

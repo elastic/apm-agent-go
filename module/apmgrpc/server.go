@@ -3,12 +3,20 @@
 package apmgrpc
 
 import (
+	"strings"
+
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
 	"go.elastic.co/apm"
+	"go.elastic.co/apm/module/apmhttp"
+)
+
+var (
+	traceparentHeader = strings.ToLower(apmhttp.TraceparentHeader)
 )
 
 // NewUnaryServerInterceptor returns a grpc.UnaryServerInterceptor that
@@ -38,10 +46,8 @@ func NewUnaryServerInterceptor(o ...ServerOption) grpc.UnaryServerInterceptor {
 		if !opts.tracer.Active() {
 			return handler(ctx, req)
 		}
-		tx := opts.tracer.StartTransaction(info.FullMethod, "grpc")
-		ctx = apm.ContextWithTransaction(ctx, tx)
+		tx, ctx := startTransaction(ctx, opts.tracer, info.FullMethod)
 		defer tx.End()
-		tx.Context.SetFramework("grpc", grpc.Version)
 
 		// TODO(axw) define context schema for RPC,
 		// including at least the peer address.
@@ -63,17 +69,35 @@ func NewUnaryServerInterceptor(o ...ServerOption) grpc.UnaryServerInterceptor {
 		}()
 
 		resp, err = handler(ctx, req)
-		if err == nil {
-			tx.Result = codes.OK.String()
-		} else {
-			statusCode := codes.Unknown
-			s, ok := status.FromError(err)
-			if ok {
-				statusCode = s.Code()
-			}
-			tx.Result = statusCode.String()
-		}
+		setTransactionResult(tx, err)
 		return resp, err
+	}
+}
+
+func startTransaction(ctx context.Context, tracer *apm.Tracer, name string) (*apm.Transaction, context.Context) {
+	var opts apm.TransactionOptions
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		if values := md.Get(traceparentHeader); len(values) == 1 {
+			traceContext, err := apmhttp.ParseTraceparentHeader(values[0])
+			if err == nil {
+				opts.TraceContext = traceContext
+			}
+		}
+	}
+	tx := tracer.StartTransactionOptions(name, "request", opts)
+	tx.Context.SetFramework("grpc", grpc.Version)
+	return tx, apm.ContextWithTransaction(ctx, tx)
+}
+
+func setTransactionResult(tx *apm.Transaction, err error) {
+	if err == nil {
+		tx.Result = codes.OK.String()
+	} else {
+		statusCode := codes.Unknown
+		if s, ok := status.FromError(err); ok {
+			statusCode = s.Code()
+		}
+		tx.Result = statusCode.String()
 	}
 }
 

@@ -11,6 +11,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"go.elastic.co/apm/internal/apmhostutil"
 	"go.elastic.co/apm/internal/apmstrings"
 	"go.elastic.co/apm/model"
 )
@@ -74,6 +75,11 @@ func getLocalSystem() model.System {
 		}
 	}
 	system.Hostname = truncateString(system.Hostname)
+	if containerID, err := apmhostutil.ContainerID(); err == nil {
+		system.Container = &model.Container{
+			ID: containerID,
+		}
+	}
 	return system
 }
 

@@ -5,6 +5,8 @@ RUN go get -v github.com/aws/aws-lambda-go/lambda/messages
 RUN go get -v github.com/aws/aws-lambda-go/lambdacontext
 RUN go get -v github.com/emicklei/go-restful
 RUN go get -v github.com/gin-gonic/gin
+RUN go get -v github.com/go-kit/kit/transport/grpc
+RUN go get -v github.com/go-kit/kit/transport/http
 RUN go get -v github.com/go-sql-driver/mysql
 RUN go get -v github.com/gocql/gocql
 RUN go get -v github.com/gomodule/redigo/redis
@@ -39,6 +41,7 @@ RUN go get -v golang.org/x/net/http2
 RUN go get -v google.golang.org/grpc
 RUN go get -v google.golang.org/grpc/codes
 RUN go get -v google.golang.org/grpc/examples/helloworld/helloworld
+RUN go get -v google.golang.org/grpc/metadata
 RUN go get -v google.golang.org/grpc/status
 
 ADD . /go/src/go.elastic.co/apm

@@ -82,6 +82,9 @@ type System struct {
 
 	// Platform is the system's platform, or operating system name.
 	Platform string `json:"platform,omitempty"`
+
+	// Container describes the container running the service.
+	Container *Container `json:"container,omitempty"`
 }
 
 // Process represents an operating system process.
@@ -97,6 +100,12 @@ type Process struct {
 
 	// Argv holds the command line arguments used to start the process.
 	Argv []string `json:"argv,omitempty"`
+}
+
+// Container represents the container (e.g. Docker) running the service.
+type Container struct {
+	// ID is the unique container ID.
+	ID string `json:"id"`
 }
 
 // Transaction represents a transaction handled by the service.
@@ -165,9 +174,16 @@ type Span struct {
 	// Duration holds the duration of the span, in milliseconds.
 	Duration float64 `json:"duration"`
 
-	// Type identifies the service-domain specific type of the span,
-	// e.g. "db.postgresql.query".
+	// Type identifies the overarching type of the span,
+	// e.g. "db" or "external".
 	Type string `json:"type"`
+
+	// Subtype identifies the subtype of the span,
+	// e.g. "mysql" or "http".
+	Subtype string `json:"subtype,omitempty"`
+
+	// Action identifies the action that is being undertaken, e.g. "query".
+	Action string `json:"action,omitempty"`
 
 	// ID holds the ID of the span.
 	ID SpanID `json:"id"`
