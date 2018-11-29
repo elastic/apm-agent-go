@@ -18,7 +18,9 @@ func TestClientSpan(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
-	s, _, addr := newServer(t, nil) // no server tracing
+	serverTracer, serverTransport := transporttest.NewRecorderTracer()
+	defer serverTracer.Close()
+	s, _, addr := newServer(t, serverTracer)
 	defer s.GracefulStop()
 
 	conn, client := newClient(t, addr)
@@ -39,7 +41,17 @@ func TestClientSpan(t *testing.T) {
 	tx.End()
 
 	tracer.Flush(nil)
-	spans := transport.Payloads().Spans
-	require.Len(t, spans, 1)
-	assert.Equal(t, "/helloworld.Greeter/SayHello", spans[0].Name)
+	clientSpans := transport.Payloads().Spans
+	require.Len(t, clientSpans, 1)
+	assert.Equal(t, "/helloworld.Greeter/SayHello", clientSpans[0].Name)
+	assert.Equal(t, "external.grpc", clientSpans[0].Type)
+
+	serverTracer.Flush(nil)
+	serverTransactions := serverTransport.Payloads().Transactions
+	require.Len(t, serverTransactions, 2)
+	for _, tx := range serverTransactions {
+		assert.Equal(t, "/helloworld.Greeter/SayHello", tx.Name)
+	}
+	assert.Equal(t, clientSpans[0].TraceID, serverTransactions[1].TraceID)
+	assert.Equal(t, clientSpans[0].ID, serverTransactions[1].ParentID)
 }
