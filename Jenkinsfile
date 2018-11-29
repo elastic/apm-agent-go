@@ -1,12 +1,5 @@
 #!/usr/bin/env groovy
 
-library identifier: 'apm@master',
-changelog: false,
-retriever: modernSCM(
-  [$class: 'GitSCMSource',
-  credentialsId: 'f6c7695a-671e-4f4f-a331-acdce44ff9ba',
-  remote: 'git@github.com:elastic/apm-pipeline-library.git'])
-
 pipeline {
   agent any
   environment {
@@ -14,15 +7,12 @@ pipeline {
     BASE_DIR="src/go.elastic.co/apm"
     JOB_GIT_CREDENTIALS = "f6c7695a-671e-4f4f-a331-acdce44ff9ba"
   }
-  triggers {
-    cron('0 0 * * 1-5')
-  }
   options {
     timeout(time: 1, unit: 'HOURS')
     buildDiscarder(logRotator(numToKeepStr: '3', artifactNumToKeepStr: '2', daysToKeepStr: '30'))
     timestamps()
     preserveStashes()
-    //ansiColor('xterm')
+    ansiColor('xterm')
     disableResume()
     durabilityHint('PERFORMANCE_OPTIMIZED')
   }
@@ -98,41 +88,41 @@ pipeline {
         }
       }
     }
-    /**
-      Run unit tests and store the results in Jenkins.
-    */
-    stage('test') {
-      agent { label 'linux && immutable' }
-      options { skipDefaultCheckout() }
-      environment {
-        PATH = "${env.PATH}:${env.HUDSON_HOME}/go/bin/:${env.WORKSPACE}/bin"
-        GOPATH = "${env.WORKSPACE}"
-      }
-      when {
-        beforeAgent true
-        environment name: 'test_ci', value: 'true'
-      }
-      steps {
-        withEnvWrapper() {
-          unstash 'source'
-          dir("${BASE_DIR}"){
-            sh """#!/bin/bash
-            ./scripts/jenkins/test.sh
-            """
-          }
-        }
-      }
-      post {
-        always {
-          junit(allowEmptyResults: true,
-            keepLongStdio: true,
-            testResults: "${BASE_DIR}/build/junit-*.xml")
-        }
-      }
-    }
-    stage('Parallel stages') {
+    stage('Test') {
       failFast true
       parallel {
+        /**
+          Run unit tests and store the results in Jenkins.
+        */
+        stage('Unit Test') {
+          agent { label 'linux && immutable' }
+          options { skipDefaultCheckout() }
+          environment {
+            PATH = "${env.PATH}:${env.HUDSON_HOME}/go/bin/:${env.WORKSPACE}/bin"
+            GOPATH = "${env.WORKSPACE}"
+          }
+          when {
+            beforeAgent true
+            environment name: 'test_ci', value: 'true'
+          }
+          steps {
+            withEnvWrapper() {
+              unstash 'source'
+              dir("${BASE_DIR}"){
+                sh """#!/bin/bash
+                ./scripts/jenkins/test.sh
+                """
+              }
+            }
+          }
+          post {
+            always {
+              junit(allowEmptyResults: true,
+                keepLongStdio: true,
+                testResults: "${BASE_DIR}/build/junit-*.xml")
+            }
+          }
+        }
         /**
           Run Benchmarks and send the results to ES.
         */
