@@ -491,8 +491,7 @@ transaction or span belongs, and trace options such as flags relating to samplin
 propagated between processes, e.g. in HTTP headers, in order to correlate events originating from
 related services.
 
-Elastic APM's trace context is based on the https://w3c.github.io/distributed-tracing/report-trace-context.html[W3C Trace Context]
-draft.
+Elastic APM's trace context is based on the https://w3c.github.io/trace-context/[W3C Trace Context] draft.
 
 [float]
 [[error-context]]
