@@ -19,6 +19,7 @@ pipeline {
   parameters {
     string(name: 'branch_specifier', defaultValue: "", description: "the Git branch specifier to build (<branchName>, <tagName>, <commitId>, etc.)")
     string(name: 'GO_VERSION', defaultValue: "1.10.3", description: "Go version to use.")
+    booleanParam(name: 'Run_As_Master_Branch', defaultValue: false, description: 'Allow to run any steps on a PR, some steps normally only run on master branch.')
     booleanParam(name: 'linux_ci', defaultValue: true, description: 'Enable Linux build')
     booleanParam(name: 'test_ci', defaultValue: true, description: 'Enable test')
     booleanParam(name: 'integration_test_ci', defaultValue: true, description: 'Enable run integration test')
@@ -32,7 +33,7 @@ pipeline {
      Checkout the code and stash it, to use it on other stages.
     */
     stage('Checkout') {
-      agent { label 'master || linux' }
+      agent { label 'linux && immutable' }
       options { skipDefaultCheckout() }
       environment {
         PATH = "${env.PATH}:${env.HUDSON_HOME}/go/bin/:${env.WORKSPACE}/bin"
@@ -136,7 +137,16 @@ pipeline {
           when {
             beforeAgent true
             allOf {
-              branch 'master';
+              anyOf {
+                not {
+                  changeRequest()
+                }
+                branch 'master'
+                branch "\\d+\\.\\d+"
+                branch "v\\d?"
+                tag "v\\d+\\.\\d+\\.\\d+*"
+                environment name: 'Run_As_Master_Branch', value: 'true'
+              }
               environment name: 'bench_ci', value: 'true'
             }
           }
@@ -202,7 +212,16 @@ pipeline {
           when {
             beforeAgent true
             allOf {
-              branch 'master';
+              anyOf {
+                not {
+                  changeRequest()
+                }
+                branch 'master'
+                branch "\\d+\\.\\d+"
+                branch "v\\d?"
+                tag "v\\d+\\.\\d+\\.\\d+*"
+                environment name: 'Run_As_Master_Branch', value: 'true'
+              }
               environment name: 'integration_test_master_ci', value: 'true'
             }
           }
@@ -266,16 +285,23 @@ pipeline {
       when {
         beforeAgent true
         allOf {
-          branch 'master';
+          anyOf {
+            not {
+              changeRequest()
+            }
+            branch 'master'
+            branch "\\d+\\.\\d+"
+            branch "v\\d?"
+            tag "v\\d+\\.\\d+\\.\\d+*"
+            environment name: 'Run_As_Master_Branch', value: 'true'
+          }
           environment name: 'doc_ci', value: 'true'
         }
       }
       steps {
         withEnvWrapper() {
           unstash 'source'
-          dir("${ELASTIC_DOCS}"){
-            git "https://github.com/elastic/docs.git"
-          }
+          checkoutElasticDocsTools(basedir: "${ELASTIC_DOCS}")
           dir("${BASE_DIR}"){
             sh """#!/bin/bash
             make docs
