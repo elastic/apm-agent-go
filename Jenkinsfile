@@ -27,6 +27,7 @@ pipeline {
       options { skipDefaultCheckout() }
       environment {
         PATH = "${env.PATH}:${env.WORKSPACE}/bin"
+        HOME = "${env.WORKSPACE}"
         GOPATH = "${env.WORKSPACE}"
       }
       stages {
@@ -65,6 +66,7 @@ pipeline {
           options { skipDefaultCheckout() }
           environment {
             PATH = "${env.PATH}:${env.WORKSPACE}/bin"
+            HOME = "${env.WORKSPACE}"
             GOPATH = "${env.WORKSPACE}"
           }
           when {
@@ -95,6 +97,7 @@ pipeline {
           options { skipDefaultCheckout() }
           environment {
             PATH = "${env.PATH}:${env.WORKSPACE}/bin"
+            HOME = "${env.WORKSPACE}"
             GOPATH = "${env.WORKSPACE}"
           }
           when {
@@ -138,6 +141,7 @@ pipeline {
           options { skipDefaultCheckout() }
           environment {
             PATH = "${env.PATH}:${env.WORKSPACE}/bin"
+            HOME = "${env.WORKSPACE}"
             GOPATH = "${env.WORKSPACE}"
           }
           when {
@@ -172,6 +176,7 @@ pipeline {
       options { skipDefaultCheckout() }
       environment {
         PATH = "${env.PATH}:${env.WORKSPACE}/bin"
+        HOME = "${env.WORKSPACE}"
         GOPATH = "${env.WORKSPACE}"
         ELASTIC_DOCS = "${env.WORKSPACE}/elastic/docs"
       }
