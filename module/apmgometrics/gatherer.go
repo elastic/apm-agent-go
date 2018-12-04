@@ -3,7 +3,7 @@ package apmgometrics
 import (
 	"context"
 
-	"github.com/rcrowley/go-metrics"
+	metrics "github.com/rcrowley/go-metrics"
 
 	"go.elastic.co/apm"
 )

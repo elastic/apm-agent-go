@@ -5,7 +5,7 @@ package apm
 import (
 	"github.com/pkg/errors"
 
-	"github.com/elastic/go-sysinfo"
+	sysinfo "github.com/elastic/go-sysinfo"
 )
 
 func currentProcessTitle() (string, error) {

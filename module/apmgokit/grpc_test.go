@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	kitgrpc "github.com/go-kit/kit/transport/grpc"
-	"github.com/grpc-ecosystem/go-grpc-middleware"
-	"github.com/grpc-ecosystem/go-grpc-middleware/recovery"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	netcontext "golang.org/x/net/context"

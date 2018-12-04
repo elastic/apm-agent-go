@@ -1,7 +1,7 @@
 package apmsqlite3
 
 import (
-	"github.com/mattn/go-sqlite3"
+	sqlite3 "github.com/mattn/go-sqlite3"
 
 	"go.elastic.co/apm/module/apmsql"
 )
