@@ -3,7 +3,7 @@ package apmrestful
 import (
 	"net/http"
 
-	"github.com/emicklei/go-restful"
+	restful "github.com/emicklei/go-restful"
 
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/module/apmhttp"

@@ -1,7 +1,7 @@
 package apmot
 
 import (
-	"github.com/opentracing/opentracing-go"
+	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/log"
 )
 

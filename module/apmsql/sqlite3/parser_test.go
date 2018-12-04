@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"go.elastic.co/apm/module/apmsql"
-	"go.elastic.co/apm/module/apmsql/sqlite3"
+	apmsqlite3 "go.elastic.co/apm/module/apmsql/sqlite3"
 )
 
 func TestParseDSN(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rcrowley/go-metrics"
+	metrics "github.com/rcrowley/go-metrics"
 	"github.com/stretchr/testify/assert"
 
 	"go.elastic.co/apm"

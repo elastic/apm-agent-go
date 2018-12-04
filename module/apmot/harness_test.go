@@ -5,7 +5,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/opentracing/opentracing-go"
+	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/harness"
 
 	"go.elastic.co/apm"

@@ -1,7 +1,7 @@
 package apmrestful_test
 
 import (
-	"github.com/emicklei/go-restful"
+	restful "github.com/emicklei/go-restful"
 
 	"go.elastic.co/apm/module/apmrestful"
 )
