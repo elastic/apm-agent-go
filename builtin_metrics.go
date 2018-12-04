@@ -4,7 +4,7 @@ import (
 	"context"
 	"runtime"
 
-	"github.com/elastic/go-sysinfo"
+	sysinfo "github.com/elastic/go-sysinfo"
 	"github.com/elastic/go-sysinfo/types"
 )
 

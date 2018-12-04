@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"go.elastic.co/apm/module/apmsql/pq"
+	apmpq "go.elastic.co/apm/module/apmsql/pq"
 )
 
 func TestParseDSNURL(t *testing.T) {

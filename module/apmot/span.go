@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"sync"
 
-	"github.com/opentracing/opentracing-go"
+	opentracing "github.com/opentracing/opentracing-go"
 
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/module/apmhttp"
