@@ -21,6 +21,7 @@ import (
 
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/internal/apmhostutil"
+	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/transport"
 	"go.elastic.co/apm/transport/transporttest"
 )
@@ -362,13 +363,46 @@ func TestTracerMetadata(t *testing.T) {
 
 	// TODO(axw) check other metadata
 	system, _, _ := recorder.Metadata()
-	containerID, err := apmhostutil.ContainerID()
+	container, err := apmhostutil.Container()
 	if err != nil {
 		assert.Nil(t, system.Container)
 	} else {
 		require.NotNil(t, system.Container)
-		assert.Equal(t, containerID, system.Container.ID)
+		assert.Equal(t, container, system.Container)
 	}
+}
+
+func TestTracerKubernetesMetadata(t *testing.T) {
+	t.Run("no-env", func(t *testing.T) {
+		system, _, _ := getSubprocessMetadata(t)
+		assert.Nil(t, system.Kubernetes)
+	})
+
+	t.Run("namespace-only", func(t *testing.T) {
+		system, _, _ := getSubprocessMetadata(t, "KUBERNETES_NAMESPACE=myapp")
+		assert.Equal(t, &model.Kubernetes{
+			Namespace: "myapp",
+		}, system.Kubernetes)
+	})
+
+	t.Run("pod-only", func(t *testing.T) {
+		system, _, _ := getSubprocessMetadata(t, "KUBERNETES_POD_NAME=luna", "KUBERNETES_POD_UID=oneone!11")
+		assert.Equal(t, &model.Kubernetes{
+			Pod: &model.KubernetesPod{
+				Name: "luna",
+				UID:  "oneone!11",
+			},
+		}, system.Kubernetes)
+	})
+
+	t.Run("node-only", func(t *testing.T) {
+		system, _, _ := getSubprocessMetadata(t, "KUBERNETES_NODE_NAME=noddy")
+		assert.Equal(t, &model.Kubernetes{
+			Node: &model.KubernetesNode{
+				Name: "noddy",
+			},
+		}, system.Kubernetes)
+	})
 }
 
 type blockedTransport struct {

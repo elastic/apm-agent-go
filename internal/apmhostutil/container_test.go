@@ -15,8 +15,8 @@ import (
 
 func TestContainerID(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		// Currently we only support ContainerID in Linux containers.
-		_, err := apmhostutil.ContainerID()
+		// Currently we only support Container in Linux containers.
+		_, err := apmhostutil.Container()
 		assert.Error(t, err)
 		return
 	}
@@ -35,13 +35,14 @@ func TestContainerID(t *testing.T) {
 		t.Skipf("not running inside docker")
 	}
 
-	id, err := apmhostutil.ContainerID()
+	container, err := apmhostutil.Container()
 	require.NoError(t, err)
-	assert.Len(t, id, 64)
+	require.NotNil(t, container)
+	assert.Len(t, container.ID, 64)
 
 	// Docker sets the container hostname to a prefix
 	// of the full container ID.
 	hostname, err := os.Hostname()
 	require.NoError(t, err)
-	assert.Equal(t, hostname, id[:len(hostname)])
+	assert.Equal(t, hostname, container.ID[:len(hostname)])
 }

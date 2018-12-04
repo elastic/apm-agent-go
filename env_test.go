@@ -186,40 +186,13 @@ func testTracerSanitizeFieldNamesEnv(t *testing.T, envValue, expect string) {
 }
 
 func TestTracerServiceNameEnvSanitizationSpecified(t *testing.T) {
-	testTracerServiceNameSanitization(
-		t, "foo_bar", "ELASTIC_APM_SERVICE_NAME=foo!bar",
-	)
+	_, _, service := getSubprocessMetadata(t, "ELASTIC_APM_SERVICE_NAME=foo!bar")
+	assert.Equal(t, "foo_bar", service.Name)
 }
 
 func TestTracerServiceNameEnvSanitizationExecutableName(t *testing.T) {
-	testTracerServiceNameSanitization(
-		t, "apm_test", // .test -> _test
-	)
-}
-
-func testTracerServiceNameSanitization(t *testing.T, sanitizedServiceName string, env ...string) {
-	if os.Getenv("_INSIDE_TEST") != "1" {
-		cmd := exec.Command(os.Args[0], "-test.run=^"+t.Name()+"$")
-		cmd.Env = append(os.Environ(), "_INSIDE_TEST=1")
-		cmd.Env = append(cmd.Env, env...)
-		output, err := cmd.CombinedOutput()
-		if !assert.NoError(t, err) {
-			t.Logf("output:\n%s", output)
-		}
-		return
-	}
-
-	var transport transporttest.RecorderTransport
-	tracer, _ := apm.NewTracer("", "")
-	tracer.Transport = &transport
-	defer tracer.Close()
-
-	tx := tracer.StartTransaction("name", "type")
-	tx.End()
-	tracer.Flush(nil)
-
-	_, _, service := transport.Metadata()
-	assert.Equal(t, sanitizedServiceName, service.Name)
+	_, _, service := getSubprocessMetadata(t)
+	assert.Equal(t, "apm_test", service.Name) // .test -> _test
 }
 
 func TestTracerCaptureBodyEnv(t *testing.T) {

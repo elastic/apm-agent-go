@@ -170,6 +170,18 @@ func (v *System) MarshalFastJSON(w *fastjson.Writer) error {
 		}
 		w.String(v.Hostname)
 	}
+	if v.Kubernetes != nil {
+		const prefix = ",\"kubernetes\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		if err := v.Kubernetes.MarshalFastJSON(w); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
 	if v.Platform != "" {
 		const prefix = ",\"platform\":"
 		if first {
@@ -215,6 +227,85 @@ func (v *Container) MarshalFastJSON(w *fastjson.Writer) error {
 	w.RawByte('{')
 	w.RawString("\"id\":")
 	w.String(v.ID)
+	w.RawByte('}')
+	return nil
+}
+
+func (v *Kubernetes) MarshalFastJSON(w *fastjson.Writer) error {
+	var firstErr error
+	w.RawByte('{')
+	first := true
+	if v.Namespace != "" {
+		const prefix = ",\"namespace\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.String(v.Namespace)
+	}
+	if v.Node != nil {
+		const prefix = ",\"node\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		if err := v.Node.MarshalFastJSON(w); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	if v.Pod != nil {
+		const prefix = ",\"pod\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		if err := v.Pod.MarshalFastJSON(w); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	w.RawByte('}')
+	return firstErr
+}
+
+func (v *KubernetesNode) MarshalFastJSON(w *fastjson.Writer) error {
+	w.RawByte('{')
+	if v.Name != "" {
+		w.RawString("\"name\":")
+		w.String(v.Name)
+	}
+	w.RawByte('}')
+	return nil
+}
+
+func (v *KubernetesPod) MarshalFastJSON(w *fastjson.Writer) error {
+	w.RawByte('{')
+	first := true
+	if v.Name != "" {
+		const prefix = ",\"name\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.String(v.Name)
+	}
+	if v.UID != "" {
+		const prefix = ",\"uid\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.String(v.UID)
+	}
 	w.RawByte('}')
 	return nil
 }
