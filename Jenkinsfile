@@ -36,6 +36,7 @@ pipeline {
           userRemoteConfigs: [
             [credentialsId: '2a9602aa-ab9f-4e52-baf3-b71ca88469c7-UserAndToken', 
             url: "${env?.GIT_URL}"]]])
+        error "Please do not continue"
       }
     }
     stage('Initializing'){
