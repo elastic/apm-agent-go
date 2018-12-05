@@ -24,7 +24,6 @@ pipeline {
   stages {
     stage('Initializing'){
       agent { label 'linux && immutable' }
-      options { skipDefaultCheckout() }
       environment {
         PATH = "${env.PATH}:${env.WORKSPACE}/bin"
         HOME = "${env.WORKSPACE}"
