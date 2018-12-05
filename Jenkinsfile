@@ -25,6 +25,7 @@ pipeline {
     stage('Dummy'){
       steps {
         checkout scm
+        echo currentBuild.changeSets
       }
     }
     stage('Initializing'){
