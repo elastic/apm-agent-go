@@ -17,7 +17,7 @@ import (
 )
 
 func init() {
-	apmsql.Register("sqlite3_badconn", &sqlite3BadConnDriver{})
+	apmsql.Register("sqlite3_test", &sqlite3TestDriver{})
 }
 
 func TestPingContext(t *testing.T) {
@@ -200,9 +200,14 @@ func TestCaptureErrors(t *testing.T) {
 }
 
 func TestBadConn(t *testing.T) {
-	db, err := apmsql.Open("sqlite3_badconn", ":memory:")
+	db, err := apmsql.Open("sqlite3_test", ":memory:")
 	require.NoError(t, err)
 	defer db.Close()
+
+	defer func() { testQueryContext = nil }()
+	testQueryContext = func(context.Context, *sqlite3.SQLiteConn, string, []driver.NamedValue) (driver.Rows, error) {
+		return nil, driver.ErrBadConn
+	}
 
 	db.Ping() // connect
 	_, spans, errors := apmtest.WithTransaction(func(ctx context.Context) {
@@ -222,24 +227,45 @@ func TestBadConn(t *testing.T) {
 	assert.Len(t, errors, 0) // no "bad connection" errors reported
 }
 
-type sqlite3BadConnDriver struct {
+func TestContextCanceled(t *testing.T) {
+	db, err := apmsql.Open("sqlite3_test", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+
+	defer func() { testQueryContext = nil }()
+	testQueryContext = func(ctx context.Context, conn *sqlite3.SQLiteConn, query string, args []driver.NamedValue) (driver.Rows, error) {
+		return nil, context.Canceled
+	}
+
+	db.Ping() // connect
+	_, _, errors := apmtest.WithTransaction(func(ctx context.Context) {
+		_, err := db.QueryContext(ctx, "SELECT * FROM foo")
+		require.Error(t, err)
+	})
+	assert.Len(t, errors, 0) // no "context canceled" errors reported
+}
+
+type sqlite3TestDriver struct {
 	sqlite3.SQLiteDriver
 }
 
-func (d *sqlite3BadConnDriver) Open(name string) (driver.Conn, error) {
+func (d *sqlite3TestDriver) Open(name string) (driver.Conn, error) {
 	conn, err := d.SQLiteDriver.Open(name)
 	if err != nil {
 		return conn, err
 	}
-	return &sqlite3BadConn{
-		SQLiteConn: conn.(*sqlite3.SQLiteConn),
-	}, nil
+	return sqlite3TestConn{conn.(*sqlite3.SQLiteConn)}, nil
 }
 
-type sqlite3BadConn struct {
+var testQueryContext func(context.Context, *sqlite3.SQLiteConn, string, []driver.NamedValue) (driver.Rows, error)
+
+type sqlite3TestConn struct {
 	*sqlite3.SQLiteConn
 }
 
-func (d *sqlite3BadConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+func (d sqlite3TestConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+	if testQueryContext != nil {
+		return testQueryContext(ctx, d.SQLiteConn, query, args)
+	}
 	return nil, driver.ErrBadConn
 }
