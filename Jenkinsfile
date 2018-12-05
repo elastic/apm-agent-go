@@ -25,7 +25,7 @@ pipeline {
     stage('Dummy'){
       steps {
         checkout scm
-        echo currentBuild.changeSets.toString()
+        echo currentBuild.changeSets.getLogs().toString()
       }
     }
     stage('Initializing'){
