@@ -1,7 +1,7 @@
 #!/usr/bin/env groovy
 
 pipeline {
-  agent any
+  agent { label 'master' }
   environment {
     BASE_DIR="src/go.elastic.co/apm"
   }
@@ -31,7 +31,8 @@ pipeline {
           extensions: [
             [$class: 'ChangelogToBranch', 
               options: [compareRemote: "${env?.GIT_URL}", 
-              compareTarget: "${env?.CHANGE_ID ? env?.CHANGE_TARGET : 'master'}"]]], 
+              compareTarget: "${env?.CHANGE_ID ? env?.CHANGE_TARGET : 'master'}"]],
+            [$class: 'DisableRemotePoll']], 
           submoduleCfg: [], 
           userRemoteConfigs: [
             [credentialsId: '2a9602aa-ab9f-4e52-baf3-b71ca88469c7-UserAndToken', 
