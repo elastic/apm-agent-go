@@ -24,8 +24,16 @@ pipeline {
   stages {
     stage('Dummy'){
       steps {
-        checkout scm
-        echo currentBuild.changeSets.getLogs().toString()
+        checkout([$class: 'GitSCM', 
+        branches: [[name: "${env?.CHANGE_ID ? env?.CHANGE_ID : env?.BRANCH_NAME}"]], 
+        doGenerateSubmoduleConfigurations: false, 
+        extensions: [[$class: 'CloneOption', 
+          noTags: false, 
+          reference: '/var/lib/jenkins/.git-references/apm-agent-go.git', 
+          shallow: false]], 
+        submoduleCfg: [], 
+        userRemoteConfigs: [[credentialsId: '2a9602aa-ab9f-4e52-baf3-b71ca88469c7-UserAndToken', 
+        url: 'https://github.com/elastic/apm-agent-go.git']]])
       }
     }
     stage('Initializing'){
