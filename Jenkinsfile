@@ -29,7 +29,7 @@ pipeline {
         PATH = "${env.PATH}:${env.WORKSPACE}/bin"
         HOME = "${env.WORKSPACE}"
         GOPATH = "${env.WORKSPACE}"
-        GO_VERSION = "${params.GO_VERSION ? params.GO_VERSION : '1.10.3'}"
+        GO_VERSION = "${params.GO_VERSION && params.GO_VERSION != "" ? params.GO_VERSION : '1.10.3'}"
       }
       stages {
         /**
