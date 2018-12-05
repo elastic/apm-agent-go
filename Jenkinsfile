@@ -26,15 +26,16 @@ pipeline {
       steps {
         sh 'export'
         checkout([$class: 'GitSCM', 
-        branches: [[name: "${env?.CHANGE_ID ? env?.GIT_COMMIT : env?.BRANCH_NAME}"]], 
-        doGenerateSubmoduleConfigurations: false, 
-        extensions: [[$class: 'CloneOption', 
-          noTags: false, 
-          reference: '/var/lib/jenkins/.git-references/apm-agent-go.git', 
-          shallow: false]], 
-        submoduleCfg: [], 
-        userRemoteConfigs: [[credentialsId: '2a9602aa-ab9f-4e52-baf3-b71ca88469c7-UserAndToken', 
-        url: 'https://github.com/elastic/apm-agent-go.git']]])
+          branches: [[name: "${env?.CHANGE_ID ? env?.GIT_COMMIT : env?.BRANCH_NAME}"]],
+          doGenerateSubmoduleConfigurations: false, 
+          extensions: [
+            [$class: 'ChangelogToBranch', 
+              options: [compareRemote: '"${GIT_URL}"', 
+              compareTarget: "${env?.CHANGE_ID ? env?.CHANGE_TARGET : 'master'}"]]], 
+          submoduleCfg: [], 
+          userRemoteConfigs: [
+            [credentialsId: '2a9602aa-ab9f-4e52-baf3-b71ca88469c7-UserAndToken', 
+            url: '"${GIT_URL}"']]])
       }
     }
     stage('Initializing'){
