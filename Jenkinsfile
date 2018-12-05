@@ -1,7 +1,7 @@
 #!/usr/bin/env groovy
 
 pipeline {
-  agent none
+  agent any
   environment {
     BASE_DIR="src/go.elastic.co/apm"
   }
@@ -12,7 +12,6 @@ pipeline {
     ansiColor('xterm')
     disableResume()
     durabilityHint('PERFORMANCE_OPTIMIZED')
-    quietPeriod(30)
   }
   parameters {
     string(name: 'GO_VERSION', defaultValue: "1.10.3", description: "Go version to use.")
@@ -23,6 +22,11 @@ pipeline {
     booleanParam(name: 'doc_ci', defaultValue: true, description: 'Enable build documentation')
   }
   stages {
+    stage('Dummy'){
+      steps {
+        checkout scm
+      }
+    }
     stage('Initializing'){
       agent { label 'linux && immutable' }
       options { skipDefaultCheckout() }
