@@ -24,7 +24,6 @@ pipeline {
   stages {
     stage('Dummy'){
       agent { label 'master' }
-      options { skipDefaultCheckout() }
       steps {
         sh 'export'
         checkout([$class: 'GitSCM', 
