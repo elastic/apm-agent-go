@@ -1,7 +1,7 @@
 #!/usr/bin/env groovy
 
 pipeline {
-  agent { label 'master' }
+  agent none
   environment {
     BASE_DIR="src/go.elastic.co/apm"
   }
@@ -12,6 +12,7 @@ pipeline {
     ansiColor('xterm')
     disableResume()
     durabilityHint('PERFORMANCE_OPTIMIZED')
+    skipDefaultCheckout()
   }
   parameters {
     string(name: 'GO_VERSION', defaultValue: "1.10.3", description: "Go version to use.")
