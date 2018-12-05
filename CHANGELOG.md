@@ -9,6 +9,7 @@
  - Added distributed trace context propagation to apmgrpc (#335)
  - Introduce `Span.Subtype`, `Span.Action` (#332)
  - apm.StartSpanOptions fixed to stop ignoring options (#326)
+ - Add Kubernetes pod info to metadata (#342)
  - module/apmsql: don't report driver.ErrBadConn (#346)
 
 ## [v1.0.0](https://github.com/elastic/apm-agent-go/releases/tag/v1.0.0)
