@@ -1,7 +1,7 @@
 #!/usr/bin/env groovy
 
 pipeline {
-  agent none
+  agent any
   environment {
     BASE_DIR="src/go.elastic.co/apm"
   }
