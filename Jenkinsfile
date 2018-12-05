@@ -30,12 +30,12 @@ pipeline {
           doGenerateSubmoduleConfigurations: false, 
           extensions: [
             [$class: 'ChangelogToBranch', 
-              options: [compareRemote: '"${GIT_URL}"', 
+              options: [compareRemote: "${env?.GIT_URL}", 
               compareTarget: "${env?.CHANGE_ID ? env?.CHANGE_TARGET : 'master'}"]]], 
           submoduleCfg: [], 
           userRemoteConfigs: [
             [credentialsId: '2a9602aa-ab9f-4e52-baf3-b71ca88469c7-UserAndToken', 
-            url: '"${GIT_URL}"']]])
+            url: "${env?.GIT_URL}"]]])
       }
     }
     stage('Initializing'){
