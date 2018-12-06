@@ -31,6 +31,7 @@ RUN go get -v github.com/prometheus/client_golang/prometheus
 RUN go get -v github.com/prometheus/client_model/go
 RUN go get -v github.com/rcrowley/go-metrics
 RUN go get -v github.com/santhosh-tekuri/jsonschema
+RUN go get -v github.com/sirupsen/logrus
 RUN go get -v github.com/stretchr/testify/assert
 RUN go get -v github.com/stretchr/testify/require
 RUN go get -v github.com/stretchr/testify/suite

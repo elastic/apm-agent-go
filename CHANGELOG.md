@@ -12,6 +12,7 @@
  - Add Kubernetes pod info to metadata (#342)
  - module/apmsql: don't report driver.ErrBadConn, context.Canceled (#346, #348)
  - Added ErrorLogRecord.Error field, for associating an error value with a log record (#380)
+ - module/apmlogrus: introduce logrus exception-tracking hook, and log correlation (#381)
 
 ## [v1.0.0](https://github.com/elastic/apm-agent-go/releases/tag/v1.0.0)
 
