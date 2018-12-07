@@ -111,6 +111,34 @@ func TestCaptureErrorNoTransaction(t *testing.T) {
 	e.Send()
 }
 
+func TestErrorLogRecord(t *testing.T) {
+	tracer, recorder := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	error_ := tracer.NewErrorLog(apm.ErrorLogRecord{
+		Message: "log-message",
+		Error:   makeError("error-message"),
+	})
+	error_.SetStacktrace(1)
+	error_.Send()
+	tracer.Flush(nil)
+
+	payloads := recorder.Payloads()
+	require.Len(t, payloads.Errors, 1)
+	err0 := payloads.Errors[0]
+	assert.Equal(t, "log-message", err0.Log.Message)
+	assert.Equal(t, "error-message", err0.Exception.Message)
+	require.NotEmpty(t, err0.Log.Stacktrace)
+	require.NotEmpty(t, err0.Exception.Stacktrace)
+	assert.Equal(t, err0.Log.Stacktrace[0].Function, "TestErrorLogRecord")
+	assert.Equal(t, err0.Exception.Stacktrace[0].Function, "makeError")
+	assert.Equal(t, "makeError", err0.Culprit) // based on exception stacktrace
+}
+
+func makeError(msg string) error {
+	return errors.New(msg)
+}
+
 func sendError(t *testing.T, err error, f ...func(*apm.Error)) model.Error {
 	tracer, r := transporttest.NewRecorderTracer()
 	defer tracer.Close()
