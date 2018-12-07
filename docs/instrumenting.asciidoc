@@ -423,6 +423,36 @@ func main() {
 }
 ----
 
+[[builtin-modules-apmlogrus]]
+===== module/apmlogrus
+Package apmlogrus provides a https://github.com/sirupsen/logrus[logrus] Hook
+implementation for sending error messages to Elastic APM, as well as a function
+for adding trace ID fields to errors.
+
+[source,go]
+----
+import (
+	"github.com/sirupsen/logrus"
+
+	"go.elastic.co/apm/module/apmlogrus"
+)
+
+func init() {
+	// apmlogrus.Hook will send "error", "panic", and "fatal" level log messages to Elastic APM.
+	logrus.AddHook(&apmlogrus.Hook{})
+}
+
+func handleRequest(w http.ResponseWriter, req *http.Request) {
+	// apmlogrus.TraceContext extracts the transaction and span (if any) from the given context,
+	// and returns logrus.Fields containing the trace, transaction, and span IDs.
+	traceContextFields := apmlogrus.TraceContext(req.Context())
+	logrus.WithFields(traceContextFields).Debug("handling request")
+
+	// Output:
+	// {"level":"debug","msg":"beep","span.id":"0e134f39535a75c0","time":"1970-01-01T00:00:00Z","trace.id":"67829ae467e896fb2b87ec2de50f6c0e","transaction.id":"67829ae467e896fb"}
+}
+----
+
 [[custom-instrumentation]]
 ==== Custom instrumentation
 

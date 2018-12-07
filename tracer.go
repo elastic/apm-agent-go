@@ -481,6 +481,7 @@ func (t *Tracer) loop() {
 	ctx, cancelContext := context.WithCancel(context.Background())
 	defer cancelContext()
 	defer close(t.closed)
+	defer func() { t.active = false }()
 
 	var req iochan.ReadRequest
 	var requestBuf bytes.Buffer
