@@ -46,7 +46,15 @@ func (id TraceID) isZero() bool {
 
 // String returns id encoded as hex.
 func (id TraceID) String() string {
-	return hex.EncodeToString(id[:])
+	text, _ := id.MarshalText()
+	return string(text)
+}
+
+// MarshalText returns id encoded as hex, satisfying encoding.TextMarshaler.
+func (id TraceID) MarshalText() ([]byte, error) {
+	text := make([]byte, hex.EncodedLen(len(id)))
+	hex.Encode(text, id[:])
+	return text, nil
 }
 
 // SpanID identifies a span within a trace.
@@ -67,7 +75,15 @@ func (id SpanID) isZero() bool {
 
 // String returns id encoded as hex.
 func (id SpanID) String() string {
-	return hex.EncodeToString(id[:])
+	text, _ := id.MarshalText()
+	return string(text)
+}
+
+// MarshalText returns id encoded as hex, satisfying encoding.TextMarshaler.
+func (id SpanID) MarshalText() ([]byte, error) {
+	text := make([]byte, hex.EncodedLen(len(id)))
+	hex.Encode(text, id[:])
+	return text, nil
 }
 
 // TraceOptions describes the options for a trace.

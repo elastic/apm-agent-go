@@ -165,3 +165,17 @@ and <<builtin-modules-apmhttp, module/apmhttp>> respectively.
 
 Code examples are available at https://godoc.org/go.elastic.co/apm/module/apmgokit
 for getting started.
+
+[float]
+[[supported-tech-logging]]
+=== Logging frameworks
+
+[float]
+==== Logrus
+
+We support log correlation and exception tracking with
+https://github.com/sirupsen/logrus/[Logrus],
+https://github.com/sirupsen/logrus/releases/tag/v1.1.0[v1.1.0] and greater.
+
+See <<builtin-modules-apmlogrus, module/apmlogrus>> for more information
+about Logrus integration.

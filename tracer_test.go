@@ -119,15 +119,17 @@ func TestTracerErrorFlushes(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer wg.Done()
+		var last int
 		for {
 			select {
 			case <-time.After(10 * time.Millisecond):
 				p := recorder.Payloads()
-				if len(p.Errors)+len(p.Transactions) > 0 {
+				if n := len(p.Errors) + len(p.Transactions); n > last {
+					last = n
 					payloads <- p
-					return
 				}
 			case <-done:
+				return
 			}
 		}
 	}()
@@ -145,16 +147,21 @@ func TestTracerErrorFlushes(t *testing.T) {
 
 	// Sending an error flushes the request body.
 	tracer.NewError(errors.New("zing")).Send()
-	select {
-	case <-time.After(2 * time.Second):
-		t.Fatalf("timed out waiting for request")
-	case p := <-payloads:
-		assert.Len(t, p.Errors, 1)
+	deadline := time.After(2 * time.Second)
+	for {
+		var p transporttest.Payloads
+		select {
+		case <-deadline:
+			t.Fatalf("timed out waiting for request")
+		case p = <-payloads:
+		}
+		if len(p.Errors) != 0 {
+			assert.Len(t, p.Errors, 1)
+			break
+		}
+		// The transport may not have decoded
+		// the error yet, continue waiting.
 	}
-
-	// TODO(axw) tracer.Close should wait for the current request
-	// to complete, at least for a short amount of time.
-	tracer.Flush(nil)
 }
 
 func TestTracerRecovered(t *testing.T) {
@@ -351,7 +358,6 @@ func TestTracerBodyUnread(t *testing.T) {
 	for atomic.LoadInt64(&requests) <= 1 {
 		tracer.StartTransaction("name", "type").End()
 	}
-	tracer.Flush(nil)
 }
 
 func TestTracerMetadata(t *testing.T) {

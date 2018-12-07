@@ -412,10 +412,15 @@ type ErrorLogRecord struct {
 	//
 	// This is optional.
 	LoggerName string
+
+	// Error is an error associated with the log record.
+	//
+	// This is optional.
+	Error error
 }
 ----
 
-The resulting Error's stacktrace will not be set. Call the SetStacktrace method to set it, if desired.
+The resulting Error's log stacktrace will not be set. Call the SetStacktrace method to set it, if desired.
 
 [source,go]
 ----

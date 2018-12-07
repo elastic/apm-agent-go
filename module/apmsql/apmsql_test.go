@@ -3,8 +3,10 @@ package apmsql_test
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"testing"
 
+	sqlite3 "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -13,6 +15,10 @@ import (
 	"go.elastic.co/apm/module/apmsql"
 	_ "go.elastic.co/apm/module/apmsql/sqlite3"
 )
+
+func init() {
+	apmsql.Register("sqlite3_test", &sqlite3TestDriver{})
+}
 
 func TestPingContext(t *testing.T) {
 	db, err := apmsql.Open("sqlite3", ":memory:")
@@ -56,12 +62,13 @@ func TestQueryContext(t *testing.T) {
 	_, err = db.Exec("CREATE TABLE foo (bar INT)")
 	require.NoError(t, err)
 
-	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+	_, spans, errors := apmtest.WithTransaction(func(ctx context.Context) {
 		rows, err := db.QueryContext(ctx, "SELECT * FROM foo")
 		require.NoError(t, err)
 		rows.Close()
 	})
 	require.Len(t, spans, 1)
+	assert.Empty(t, errors)
 
 	assert.NotNil(t, spans[0].ID)
 	assert.Equal(t, "SELECT FROM foo", spans[0].Name)
@@ -190,4 +197,75 @@ func TestCaptureErrors(t *testing.T) {
 	assert.Equal(t, "sqlite3", spans[0].Subtype)
 	assert.Equal(t, "query", spans[0].Action)
 	assert.Equal(t, "no such table: thin_air", errors[0].Exception.Message)
+}
+
+func TestBadConn(t *testing.T) {
+	db, err := apmsql.Open("sqlite3_test", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+
+	defer func() { testQueryContext = nil }()
+	testQueryContext = func(context.Context, *sqlite3.SQLiteConn, string, []driver.NamedValue) (driver.Rows, error) {
+		return nil, driver.ErrBadConn
+	}
+
+	db.Ping() // connect
+	_, spans, errors := apmtest.WithTransaction(func(ctx context.Context) {
+		_, err := db.QueryContext(ctx, "SELECT * FROM foo")
+		require.Error(t, err)
+	})
+
+	var attempts int
+	for _, span := range spans {
+		if span.Name == "SELECT FROM foo" {
+			attempts++
+		}
+	}
+	// Two attempts with cached-or-new, followed
+	// by one attempt with a new connection.
+	assert.Condition(t, func() bool { return attempts == 3 })
+	assert.Len(t, errors, 0) // no "bad connection" errors reported
+}
+
+func TestContextCanceled(t *testing.T) {
+	db, err := apmsql.Open("sqlite3_test", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+
+	defer func() { testQueryContext = nil }()
+	testQueryContext = func(ctx context.Context, conn *sqlite3.SQLiteConn, query string, args []driver.NamedValue) (driver.Rows, error) {
+		return nil, context.Canceled
+	}
+
+	db.Ping() // connect
+	_, _, errors := apmtest.WithTransaction(func(ctx context.Context) {
+		_, err := db.QueryContext(ctx, "SELECT * FROM foo")
+		require.Error(t, err)
+	})
+	assert.Len(t, errors, 0) // no "context canceled" errors reported
+}
+
+type sqlite3TestDriver struct {
+	sqlite3.SQLiteDriver
+}
+
+func (d *sqlite3TestDriver) Open(name string) (driver.Conn, error) {
+	conn, err := d.SQLiteDriver.Open(name)
+	if err != nil {
+		return conn, err
+	}
+	return sqlite3TestConn{conn.(*sqlite3.SQLiteConn)}, nil
+}
+
+var testQueryContext func(context.Context, *sqlite3.SQLiteConn, string, []driver.NamedValue) (driver.Rows, error)
+
+type sqlite3TestConn struct {
+	*sqlite3.SQLiteConn
+}
+
+func (d sqlite3TestConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+	if testQueryContext != nil {
+		return testQueryContext(ctx, d.SQLiteConn, query, args)
+	}
+	return nil, driver.ErrBadConn
 }

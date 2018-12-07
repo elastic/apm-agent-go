@@ -139,15 +139,9 @@ func (w *modelWriter) buildModelError(out *model.Error, e *ErrorData) {
 	if len(e.stacktrace) != 0 {
 		w.modelStacktrace = appendModelStacktraceFrames(w.modelStacktrace, e.stacktrace)
 		w.setStacktraceContext(w.modelStacktrace)
-		out.Log.Stacktrace = w.modelStacktrace
-		out.Exception.Stacktrace = w.modelStacktrace
-		if out.Culprit == "" {
-			out.Culprit = stacktraceCulprit(w.modelStacktrace)
-		}
 	}
 
-	switch e.kind {
-	case errorKindException:
+	if e.exception.message != "" {
 		out.Exception = model.Exception{
 			Message: e.exception.message,
 			Code: model.ExceptionCode{
@@ -157,18 +151,25 @@ func (w *modelWriter) buildModelError(out *model.Error, e *ErrorData) {
 			Type:       e.exception.typeName,
 			Module:     e.exception.typePackagePath,
 			Handled:    e.Handled,
-			Stacktrace: w.modelStacktrace,
+			Stacktrace: w.modelStacktrace[:e.exceptionStacktraceFrames],
 		}
 		if len(e.exception.attrs) != 0 {
 			out.Exception.Attributes = e.exception.attrs
 		}
-	case errorKindLog:
+		if out.Culprit == "" {
+			out.Culprit = stacktraceCulprit(out.Exception.Stacktrace)
+		}
+	}
+	if e.log.Message != "" {
 		out.Log = model.Log{
 			Message:      e.log.Message,
 			Level:        e.log.Level,
 			LoggerName:   e.log.LoggerName,
 			ParamMessage: e.log.MessageFormat,
-			Stacktrace:   w.modelStacktrace,
+			Stacktrace:   w.modelStacktrace[e.exceptionStacktraceFrames:],
+		}
+		if out.Culprit == "" {
+			out.Culprit = stacktraceCulprit(out.Log.Stacktrace)
 		}
 	}
 }
