@@ -14,13 +14,6 @@ import (
 	"go.elastic.co/apm/stacktrace"
 )
 
-type errorKind int
-
-const (
-	errorKindException errorKind = iota
-	errorKindLog
-)
-
 // Recovered creates an Error with t.NewError(err), where
 // err is either v (if v implements error), or otherwise
 // fmt.Errorf("%v", v). The value v is expected to have
@@ -69,13 +62,14 @@ func (t *Tracer) NewError(err error) *Error {
 	if err == nil {
 		panic("NewError must be called with a non-nil error")
 	}
-	e := t.newError(errorKindException)
+	e := t.newError()
 	rand.Read(e.ID[:]) // ignore error, can't do anything about it
 	initException(&e.exception, err)
 	initStacktrace(e, err)
 	if len(e.stacktrace) == 0 {
 		e.SetStacktrace(2)
 	}
+	e.exceptionStacktraceFrames = len(e.stacktrace)
 	return e
 }
 
@@ -86,7 +80,7 @@ func (t *Tracer) NewError(err error) *Error {
 //
 // If r.Message is empty, "[EMPTY]" will be used.
 func (t *Tracer) NewErrorLog(r ErrorLogRecord) *Error {
-	e := t.newError(errorKindLog)
+	e := t.newError()
 	e.log = ErrorLogRecord{
 		Message:       truncateString(r.Message),
 		MessageFormat: truncateString(r.MessageFormat),
@@ -96,11 +90,17 @@ func (t *Tracer) NewErrorLog(r ErrorLogRecord) *Error {
 	if e.log.Message == "" {
 		e.log.Message = "[EMPTY]"
 	}
+	rand.Read(e.ID[:]) // ignore error, can't do anything about it
+	if r.Error != nil {
+		initException(&e.exception, r.Error)
+		initStacktrace(e, r.Error)
+		e.exceptionStacktraceFrames = len(e.stacktrace)
+	}
 	return e
 }
 
 // newError returns a new Error associated with the Tracer.
-func (t *Tracer) newError(kind errorKind) *Error {
+func (t *Tracer) newError() *Error {
 	e, _ := t.errorDataPool.Get().(*ErrorData)
 	if e == nil {
 		e = &ErrorData{
@@ -110,7 +110,6 @@ func (t *Tracer) newError(kind errorKind) *Error {
 			},
 		}
 	}
-	e.kind = kind
 	e.Timestamp = time.Now()
 	return &Error{ErrorData: e}
 }
@@ -127,9 +126,13 @@ type Error struct {
 type ErrorData struct {
 	tracer     *Tracer
 	stacktrace []stacktrace.Frame
-	kind       errorKind
 	exception  exceptionData
 	log        ErrorLogRecord
+
+	// exceptionStacktraceFrames holds the number of stacktrace
+	// frames for the exception; stacktrace may hold frames for
+	// both the exception and the log record.
+	exceptionStacktraceFrames int
 
 	// ID is the unique identifier of the error. This is set by
 	// the various error constructors, and is exposed only so
@@ -165,8 +168,7 @@ type ErrorData struct {
 	Timestamp time.Time
 
 	// Handled records whether or not the error was handled. This
-	// only applies to "exception" errors (errors created with
-	// NewError, or Recovered), and is ignored by "log" errors.
+	// is ignored by "log" errors with no associated error value.
 	Handled bool
 
 	// Context holds the context for this error.
@@ -366,7 +368,13 @@ func initStacktrace(e *Error, err error) {
 // skipping the first skip number of frames, excluding
 // the SetStacktrace function.
 func (e *Error) SetStacktrace(skip int) {
-	e.stacktrace = stacktrace.AppendStacktrace(e.stacktrace[:0], skip+1, -1)
+	retain := e.stacktrace[:0]
+	if e.log.Message != "" {
+		// This is a log error; the exception stacktrace
+		// is unaffected by SetStacktrace in this case.
+		retain = e.stacktrace[:e.exceptionStacktraceFrames]
+	}
+	e.stacktrace = stacktrace.AppendStacktrace(retain, skip+1, -1)
 }
 
 func errTemporary(err error) bool {
@@ -408,6 +416,11 @@ type ErrorLogRecord struct {
 	//
 	// This is optional.
 	LoggerName string
+
+	// Error is an error associated with the log record.
+	//
+	// This is optional.
+	Error error
 }
 
 // ErrorID uniquely identifies an error.
