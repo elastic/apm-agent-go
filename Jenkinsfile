@@ -29,6 +29,7 @@ pipeline {
         PATH = "${env.PATH}:${env.WORKSPACE}/bin"
         HOME = "${env.WORKSPACE}"
         GOPATH = "${env.WORKSPACE}"
+        GO_VERSION = "${params.GO_VERSION}"
       }
       stages {
         /**
@@ -68,10 +69,11 @@ pipeline {
             PATH = "${env.PATH}:${env.WORKSPACE}/bin"
             HOME = "${env.WORKSPACE}"
             GOPATH = "${env.WORKSPACE}"
+            GO_VERSION = "${params.GO_VERSION}"
           }
           when {
             beforeAgent true
-            environment name: 'test_ci', value: 'true'
+            expression { return params.test_ci }
           }
           steps {
             withEnvWrapper() {
@@ -99,6 +101,7 @@ pipeline {
             PATH = "${env.PATH}:${env.WORKSPACE}/bin"
             HOME = "${env.WORKSPACE}"
             GOPATH = "${env.WORKSPACE}"
+            GO_VERSION = "${params.GO_VERSION}"
           }
           when {
             beforeAgent true
@@ -111,9 +114,9 @@ pipeline {
                 branch "\\d+\\.\\d+"
                 branch "v\\d?"
                 tag "v\\d+\\.\\d+\\.\\d+*"
-                environment name: 'Run_As_Master_Branch', value: 'true'
+                expression { return params.Run_As_Master_Branch }
               }
-              environment name: 'bench_ci', value: 'true'
+              expression { return params.bench_ci }
             }
           }
           steps {
@@ -143,10 +146,11 @@ pipeline {
             PATH = "${env.PATH}:${env.WORKSPACE}/bin"
             HOME = "${env.WORKSPACE}"
             GOPATH = "${env.WORKSPACE}"
+            GO_VERSION = "${params.GO_VERSION}"
           }
           when {
             beforeAgent true
-            environment name: 'docker_test_ci', value: 'true'
+            expression { return params.docker_test_ci }
           }
           steps {
             withEnvWrapper() {
@@ -191,9 +195,9 @@ pipeline {
             branch "\\d+\\.\\d+"
             branch "v\\d?"
             tag "v\\d+\\.\\d+\\.\\d+*"
-            environment name: 'Run_As_Master_Branch', value: 'true'
+            expression { return params.Run_As_Master_Branch }
           }
-          environment name: 'doc_ci', value: 'true'
+          expression { return params.doc_ci }
         }
       }
       steps {
