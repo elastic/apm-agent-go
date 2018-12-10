@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"os/exec"
 	"runtime"
 	"strings"
 	"testing"
@@ -196,38 +195,28 @@ func TestTracerServiceNameEnvSanitizationExecutableName(t *testing.T) {
 }
 
 func TestTracerCaptureBodyEnv(t *testing.T) {
-	test := func(t *testing.T, envValue string) {
-		testTracerCaptureBodyEnv(t, envValue, true)
-	}
-	t.Run("all", func(t *testing.T) { test(t, "all") })
-	t.Run("transactions", func(t *testing.T) { test(t, "transactions") })
+	t.Run("all", func(t *testing.T) { testTracerCaptureBodyEnv(t, "all", true) })
+	t.Run("transactions", func(t *testing.T) { testTracerCaptureBodyEnv(t, "transactions", true) })
 }
 
 func TestTracerCaptureBodyEnvOff(t *testing.T) {
-	test := func(t *testing.T, envValue string) {
-		testTracerCaptureBodyEnv(t, envValue, false)
-	}
-	t.Run("unset", func(t *testing.T) { test(t, "") })
-	t.Run("off", func(t *testing.T) { test(t, "off") })
-	t.Run("invalid", func(t *testing.T) { test(t, "invalid") })
+	t.Run("unset", func(t *testing.T) { testTracerCaptureBodyEnv(t, "", false) })
+	t.Run("off", func(t *testing.T) { testTracerCaptureBodyEnv(t, "off", false) })
+}
+
+func TestTracerCaptureBodyEnvInvalid(t *testing.T) {
+	os.Setenv("ELASTIC_APM_CAPTURE_BODY", "invalid")
+	defer os.Unsetenv("ELASTIC_APM_CAPTURE_BODY")
+	_, err := apm.NewTracer("", "")
+	assert.EqualError(t, err, `invalid ELASTIC_APM_CAPTURE_BODY value "invalid"`)
 }
 
 func testTracerCaptureBodyEnv(t *testing.T, envValue string, expectBody bool) {
-	if os.Getenv("_INSIDE_TEST") != "1" {
-		cmd := exec.Command(os.Args[0], "-test.run=^"+t.Name()+"$")
-		cmd.Env = append(os.Environ(), "_INSIDE_TEST=1")
-		cmd.Env = append(cmd.Env, "ELASTIC_APM_CAPTURE_BODY="+envValue)
-		if expectBody {
-			cmd.Env = append(cmd.Env, "_EXPECT_BODY=1")
-		}
-		err := cmd.Run()
-		assert.NoError(t, err)
-		return
-	}
+	os.Setenv("ELASTIC_APM_CAPTURE_BODY", envValue)
+	defer os.Unsetenv("ELASTIC_APM_CAPTURE_BODY")
 
-	var transport transporttest.RecorderTransport
-	tracer := apm.DefaultTracer
-	tracer.Transport = &transport
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
 
 	req, _ := http.NewRequest("GET", "/", strings.NewReader("foo_bar"))
 	body := tracer.CaptureHTTPRequestBody(req)
@@ -238,8 +227,8 @@ func testTracerCaptureBodyEnv(t *testing.T, envValue string, expectBody bool) {
 	tracer.Flush(nil)
 
 	out := transport.Payloads().Transactions[0]
-	if os.Getenv("_EXPECT_BODY") == "1" {
-		assert.NotNil(t, out.Context.Request.Body)
+	if expectBody {
+		require.NotNil(t, out.Context.Request.Body)
 		assert.Equal(t, "foo_bar", out.Context.Request.Body.Raw)
 	} else {
 		assert.Nil(t, out.Context.Request.Body)
