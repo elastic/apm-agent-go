@@ -11,7 +11,6 @@ import (
 
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/module/apmbeego"
-	"go.elastic.co/apm/module/apmhttp"
 	"go.elastic.co/apm/transport/transporttest"
 )
 
@@ -22,7 +21,7 @@ func TestMiddleware(t *testing.T) {
 
 	tracer, transport := transporttest.NewRecorderTracer()
 	server := httptest.NewServer(
-		apmbeego.Middleware(apmhttp.WithTracer(tracer))(handlers),
+		apmbeego.Middleware(apmbeego.WithTracer(tracer))(handlers),
 	)
 	defer server.Close()
 
@@ -46,7 +45,7 @@ func TestMiddlewareControllerPanic(t *testing.T) {
 
 	tracer, transport := transporttest.NewRecorderTracer()
 	server := httptest.NewServer(
-		apmbeego.Middleware(apmhttp.WithTracer(tracer))(handlers),
+		apmbeego.Middleware(apmbeego.WithTracer(tracer))(handlers),
 	)
 	defer server.Close()
 
