@@ -23,21 +23,24 @@ func init() {
 }
 
 // Middleware returns a beego.MiddleWare that traces requests and reports panics to Elastic APM.
-func Middleware(opts ...apmhttp.ServerOption) func(http.Handler) http.Handler {
+func Middleware(o ...Option) func(http.Handler) http.Handler {
+	opts := options{
+		tracer: apm.DefaultTracer,
+	}
+	for _, o := range o {
+		o(&opts)
+	}
 	return func(h http.Handler) http.Handler {
 		return apmhttp.Wrap(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			tx := apm.TransactionFromContext(req.Context())
 			if tx != nil {
 				state := &beegoFilterState{}
-				defer func() {
-					setTransactionContext(tx, state.context)
-				}()
-				req = apmhttp.RequestWithContext(
-					context.WithValue(req.Context(), beegoFilterStateKey{}, state), req,
-				)
+				defer setTransactionContext(tx, state)
+				ctx := context.WithValue(req.Context(), beegoFilterStateKey{}, state)
+				req = apmhttp.RequestWithContext(ctx, req)
 			}
 			h.ServeHTTP(w, req)
-		}), opts...)
+		}), apmhttp.WithTracer(opts.tracer))
 	}
 }
 
@@ -70,11 +73,28 @@ func beforeStatic(context *beegocontext.Context) {
 	}
 }
 
-func setTransactionContext(tx *apm.Transaction, context *beegocontext.Context) {
+func setTransactionContext(tx *apm.Transaction, state *beegoFilterState) {
 	tx.Context.SetFramework("beego", beego.VERSION)
-	if context != nil {
-		if route, ok := context.Input.GetData("RouterPattern").(string); ok {
-			tx.Name = context.Request.Method + " " + route
+	if state.context != nil {
+		if route, ok := state.context.Input.GetData("RouterPattern").(string); ok {
+			tx.Name = state.context.Request.Method + " " + route
 		}
+	}
+}
+
+type options struct {
+	tracer *apm.Tracer
+}
+
+// Option sets options for tracing.
+type Option func(*options)
+
+// WithTracer returns an Option which sets t as the tracer to use for tracing server requests.
+func WithTracer(t *apm.Tracer) Option {
+	if t == nil {
+		panic("t == nil")
+	}
+	return func(o *options) {
+		o.tracer = t
 	}
 }
