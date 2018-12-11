@@ -87,6 +87,37 @@ func main() {
 
 The apmgin middleware will recover panics and send them to Elastic APM, so you do not need to install the gin.Recovery middleware.
 
+[[builtin-modules-apmbeego]]
+===== module/apmbeego
+Package apmbeego provides middleware for the https://beego.me/[Beego] web framework.
+
+For each request, a transaction is stored in the request context, which can be obtained via
+https://godoc.org/github.com/astaxie/beego/context#Context[beego/context.Context]`.Request.Context()`
+in your controller.
+
+[source,go]
+----
+import (
+	"github.com/astaxie/beego"
+
+	"go.elastic.co/apm/module/apmbeego"
+)
+
+type thingController struct{beego.Controller}
+
+func (c *thingController) Get() {
+	span, _ := apm.StartSpan(c.Ctx.Request.Context(), "thingController.Get", "controller")
+	span.End()
+	...
+}
+
+func main() {
+	beego.Router("/", &testController{})
+	beego.Router("/thing/:id:int", &testController{}, "get:Get")
+	beego.RunWithMiddleWares("localhost:8080", apmbeego.Middleware())
+}
+----
+
 [[builtin-modules-apmgorilla]]
 ===== module/apmgorilla
 Package apmgorilla provides middleware for the http://www.gorillatoolkit.org/pkg/mux[Gorilla Mux] router.

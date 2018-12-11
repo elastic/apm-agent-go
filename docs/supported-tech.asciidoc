@@ -60,6 +60,15 @@ See <<builtin-modules-apmgin, module/apmgin>> for more information
 about Gin instrumentation.
 
 [float]
+==== Beego
+
+We support the https://beego.me/[Beego] web framework,
+https://github.com/astaxie/beego/releases/tag/v1.10.0[v1.10.0] and greater.
+
+See <<builtin-modules-apmbeego, module/apmbeego>> for more information
+about Beego instrumentation.
+
+[float]
 ==== gorilla/mux
 
 We support http://www.gorillatoolkit.org/pkg/mux[gorilla/mux]
