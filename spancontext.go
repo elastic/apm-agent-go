@@ -80,3 +80,9 @@ func (c *SpanContext) SetHTTPRequest(req *http.Request) {
 	c.http.URL = req.URL
 	c.model.HTTP = &c.http
 }
+
+// SetHTTPStatusCode records the HTTP response status code.
+func (c *SpanContext) SetHTTPStatusCode(statusCode int) {
+	c.http.StatusCode = statusCode
+	c.model.HTTP = &c.http
+}
