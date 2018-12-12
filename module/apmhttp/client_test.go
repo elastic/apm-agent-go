@@ -59,7 +59,8 @@ func TestClient(t *testing.T) {
 	assert.Equal(t, &model.SpanContext{
 		HTTP: &model.HTTPSpanContext{
 			// Note no user info included in server.URL.
-			URL: serverURL,
+			URL:        serverURL,
+			StatusCode: statusCode,
 		},
 	}, span.Context)
 

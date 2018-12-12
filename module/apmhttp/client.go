@@ -81,11 +81,11 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	name := r.requestName(req)
 	span := tx.StartSpan(name, "external.http", apm.SpanFromContext(ctx))
-	span.Context.SetHTTPRequest(req)
 	if !span.Dropped() {
 		traceContext = span.TraceContext()
 		ctx = apm.ContextWithSpan(ctx, span)
 		req = RequestWithContext(ctx, req)
+		span.Context.SetHTTPRequest(req)
 	} else {
 		span.End()
 		span = nil
@@ -97,6 +97,7 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 		if err != nil {
 			span.End()
 		} else {
+			span.Context.SetHTTPStatusCode(resp.StatusCode)
 			resp.Body = &responseBody{span: span, body: resp.Body}
 		}
 	}
