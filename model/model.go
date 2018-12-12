@@ -270,6 +270,9 @@ type DatabaseSpanContext struct {
 type HTTPSpanContext struct {
 	// URL is the request URL.
 	URL *url.URL
+
+	// StatusCode holds the HTTP response status code.
+	StatusCode int `json:"status_code,omitempty"`
 }
 
 // Context holds contextual information relating to a transaction or error.

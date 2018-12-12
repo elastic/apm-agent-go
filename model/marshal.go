@@ -35,7 +35,8 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 // UnmarshalJSON unmarshals the JSON data into v.
 func (v *HTTPSpanContext) UnmarshalJSON(data []byte) error {
 	var httpSpanContext struct {
-		URL string
+		URL        string
+		StatusCode int `json:"status_code"`
 	}
 	if err := json.Unmarshal(data, &httpSpanContext); err != nil {
 		return err
@@ -45,6 +46,7 @@ func (v *HTTPSpanContext) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	v.URL = u
+	v.StatusCode = httpSpanContext.StatusCode
 	return nil
 }
 
@@ -57,6 +59,10 @@ func (v *HTTPSpanContext) MarshalFastJSON(w *fastjson.Writer) error {
 		w.RawByte('"')
 	} else {
 		w.Rewind(beforeURL)
+	}
+	if v.StatusCode > 0 {
+		w.RawString(`,"status_code":`)
+		w.Int64(int64(v.StatusCode))
 	}
 	w.RawByte('}')
 	return nil
