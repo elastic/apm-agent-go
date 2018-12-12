@@ -14,6 +14,7 @@
  - Added ErrorLogRecord.Error field, for associating an error value with a log record (#380)
  - module/apmlogrus: introduce logrus exception-tracking hook, and log correlation (#381)
  - module/apmbeego: introduce Beego instrumentation module (#386)
+ - module/apmhttp: report status code for client spans (#388)
 
 ## [v1.0.0](https://github.com/elastic/apm-agent-go/releases/tag/v1.0.0)
 
