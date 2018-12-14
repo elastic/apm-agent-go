@@ -97,11 +97,11 @@ func calculateCPUUsage(current, last cpuMetrics) (systemUsage, processUsage floa
 		return 0, 0
 	}
 
-	idlePercent := 100 * float64(idleDelta) / float64(systemTotalDelta)
-	systemUsage = 100 - idlePercent
+	idlePercent := float64(idleDelta) / float64(systemTotalDelta)
+	systemUsage = 1 - idlePercent
 
 	processTotalDelta := current.process.Total() - last.process.Total()
-	processUsage = 100 * float64(processTotalDelta) / float64(systemTotalDelta)
+	processUsage = float64(processTotalDelta) / float64(systemTotalDelta)
 
 	return systemUsage, processUsage
 }

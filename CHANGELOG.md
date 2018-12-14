@@ -1,6 +1,10 @@
 # Changelog
 
-## [Unreleased](https://github.com/elastic/apm-agent-go/compare/v1.1.0...master)
+## [Unreleased](https://github.com/elastic/apm-agent-go/compare/v1.1.1...master)
+
+## [v1.1.1](https://github.com/elastic/apm-agent-go/releases/tag/v1.1.1)
+
+ - CPU% metrics are now correctly in the range [0,1]
 
 ## [v1.1.0](https://github.com/elastic/apm-agent-go/releases/tag/v1.1.0)
 

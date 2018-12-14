@@ -46,6 +46,14 @@ func TestTracerMetricsBuiltin(t *testing.T) {
 		}, "value: %v", gcPct.Value)
 	}
 
+	// CPU% should be in the range [0,1], not [0,100].
+	cpuTotalNormPct := builtinMetrics.Samples["system.cpu.total.norm.pct"]
+	if assert.NotNil(t, gcPct.Value) {
+		assert.Condition(t, func() bool {
+			return cpuTotalNormPct.Value >= 0 && cpuTotalNormPct.Value <= 1
+		}, "value: %v", cpuTotalNormPct.Value)
+	}
+
 	expected := []string{
 		"golang.goroutines",
 		"golang.heap.allocations.mallocs",
