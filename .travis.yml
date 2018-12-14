@@ -15,8 +15,11 @@ matrix:
     - go: "1.x"
 
 before_install:
-  - go get -v golang.org/x/tools/cmd/goimports
-  - if (go run scripts/mingoversion.go 1.10 &>/dev/null); then go get -v golang.org/x/lint/golint; fi
+  - |
+      if (go run scripts/mingoversion.go 1.10 &>/dev/null); then
+        go get -v golang.org/x/lint/golint;
+        go get -v golang.org/x/tools/cmd/goimports;
+      fi
 
 script:
   - make install check
