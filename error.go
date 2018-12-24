@@ -204,7 +204,7 @@ func (e *Error) Cause() error {
 }
 
 // Error returns string message for error.
-// if Error is nil or Error.Cause() returns nil, "[EMPTY]" will be used.
+// if Error or Error.cause is nil, "[EMPTY]" will be used.
 func (e *Error) Error() string {
 	if e != nil && e.cause != nil {
 		return e.cause.Error()
