@@ -64,13 +64,15 @@ func StartSpanOptions(ctx context.Context, name, spanType string, opts SpanOptio
 // set either from err, or from the caller.
 //
 // If there is no span or transaction in the context, CaptureError returns
-// nil. As a convenience, if the provided error is nil, then CaptureError
-// will also return nil.
+// Error with nil ErrorData field. As a convenience, if the provided error is nil,
+// then CaptureError will also return nil.
 func CaptureError(ctx context.Context, err error) *Error {
 	if err == nil {
 		return nil
 	}
-	var e *Error
+	var e = &Error{
+		cause: err,
+	}
 	if span := SpanFromContext(ctx); span != nil {
 		span.mu.RLock()
 		if !span.ended() {
@@ -86,7 +88,7 @@ func CaptureError(ctx context.Context, err error) *Error {
 		}
 		tx.mu.RUnlock()
 	}
-	if e != nil {
+	if e.ErrorData != nil {
 		e.Handled = true
 	}
 	return e

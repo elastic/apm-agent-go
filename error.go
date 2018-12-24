@@ -194,16 +194,19 @@ func (e *Error) SetTransaction(tx *Transaction) {
 	tx.mu.RUnlock()
 }
 
-// Cause returns original error assigned to Error
+// Cause returns original error assigned to Error, nil if Error or Error.cause is nil.
 // https://godoc.org/github.com/pkg/errors#Cause
 func (e *Error) Cause() error {
-	return e.cause
+	if e != nil {
+		return e.cause
+	}
+	return nil
 }
 
 // Error returns string message for error.
-// if Error.Cause() returns nil, "[EMPTY]" will be used
+// if Error is nil or Error.Cause() returns nil, "[EMPTY]" will be used.
 func (e *Error) Error() string {
-	if e.cause != nil {
+	if e != nil && e.cause != nil {
 		return e.cause.Error()
 	}
 
