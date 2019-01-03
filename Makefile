@@ -4,7 +4,7 @@ GO_LICENSER_EXCLUDE=\
   stacktrace/testdata
 
 .PHONY: check
-check: precheck test
+check: precheck check-modules test
 
 .PHONY: precheck
 precheck: check-goimports check-lint check-vet check-dockerfile-testing check-licenses
@@ -12,7 +12,8 @@ precheck: check-goimports check-lint check-vet check-dockerfile-testing check-li
 .PHONY: check-goimports
 .PHONY: check-dockerfile-testing
 .PHONY: check-lint
-ifeq ($(shell go run ./scripts/mingoversion.go -print 1.10),true)
+.PHONY: check-modules
+ifeq ($(shell go run ./scripts/mingoversion.go -print 1.11),true)
 check-goimports:
 	sh scripts/check_goimports.sh
 
@@ -20,20 +21,24 @@ check-dockerfile-testing:
 	go run ./scripts/gendockerfile.go -d
 
 check-lint:
-	go list ./... | grep -v vendor | xargs golint -set_exit_status
+	sh scripts/check_lint.sh
 
 check-licenses:
 	go-licenser -d $(patsubst %,-exclude %,$(GO_LICENSER_EXCLUDE)) .
+
+check-modules:
+	go run scripts/genmod/main.go -check .
 else
 check-goimports:
 check-dockerfile-testing:
 check-lint:
 check-licenses:
+check-modules:
 endif
 
 .PHONY: check-vet
 check-vet:
-	go vet ./...
+	@for dir in $(shell scripts/moduledirs.sh); do (cd $$dir && go vet ./...); done
 
 .PHONY: install
 install:
@@ -45,7 +50,7 @@ docker-test:
 
 .PHONY: test
 test:
-	go test -v -timeout=$(TEST_TIMEOUT) ./...
+	@for dir in $(shell scripts/moduledirs.sh); do (cd $$dir && go test -v -timeout=$(TEST_TIMEOUT) ./...); done
 
 .PHONY: coverage
 coverage:
