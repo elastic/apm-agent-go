@@ -19,8 +19,6 @@ package apmredigo_test
 
 import (
 	"context"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"testing"
 
@@ -29,9 +27,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"go.elastic.co/apm/apmtest"
-	"go.elastic.co/apm/module/apmhttp"
 	"go.elastic.co/apm/module/apmredigo"
-	"go.elastic.co/apm/transport/transporttest"
 )
 
 func TestRequestContext(t *testing.T) {
@@ -46,43 +42,27 @@ func TestRequestContext(t *testing.T) {
 	}
 	defer pool.Close()
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
-		// When getting a redis.Conn from a pool, bind it to the
-		// request context. This will ensure spans are reported.
-		conn := apmredigo.Wrap(pool.Get()).WithContext(req.Context())
-		defer conn.Close()
+	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+		for i := 0; i < 2; i++ {
+			conn := apmredigo.Wrap(pool.Get()).WithContext(ctx)
+			defer conn.Close()
 
-		value, err := redis.Bytes(conn.Do("GET", "content"))
-		if err == nil {
-			w.Write(append([]byte("(cached) "), value...))
-			return
-		}
+			value, err := redis.Bytes(conn.Do("GET", "content"))
+			if err == nil {
+				return
+			}
 
-		value = []byte("Lorem ipsum dolor sit amet")
-		if _, err := conn.Do("SET", "content", value); err != nil {
-			require.NoError(t, err)
+			value = []byte("Lorem ipsum dolor sit amet")
+			if _, err := conn.Do("SET", "content", value); err != nil {
+				require.NoError(t, err)
+			}
 		}
-		w.Write(value)
 	})
+	require.Len(t, spans, 3)
 
-	tracer, recorder := transporttest.NewRecorderTracer()
-	defer tracer.Close()
-	handler := apmhttp.Wrap(mux, apmhttp.WithTracer(tracer))
-	for i := 0; i < 2; i++ {
-		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("GET", "http://server.testing/", nil)
-		handler.ServeHTTP(w, req)
-	}
-	tracer.Flush(nil)
-
-	payloads := recorder.Payloads()
-	assert.Len(t, payloads.Transactions, 2)
-	assert.Len(t, payloads.Spans, 3)
-
-	assert.Equal(t, "GET", payloads.Spans[0].Name)
-	assert.Equal(t, "SET", payloads.Spans[1].Name)
-	assert.Equal(t, "GET", payloads.Spans[2].Name)
+	assert.Equal(t, "GET", spans[0].Name)
+	assert.Equal(t, "SET", spans[1].Name)
+	assert.Equal(t, "GET", spans[2].Name)
 }
 
 func TestPipelineSendReceive(t *testing.T) {

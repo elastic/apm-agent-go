@@ -34,7 +34,6 @@ import (
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/model"
-	"go.elastic.co/apm/module/apmhttp"
 	"go.elastic.co/apm/transport"
 	"go.elastic.co/apm/transport/transporttest"
 )
@@ -178,17 +177,13 @@ func testTracerSanitizeFieldNamesEnv(t *testing.T, envValue, expect string) {
 	os.Setenv("ELASTIC_APM_SANITIZE_FIELD_NAMES", envValue)
 	defer os.Unsetenv("ELASTIC_APM_SANITIZE_FIELD_NAMES")
 
-	tracer, transport := transporttest.NewRecorderTracer()
-	defer tracer.Close()
-
-	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "http://server.testing/", nil)
 	req.AddCookie(&http.Cookie{Name: "secret", Value: "top"})
-	h := apmhttp.Wrap(http.NotFoundHandler(), apmhttp.WithTracer(tracer))
-	h.ServeHTTP(w, req)
-	tracer.Flush(nil)
 
-	tx := transport.Payloads().Transactions[0]
+	tx, _, _ := apmtest.WithTransaction(func(ctx context.Context) {
+		tx := apm.TransactionFromContext(ctx)
+		tx.Context.SetHTTPRequest(req)
+	})
 	assert.Equal(t, tx.Context.Request.Cookies, model.Cookies{
 		{Name: "secret", Value: expect},
 	})
