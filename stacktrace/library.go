@@ -22,7 +22,7 @@ package stacktrace
 import (
 	"strings"
 
-	"github.com/armon/go-radix"
+	radix "github.com/armon/go-radix"
 )
 
 var libraryPackages = newLibraryPackagesRadixTree(
