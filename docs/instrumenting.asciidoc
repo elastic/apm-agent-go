@@ -222,7 +222,7 @@ func serverHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
-	http.ListenAndServe(":8080", apmhttp.Wrap(serverHandler))
+	http.ListenAndServe(":8080", apmhttp.Wrap(http.HandlerFunc(serverHandler)))
 }
 ----
 
