@@ -1,5 +1,7 @@
 TEST_TIMEOUT?=5m
-GO_LICENSER_EXCLUDE=$(shell find . -type d -name testdata | sed 's/^\.\///')
+GO_LICENSER_EXCLUDE=\
+  module/apmot/internal/harness \
+  stacktrace/testdata
 
 .PHONY: check
 check: precheck test
@@ -56,6 +58,10 @@ fmt:
 .PHONY: clean
 clean:
 	rm -fr docs/html
+
+.PHONY: update-modules
+update-modules:
+	go run scripts/genmod/main.go .
 
 .PHONY: docs
 docs:
