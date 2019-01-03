@@ -45,7 +45,7 @@ information about httprouter instrumentation.
 ==== Echo
 
 We support the https://echo.labstack.com/[Echo] web framework,
-https://github.com/labstack/echo/releases/tag/3.3.2[v3.2.2] and greater.
+https://github.com/labstack/echo/releases/tag/3.3.5[v3.3.5] and greater.
 
 See <<builtin-modules-apmecho, module/apmecho>> for more information
 about Echo instrumentation.
