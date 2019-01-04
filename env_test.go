@@ -270,7 +270,7 @@ func TestTracerSpanFramesMinDurationEnvInvalid(t *testing.T) {
 	assert.EqualError(t, err, "failed to parse ELASTIC_APM_SPAN_FRAMES_MIN_DURATION: invalid duration aeon")
 }
 
-func TestTracerActive(t *testing.T) {
+func TestTracerActiveEnv(t *testing.T) {
 	os.Setenv("ELASTIC_APM_ACTIVE", "false")
 	defer os.Unsetenv("ELASTIC_APM_ACTIVE")
 
@@ -285,7 +285,7 @@ func TestTracerActive(t *testing.T) {
 	assert.Zero(t, transport.Payloads())
 }
 
-func TestTracerActiveInvalid(t *testing.T) {
+func TestTracerActiveEnvInvalid(t *testing.T) {
 	os.Setenv("ELASTIC_APM_ACTIVE", "yep")
 	defer os.Unsetenv("ELASTIC_APM_ACTIVE")
 

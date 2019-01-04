@@ -411,6 +411,21 @@ func TestTracerKubernetesMetadata(t *testing.T) {
 	})
 }
 
+func TestTracerActive(t *testing.T) {
+	tracer, _ := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+	assert.True(t, tracer.Active())
+
+	// Kick off calls to tracer.Active concurrently
+	// with the tracer.Close, to test that we ensure
+	// there are no data races.
+	go func() {
+		for i := 0; i < 100; i++ {
+			tracer.Active()
+		}
+	}()
+}
+
 type blockedTransport struct {
 	transport.Transport
 	unblocked chan struct{}
