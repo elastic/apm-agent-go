@@ -78,14 +78,6 @@ func TestTracerMetricsBuiltin(t *testing.T) {
 		"system.process.cpu.total.norm.pct",
 		"system.process.memory.size",
 		"system.process.memory.rss.bytes",
-
-		"agent.send_errors",
-		"agent.spans.sent",
-		"agent.spans.dropped",
-		"agent.transactions.sent",
-		"agent.transactions.dropped",
-		"agent.errors.sent",
-		"agent.errors.dropped",
 	}
 	sort.Strings(expected)
 	for name := range builtinMetrics.Samples {
