@@ -9,9 +9,9 @@ import (
 )
 
 // builtinMetricsGatherer is an MetricsGatherer which gathers builtin metrics:
-//   - memstats (allocations, usage, GC, etc.)
 //   - goroutines
-//   - tracer stats (number of transactions/errors sent, dropped, etc.)
+//   - memstats (allocations, usage, GC, etc.)
+//   - system and process CPU and memory usage
 type builtinMetricsGatherer struct {
 	tracer         *Tracer
 	lastSysMetrics sysMetrics
@@ -30,7 +30,6 @@ func (g *builtinMetricsGatherer) GatherMetrics(ctx context.Context, m *Metrics) 
 	m.Add("golang.goroutines", nil, float64(runtime.NumGoroutine()))
 	g.gatherSystemMetrics(m)
 	g.gatherMemStatsMetrics(m)
-	g.gatherTracerStatsMetrics(m)
 	return nil
 }
 
@@ -75,19 +74,6 @@ func (g *builtinMetricsGatherer) gatherMemStatsMetrics(m *Metrics) {
 	addUint64("golang.heap.gc.total_count", uint64(mem.NumGC))
 	addUint64("golang.heap.gc.total_pause.ns", mem.PauseTotalNs)
 	add("golang.heap.gc.cpu_fraction", mem.GCCPUFraction)
-}
-
-func (g *builtinMetricsGatherer) gatherTracerStatsMetrics(m *Metrics) {
-	stats := g.tracer.Stats()
-
-	const p = "agent"
-	m.Add(p+".send_errors", nil, float64(stats.Errors.SendStream))
-	m.Add(p+".spans.sent", nil, float64(stats.SpansSent))
-	m.Add(p+".spans.dropped", nil, float64(stats.SpansDropped))
-	m.Add(p+".transactions.sent", nil, float64(stats.TransactionsSent))
-	m.Add(p+".transactions.dropped", nil, float64(stats.TransactionsDropped))
-	m.Add(p+".errors.sent", nil, float64(stats.ErrorsSent))
-	m.Add(p+".errors.dropped", nil, float64(stats.ErrorsDropped))
 }
 
 func calculateCPUUsage(current, last cpuMetrics) (systemUsage, processUsage float64) {

@@ -2,6 +2,8 @@
 
 ## [Unreleased](https://github.com/elastic/apm-agent-go/compare/v1.1.2...master)
 
+ - Remove the `agent.*` metrics (#407)
+
 ## [v1.1.2](https://github.com/elastic/apm-agent-go/releases/tag/v1.1.2)
 
  - Fix data race between Tracer.Active and Tracer.loop (#406)
