@@ -54,7 +54,7 @@ test:
 
 .PHONY: coverage
 coverage:
-	@sh scripts/test_coverage.sh
+	@bash scripts/test_coverage.sh
 
 .PHONY: fmt
 fmt:
