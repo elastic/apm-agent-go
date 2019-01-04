@@ -672,6 +672,12 @@ func (v *Error) MarshalFastJSON(w *fastjson.Writer) error {
 			firstErr = err
 		}
 	}
+	if !v.Transaction.isZero() {
+		w.RawString(",\"transaction\":")
+		if err := v.Transaction.MarshalFastJSON(w); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
 	if !v.TransactionID.isZero() {
 		w.RawString(",\"transaction_id\":")
 		if err := v.TransactionID.MarshalFastJSON(w); err != nil && firstErr == nil {
@@ -680,6 +686,16 @@ func (v *Error) MarshalFastJSON(w *fastjson.Writer) error {
 	}
 	w.RawByte('}')
 	return firstErr
+}
+
+func (v *ErrorTransaction) MarshalFastJSON(w *fastjson.Writer) error {
+	w.RawByte('{')
+	if v.Sampled != nil {
+		w.RawString("\"sampled\":")
+		w.Bool(*v.Sampled)
+	}
+	w.RawByte('}')
+	return nil
 }
 
 func (v *Exception) MarshalFastJSON(w *fastjson.Writer) error {
