@@ -1,10 +1,11 @@
 TEST_TIMEOUT?=5m
+GO_LICENSER_EXCLUDE=$(shell find . -type d -name testdata | sed 's/^\.\///')
 
 .PHONY: check
 check: precheck test
 
 .PHONY: precheck
-precheck: check-goimports check-lint check-vet check-dockerfile-testing
+precheck: check-goimports check-lint check-vet check-dockerfile-testing check-licenses
 
 .PHONY: check-goimports
 .PHONY: check-dockerfile-testing
@@ -18,10 +19,14 @@ check-dockerfile-testing:
 
 check-lint:
 	go list ./... | grep -v vendor | xargs golint -set_exit_status
+
+check-licenses:
+	go-licenser -d $(patsubst %,-exclude %,$(GO_LICENSER_EXCLUDE)) .
 else
 check-goimports:
 check-dockerfile-testing:
 check-lint:
+check-licenses:
 endif
 
 .PHONY: check-vet
@@ -60,3 +65,6 @@ else
 	@echo "\nELASTIC_DOCS is not defined.\n"
 	@exit 1
 endif
+
+update-licenses:
+	go-licenser $(patsubst %, -exclude %, $(GO_LICENSER_EXCLUDE)) .

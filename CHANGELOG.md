@@ -3,6 +3,7 @@
 ## [Unreleased](https://github.com/elastic/apm-agent-go/compare/v1.1.3...master)
 
  - Add "transaction.sampled" to errors (#410)
+ - Enforce license header in source files with go-licenser (#411)
 
 ## [v1.1.3](https://github.com/elastic/apm-agent-go/releases/tag/v1.1.3)
 
