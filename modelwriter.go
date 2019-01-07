@@ -135,6 +135,10 @@ func (w *modelWriter) buildModelError(out *model.Error, e *ErrorData) {
 	out.Context = e.Context.build()
 	out.Culprit = e.Culprit
 
+	if !e.TransactionID.isZero() {
+		out.Transaction.Sampled = &e.transactionSampled
+	}
+
 	w.modelStacktrace = w.modelStacktrace[:0]
 	if len(e.stacktrace) != 0 {
 		w.modelStacktrace = appendModelStacktraceFrames(w.modelStacktrace, e.stacktrace)

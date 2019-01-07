@@ -133,10 +133,11 @@ type Error struct {
 // ErrorData holds the details for an error, and is embedded inside Error.
 // When the error is sent, its ErrorData field will be set to nil.
 type ErrorData struct {
-	tracer     *Tracer
-	stacktrace []stacktrace.Frame
-	exception  exceptionData
-	log        ErrorLogRecord
+	tracer             *Tracer
+	stacktrace         []stacktrace.Frame
+	exception          exceptionData
+	log                ErrorLogRecord
+	transactionSampled bool
 
 	// exceptionStacktraceFrames holds the number of stacktrace
 	// frames for the exception; stacktrace may hold frames for
@@ -199,6 +200,7 @@ func (e *Error) setTransactionData(td *TransactionData) {
 	e.TraceID = td.traceContext.Trace
 	e.ParentID = td.traceContext.Span
 	e.TransactionID = e.ParentID
+	e.transactionSampled = td.traceContext.Options.Recorded()
 }
 
 // SetSpan sets TraceID, TransactionID, and ParentID to the span's IDs. If you call
@@ -217,6 +219,7 @@ func (e *Error) setSpanData(s *SpanData) {
 	e.TraceID = s.traceContext.Trace
 	e.ParentID = s.traceContext.Span
 	e.TransactionID = s.transactionID
+	e.transactionSampled = true // by virtue of there being a span
 }
 
 // Send enqueues the error for sending to the Elastic APM server.
