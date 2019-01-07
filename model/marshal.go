@@ -556,6 +556,10 @@ func (id *SpanID) MarshalFastJSON(w *fastjson.Writer) error {
 	return nil
 }
 
+func (t *ErrorTransaction) isZero() bool {
+	return *t == ErrorTransaction{}
+}
+
 func writeHex(w *fastjson.Writer, v []byte) {
 	const hextable = "0123456789abcdef"
 	for _, v := range v {

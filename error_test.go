@@ -136,6 +136,48 @@ func TestErrorLogRecord(t *testing.T) {
 	assert.Equal(t, "makeError", err0.Culprit) // based on exception stacktrace
 }
 
+func TestErrorTransactionSampled(t *testing.T) {
+	_, _, errors := apmtest.WithTransaction(func(ctx context.Context) {
+		apm.CaptureError(ctx, errors.New("boom")).Send()
+
+		span, ctx := apm.StartSpan(ctx, "name", "type")
+		defer span.End()
+		apm.CaptureError(ctx, errors.New("boom")).Send()
+	})
+	assertErrorTransactionSampled(t, errors[0], true)
+	assertErrorTransactionSampled(t, errors[1], true)
+}
+
+func TestErrorTransactionNotSampled(t *testing.T) {
+	tracer, recorder := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+	tracer.SetSampler(apm.NewRatioSampler(0))
+
+	tx := tracer.StartTransaction("name", "type")
+	ctx := apm.ContextWithTransaction(context.Background(), tx)
+	apm.CaptureError(ctx, errors.New("boom")).Send()
+
+	tracer.Flush(nil)
+	payloads := recorder.Payloads()
+	require.Len(t, payloads.Errors, 1)
+	assertErrorTransactionSampled(t, payloads.Errors[0], false)
+}
+
+func TestErrorTransactionSampledNoTransaction(t *testing.T) {
+	tracer, recorder := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	tracer.NewError(errors.New("boom")).Send()
+	tracer.Flush(nil)
+	payloads := recorder.Payloads()
+	require.Len(t, payloads.Errors, 1)
+	assert.Nil(t, payloads.Errors[0].Transaction.Sampled)
+}
+
+func assertErrorTransactionSampled(t *testing.T, e model.Error, sampled bool) {
+	assert.Equal(t, &sampled, e.Transaction.Sampled)
+}
+
 func makeError(msg string) error {
 	return errors.New(msg)
 }

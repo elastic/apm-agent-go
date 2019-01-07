@@ -182,6 +182,18 @@ func TestMarshalError(t *testing.T) {
 	)
 }
 
+func TestMarshalErrorTransactionUnsampled(t *testing.T) {
+	var e model.Error
+	time, err := time.Parse("2006-01-02T15:04:05.999Z", "1970-01-01T00:02:03Z")
+	assert.NoError(t, err)
+	e.Timestamp = model.Time(time)
+	e.Transaction.Sampled = new(bool)
+
+	var w fastjson.Writer
+	e.MarshalFastJSON(&w)
+	assert.Equal(t, `{"id":"00000000000000000000000000000000","timestamp":123000000,"transaction":{"sampled":false}}`, string(w.Bytes()))
+}
+
 func TestMarshalCookies(t *testing.T) {
 	cookies := model.Cookies{
 		{Name: "foo", Value: "!"}, // eclipsed

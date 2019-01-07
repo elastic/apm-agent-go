@@ -340,6 +340,15 @@ type Error struct {
 
 	// Log holds additional information added when logging the error.
 	Log Log `json:"log,omitempty"`
+
+	// Transaction holds information about the transaction within which the error occurred.
+	Transaction ErrorTransaction `json:"transaction,omitempty"`
+}
+
+// ErrorTransaction holds information about the transaction within which an error occurred.
+type ErrorTransaction struct {
+	// Sampled indicates that the transaction was sampled.
+	Sampled *bool `json:"sampled,omitempty"`
 }
 
 // Exception represents an exception: an error or panic.
