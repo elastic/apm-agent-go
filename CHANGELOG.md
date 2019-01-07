@@ -1,8 +1,11 @@
 # Changelog
 
-## [Unreleased](https://github.com/elastic/apm-agent-go/compare/v1.1.2...master)
+## [Unreleased](https://github.com/elastic/apm-agent-go/compare/v1.1.3...master)
+
+## [v1.1.3](https://github.com/elastic/apm-agent-go/releases/tag/v1.1.3)
 
  - Remove the `agent.*` metrics (#407)
+ - Add support for new github.com/pkg/errors.Frame type (#409)
 
 ## [v1.1.2](https://github.com/elastic/apm-agent-go/releases/tag/v1.1.2)
 
