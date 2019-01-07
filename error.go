@@ -6,12 +6,21 @@ import (
 	"net"
 	"os"
 	"reflect"
+	"runtime"
 	"syscall"
 	"time"
+	"unsafe"
 
 	"github.com/pkg/errors"
 
 	"go.elastic.co/apm/stacktrace"
+)
+
+var (
+	uintptrType             = reflect.TypeOf(uintptr(0))
+	runtimeFrameType        = reflect.TypeOf(runtime.Frame{})
+	errorsStackTraceUintptr = uintptrType.ConvertibleTo(reflect.TypeOf(*new(errors.Frame)))
+	errorsStackTraceFrame   = reflect.TypeOf(*new(errors.Frame)).ConvertibleTo(runtimeFrameType)
 )
 
 // Recovered creates an Error with t.NewError(err), where
@@ -355,12 +364,26 @@ func initStacktrace(e *Error, err error) {
 	case internalStackTracer:
 		e.stacktrace = append(e.stacktrace[:0], stackTracer.StackTrace()...)
 	case errorsStackTracer:
+		// github.com/pkg/errors 0.8.x and earlier represent
+		// stack frames as uintptr; 0.9.0 and later represent
+		// them as runtime.Frames.
+		//
+		// TODO(axw) drop support for older github.com/pkg/errors
+		// versions when we release go.elastic.co/apm v2.0.0.
 		stackTrace := stackTracer.StackTrace()
-		pc := make([]uintptr, len(stackTrace))
-		for i, frame := range stackTrace {
-			pc[i] = uintptr(frame)
+		if errorsStackTraceUintptr {
+			pc := make([]uintptr, len(stackTrace))
+			for i, frame := range stackTrace {
+				pc[i] = *(*uintptr)(unsafe.Pointer(&frame))
+			}
+			e.stacktrace = stacktrace.AppendCallerFrames(e.stacktrace[:0], pc, -1)
+		} else if errorsStackTraceFrame {
+			e.stacktrace = e.stacktrace[:0]
+			for _, frame := range stackTrace {
+				rf := (*runtime.Frame)(unsafe.Pointer(&frame))
+				e.stacktrace = append(e.stacktrace, stacktrace.RuntimeFrame(*rf))
+			}
 		}
-		e.stacktrace = stacktrace.AppendCallerFrames(e.stacktrace[:0], pc, -1)
 	}
 }
 

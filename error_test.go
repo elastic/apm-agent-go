@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"testing"
 
@@ -171,9 +172,33 @@ func (e *errorsStackTracer) StackTrace() errors.StackTrace {
 func newErrorsStackTrace(skip, n int) errors.StackTrace {
 	callers := make([]uintptr, 2)
 	callers = callers[:runtime.Callers(1, callers)]
-	frames := make([]errors.Frame, len(callers))
-	for i, pc := range callers {
-		frames[i] = errors.Frame(pc)
+
+	var (
+		uintptrType      = reflect.TypeOf(uintptr(0))
+		errorsFrameType  = reflect.TypeOf(*new(errors.Frame))
+		runtimeFrameType = reflect.TypeOf(runtime.Frame{})
+	)
+
+	var frames []errors.Frame
+	switch {
+	case errorsFrameType.ConvertibleTo(uintptrType):
+		frames = make([]errors.Frame, len(callers))
+		for i, pc := range callers {
+			reflect.ValueOf(&frames[i]).Elem().Set(reflect.ValueOf(pc).Convert(errorsFrameType))
+		}
+	case errorsFrameType.ConvertibleTo(runtimeFrameType):
+		fs := runtime.CallersFrames(callers)
+		for {
+			var frame errors.Frame
+			runtimeFrame, more := fs.Next()
+			reflect.ValueOf(&frame).Elem().Set(reflect.ValueOf(runtimeFrame).Convert(errorsFrameType))
+			frames = append(frames, frame)
+			if !more {
+				break
+			}
+		}
+	default:
+		panic(fmt.Errorf("unhandled errors.Frame type %s", errorsFrameType))
 	}
 	return errors.StackTrace(frames)
 }
