@@ -22,8 +22,10 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
+	"time"
 
 	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/log"
 
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/module/apmhttp"
@@ -32,7 +34,6 @@ import (
 // otSpan wraps apm objects to implement the opentracing.Span interface.
 type otSpan struct {
 	tracer *otTracer
-	unsupportedSpanMethods
 
 	mu   sync.Mutex
 	span *apm.Span
@@ -88,6 +89,13 @@ func (s *otSpan) FinishWithOptions(opts opentracing.FinishOptions) {
 		}
 	}
 	if s.span != nil {
+		for _, record := range opts.LogRecords {
+			timestamp := record.Timestamp
+			if timestamp.IsZero() {
+				timestamp = opts.FinishTime
+			}
+			logFields(s.tracer.tracer, nil, s.span, timestamp, record.Fields)
+		}
 		s.setSpanContext()
 		s.span.End()
 	} else {
@@ -96,6 +104,13 @@ func (s *otSpan) FinishWithOptions(opts opentracing.FinishOptions) {
 		tx := s.ctx.tx
 		s.ctx.tx = nil
 		s.ctx.mu.Unlock()
+		for _, record := range opts.LogRecords {
+			timestamp := record.Timestamp
+			if timestamp.IsZero() {
+				timestamp = opts.FinishTime
+			}
+			logFields(s.tracer.tracer, tx, nil, timestamp, record.Fields)
+		}
 		tx.End()
 	}
 }
@@ -259,4 +274,31 @@ func (s *otSpan) setTransactionContext() {
 			s.ctx.tx.Context.SetHTTPRequest(&req)
 		}
 	}
+}
+
+// LogKV is part of the opentracing.Span interface.
+// We send error events to Elastic APM.
+func (s *otSpan) LogKV(keyValues ...interface{}) {
+	logKV(s.tracer.tracer, s.ctx.tx, s.span, time.Time{}, keyValues)
+}
+
+// LogFields is part of the opentracing.Span interface.
+// We send error events to Elastic APM.
+func (s *otSpan) LogFields(fields ...log.Field) {
+	logFields(s.tracer.tracer, s.ctx.tx, s.span, time.Time{}, fields)
+}
+
+// LogEvent is deprecated, and is a no-op.
+func (s *otSpan) LogEvent(event string) {
+	// Deprecated, no-op.
+}
+
+// LogEventWithPayload is deprecated, and is a no-op.
+func (s *otSpan) LogEventWithPayload(event string, payload interface{}) {
+	// Deprecated, no-op.
+}
+
+// Log is deprecated, and is a no-op.
+func (s *otSpan) Log(ld opentracing.LogData) {
+	// Deprecated, no-op.
 }

@@ -19,11 +19,14 @@ package apmot_test
 
 import (
 	"context"
+	"errors"
 	"net/url"
 	"testing"
+	"time"
 
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
+	"github.com/opentracing/opentracing-go/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -272,6 +275,81 @@ func TestStartSpanFromContextMixed(t *testing.T) {
 	assert.Equal(t, payloads.Spans[3].ID, payloads.Spans[2].ParentID)
 	assert.Equal(t, payloads.Spans[2].ID, payloads.Spans[1].ParentID)
 	assert.Equal(t, payloads.Spans[1].ID, payloads.Spans[0].ParentID)
+}
+
+func TestSpanLogError(t *testing.T) {
+	tracer, apmtracer, recorder := newTestTracer()
+	defer apmtracer.Close()
+
+	span := tracer.StartSpan("parent")
+	span.LogKV("event", "error", "message", "foo")
+	span.LogKV("event", "error", "message", "bar", "error.object", errors.New("boom"))
+	span.LogKV("event", "warning") // non-error, ignored
+	span.LogKV(1, "two")           // non-string keys ignored
+	span.LogKV()                   // no fields, no-op
+
+	childSpan := tracer.StartSpan("child", opentracing.ChildOf(span.Context()))
+	childSpan.LogFields(log.String("event", "error"), log.Error(errors.New("baz")))
+	childSpan.LogFields(log.String("event", "warning"), log.String("message", "meh")) // non-error, ignored
+	childSpan.LogFields()                                                             // no fields, ignored
+	childSpan.Finish()
+	span.Finish()
+
+	apmtracer.Flush(nil)
+	payloads := recorder.Payloads()
+	require.Len(t, payloads.Transactions, 1)
+	require.Len(t, payloads.Spans, 1)
+	require.Len(t, payloads.Errors, 3)
+	errors := payloads.Errors
+
+	assert.Equal(t, "foo", errors[0].Log.Message)
+	assert.Equal(t, "bar", errors[1].Log.Message)
+	assert.Equal(t, "baz", errors[2].Log.Message)
+
+	assert.Zero(t, errors[0].Exception)
+	assert.Equal(t, "boom", errors[1].Exception.Message)
+	assert.Equal(t, "baz", errors[2].Exception.Message)
+	assert.Equal(t, "errorString", errors[2].Exception.Type)
+
+	assert.Equal(t, payloads.Transactions[0].ID, errors[0].ParentID)
+	assert.Equal(t, payloads.Transactions[0].ID, errors[1].ParentID)
+	assert.Equal(t, payloads.Spans[0].ID, errors[2].ParentID)
+}
+
+func TestSpanFinishWithOptionsLogs(t *testing.T) {
+	tracer, apmtracer, recorder := newTestTracer()
+	defer apmtracer.Close()
+
+	err0Time := time.Unix(42, 0).UTC()
+	spanStart := time.Unix(60, 0).UTC()
+	spanFinish := time.Unix(66, 0).UTC()
+
+	span := tracer.StartSpan("span", opentracing.StartTime(spanStart))
+	span.FinishWithOptions(opentracing.FinishOptions{
+		FinishTime: spanFinish,
+		LogRecords: []opentracing.LogRecord{{
+			// The docs for FinishOptions.LogRecords state that
+			// Timestamp must be set explicitly, and must be
+			// >= span start and <= span finish, or else the
+			// behaviour is undefined. Our behaviour is this:
+			// we do not check the timestamp bounds, and if it
+			// is unset we set it to the span finish time.
+			Timestamp: err0Time,
+			Fields:    []log.Field{log.String("event", "error"), log.Error(errors.New("boom"))},
+		}, {
+			Fields: []log.Field{log.String("event", "error"), log.String("message", "C5H8NO4Na")},
+		}},
+	})
+
+	apmtracer.Flush(nil)
+	payloads := recorder.Payloads()
+	require.Len(t, payloads.Errors, 2)
+	errors := payloads.Errors
+
+	assert.Equal(t, "boom", errors[0].Log.Message)
+	assert.Equal(t, model.Time(err0Time), errors[0].Timestamp)
+	assert.Equal(t, "C5H8NO4Na", errors[1].Log.Message)
+	assert.Equal(t, model.Time(spanFinish), errors[1].Timestamp)
 }
 
 func newTestTracer() (opentracing.Tracer, *apm.Tracer, *transporttest.RecorderTransport) {

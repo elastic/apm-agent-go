@@ -82,7 +82,7 @@ The `opentracing.SpanFromContext` function will return an `opentracing.Span`
 that wraps either an `apm.Span` or `apm.Transaction`. These span objects are
 intended only for passing in context when creating a new span through the
 OpenTracing API, and are not fully functional spans. In particular, the `Finish`
-method is a no-op, and the `Tracer` method returns a no-op tracer.
+and `Log*` methods are no-ops, and the `Tracer` method returns a no-op tracer.
 
 [float]
 [[opentracing-apm-tags]]
@@ -108,6 +108,15 @@ translated to Elastic APM transactions:
              then the transaction result will be set to "error"
 
 [float]
+[[opentracing-logs]]
+=== Span Logs
+
+The `Span.LogKV` and `Span.LogFields` methods will send error events to Elastic APM for logs
+with the "event" field set to "error".
+
+The deprecated log methods `Span.Log`, `Span.LogEvent`, and `Span.LogEventWithPayload` are no-ops.
+
+[float]
 [[opentracing-caveats]]
 === Caveats
 
@@ -128,10 +137,3 @@ We support only `ChildOf` references. Other references, e.g. `FollowsFrom`, are 
 ==== Baggage
 
 `Span.SetBaggageItem` is a no-op; baggage items are silently dropped.
-
-[float]
-[[opentracing-caveats-logs]]
-==== Logs
-
-`Span.Log*` methods are no-ops; logs will be silently dropped.
-
