@@ -62,9 +62,9 @@ func init() {
 		}
 		*out = schema
 	}
-	compile("errors/v2_error.json", &Error)
+	compile("errors/error.json", &Error)
 	compile("metadata.json", &Metadata)
-	compile("metricsets/v2_metricset.json", &MetricSet)
-	compile("spans/v2_span.json", &Span)
-	compile("transactions/v2_transaction.json", &Transaction)
+	compile("metricsets/metricset.json", &MetricSet)
+	compile("spans/span.json", &Span)
+	compile("transactions/transaction.json", &Transaction)
 }
