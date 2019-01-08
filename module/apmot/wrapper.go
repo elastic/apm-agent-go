@@ -128,6 +128,11 @@ func (s apmSpanWrapper) Context() opentracing.SpanContext {
 	return s.spanContext
 }
 
+// BaggageItem returns the empty string; we do not support baggage.
+func (apmSpanWrapper) BaggageItem(key string) string {
+	return ""
+}
+
 // SetBaggageItem is a no-op; we do not support baggage.
 func (s apmSpanWrapper) SetBaggageItem(key, val string) opentracing.Span {
 	// We do not support baggage.
@@ -177,6 +182,11 @@ func (s apmTransactionWrapper) SetTag(key string, value interface{}) opentracing
 // The resulting context is also valid after the span is finished.
 func (s apmTransactionWrapper) Context() opentracing.SpanContext {
 	return s.spanContext
+}
+
+// BaggageItem returns the empty string; we do not support baggage.
+func (apmTransactionWrapper) BaggageItem(key string) string {
+	return ""
 }
 
 // SetBaggageItem is a no-op; we do not support baggage.

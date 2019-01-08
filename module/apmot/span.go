@@ -113,6 +113,11 @@ func (s *otSpan) Context() opentracing.SpanContext {
 	return &s.ctx
 }
 
+// BaggageItem returns the empty string; we do not support baggage.
+func (*otSpan) BaggageItem(key string) string {
+	return ""
+}
+
 // SetBaggageItem is a no-op; we do not support baggage.
 func (s *otSpan) SetBaggageItem(key, val string) opentracing.Span {
 	// We do not support baggage.

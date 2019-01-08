@@ -24,11 +24,6 @@ import (
 
 type unsupportedSpanMethods struct{}
 
-// BaggageItem returns the empty string; we do not support baggage.
-func (unsupportedSpanMethods) BaggageItem(key string) string {
-	return ""
-}
-
 func (unsupportedSpanMethods) LogKV(keyValues ...interface{}) {
 	// No-op.
 }
