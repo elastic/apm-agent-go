@@ -164,7 +164,7 @@ pipeline {
               junit(allowEmptyResults: true,
                 keepLongStdio: true,
                 testResults: "${BASE_DIR}/build/junit-*.xml")
-              codecov(repo: 'apm-agent-go', basedir: "${BASE_DIR}")
+              codecov(repo: 'apm-agent-go', basedir: "${BASE_DIR}/codecov")
             }
           }
         }
