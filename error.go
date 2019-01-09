@@ -137,6 +137,11 @@ func (t *Tracer) newError() *Error {
 		}
 	}
 	e.Timestamp = time.Now()
+
+	t.captureHeadersMu.RLock()
+	e.Context.captureHeaders = t.captureHeaders
+	t.captureHeadersMu.RUnlock()
+
 	return &Error{ErrorData: e}
 }
 

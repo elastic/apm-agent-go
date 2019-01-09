@@ -80,6 +80,10 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 	tx.spanFramesMinDuration = t.spanFramesMinDuration
 	t.spanFramesMinDurationMu.RUnlock()
 
+	t.captureHeadersMu.RLock()
+	tx.Context.captureHeaders = t.captureHeaders
+	t.captureHeadersMu.RUnlock()
+
 	if root {
 		t.samplerMu.RLock()
 		sampler := t.sampler

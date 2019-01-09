@@ -443,6 +443,43 @@ func TestTracerActive(t *testing.T) {
 	}()
 }
 
+func TestTracerCaptureHeaders(t *testing.T) {
+	tracer, recorder := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	req, err := http.NewRequest("GET", "http://testing.invalid", nil)
+	require.NoError(t, err)
+	req.Header.Set("foo", "bar")
+	respHeaders := make(http.Header)
+	respHeaders.Set("baz", "qux")
+
+	for _, enabled := range []bool{false, true} {
+		tracer.SetCaptureHeaders(enabled)
+		tx := tracer.StartTransaction("name", "type")
+		tx.Context.SetHTTPRequest(req)
+		tx.Context.SetHTTPResponseHeaders(respHeaders)
+		tx.Context.SetHTTPStatusCode(202)
+		tx.End()
+	}
+
+	tracer.Flush(nil)
+	payloads := recorder.Payloads()
+	require.Len(t, payloads.Transactions, 2)
+
+	for i, enabled := range []bool{false, true} {
+		tx := payloads.Transactions[i]
+		require.NotNil(t, tx.Context.Request)
+		require.NotNil(t, tx.Context.Response)
+		if enabled {
+			assert.NotNil(t, tx.Context.Request.Headers)
+			assert.NotNil(t, tx.Context.Response.Headers)
+		} else {
+			assert.Nil(t, tx.Context.Request.Headers)
+			assert.Nil(t, tx.Context.Response.Headers)
+		}
+	}
+}
+
 type blockedTransport struct {
 	transport.Transport
 	unblocked chan struct{}

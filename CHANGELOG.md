@@ -6,6 +6,7 @@
  - Enforce license header in source files with go-licenser (#411)
  - module/apmot: ignore "follows-from" span references (#414)
  - module/apmot: report error log records (#415)
+ - Introduce `ELASTIC_APM_CAPTURE_HEADERS` to control HTTP header capture (#418)
 
 ## [v1.1.3](https://github.com/elastic/apm-agent-go/releases/tag/v1.1.3)
 

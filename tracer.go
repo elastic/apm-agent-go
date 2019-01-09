@@ -74,6 +74,7 @@ type options struct {
 	metricsBufferSize     int
 	sampler               Sampler
 	sanitizedFieldNames   wildcard.Matchers
+	captureHeaders        bool
 	captureBody           CaptureBodyMode
 	spanFramesMinDuration time.Duration
 	serviceName           string
@@ -131,6 +132,11 @@ func (opts *options) init(continueOnError bool) error {
 		sampler = nil
 	}
 
+	captureHeaders, err := initialCaptureHeaders()
+	if failed(err) {
+		captureHeaders = defaultCaptureHeaders
+	}
+
 	captureBody, err := initialCaptureBody()
 	if failed(err) {
 		captureBody = CaptureBodyOff
@@ -161,6 +167,7 @@ func (opts *options) init(continueOnError bool) error {
 	opts.maxSpans = maxSpans
 	opts.sampler = sampler
 	opts.sanitizedFieldNames = initialSanitizedFieldNames()
+	opts.captureHeaders = captureHeaders
 	opts.captureBody = captureBody
 	opts.spanFramesMinDuration = spanFramesMinDuration
 	opts.serviceName, opts.serviceVersion, opts.serviceEnvironment = initialService()
@@ -222,6 +229,9 @@ type Tracer struct {
 	samplerMu sync.RWMutex
 	sampler   Sampler
 
+	captureHeadersMu sync.RWMutex
+	captureHeaders   bool
+
 	captureBodyMu sync.RWMutex
 	captureBody   CaptureBodyMode
 
@@ -268,6 +278,7 @@ func newTracer(opts options) *Tracer {
 		active:                1,
 		maxSpans:              opts.maxSpans,
 		sampler:               opts.sampler,
+		captureHeaders:        opts.captureHeaders,
 		captureBody:           opts.captureBody,
 		spanFramesMinDuration: opts.spanFramesMinDuration,
 		bufferSize:            opts.bufferSize,
@@ -462,6 +473,13 @@ func (t *Tracer) SetSpanFramesMinDuration(d time.Duration) {
 	t.spanFramesMinDurationMu.Lock()
 	t.spanFramesMinDuration = d
 	t.spanFramesMinDurationMu.Unlock()
+}
+
+// SetCaptureHeaders enables or disables capturing of HTTP headers.
+func (t *Tracer) SetCaptureHeaders(capture bool) {
+	t.captureHeadersMu.Lock()
+	t.captureHeaders = capture
+	t.captureHeadersMu.Unlock()
 }
 
 // SetCaptureBody sets the HTTP request body capture mode.

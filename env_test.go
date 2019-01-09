@@ -18,6 +18,7 @@
 package apm_test
 
 import (
+	"context"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -32,6 +33,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"go.elastic.co/apm"
+	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/module/apmhttp"
 	"go.elastic.co/apm/transport"
@@ -322,4 +324,27 @@ func TestTracerEnvironmentEnv(t *testing.T) {
 
 	_, _, service := transport.Metadata()
 	assert.Equal(t, "friendly", service.Environment)
+}
+
+func TestTracerCaptureHeadersEnv(t *testing.T) {
+	os.Setenv("ELASTIC_APM_CAPTURE_HEADERS", "false")
+	defer os.Unsetenv("ELASTIC_APM_CAPTURE_HEADERS")
+
+	tx, _, _ := apmtest.WithTransaction(func(ctx context.Context) {
+		req, err := http.NewRequest("GET", "http://testing.invalid", nil)
+		require.NoError(t, err)
+		req.Header.Set("foo", "bar")
+		respHeaders := make(http.Header)
+		respHeaders.Set("baz", "qux")
+
+		tx := apm.TransactionFromContext(ctx)
+		tx.Context.SetHTTPRequest(req)
+		tx.Context.SetHTTPResponseHeaders(respHeaders)
+		tx.Context.SetHTTPStatusCode(202)
+	})
+
+	require.NotNil(t, tx.Context.Request)
+	require.NotNil(t, tx.Context.Response)
+	assert.Nil(t, tx.Context.Request.Headers)
+	assert.Nil(t, tx.Context.Response.Headers)
 }

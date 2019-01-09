@@ -36,6 +36,7 @@ const (
 	envMaxSpans              = "ELASTIC_APM_TRANSACTION_MAX_SPANS"
 	envTransactionSampleRate = "ELASTIC_APM_TRANSACTION_SAMPLE_RATE"
 	envSanitizeFieldNames    = "ELASTIC_APM_SANITIZE_FIELD_NAMES"
+	envCaptureHeaders        = "ELASTIC_APM_CAPTURE_HEADERS"
 	envCaptureBody           = "ELASTIC_APM_CAPTURE_BODY"
 	envServiceName           = "ELASTIC_APM_SERVICE_NAME"
 	envServiceVersion        = "ELASTIC_APM_SERVICE_VERSION"
@@ -53,6 +54,7 @@ const (
 	defaultMetricsBufferSize     = 100 * apmconfig.KByte
 	defaultMetricsInterval       = 30 * time.Second
 	defaultMaxSpans              = 500
+	defaultCaptureHeaders        = true
 	defaultCaptureBody           = CaptureBodyOff
 	defaultSpanFramesMinDuration = 5 * time.Millisecond
 
@@ -163,6 +165,10 @@ func initialSampler() (Sampler, error) {
 
 func initialSanitizedFieldNames() wildcard.Matchers {
 	return apmconfig.ParseWildcardPatternsEnv(envSanitizeFieldNames, defaultSanitizedFieldNames)
+}
+
+func initialCaptureHeaders() (bool, error) {
+	return apmconfig.ParseBoolEnv(envCaptureHeaders, defaultCaptureHeaders)
 }
 
 func initialCaptureBody() (CaptureBodyMode, error) {
