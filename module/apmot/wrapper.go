@@ -21,6 +21,7 @@ import (
 	"context"
 
 	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/log"
 
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/internal/apmcontext"
@@ -128,6 +129,11 @@ func (s apmSpanWrapper) Context() opentracing.SpanContext {
 	return s.spanContext
 }
 
+// BaggageItem returns the empty string; we do not support baggage.
+func (apmSpanWrapper) BaggageItem(key string) string {
+	return ""
+}
+
 // SetBaggageItem is a no-op; we do not support baggage.
 func (s apmSpanWrapper) SetBaggageItem(key, val string) opentracing.Span {
 	// We do not support baggage.
@@ -179,15 +185,18 @@ func (s apmTransactionWrapper) Context() opentracing.SpanContext {
 	return s.spanContext
 }
 
+// BaggageItem returns the empty string; we do not support baggage.
+func (apmTransactionWrapper) BaggageItem(key string) string {
+	return ""
+}
+
 // SetBaggageItem is a no-op; we do not support baggage.
 func (s apmTransactionWrapper) SetBaggageItem(key, val string) opentracing.Span {
 	// We do not support baggage.
 	return s
 }
 
-type apmBaseWrapper struct {
-	unsupportedSpanMethods
-}
+type apmBaseWrapper struct{}
 
 // Tracer returns the Tracer that created this span.
 func (apmBaseWrapper) Tracer() opentracing.Tracer {
@@ -202,3 +211,28 @@ func (apmBaseWrapper) Finish() {}
 // FinishWithOptions is like Finish, but provides explicit control over the
 // end timestamp and log data.
 func (apmBaseWrapper) FinishWithOptions(opentracing.FinishOptions) {}
+
+// LogKV is a no-op for APM wrapper spans.
+func (apmBaseWrapper) LogKV(keyValues ...interface{}) {
+	// No-op.
+}
+
+// LogFields is a no-op for APM wrapper spans.
+func (apmBaseWrapper) LogFields(fields ...log.Field) {
+	// No-op.
+}
+
+// LogEvent is deprecated, and is a no-op.
+func (apmBaseWrapper) LogEvent(event string) {
+	// Deprecated, no-op.
+}
+
+// LogEventWithPayload is deprecated, and is a no-op.
+func (apmBaseWrapper) LogEventWithPayload(event string, payload interface{}) {
+	// Deprecated, no-op.
+}
+
+// Log is deprecated, and is a no-op.
+func (apmBaseWrapper) Log(ld opentracing.LogData) {
+	// Deprecated, no-op.
+}
