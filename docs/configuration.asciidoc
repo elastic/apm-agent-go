@@ -332,6 +332,18 @@ between `0.0` and `1.0`. We still record overall time and the result for unsampl
 transactions, but no context information, tags, or spans.
 
 [float]
+[[config-metrics-interval]]
+=== `ELASTIC_APM_METRICS_INTERVAL`
+
+[options="header"]
+|============
+| Environment                     | Default
+| `ELASTIC_APM_METRICS_INTERVAL`  | 30s
+|============
+
+The interval at which APM agent gathers and reports metrics. Set to `0s` to disable.
+
+[float]
 [[config-server-cert]]
 === `ELASTIC_APM_SERVER_CERT`
 
