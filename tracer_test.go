@@ -256,18 +256,16 @@ func TestTracerRequestSize(t *testing.T) {
 	os.Setenv("ELASTIC_APM_API_REQUEST_SIZE", "1KB")
 	defer os.Unsetenv("ELASTIC_APM_API_REQUEST_SIZE")
 
-	type times struct {
-		start, end time.Time
-	}
-	requestHandled := make(chan times, 1)
+	// Set the request time to some very long duration,
+	// to highlight the fact that the request size is
+	// the cause of request completion.
+	os.Setenv("ELASTIC_APM_API_REQUEST_TIME", "60s")
+	defer os.Unsetenv("ELASTIC_APM_API_REQUEST_TIME")
+
+	requestHandled := make(chan struct{}, 1)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		serverStart := time.Now()
 		io.Copy(ioutil.Discard, req.Body)
-		serverEnd := time.Now()
-		select {
-		case requestHandled <- times{start: serverStart, end: serverEnd}:
-		default:
-		}
+		requestHandled <- struct{}{}
 	}))
 	defer server.Close()
 
@@ -289,11 +287,13 @@ func TestTracerRequestSize(t *testing.T) {
 		// Yield to the tracer for more predictable timing.
 		runtime.Gosched()
 	}
-	serverTimes := <-requestHandled
+	<-requestHandled
 	clientEnd := time.Now()
-	assert.WithinDuration(t, clientStart, clientEnd, 100*time.Millisecond)
-	assert.WithinDuration(t, clientStart, serverTimes.start, 100*time.Millisecond)
-	assert.WithinDuration(t, clientEnd, serverTimes.end, 100*time.Millisecond)
+	assert.Condition(t, func() bool {
+		// Should be considerably less than 10s, which is
+		// considerably less than the configured 60s limit.
+		return clientEnd.Sub(clientStart) < 10*time.Second
+	})
 }
 
 func TestTracerBufferSize(t *testing.T) {
