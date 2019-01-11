@@ -1,10 +1,12 @@
 language: go
 go:
   - stable
+  - master
   - "1.x"
   - "1.8.x"
   - "1.9.x"
   - "1.10.x"
+  - "1.11.x"
 
 go_import_path: go.elastic.co/apm
 
@@ -13,6 +15,7 @@ matrix:
   allow_failures:
     - os: osx
     - go: "1.x"
+    - go: master
 
 before_install:
   - |
