@@ -188,3 +188,13 @@ https://github.com/sirupsen/logrus/releases/tag/v1.1.0[v1.1.0] and greater.
 
 See <<builtin-modules-apmlogrus, module/apmlogrus>> for more information
 about Logrus integration.
+
+[float]
+==== Zap
+
+We support log correlation and exception tracking with
+https://github.com/uber-go/zap/[Zap],
+https://github.com/uber-go/zap/releases/tag/v1.0.0[v1.0.0] and greater.
+
+See <<builtin-modules-apmzap, module/apmzap>> for more information
+about Zap integration.
