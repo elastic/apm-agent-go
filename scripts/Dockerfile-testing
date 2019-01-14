@@ -39,6 +39,9 @@ RUN go get -v github.com/stretchr/testify/assert
 RUN go get -v github.com/stretchr/testify/require
 RUN go get -v github.com/stretchr/testify/suite
 RUN go get -v go.elastic.co/fastjson
+RUN go get -v go.uber.org/zap
+RUN go get -v go.uber.org/zap/zapcore
+RUN go get -v go.uber.org/zap/zaptest
 RUN go get -v golang.org/x/net/context
 RUN go get -v golang.org/x/net/context/ctxhttp
 RUN go get -v golang.org/x/net/http2

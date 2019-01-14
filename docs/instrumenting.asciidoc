@@ -458,7 +458,7 @@ func main() {
 ===== module/apmlogrus
 Package apmlogrus provides a https://github.com/sirupsen/logrus[logrus] Hook
 implementation for sending error messages to Elastic APM, as well as a function
-for adding trace ID fields to errors.
+for adding trace context fields to log records.
 
 [source,go]
 ----
@@ -480,7 +480,40 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
 	logrus.WithFields(traceContextFields).Debug("handling request")
 
 	// Output:
-	// {"level":"debug","msg":"beep","span.id":"0e134f39535a75c0","time":"1970-01-01T00:00:00Z","trace.id":"67829ae467e896fb2b87ec2de50f6c0e","transaction.id":"67829ae467e896fb"}
+	// {"level":"debug","msg":"handling request","time":"1970-01-01T00:00:00Z","trace.id":"67829ae467e896fb2b87ec2de50f6c0e","transaction.id":"67829ae467e896fb"}
+}
+----
+
+[[builtin-modules-apmzap]]
+===== module/apmzap
+Package apmzap provides a https://godoc.org/go.uber.org/zap/zapcore#Core[go.uber.org/zap/zapcore.Core]
+implementation for sending error messages to Elastic APM, as well as a function
+for adding trace context fields to log records.
+
+[source,go]
+----
+import (
+	"go.uber.org/zap"
+
+	"go.elastic.co/apm/module/apmzap"
+)
+
+// apmzap.Core.WrapCore will wrap the core created by zap.NewExample
+// such that logs are also sent to the apmzap.Core.
+//
+// apmzap.Core will send "error", "panic", and "fatal" level log
+// messages to Elastic APM.
+var logger = zap.NewExample(zap.WrapCore((&apmzap.Core{}).WrapCore))
+
+func handleRequest(w http.ResponseWriter, req *http.Request) {
+	// apmzap.TraceContext extracts the transaction and span (if any)
+	// from the given context, and returns zap.Fields containing the
+	// trace, transaction, and span IDs.
+	traceContextFields := apmzap.TraceContext(req.Context())
+	logger.With(traceContextFields...).Debug("handling request")
+
+	// Output:
+	// {"level":"debug","msg":"handling request","trace.id":"67829ae467e896fb2b87ec2de50f6c0e","transaction.id":"67829ae467e896fb"}
 }
 ----
 
