@@ -10,6 +10,7 @@ go:
 
 go_import_path: go.elastic.co/apm
 
+dist: xenial
 matrix:
   fast_finish: true
   allow_failures:
