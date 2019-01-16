@@ -184,6 +184,7 @@ func TestErrorNilError(t *testing.T) {
 
 func TestErrorTransactionSampled(t *testing.T) {
 	_, _, errors := apmtest.WithTransaction(func(ctx context.Context) {
+		apm.TransactionFromContext(ctx).Type = "foo"
 		apm.CaptureError(ctx, errors.New("boom")).Send()
 
 		span, ctx := apm.StartSpan(ctx, "name", "type")
@@ -192,6 +193,8 @@ func TestErrorTransactionSampled(t *testing.T) {
 	})
 	assertErrorTransactionSampled(t, errors[0], true)
 	assertErrorTransactionSampled(t, errors[1], true)
+	assert.Equal(t, "foo", errors[0].Transaction.Type)
+	assert.Equal(t, "foo", errors[1].Transaction.Type)
 }
 
 func TestErrorTransactionNotSampled(t *testing.T) {
@@ -222,6 +225,11 @@ func TestErrorTransactionSampledNoTransaction(t *testing.T) {
 
 func assertErrorTransactionSampled(t *testing.T, e model.Error, sampled bool) {
 	assert.Equal(t, &sampled, e.Transaction.Sampled)
+	if sampled {
+		assert.NotEmpty(t, e.Transaction.Type)
+	} else {
+		assert.Empty(t, e.Transaction.Type)
+	}
 }
 
 func makeError(msg string) error {
