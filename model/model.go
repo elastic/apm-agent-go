@@ -366,6 +366,9 @@ type Error struct {
 type ErrorTransaction struct {
 	// Sampled indicates that the transaction was sampled.
 	Sampled *bool `json:"sampled,omitempty"`
+
+	// Type holds the transaction type.
+	Type string `json:"type,omitempty"`
 }
 
 // Exception represents an exception: an error or panic.

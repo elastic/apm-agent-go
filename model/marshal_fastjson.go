@@ -707,9 +707,26 @@ func (v *Error) MarshalFastJSON(w *fastjson.Writer) error {
 
 func (v *ErrorTransaction) MarshalFastJSON(w *fastjson.Writer) error {
 	w.RawByte('{')
+	first := true
 	if v.Sampled != nil {
-		w.RawString("\"sampled\":")
+		const prefix = ",\"sampled\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
 		w.Bool(*v.Sampled)
+	}
+	if v.Type != "" {
+		const prefix = ",\"type\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.String(v.Type)
 	}
 	w.RawByte('}')
 	return nil
