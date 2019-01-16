@@ -89,6 +89,8 @@ func (t *Tracer) NewError(err error) *Error {
 		panic("NewError must be called with a non-nil error")
 	}
 	e := t.newError()
+	e.cause = err
+	e.err = err.Error()
 	rand.Read(e.ID[:]) // ignore error, can't do anything about it
 	initException(&e.exception, err)
 	initStacktrace(e, err)
@@ -116,6 +118,8 @@ func (t *Tracer) NewErrorLog(r ErrorLogRecord) *Error {
 	if e.log.Message == "" {
 		e.log.Message = "[EMPTY]"
 	}
+	e.cause = r.Error
+	e.err = e.log.Message
 	rand.Read(e.ID[:]) // ignore error, can't do anything about it
 	if r.Error != nil {
 		initException(&e.exception, r.Error)
@@ -150,6 +154,14 @@ type Error struct {
 	// ErrorData holds the error data. This field is set to nil when
 	// the error's Send method is called.
 	*ErrorData
+
+	// cause holds original error.
+	// It is accessible by Cause method
+	// https://godoc.org/github.com/pkg/errors#Cause
+	cause error
+
+	// string holds original error string
+	err string
 }
 
 // ErrorData holds the details for an error, and is embedded inside Error.
@@ -216,6 +228,24 @@ func (e *Error) SetTransaction(tx *Transaction) {
 		e.setTransactionData(tx.TransactionData)
 	}
 	tx.mu.RUnlock()
+}
+
+// Cause returns original error assigned to Error, nil if Error or Error.cause is nil.
+// https://godoc.org/github.com/pkg/errors#Cause
+func (e *Error) Cause() error {
+	if e != nil {
+		return e.cause
+	}
+	return nil
+}
+
+// Error returns string message for error.
+// if Error or Error.cause is nil, "[EMPTY]" will be used.
+func (e *Error) Error() string {
+	if e != nil {
+		return e.err
+	}
+	return "[EMPTY]"
 }
 
 func (e *Error) setTransactionData(td *TransactionData) {

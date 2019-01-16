@@ -8,6 +8,7 @@
  - module/apmot: report error log records (#415)
  - Introduce `ELASTIC_APM_CAPTURE_HEADERS` to control HTTP header capture (#418)
  - module/apmzap: introduce zap log correlation and exception-tracking hook (#426)
+ - type Error implements error interface (#399)
 
 ## [v1.1.3](https://github.com/elastic/apm-agent-go/releases/tag/v1.1.3)
 
