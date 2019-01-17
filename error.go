@@ -172,6 +172,7 @@ type ErrorData struct {
 	exception          exceptionData
 	log                ErrorLogRecord
 	transactionSampled bool
+	transactionType    string
 
 	// exceptionStacktraceFrames holds the number of stacktrace
 	// frames for the exception; stacktrace may hold frames for
@@ -219,17 +220,6 @@ type ErrorData struct {
 	Context Context
 }
 
-// SetTransaction sets TraceID, TransactionID, and ParentID to the transaction's IDs.
-//
-// SetTransaction has no effect if called with an ended transaction.
-func (e *Error) SetTransaction(tx *Transaction) {
-	tx.mu.RLock()
-	if !tx.ended() {
-		e.setTransactionData(tx.TransactionData)
-	}
-	tx.mu.RUnlock()
-}
-
 // Cause returns original error assigned to Error, nil if Error or Error.cause is nil.
 // https://godoc.org/github.com/pkg/errors#Cause
 func (e *Error) Cause() error {
@@ -248,30 +238,49 @@ func (e *Error) Error() string {
 	return "[EMPTY]"
 }
 
-func (e *Error) setTransactionData(td *TransactionData) {
-	e.TraceID = td.traceContext.Trace
-	e.ParentID = td.traceContext.Span
-	e.TransactionID = e.ParentID
-	e.transactionSampled = td.traceContext.Options.Recorded()
+// SetTransaction sets TraceID, TransactionID, and ParentID to the transaction's
+// IDs, and records the transaction's Type and whether or not it was sampled.
+//
+// SetTransaction has no effect if called with an ended transaction.
+func (e *Error) SetTransaction(tx *Transaction) {
+	tx.mu.RLock()
+	if !tx.ended() {
+		e.setSpanData(tx.TransactionData, nil)
+	}
+	tx.mu.RUnlock()
 }
 
-// SetSpan sets TraceID, TransactionID, and ParentID to the span's IDs. If you call
-// this, it is not necessary to call SetTransaction.
+// SetSpan sets TraceID, TransactionID, and ParentID to the span's IDs.
+//
+// If you call both SetTransaction and SetSpan, SetSpan must be called second
+// in order to set the error's ParentID correctly. When calling SetSpan, it is
+// only necessary to call SetTransaction in order to set the error's transaction
+// type.
 //
 // SetSpan has no effect if called with an ended span.
 func (e *Error) SetSpan(s *Span) {
 	s.mu.RLock()
 	if !s.ended() {
-		e.setSpanData(s.SpanData)
+		e.setSpanData(nil, s.SpanData)
 	}
 	s.mu.RUnlock()
 }
 
-func (e *Error) setSpanData(s *SpanData) {
-	e.TraceID = s.traceContext.Trace
-	e.ParentID = s.traceContext.Span
-	e.TransactionID = s.transactionID
-	e.transactionSampled = true // by virtue of there being a span
+func (e *Error) setSpanData(td *TransactionData, sd *SpanData) {
+	if sd != nil {
+		e.TraceID = sd.traceContext.Trace
+		e.ParentID = sd.traceContext.Span
+		e.TransactionID = sd.transactionID
+		e.transactionSampled = true // by virtue of there being a span
+	} else if td != nil {
+		e.TraceID = td.traceContext.Trace
+		e.ParentID = td.traceContext.Span
+		e.TransactionID = e.ParentID
+		e.transactionSampled = td.traceContext.Options.Recorded()
+	}
+	if e.transactionSampled && td != nil {
+		e.transactionType = td.Type
+	}
 }
 
 // Send enqueues the error for sending to the Elastic APM server.

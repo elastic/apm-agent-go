@@ -154,6 +154,9 @@ func (w *modelWriter) buildModelError(out *model.Error, e *ErrorData) {
 
 	if !e.TransactionID.isZero() {
 		out.Transaction.Sampled = &e.transactionSampled
+		if e.transactionSampled {
+			out.Transaction.Type = e.transactionType
+		}
 	}
 
 	w.modelStacktrace = w.modelStacktrace[:0]

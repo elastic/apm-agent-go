@@ -205,10 +205,11 @@ func TestMarshalErrorTransactionUnsampled(t *testing.T) {
 	assert.NoError(t, err)
 	e.Timestamp = model.Time(time)
 	e.Transaction.Sampled = new(bool)
+	e.Transaction.Type = "foo"
 
 	var w fastjson.Writer
 	e.MarshalFastJSON(&w)
-	assert.Equal(t, `{"id":"00000000000000000000000000000000","timestamp":123000000,"transaction":{"sampled":false}}`, string(w.Bytes()))
+	assert.Equal(t, `{"id":"00000000000000000000000000000000","timestamp":123000000,"transaction":{"sampled":false,"type":"foo"}}`, string(w.Bytes()))
 }
 
 func TestMarshalCookies(t *testing.T) {

@@ -31,7 +31,7 @@ import (
 	"go.elastic.co/fastjson"
 )
 
-//go:generate go run ../../fastjson/cmd/generate-fastjson/main.go -f -o marshal_fastjson.go .
+//go:generate sh generate.sh
 
 // MarshalFastJSON writes the JSON representation of t to w.
 func (t Time) MarshalFastJSON(w *fastjson.Writer) error {
