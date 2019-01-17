@@ -82,4 +82,9 @@ adequately cover the code using `go test -cover`.
 2. Update CHANGELOG.md, adding a new version heading and changing the base tag of the Unreleased comparison URL
 3. Merge changes into github.com/elastic/apm-agent-go@master
 4. Create tags: vN.N.N, and module/$MODULE/vN.N.N for each instrumentation module
+
+	scripts/tagversion.sh
+
 5. Create release on GitHub
+
+	hub release -d vN.N.N
