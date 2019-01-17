@@ -54,7 +54,7 @@ func ParseDSN(name string) apmsql.DSNInfo {
 	return info
 }
 
-// Code below is copied from github.com/lib/pq. See README.pq.txt.
+// Code below is copied from github.com/lib/pq (see NOTICE).
 
 // parseURL no longer needs to be used by clients of this library since supplying a URL as a
 // connection string to sql.Open() is now supported:

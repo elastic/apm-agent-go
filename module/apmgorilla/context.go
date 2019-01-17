@@ -54,8 +54,8 @@ func massageTemplate(tpl string) string {
 	return buf.String()
 }
 
-// Copied/adapted from gorilla/mux. The original version checks
-// that the braces are matched up correctly; we assume they are,
+// Copied/adapted from gorilla/mux (see NOTICE). The original version
+// checks that the braces are matched up correctly; we assume they are,
 // as otherwise the path wouldn't have been registered correctly.
 func braceIndices(s string) []int {
 	var level, idx int
