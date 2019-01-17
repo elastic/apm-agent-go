@@ -18,36 +18,20 @@
 package apm_test
 
 import (
+	"context"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/model"
-	"go.elastic.co/apm/module/apmhttp"
 	"go.elastic.co/apm/transport/transporttest"
 )
 
 func TestSanitizeRequestResponse(t *testing.T) {
-	tracer, transport := transporttest.NewRecorderTracer()
-	defer tracer.Close()
-
-	mux := http.NewServeMux()
-	mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		http.SetCookie(w, &http.Cookie{
-			Name:  "foo",
-			Value: "bar",
-		})
-		http.SetCookie(w, &http.Cookie{
-			Name:  "baz",
-			Value: "qux",
-		})
-		w.WriteHeader(http.StatusTeapot)
-	}))
-	h := apmhttp.Wrap(mux, apmhttp.WithTracer(tracer))
-
-	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "http://server.testing/", nil)
 	req.SetBasicAuth("foo", "bar")
 	for _, c := range []*http.Cookie{
@@ -58,11 +42,17 @@ func TestSanitizeRequestResponse(t *testing.T) {
 	} {
 		req.AddCookie(c)
 	}
-	h.ServeHTTP(w, req)
-	tracer.Flush(nil)
 
-	payloads := transport.Payloads()
-	tx := payloads.Transactions[0]
+	tx, _, _ := apmtest.WithTransaction(func(ctx context.Context) {
+		tx := apm.TransactionFromContext(ctx)
+		tx.Context.SetHTTPRequest(req)
+
+		h := make(http.Header)
+		h.Add("Set-Cookie", (&http.Cookie{Name: "foo", Value: "bar"}).String())
+		h.Add("Set-Cookie", (&http.Cookie{Name: "baz", Value: "qux"}).String())
+		tx.Context.SetHTTPResponseHeaders(h)
+		tx.Context.SetHTTPStatusCode(http.StatusTeapot)
+	})
 
 	assert.Equal(t, tx.Context.Request.Cookies, model.Cookies{
 		{Name: "Custom-Credit-Card-Number", Value: "[REDACTED]"},
@@ -100,22 +90,17 @@ func testSetSanitizedFieldNames(t *testing.T, expect string, sanitized ...string
 	defer tracer.Close()
 	tracer.SetSanitizedFieldNames(sanitized...)
 
-	mux := http.NewServeMux()
-	mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		w.WriteHeader(http.StatusTeapot)
-	}))
-	h := apmhttp.Wrap(mux, apmhttp.WithTracer(tracer))
-
-	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "http://server.testing/", nil)
 	req.AddCookie(&http.Cookie{Name: "secret", Value: "top"})
-	h.ServeHTTP(w, req)
+
+	tx := tracer.StartTransaction("name", "type")
+	tx.Context.SetHTTPRequest(req)
+	tx.End()
 	tracer.Flush(nil)
-
 	payloads := transport.Payloads()
-	tx := payloads.Transactions[0]
+	require.Len(t, payloads.Transactions, 1)
 
-	assert.Equal(t, tx.Context.Request.Cookies, model.Cookies{
+	assert.Equal(t, payloads.Transactions[0].Context.Request.Cookies, model.Cookies{
 		{Name: "secret", Value: expect},
 	})
 }

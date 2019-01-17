@@ -1,6 +1,8 @@
 # Changelog
 
-## [Unreleased](https://github.com/elastic/apm-agent-go/compare/v1.1.3...master)
+## [Unreleased](https://github.com/elastic/apm-agent-go/compare/v1.2.0...master)
+
+## [v1.2.0](https://github.com/elastic/apm-agent-go/releases/tag/v1.2.0)
 
  - Add "transaction.sampled" to errors (#410)
  - Enforce license header in source files with go-licenser (#411)
@@ -10,6 +12,7 @@
  - module/apmzap: introduce zap log correlation and exception-tracking hook (#426)
  - type Error implements error interface (#399)
  - Add "transaction.type" to errors (#433)
+ - Added instrumentation-specific Go modules (i.e. one for each package under apm/module) (#405)
 
 ## [v1.1.3](https://github.com/elastic/apm-agent-go/releases/tag/v1.1.3)
 

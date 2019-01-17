@@ -1,10 +1,8 @@
 FROM golang:latest
-WORKDIR /go/src/go.elastic.co/apm
-RUN go get -v github.com/pkg/errors
-RUN go get -v go.elastic.co/fastjson
-RUN go get -v golang.org/x/net/context
-RUN go get -v golang.org/x/net/context/ctxhttp
-
 ADD . /go/src/go.elastic.co/apm
+ENV GO111MODULE=on
+
 EXPOSE 5000/tcp
-CMD go run internal/tracecontexttest/main.go
+WORKDIR /go/src/go.elastic.co/apm/internal/tracecontexttest
+HEALTHCHECK CMD curl -X POST -H "Content-Type: application/json" -d "{}" http://localhost:5000
+CMD go run main.go

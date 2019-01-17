@@ -22,10 +22,11 @@ package stacktrace
 import (
 	"strings"
 
-	"go.elastic.co/apm/internal/radix"
+	radix "github.com/armon/go-radix"
 )
 
 var libraryPackages = newLibraryPackagesRadixTree(
+	"vendor/golang_org",
 	"archive/tar",
 	"archive/zip",
 	"bufio",
@@ -47,7 +48,8 @@ var libraryPackages = newLibraryPackagesRadixTree(
 	"crypto/ecdsa",
 	"crypto/elliptic",
 	"crypto/hmac",
-	"crypto/internal/cipherhw",
+	"crypto/internal/randutil",
+	"crypto/internal/subtle",
 	"crypto/md5",
 	"crypto/rand",
 	"crypto/rc4",
@@ -113,6 +115,7 @@ var libraryPackages = newLibraryPackagesRadixTree(
 	"image/jpeg",
 	"image/png",
 	"index/suffixarray",
+	"internal/bytealg",
 	"internal/cpu",
 	"internal/nettrace",
 	"internal/poll",
@@ -193,24 +196,6 @@ var libraryPackages = newLibraryPackagesRadixTree(
 	"unicode/utf16",
 	"unicode/utf8",
 	"unsafe",
-	"vendor/golang_org/x/crypto/chacha20poly1305",
-	"vendor/golang_org/x/crypto/chacha20poly1305/internal/chacha20",
-	"vendor/golang_org/x/crypto/cryptobyte",
-	"vendor/golang_org/x/crypto/cryptobyte/asn1",
-	"vendor/golang_org/x/crypto/curve25519",
-	"vendor/golang_org/x/crypto/poly1305",
-	"vendor/golang_org/x/net/http2/hpack",
-	"vendor/golang_org/x/net/idna",
-	"vendor/golang_org/x/net/internal/nettest",
-	"vendor/golang_org/x/net/lex/httplex",
-	"vendor/golang_org/x/net/nettest",
-	"vendor/golang_org/x/net/proxy",
-	"vendor/golang_org/x/text/secure",
-	"vendor/golang_org/x/text/secure/bidirule",
-	"vendor/golang_org/x/text/transform",
-	"vendor/golang_org/x/text/unicode",
-	"vendor/golang_org/x/text/unicode/bidi",
-	"vendor/golang_org/x/text/unicode/norm",
 	"go.elastic.co/apm",
 )
 

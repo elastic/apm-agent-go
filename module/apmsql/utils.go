@@ -22,7 +22,7 @@ import (
 	"errors"
 )
 
-// namedValueToValue copied from database/sql, see LICENSE.go.txt.
+// namedValueToValue copied from database/sql (see NOTICE).
 func namedValueToValue(named []driver.NamedValue) ([]driver.Value, error) {
 	dargs := make([]driver.Value, len(named))
 	for n, param := range named {
