@@ -771,6 +771,19 @@ func (v *Exception) MarshalFastJSON(w *fastjson.Writer) error {
 		}
 		w.RawByte('}')
 	}
+	if v.Cause != nil {
+		w.RawString(",\"cause\":")
+		w.RawByte('[')
+		for i, v := range v.Cause {
+			if i != 0 {
+				w.RawByte(',')
+			}
+			if err := v.MarshalFastJSON(w); err != nil && firstErr == nil {
+				firstErr = err
+			}
+		}
+		w.RawByte(']')
+	}
 	if !v.Code.isZero() {
 		w.RawString(",\"code\":")
 		if err := v.Code.MarshalFastJSON(w); err != nil && firstErr == nil {

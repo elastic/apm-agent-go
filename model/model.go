@@ -396,6 +396,9 @@ type Exception struct {
 
 	// Handled indicates whether or not the error was caught and handled.
 	Handled bool `json:"handled"`
+
+	// Cause holds the causes of this error.
+	Cause []Exception `json:"cause,omitempty"`
 }
 
 // ExceptionCode represents an exception code as either a number or a string.

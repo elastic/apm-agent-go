@@ -378,6 +378,7 @@ func TestStdlibErrorDetailers(t *testing.T) {
 		}, errs[0].Exception.Attributes)
 	})
 
+	cause := errors.New("cause")
 	test := func(err error, expectedAttrs map[string]interface{}) {
 		t.Run(fmt.Sprintf("%T", err), func(t *testing.T) {
 			_, _, errs := apmtest.WithTransaction(func(ctx context.Context) {
@@ -385,12 +386,14 @@ func TestStdlibErrorDetailers(t *testing.T) {
 			})
 			require.Len(t, errs, 1)
 			assert.Equal(t, expectedAttrs, errs[0].Exception.Attributes)
+			require.Len(t, errs[0].Exception.Cause, 1)
+			assert.Equal(t, "cause", errs[0].Exception.Cause[0].Message)
 		})
 	}
 	type attrmap map[string]interface{}
 
 	test(&net.OpError{
-		Err: errors.New("cause"),
+		Err: cause,
 		Op:  "read",
 		Net: "tcp",
 		Source: &net.TCPAddr{
@@ -400,22 +403,78 @@ func TestStdlibErrorDetailers(t *testing.T) {
 	}, attrmap{"op": "read", "net": "tcp", "source": "tcp:[::1]:1234"})
 
 	test(&os.LinkError{
-		Err: errors.New("cause"),
+		Err: cause,
 		Op:  "symlink",
 		Old: "/old",
 		New: "/new",
 	}, attrmap{"op": "symlink", "old": "/old", "new": "/new"})
 
 	test(&os.PathError{
-		Err:  errors.New("cause"),
+		Err:  cause,
 		Op:   "open",
 		Path: "/dev/null",
 	}, attrmap{"op": "open", "path": "/dev/null"})
 
 	test(&os.SyscallError{
-		Err:     errors.New("cause"),
+		Err:     cause,
 		Syscall: "connect",
 	}, attrmap{"syscall": "connect"})
+}
+
+func TestErrorCauseCulprit(t *testing.T) {
+	err := errors.WithStack(testErrorCauseCulpritHelper())
+
+	tracer, recorder := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+	tracer.NewError(err).Send()
+	tracer.Flush(nil)
+
+	payloads := recorder.Payloads()
+	require.Len(t, payloads.Errors, 1)
+	assert.Equal(t, "testErrorCauseCulpritHelper", payloads.Errors[0].Culprit)
+}
+
+func testErrorCauseCulpritHelper() error {
+	return errors.Errorf("something happened here")
+}
+
+func TestErrorCauseCauser(t *testing.T) {
+	err := &causer{
+		error: errors.New("error"),
+		cause: errors.New("cause"),
+	}
+
+	tracer, recorder := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+	tracer.NewError(err).Send()
+	tracer.Flush(nil)
+
+	payloads := recorder.Payloads()
+	require.Len(t, payloads.Errors, 1)
+	assert.Equal(t, "TestErrorCauseCauser", payloads.Errors[0].Culprit)
+
+	require.Len(t, payloads.Errors[0].Exception.Cause, 1)
+	assert.Equal(t, "cause", payloads.Errors[0].Exception.Cause[0].Message)
+}
+
+func TestErrorCauseCycle(t *testing.T) {
+	err := make(errorslice, 1)
+	err[0] = causer{error: makeError("error"), cause: &err}
+
+	tracer, recorder := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+	tracer.NewError(err).Send()
+	tracer.Flush(nil)
+
+	payloads := recorder.Payloads()
+	require.Len(t, payloads.Errors, 1)
+	assert.Equal(t, "TestErrorCauseCycle", payloads.Errors[0].Culprit)
+
+	require.Len(t, payloads.Errors[0].Exception.Cause, 1)
+	require.Len(t, payloads.Errors[0].Exception.Cause[0].Cause, 1)
+	require.Len(t, payloads.Errors[0].Exception.Cause[0].Cause, 1) // cycle broken
+	assert.Equal(t, "error", payloads.Errors[0].Exception.Cause[0].Message)
+	assert.Equal(t, "errorslice", payloads.Errors[0].Exception.Cause[0].Cause[0].Message)
 }
 
 func assertErrorTransactionSampled(t *testing.T, e model.Error, sampled bool) {
@@ -505,4 +564,23 @@ func (e *internalStackTracer) Error() string {
 
 func (e *internalStackTracer) StackTrace() []stacktrace.Frame {
 	return e.frames
+}
+
+type causer struct {
+	error
+	cause error
+}
+
+func (c causer) Cause() error {
+	return c.cause
+}
+
+type errorslice []error
+
+func (es errorslice) Error() string {
+	return "errorslice"
+}
+
+func (es errorslice) Cause() error {
+	return es[0]
 }
