@@ -216,7 +216,7 @@ type Span struct {
 	// Name holds the name of the span.
 	Name string `json:"name"`
 
-	// Timestamp holds the time at which the span's transaction started.
+	// Timestamp holds the time at which the span started.
 	Timestamp Time `json:"timestamp"`
 
 	// Duration holds the duration of the span, in milliseconds.
