@@ -10,7 +10,6 @@ require (
 	github.com/pkg/errors v0.8.0
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/procfs v0.0.0-20181005140218-185b4288413d // indirect
-	github.com/rs/zerolog v1.10.3
 	github.com/santhosh-tekuri/jsonschema v1.2.3
 	github.com/stretchr/testify v1.2.2
 	go.elastic.co/fastjson v1.0.0
