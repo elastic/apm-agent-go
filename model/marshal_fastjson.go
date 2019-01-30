@@ -1067,7 +1067,7 @@ func (v *Metrics) MarshalFastJSON(w *fastjson.Writer) error {
 		firstErr = err
 	}
 	if !v.Labels.isZero() {
-		w.RawString(",\"labels\":")
+		w.RawString(",\"tags\":")
 		if err := v.Labels.MarshalFastJSON(w); err != nil && firstErr == nil {
 			firstErr = err
 		}

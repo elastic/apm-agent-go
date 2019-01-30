@@ -584,7 +584,11 @@ type Metrics struct {
 
 	// Labels holds a set of labels associated with the metrics.
 	// The labels apply uniformly to all metric samples in the set.
-	Labels StringMap `json:"labels,omitempty"`
+	//
+	// NOTE(axw) the schema calls the field "tags", but we use
+	// "labels" for agent-internal consistency. Labels aligns better
+	// with the common schema, anyway.
+	Labels StringMap `json:"tags,omitempty"`
 
 	// Samples holds a map of metric samples, keyed by metric name.
 	Samples map[string]Metric `json:"samples"`
