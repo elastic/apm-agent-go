@@ -161,7 +161,7 @@ func TestMarshalMetrics(t *testing.T) {
 	decoded := mustUnmarshalJSON(w)
 	expect := map[string]interface{}{
 		"timestamp": float64(123000000),
-		"labels": map[string]interface{}{
+		"tags": map[string]interface{}{
 			"foo": "bar",
 		},
 		"samples": map[string]interface{}{

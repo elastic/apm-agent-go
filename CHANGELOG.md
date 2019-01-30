@@ -2,6 +2,8 @@
 
 ## [Unreleased](https://github.com/elastic/apm-agent-go/compare/v1.2.0...master)
 
+ - Rename "metricset.labels" to "metricset.tags" (#438)
+
 ## [v1.2.0](https://github.com/elastic/apm-agent-go/releases/tag/v1.2.0)
 
  - Add "transaction.sampled" to errors (#410)
