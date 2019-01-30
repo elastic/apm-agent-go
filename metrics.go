@@ -23,11 +23,14 @@ import (
 	"strings"
 	"sync"
 
+	"go.elastic.co/apm/internal/wildcard"
 	"go.elastic.co/apm/model"
 )
 
 // Metrics holds a set of metrics.
 type Metrics struct {
+	disabled wildcard.Matchers
+
 	mu      sync.Mutex
 	metrics []*model.Metrics
 }
@@ -72,6 +75,9 @@ func (m *Metrics) Add(name string, labels []MetricLabel, value float64) {
 }
 
 func (m *Metrics) addMetric(name string, labels []MetricLabel, metric model.Metric) {
+	if m.disabled.MatchAny(name) {
+		return
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

@@ -47,6 +47,7 @@ const (
 	envAPIRequestTime        = "ELASTIC_APM_API_REQUEST_TIME"
 	envAPIBufferSize         = "ELASTIC_APM_API_BUFFER_SIZE"
 	envMetricsBufferSize     = "ELASTIC_APM_METRICS_BUFFER_SIZE"
+	envDisableMetrics        = "ELASTIC_APM_DISABLE_METRICS"
 
 	defaultAPIRequestSize        = 750 * apmconfig.KByte
 	defaultAPIRequestTime        = 10 * time.Second
@@ -209,4 +210,8 @@ func initialSpanFramesMinDuration() (time.Duration, error) {
 
 func initialActive() (bool, error) {
 	return apmconfig.ParseBoolEnv(envActive, true)
+}
+
+func initialDisabledMetrics() wildcard.Matchers {
+	return apmconfig.ParseWildcardPatternsEnv(envDisableMetrics, nil)
 }
