@@ -3,6 +3,7 @@
 ## [Unreleased](https://github.com/elastic/apm-agent-go/compare/v1.2.0...master)
 
  - Rename "metricset.labels" to "metricset.tags" (#438)
+ - Introduce `ELASTIC_APM_DISABLE_METRICS` to disable metrics with matching names (#439)
 
 ## [v1.2.0](https://github.com/elastic/apm-agent-go/releases/tag/v1.2.0)
 

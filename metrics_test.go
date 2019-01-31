@@ -262,6 +262,27 @@ func TestTracerMetricsBuffered(t *testing.T) {
 	}
 }
 
+func TestTracerMetricsDisable(t *testing.T) {
+	os.Setenv("ELASTIC_APM_DISABLE_METRICS", "golang.heap.*, system.memory.*, system.process.*")
+	defer os.Unsetenv("ELASTIC_APM_DISABLE_METRICS")
+
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	tracer.SendMetrics(nil)
+
+	payloads := transport.Payloads()
+	builtinMetrics := payloads.Metrics[0]
+
+	expected := []string{"golang.goroutines", "system.cpu.total.norm.pct"}
+	var actual []string
+	for name := range builtinMetrics.Samples {
+		actual = append(actual, name)
+	}
+	sort.Strings(actual)
+	assert.EqualValues(t, expected, actual)
+}
+
 // busyWork does meaningless work for the specified duration,
 // so we can observe CPU usage.
 func busyWork(d time.Duration) int {

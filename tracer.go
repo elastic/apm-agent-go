@@ -74,6 +74,7 @@ type options struct {
 	metricsBufferSize     int
 	sampler               Sampler
 	sanitizedFieldNames   wildcard.Matchers
+	disabledMetrics       wildcard.Matchers
 	captureHeaders        bool
 	captureBody           CaptureBodyMode
 	spanFramesMinDuration time.Duration
@@ -167,6 +168,7 @@ func (opts *options) init(continueOnError bool) error {
 	opts.maxSpans = maxSpans
 	opts.sampler = sampler
 	opts.sanitizedFieldNames = initialSanitizedFieldNames()
+	opts.disabledMetrics = initialDisabledMetrics()
 	opts.captureHeaders = captureHeaders
 	opts.captureBody = captureBody
 	opts.spanFramesMinDuration = spanFramesMinDuration
@@ -300,6 +302,7 @@ func newTracer(opts options) *Tracer {
 		cfg.requestDuration = opts.requestDuration
 		cfg.requestSize = opts.requestSize
 		cfg.sanitizedFieldNames = opts.sanitizedFieldNames
+		cfg.disabledMetrics = opts.disabledMetrics
 		cfg.preContext = defaultPreContext
 		cfg.postContext = defaultPostContext
 		cfg.metricsGatherers = []MetricsGatherer{newBuiltinMetricsGatherer(t)}
@@ -321,6 +324,7 @@ type tracerConfig struct {
 	contextSetter           stacktrace.ContextSetter
 	preContext, postContext int
 	sanitizedFieldNames     wildcard.Matchers
+	disabledMetrics         wildcard.Matchers
 }
 
 type tracerConfigCommand func(*tracerConfig)
@@ -749,6 +753,7 @@ func (t *Tracer) loop() {
 
 		if gatherMetrics {
 			gatheringMetrics = true
+			metrics.disabled = cfg.disabledMetrics
 			t.gatherMetrics(ctx, cfg.metricsGatherers, &metrics, cfg.logger, gatheredMetrics)
 			if cfg.logger != nil {
 				cfg.logger.Debugf("gathering metrics")
