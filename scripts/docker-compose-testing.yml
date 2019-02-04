@@ -15,11 +15,13 @@ services:
       MYSQL_HOST: mysql
       PGHOST: postgres
       REDIS_URL: redis://redis
+      ELASTICSEARCH_URL: http://elasticsearch:9200
     depends_on:
       - cassandra
       - mysql
       - postgres
       - redis
+      - elasticsearch
 
   trace-context-service:
     build:
@@ -61,10 +63,26 @@ services:
   redis:
     image: redis:latest
 
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:6.6.0
+    volumes:
+      - esdata:/var/lib/elasticsearch/data
+    ulimits:
+      memlock:
+        hard: -1
+        soft: -1
+    environment:
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+      bootstrap.memory_lock: "true"
+      discovery.type: "single-node"
+      path.data: "path.data=/var/lib/elasticsearch/data"
+
 volumes:
   mysqldata:
     driver: local
   pgdata:
     driver: local
   cassandradata:
+    driver: local
+  esdata:
     driver: local

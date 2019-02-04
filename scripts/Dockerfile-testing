@@ -6,6 +6,8 @@ COPY go.mod go.sum /go/src/go.elastic.co/apm/
 COPY internal/tracecontexttest/go.mod internal/tracecontexttest/go.sum /go/src/go.elastic.co/apm/internal/tracecontexttest/
 COPY module/apmbeego/go.mod module/apmbeego/go.sum /go/src/go.elastic.co/apm/module/apmbeego/
 COPY module/apmecho/go.mod module/apmecho/go.sum /go/src/go.elastic.co/apm/module/apmecho/
+COPY module/apmelasticsearch/go.mod module/apmelasticsearch/go.sum /go/src/go.elastic.co/apm/module/apmelasticsearch/
+COPY module/apmelasticsearch/internal/integration/go.mod module/apmelasticsearch/internal/integration/go.sum /go/src/go.elastic.co/apm/module/apmelasticsearch/internal/integration/
 COPY module/apmgin/go.mod module/apmgin/go.sum /go/src/go.elastic.co/apm/module/apmgin/
 COPY module/apmgocql/go.mod module/apmgocql/go.sum /go/src/go.elastic.co/apm/module/apmgocql/
 COPY module/apmgokit/go.mod module/apmgokit/go.sum /go/src/go.elastic.co/apm/module/apmgokit/
@@ -29,6 +31,8 @@ RUN cd /go/src/go.elastic.co/apm && go mod download
 RUN cd /go/src/go.elastic.co/apm/internal/tracecontexttest && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmbeego && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmecho && go mod download
+RUN cd /go/src/go.elastic.co/apm/module/apmelasticsearch && go mod download
+RUN cd /go/src/go.elastic.co/apm/module/apmelasticsearch/internal/integration && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmgin && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmgocql && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmgokit && go mod download
