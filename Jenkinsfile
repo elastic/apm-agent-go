@@ -1,5 +1,7 @@
 #!/usr/bin/env groovy
 
+@Library('apm@v1.0.6') _
+
 pipeline {
   agent any
   environment {
@@ -14,6 +16,9 @@ pipeline {
     ansiColor('xterm')
     disableResume()
     durabilityHint('PERFORMANCE_OPTIMIZED')
+  }
+  triggers {
+    issueCommentTrigger('.*(?:jenkins\\W+)?run\\W+(?:the\\W+)?tav\\W+tests(?:\\W+please)?.*')
   }
   parameters {
     string(name: 'GO_VERSION', defaultValue: "1.11.4", description: "Go version to use.")
