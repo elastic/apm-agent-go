@@ -18,7 +18,7 @@ pipeline {
     durabilityHint('PERFORMANCE_OPTIMIZED')
   }
   triggers {
-    issueCommentTrigger('.*(?:jenkins\\W+)?run\\W+(?:the\\W+)?tav\\W+tests(?:\\W+please)?.*')
+    issueCommentTrigger('.*(?:jenkins\\W+)?run\\W+(?:the\\W+)?tests(?:\\W+please)?.*')
   }
   parameters {
     string(name: 'GO_VERSION', defaultValue: "1.11.4", description: "Go version to use.")
