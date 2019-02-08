@@ -38,7 +38,7 @@ endif
 
 .PHONY: check-vet
 check-vet:
-	@for dir in $(shell scripts/moduledirs.sh); do (cd $$dir && go vet ./...); done
+	@for dir in $(shell scripts/moduledirs.sh); do (cd $$dir && go vet ./...) || exit $$?; done
 
 .PHONY: install
 install:
@@ -50,7 +50,7 @@ docker-test:
 
 .PHONY: test
 test:
-	@for dir in $(shell scripts/moduledirs.sh); do (cd $$dir && go test -v -timeout=$(TEST_TIMEOUT) ./...); done
+	@for dir in $(shell scripts/moduledirs.sh); do (cd $$dir && go test -v -timeout=$(TEST_TIMEOUT) ./...) || exit $$?; done
 
 .PHONY: coverage
 coverage:
