@@ -146,6 +146,17 @@ See <<builtin-modules-apmredigo, module/apmredigo>> for more information
 about Redigo instrumentation.
 
 [float]
+==== Elasticsearch
+
+We provide instrumentation for Elasticsearch clients. This is usable with
+the https://github.com/olivere/elastic[olivere/elastic] client, and should
+also be usable with any other clients that provide a means of configuring
+the underlying `net/http.RoundTripper`.
+
+See <<builtin-modules-apmelasticsearch, module/apmelasticsearch>> for more
+information about Elasticsearch client instrumentation.
+
+[float]
 [[supported-tech-rpc]]
 === RPC Frameworks
 

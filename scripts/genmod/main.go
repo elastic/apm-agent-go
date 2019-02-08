@@ -201,9 +201,9 @@ func checkModuleComplete(dir string, gomod *GoMod, modules map[string]*GoMod) er
 		return err
 	}
 
-	// Check we can build the module and its transitive dependencies
+	// Check we can build the module's tests and its transitive dependencies
 	// without updating go.mod.
-	cmd = exec.Command("go", "build", "-mod=readonly", "-o", os.DevNull)
+	cmd = exec.Command("go", "test", "-c", "-mod=readonly", "-o", os.DevNull)
 	cmd.Env = append(os.Environ(), "GO111MODULE=on")
 	cmd.Env = append(cmd.Env, "GOPROXY=http://proxy.invalid")
 	cmd.Stderr = os.Stderr
