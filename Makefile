@@ -71,7 +71,7 @@ update-modules:
 .PHONY: docs
 docs:
 ifdef ELASTIC_DOCS
-	$(ELASTIC_DOCS)/build_docs.pl --chunk=1 $(BUILD_DOCS_ARGS) --doc docs/index.asciidoc -out docs/html
+	$(ELASTIC_DOCS)/build_docs --chunk=1 $(BUILD_DOCS_ARGS) --doc docs/index.asciidoc --out docs/html
 else
 	@echo "\nELASTIC_DOCS is not defined.\n"
 	@exit 1
