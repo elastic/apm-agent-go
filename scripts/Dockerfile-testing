@@ -19,6 +19,7 @@ COPY module/apmhttp/go.mod module/apmhttp/go.sum /go/src/go.elastic.co/apm/modul
 COPY module/apmhttprouter/go.mod module/apmhttprouter/go.sum /go/src/go.elastic.co/apm/module/apmhttprouter/
 COPY module/apmlambda/go.mod module/apmlambda/go.sum /go/src/go.elastic.co/apm/module/apmlambda/
 COPY module/apmlogrus/go.mod module/apmlogrus/go.sum /go/src/go.elastic.co/apm/module/apmlogrus/
+COPY module/apmmongo/go.mod module/apmmongo/go.sum /go/src/go.elastic.co/apm/module/apmmongo/
 COPY module/apmot/go.mod module/apmot/go.sum /go/src/go.elastic.co/apm/module/apmot/
 COPY module/apmprometheus/go.mod module/apmprometheus/go.sum /go/src/go.elastic.co/apm/module/apmprometheus/
 COPY module/apmredigo/go.mod module/apmredigo/go.sum /go/src/go.elastic.co/apm/module/apmredigo/
@@ -44,6 +45,7 @@ RUN cd /go/src/go.elastic.co/apm/module/apmhttp && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmhttprouter && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmlambda && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmlogrus && go mod download
+RUN cd /go/src/go.elastic.co/apm/module/apmmongo && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmot && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmprometheus && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmredigo && go mod download
