@@ -157,6 +157,19 @@ See <<builtin-modules-apmelasticsearch, module/apmelasticsearch>> for more
 information about Elasticsearch client instrumentation.
 
 [float]
+==== MongoDB
+
+We provide instrumentation for the official
+https://github.com/mongodb/mongo-go-driver[MongoDB Go Driver]. Spans will
+be created for each MongoDB command executed within a context containing a
+transaction.
+
+experimental[The MongoDB Go Driver has not yet stabilized its API. The apmmongo instrumentation should not be considered stable until the MongoDB Go Driver's API is, and we may break compatibility with unstable pre-1.0.0 versions.]
+
+See <<builtin-modules-apmmongo, module/apmmongo>> for more information about
+the MongoDB Go Driver instrumentation.
+
+[float]
 [[supported-tech-rpc]]
 === RPC Frameworks
 

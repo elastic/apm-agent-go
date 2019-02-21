@@ -547,6 +547,42 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
 }
 ----
 
+[[builtin-modules-apmmongo]]
+===== module/apmmongo
+Package apmmongo provides a means of instrumenting the
+https://github.com/mongodb/mongo-go-driver[MongoDB Go Driver], so that MongoDB
+commands are reported as spans within the current transaction.
+
+experimental[The MongoDB Go Driver has not yet stabilized its API. The apmmongo instrumentation should not be considered stable until the MongoDB Go Driver's API is, and we may break compatibility with unstable pre-1.0.0 versions.]
+
+To create spans for MongoDB commands, you should pass in a `CommandMonitor` created
+with `apmmongo.CommandMonitor` as an option when constructing a client, and then when
+executing commands, pass in a context containing a transaction.
+
+[source,go]
+----
+import (
+	"context"
+	"net/http"
+
+	"github.com/mongodb/mongo-go-driver/mongo"
+	"github.com/mongodb/mongo-go-driver/mongo/options"
+
+	"go.elastic.co/apm/module/apmmongo"
+)
+
+var client, _ = mongo.Connect(
+	context.Background(),
+	options.Client().SetMonitor(apmmongo.CommandMonitor()),
+)
+
+func handleRequest(w http.ResponseWriter, req *http.Request) {
+	collection := client.Database("db").Collection("coll")
+	cur, err := collection.Find(req.Context(), bson.D{})
+	...
+}
+----
+
 [[custom-instrumentation]]
 ==== Custom instrumentation
 

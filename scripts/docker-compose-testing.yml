@@ -77,6 +77,15 @@ services:
       discovery.type: "single-node"
       path.data: "path.data=/var/lib/elasticsearch/data"
 
+  mongo:
+    image: mongo:latest
+    volumes:
+      - mongodata:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=test_db
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=hunter2
+
 volumes:
   mysqldata:
     driver: local
@@ -85,4 +94,6 @@ volumes:
   cassandradata:
     driver: local
   esdata:
+    driver: local
+  mongodata:
     driver: local
