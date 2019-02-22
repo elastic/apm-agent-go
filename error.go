@@ -324,17 +324,15 @@ func (e *ErrorData) reset() {
 }
 
 type exceptionData struct {
-	message         string
-	attrs           map[string]interface{}
-	typeName        string
-	typePackagePath string
-	codeNumber      float64
-	codeString      string
+	message string
+	ErrorDetails
 }
 
 func (e *exceptionData) reset() {
 	*e = exceptionData{
-		attrs: e.attrs,
+		ErrorDetails: ErrorDetails{
+			attrs: e.attrs,
+		},
 	}
 	for k := range e.attrs {
 		delete(e.attrs, k)
@@ -342,79 +340,53 @@ func (e *exceptionData) reset() {
 }
 
 func initException(e *exceptionData, err error) {
-	setAttr := func(k string, v interface{}) {
-		if e.attrs == nil {
-			e.attrs = make(map[string]interface{})
-		}
-		e.attrs[k] = v
-	}
-
 	e.message = truncateString(err.Error())
 	if e.message == "" {
 		e.message = "[EMPTY]"
 	}
 	err = errors.Cause(err)
 
-	// Set Module, Type, Attributes, and Code.
+	errType := reflect.TypeOf(err)
+	namedType := errType
+	if errType.Name() == "" && errType.Kind() == reflect.Ptr {
+		namedType = errType.Elem()
+	}
+	e.Type.Name = namedType.Name()
+	e.Type.PackagePath = namedType.PkgPath()
+
+	// If the error implements Type, use that to
+	// override the type name determined through
+	// reflection.
+	if err, ok := err.(interface {
+		Type() string
+	}); ok {
+		e.Type.Name = err.Type()
+	}
+
+	// If the error implements a Code method, use
+	// that to set the exception code.
 	switch err := err.(type) {
-	case *net.OpError:
-		e.typePackagePath, e.typeName = "net", "OpError"
-		setAttr("op", err.Op)
-		setAttr("net", err.Net)
-		setAttr("source", err.Source)
-		setAttr("addr", err.Addr)
-	case *os.LinkError:
-		e.typePackagePath, e.typeName = "os", "LinkError"
-		setAttr("op", err.Op)
-		setAttr("old", err.Old)
-		setAttr("new", err.New)
-	case *os.PathError:
-		e.typePackagePath, e.typeName = "os", "PathError"
-		setAttr("op", err.Op)
-		setAttr("path", err.Path)
-	case *os.SyscallError:
-		e.typePackagePath, e.typeName = "os", "SyscallError"
-		setAttr("syscall", err.Syscall)
-	case syscall.Errno:
-		e.typePackagePath, e.typeName = "syscall", "Errno"
-		e.codeNumber = float64(uintptr(err))
-	default:
-		t := reflect.TypeOf(err)
-		if t.Name() == "" && t.Kind() == reflect.Ptr {
-			t = t.Elem()
-		}
-		e.typePackagePath, e.typeName = t.PkgPath(), t.Name()
+	case interface {
+		Code() string
+	}:
+		e.Code.String = err.Code()
+	case interface {
+		Code() float64
+	}:
+		e.Code.Number = err.Code()
+	}
 
-		// If the error implements Type, use that to
-		// override the type name determined through
-		// reflection.
-		if err, ok := err.(interface {
-			Type() string
-		}); ok {
-			e.typeName = err.Type()
-		}
+	// Run registered ErrorDetailers over the error.
+	for _, ed := range typeErrorDetailers[errType] {
+		ed.ErrorDetails(err, &e.ErrorDetails)
+	}
+	for _, ed := range errorDetailers {
+		ed.ErrorDetails(err, &e.ErrorDetails)
+	}
 
-		// If the error implements a Code method, use
-		// that to set the exception code.
-		switch err := err.(type) {
-		case interface {
-			Code() string
-		}:
-			e.codeString = err.Code()
-		case interface {
-			Code() float64
-		}:
-			e.codeNumber = err.Code()
-		}
-	}
-	if errTemporary(err) {
-		setAttr("temporary", true)
-	}
-	if errTimeout(err) {
-		setAttr("timeout", true)
-	}
-	e.codeString = truncateString(e.codeString)
-	e.typeName = truncateString(e.typeName)
+	e.Code.String = truncateString(e.Code.String)
+	e.Type.Name = truncateString(e.Type.Name)
+	e.Type.PackagePath = truncateString(e.Type.PackagePath)
 }
 
 func initStacktrace(e *Error, err error) {
@@ -464,22 +436,6 @@ func (e *Error) SetStacktrace(skip int) {
 	e.stacktrace = stacktrace.AppendStacktrace(retain, skip+1, -1)
 }
 
-func errTemporary(err error) bool {
-	type temporaryError interface {
-		Temporary() bool
-	}
-	terr, ok := err.(temporaryError)
-	return ok && terr.Temporary()
-}
-
-func errTimeout(err error) bool {
-	type timeoutError interface {
-		Timeout() bool
-	}
-	terr, ok := err.(timeoutError)
-	return ok && terr.Timeout()
-}
-
 // ErrorLogRecord holds details of an error log record.
 type ErrorLogRecord struct {
 	// Message holds the message for the log record,
@@ -516,4 +472,158 @@ type ErrorID TraceID
 // String returns id in its hex-encoded format.
 func (id ErrorID) String() string {
 	return TraceID(id).String()
+}
+
+func init() {
+	RegisterErrorDetailer(ErrorDetailerFunc(func(err error, details *ErrorDetails) {
+		if errTemporary(err) {
+			details.SetAttr("temporary", true)
+		}
+		if errTimeout(err) {
+			details.SetAttr("timeout", true)
+		}
+	}))
+	RegisterTypeErrorDetailer(reflect.TypeOf(&net.OpError{}), ErrorDetailerFunc(func(err error, details *ErrorDetails) {
+		opErr := err.(*net.OpError)
+		details.SetAttr("op", opErr.Op)
+		details.SetAttr("net", opErr.Net)
+		if opErr.Source != nil {
+			if addr := opErr.Source; addr != nil {
+				details.SetAttr("source", fmt.Sprintf("%s:%s", addr.Network(), addr.String()))
+			}
+		}
+		if opErr.Addr != nil {
+			if addr := opErr.Addr; addr != nil {
+				details.SetAttr("addr", fmt.Sprintf("%s:%s", addr.Network(), addr.String()))
+			}
+		}
+	}))
+	RegisterTypeErrorDetailer(reflect.TypeOf(&os.LinkError{}), ErrorDetailerFunc(func(err error, details *ErrorDetails) {
+		linkErr := err.(*os.LinkError)
+		details.SetAttr("op", linkErr.Op)
+		details.SetAttr("old", linkErr.Old)
+		details.SetAttr("new", linkErr.New)
+	}))
+	RegisterTypeErrorDetailer(reflect.TypeOf(&os.PathError{}), ErrorDetailerFunc(func(err error, details *ErrorDetails) {
+		pathErr := err.(*os.PathError)
+		details.SetAttr("op", pathErr.Op)
+		details.SetAttr("path", pathErr.Path)
+	}))
+	RegisterTypeErrorDetailer(reflect.TypeOf(&os.SyscallError{}), ErrorDetailerFunc(func(err error, details *ErrorDetails) {
+		syscallErr := err.(*os.SyscallError)
+		details.SetAttr("syscall", syscallErr.Syscall)
+	}))
+	RegisterTypeErrorDetailer(reflect.TypeOf(syscall.Errno(0)), ErrorDetailerFunc(func(err error, details *ErrorDetails) {
+		errno := err.(syscall.Errno)
+		details.Code.String = errnoName(errno)
+		if details.Code.String == "" {
+			details.Code.Number = float64(errno)
+		}
+	}))
+}
+
+func errTemporary(err error) bool {
+	type temporaryError interface {
+		Temporary() bool
+	}
+	terr, ok := err.(temporaryError)
+	return ok && terr.Temporary()
+}
+
+func errTimeout(err error) bool {
+	type timeoutError interface {
+		Timeout() bool
+	}
+	terr, ok := err.(timeoutError)
+	return ok && terr.Timeout()
+}
+
+// RegisterTypeErrorDetailer registers e to be called for any error with
+// the concrete type t.
+//
+// Each ErrorDetailer registered in this way will be called, in the order
+// registered, for each error of type t created via Tracer.NewError or
+// Tracer.NewErrorLog.
+//
+// RegisterTypeErrorDetailer must not be called during tracer operation;
+// it is intended to be called at package init time.
+func RegisterTypeErrorDetailer(t reflect.Type, e ErrorDetailer) {
+	typeErrorDetailers[t] = append(typeErrorDetailers[t], e)
+}
+
+// RegisterErrorDetailer registers e in the global list of ErrorDetailers.
+//
+// Each ErrorDetailer registered in this way will be called, in the order
+// registered, for each error created via Tracer.NewError or Tracer.NewErrorLog.
+//
+// RegisterErrorDetailer must not be called during tracer operation; it is
+// intended to be called at package init time.
+func RegisterErrorDetailer(e ErrorDetailer) {
+	errorDetailers = append(errorDetailers, e)
+}
+
+var (
+	typeErrorDetailers = make(map[reflect.Type][]ErrorDetailer)
+	errorDetailers     []ErrorDetailer
+)
+
+// ErrorDetails holds details of an error, which can be altered or
+// extended by registering an ErrorDetailer with RegisterErrorDetailer.
+type ErrorDetails struct {
+	attrs map[string]interface{}
+
+	// Type holds information about the error type, initialized
+	// with the type name and type package path using reflection.
+	Type struct {
+		// Name holds the error type name.
+		Name string
+
+		// PackagePath holds the error type package path.
+		PackagePath string
+	}
+
+	// Code holds an error code.
+	Code struct {
+		// String holds a string-based error code. If this is set, then Number is ignored.
+		//
+		// This field will be initialized to the result of calling an error's Code method,
+		// if the error implements the following interface:
+		//
+		//     type interface StringCoder {
+		//         Code() string
+		//     }
+		String string
+
+		// Number holds a numerical error code. This is ignored if String is set.
+		//
+		// This field will be initialized to the result of calling an error's Code
+		// method, if the error implements the following interface:
+		//
+		//     type interface NumberCoder {
+		//         Code() float64
+		//     }
+		Number float64
+	}
+}
+
+// SetAttr sets the attribute with key k to value v.
+func (d *ErrorDetails) SetAttr(k string, v interface{}) {
+	if d.attrs == nil {
+		d.attrs = make(map[string]interface{})
+	}
+	d.attrs[k] = v
+}
+
+// ErrorDetailer defines an interface for altering or extending the ErrorDetails for an error.
+type ErrorDetailer interface {
+	// ErrorDetails is called to update or alter details for err.
+	ErrorDetails(err error, details *ErrorDetails)
+}
+
+// ErrorDetailerFunc is a function type implementing ErrorDetailer.
+type ErrorDetailerFunc func(error, *ErrorDetails)
+
+// ErrorDetails calls f(err, details).
+func (f ErrorDetailerFunc) ErrorDetails(err error, details *ErrorDetails) {
+	f(err, details)
 }

@@ -13,6 +13,6 @@ require (
 	github.com/santhosh-tekuri/jsonschema v1.2.3
 	github.com/stretchr/testify v1.2.2
 	go.elastic.co/fastjson v1.0.0
-	golang.org/x/sys v0.0.0-20190102155601-82a175fd1598 // indirect
+	golang.org/x/sys v0.0.0-20190102155601-82a175fd1598
 	howett.net/plist v0.0.0-20181124034731-591f970eefbb // indirect
 )
