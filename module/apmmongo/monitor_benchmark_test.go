@@ -21,9 +21,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/mongodb/mongo-go-driver/bson"
-	"github.com/mongodb/mongo-go-driver/event"
 	"github.com/stretchr/testify/require"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/event"
 
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/module/apmmongo"
