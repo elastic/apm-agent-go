@@ -26,7 +26,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/event"
+	"go.mongodb.org/mongo-driver/mongo"
 
+	"go.elastic.co/apm"
 	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/module/apmmongo"
@@ -177,6 +179,30 @@ func TestCommandMonitorFinishedNotStarted(t *testing.T) {
 	})
 	assert.Empty(t, spans)
 	assert.Empty(t, errs)
+}
+
+func TestCommandErrorDetails(t *testing.T) {
+	_, _, errs := apmtest.WithTransaction(func(ctx context.Context) {
+		apm.CaptureError(ctx, mongo.CommandError{
+			Code:    11,
+			Name:    "UserNotFound",
+			Message: "Robert'); DROP TABLE Students;-- not found",
+			Labels:  []string{"black", "blue", "red"},
+		}).Send()
+	})
+	require.Len(t, errs, 1)
+
+	errs[0].Exception.Stacktrace = nil
+	assert.Equal(t, model.Exception{
+		Message: `(UserNotFound) Robert'); DROP TABLE Students;-- not found`,
+		Type:    "CommandError",
+		Module:  "go.mongodb.org/mongo-driver/mongo",
+		Code:    model.ExceptionCode{String: "UserNotFound"},
+		Handled: true,
+		Attributes: map[string]interface{}{
+			"labels": []interface{}{"black", "blue", "red"},
+		},
+	}, errs[0].Exception)
 }
 
 func mustRawBSON(val interface{}) bson.Raw {

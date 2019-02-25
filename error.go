@@ -568,7 +568,8 @@ var (
 )
 
 // ErrorDetails holds details of an error, which can be altered or
-// extended by registering an ErrorDetailer with RegisterErrorDetailer.
+// extended by registering an ErrorDetailer with RegisterErrorDetailer
+// or RegisterTypeErrorDetailer.
 type ErrorDetails struct {
 	attrs map[string]interface{}
 
@@ -615,6 +616,9 @@ func (d *ErrorDetails) SetAttr(k string, v interface{}) {
 }
 
 // ErrorDetailer defines an interface for altering or extending the ErrorDetails for an error.
+//
+// ErrorDetailers can be registered using the package-level functions RegisterErrorDetailer and
+// RegisterTypeErrorDetailer.
 type ErrorDetailer interface {
 	// ErrorDetails is called to update or alter details for err.
 	ErrorDetails(err error, details *ErrorDetails)

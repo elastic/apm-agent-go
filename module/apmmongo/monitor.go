@@ -19,6 +19,7 @@ package apmmongo
 
 import (
 	"context"
+	"reflect"
 	"sync"
 	"time"
 
@@ -26,6 +27,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/bsoncodec"
 	"go.mongodb.org/mongo-driver/bson/bsonrw"
 	"go.mongodb.org/mongo-driver/event"
+	"go.mongodb.org/mongo-driver/mongo"
 
 	"go.elastic.co/apm"
 )
@@ -38,6 +40,19 @@ var (
 		},
 	}
 )
+
+func init() {
+	apm.RegisterTypeErrorDetailer(
+		reflect.TypeOf(mongo.CommandError{}),
+		apm.ErrorDetailerFunc(func(err error, details *apm.ErrorDetails) {
+			commandErr := err.(mongo.CommandError)
+			details.Code.String = commandErr.Name
+			if len(commandErr.Labels) > 0 {
+				details.SetAttr("labels", commandErr.Labels)
+			}
+		}),
+	)
+}
 
 // CommandMonitor returns a new event.CommandMonitor which will report a span
 // for each command executed within a context containing a sampled transaction.
