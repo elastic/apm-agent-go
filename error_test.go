@@ -20,9 +20,12 @@ package apm_test
 import (
 	"context"
 	"fmt"
+	"net"
+	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"syscall"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -221,6 +224,96 @@ func TestErrorTransactionSampledNoTransaction(t *testing.T) {
 	payloads := recorder.Payloads()
 	require.Len(t, payloads.Errors, 1)
 	assert.Nil(t, payloads.Errors[0].Transaction.Sampled)
+}
+
+func TestErrorDetailer(t *testing.T) {
+	type error1 struct{ error }
+	apm.RegisterTypeErrorDetailer(reflect.TypeOf(error1{}), apm.ErrorDetailerFunc(func(err error, details *apm.ErrorDetails) {
+		details.SetAttr("a", "error1")
+	}))
+
+	type error2 struct{ error }
+	apm.RegisterTypeErrorDetailer(reflect.TypeOf(&error2{}), apm.ErrorDetailerFunc(func(err error, details *apm.ErrorDetails) {
+		details.SetAttr("b", "*error2")
+	}))
+
+	apm.RegisterErrorDetailer(apm.ErrorDetailerFunc(func(err error, details *apm.ErrorDetails) {
+		// NOTE(axw) ErrorDetailers can't be _unregistered_,
+		// so we check the error type so as not to interfere
+		// with other tests.
+		switch err.(type) {
+		case error1, *error2:
+			details.SetAttr("c", "both")
+		}
+	}))
+
+	_, _, errs := apmtest.WithTransaction(func(ctx context.Context) {
+		apm.CaptureError(ctx, error1{errors.New("error1")}).Send()
+		apm.CaptureError(ctx, &error2{errors.New("error2")}).Send()
+	})
+	require.Len(t, errs, 2)
+	assert.Equal(t, map[string]interface{}{"a": "error1", "c": "both"}, errs[0].Exception.Attributes)
+	assert.Equal(t, map[string]interface{}{"b": "*error2", "c": "both"}, errs[1].Exception.Attributes)
+}
+
+func TestStdlibErrorDetailers(t *testing.T) {
+	t.Run("syscall.Errno", func(t *testing.T) {
+		_, _, errs := apmtest.WithTransaction(func(ctx context.Context) {
+			apm.CaptureError(ctx, syscall.Errno(syscall.EAGAIN)).Send()
+		})
+		require.Len(t, errs, 1)
+
+		if runtime.GOOS == "windows" {
+			// There's currently no equivalent of unix.ErrnoName for Windows.
+			assert.Equal(t, model.ExceptionCode{Number: float64(syscall.EAGAIN)}, errs[0].Exception.Code)
+		} else {
+			assert.Equal(t, model.ExceptionCode{String: "EAGAIN"}, errs[0].Exception.Code)
+		}
+
+		assert.Equal(t, map[string]interface{}{
+			"temporary": true,
+			"timeout":   true,
+		}, errs[0].Exception.Attributes)
+	})
+
+	test := func(err error, expectedAttrs map[string]interface{}) {
+		t.Run(fmt.Sprintf("%T", err), func(t *testing.T) {
+			_, _, errs := apmtest.WithTransaction(func(ctx context.Context) {
+				apm.CaptureError(ctx, err).Send()
+			})
+			require.Len(t, errs, 1)
+			assert.Equal(t, expectedAttrs, errs[0].Exception.Attributes)
+		})
+	}
+	type attrmap map[string]interface{}
+
+	test(&net.OpError{
+		Err: errors.New("cause"),
+		Op:  "read",
+		Net: "tcp",
+		Source: &net.TCPAddr{
+			IP:   net.IPv6loopback,
+			Port: 1234,
+		},
+	}, attrmap{"op": "read", "net": "tcp", "source": "tcp:[::1]:1234"})
+
+	test(&os.LinkError{
+		Err: errors.New("cause"),
+		Op:  "symlink",
+		Old: "/old",
+		New: "/new",
+	}, attrmap{"op": "symlink", "old": "/old", "new": "/new"})
+
+	test(&os.PathError{
+		Err:  errors.New("cause"),
+		Op:   "open",
+		Path: "/dev/null",
+	}, attrmap{"op": "open", "path": "/dev/null"})
+
+	test(&os.SyscallError{
+		Err:     errors.New("cause"),
+		Syscall: "connect",
+	}, attrmap{"syscall": "connect"})
 }
 
 func assertErrorTransactionSampled(t *testing.T, e model.Error, sampled bool) {

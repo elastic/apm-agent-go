@@ -110,5 +110,5 @@ func (suite *IntegrationSuite) TestCommandMonitor() {
 	suite.Require().Len(errs, 1)
 	suite.Equal(tx.ID, errs[0].ParentID)
 	suite.Equal("(UserNotFound) User 'bob@test_db' not found", errs[0].Exception.Message)
-	suite.Equal(model.ExceptionCode{}, errs[0].Exception.Code) // BUG(axw) https://github.com/elastic/apm-agent-go/issues/447
+	suite.Equal(model.ExceptionCode{String: "UserNotFound"}, errs[0].Exception.Code)
 }

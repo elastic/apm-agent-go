@@ -5,6 +5,7 @@
  - Rename "metricset.labels" to "metricset.tags" (#438)
  - Introduce `ELASTIC_APM_DISABLE_METRICS` to disable metrics with matching names (#439)
  - module/apmmongo: introduce instrumentation for the MongoDB Go Driver (#452)
+ - Introduce ErrorDetailer interface (#453)
 
 ## [v1.2.0](https://github.com/elastic/apm-agent-go/releases/tag/v1.2.0)
 

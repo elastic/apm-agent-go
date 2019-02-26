@@ -169,11 +169,11 @@ func (w *modelWriter) buildModelError(out *model.Error, e *ErrorData) {
 		out.Exception = model.Exception{
 			Message: e.exception.message,
 			Code: model.ExceptionCode{
-				String: e.exception.codeString,
-				Number: e.exception.codeNumber,
+				String: e.exception.Code.String,
+				Number: e.exception.Code.Number,
 			},
-			Type:       e.exception.typeName,
-			Module:     e.exception.typePackagePath,
+			Type:       e.exception.Type.Name,
+			Module:     e.exception.Type.PackagePath,
 			Handled:    e.Handled,
 			Stacktrace: w.modelStacktrace[:e.exceptionStacktraceFrames],
 		}
