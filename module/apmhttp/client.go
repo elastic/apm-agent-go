@@ -121,13 +121,23 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	return resp, err
 }
 
-// CloseIdleConnections calls r.r.CloseIdleConnections if it exists.
+// CloseIdleConnections calls r.r.CloseIdleConnections if the method exists.
 func (r *roundTripper) CloseIdleConnections() {
 	type closeIdler interface {
 		CloseIdleConnections()
 	}
 	if r, ok := r.r.(closeIdler); ok {
 		r.CloseIdleConnections()
+	}
+}
+
+// CancelRequest calls r.r.CancelRequest(req) if the method exists.
+func (r *roundTripper) CancelRequest(req *http.Request) {
+	type cancelRequester interface {
+		CancelRequest(*http.Request)
+	}
+	if r, ok := r.r.(cancelRequester); ok {
+		r.CancelRequest(req)
 	}
 }
 
