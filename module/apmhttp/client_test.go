@@ -185,6 +185,38 @@ func TestClientDuration(t *testing.T) {
 	assert.InDelta(t, delay/time.Millisecond, span.Duration, 100)
 }
 
+func TestClientCancelRequest(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		<-req.Context().Done()
+	}))
+	defer server.Close()
+
+	canceled := make(chan struct{}, 1)
+	transport := &cancelRequester{
+		RoundTripper: http.DefaultTransport,
+		cancelRequest: func(*http.Request) {
+			select {
+			case canceled <- struct{}{}:
+			default:
+			}
+		},
+	}
+	apmtest.WithTransaction(func(ctx context.Context) {
+		client := &http.Client{
+			Transport: apmhttp.WrapRoundTripper(transport),
+			Timeout:   time.Nanosecond,
+		}
+		_, err := ctxhttp.Get(ctx, client, server.URL)
+		require.Error(t, err)
+	})
+
+	select {
+	case <-canceled:
+	case <-time.After(10 * time.Second):
+		t.Fatalf("timed out waiting for CancelRequest to be called")
+	}
+}
+
 func mustGET(ctx context.Context, url string) (statusCode int, responseBody string) {
 	client := apmhttp.WrapClient(http.DefaultClient)
 	resp, err := ctxhttp.Get(ctx, client, url)
@@ -198,4 +230,13 @@ func mustGET(ctx context.Context, url string) (statusCode int, responseBody stri
 		panic(err)
 	}
 	return resp.StatusCode, string(body)
+}
+
+type cancelRequester struct {
+	http.RoundTripper
+	cancelRequest func(*http.Request)
+}
+
+func (r *cancelRequester) CancelRequest(req *http.Request) {
+	r.cancelRequest(req)
 }
