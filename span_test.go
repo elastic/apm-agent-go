@@ -125,3 +125,13 @@ func TestSpanType(t *testing.T) {
 	check(spans[2], "type", "subtype", "action")
 	check(spans[3], "type", "subtype", "action.figure")
 }
+
+func TestTracerStartSpanIDSpecified(t *testing.T) {
+	spanID := apm.SpanID{0, 1, 2, 3, 4, 5, 6, 7}
+	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+		span, _ := apm.StartSpanOptions(ctx, "name", "type", apm.SpanOptions{SpanID: spanID})
+		span.End()
+	})
+	require.Len(t, spans, 1)
+	assert.Equal(t, model.SpanID(spanID), spans[0].ID)
+}

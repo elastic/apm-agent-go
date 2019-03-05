@@ -107,7 +107,11 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 		opts.Start = tx.timestamp.Add(opts.Start.Sub(tx.timestamp))
 	}
 	span := tx.tracer.startSpan(name, spanType, transactionID, opts)
-	binary.LittleEndian.PutUint64(span.traceContext.Span[:], tx.rand.Uint64())
+	if opts.SpanID.Validate() == nil {
+		span.traceContext.Span = opts.SpanID
+	} else {
+		binary.LittleEndian.PutUint64(span.traceContext.Span[:], tx.rand.Uint64())
+	}
 	span.stackFramesMinDuration = tx.spanFramesMinDuration
 	tx.spansCreated++
 	return span
@@ -130,8 +134,12 @@ func (t *Tracer) StartSpan(name, spanType string, transactionID SpanID, opts Spa
 		return newDroppedSpan()
 	}
 	var spanID SpanID
-	if _, err := cryptorand.Read(spanID[:]); err != nil {
-		return newDroppedSpan()
+	if opts.SpanID.Validate() == nil {
+		spanID = opts.SpanID
+	} else {
+		if _, err := cryptorand.Read(spanID[:]); err != nil {
+			return newDroppedSpan()
+		}
 	}
 	if opts.Start.IsZero() {
 		opts.Start = time.Now()
@@ -148,6 +156,10 @@ func (t *Tracer) StartSpan(name, spanType string, transactionID SpanID, opts Spa
 type SpanOptions struct {
 	// Parent, if non-zero, holds the trace context of the parent span.
 	Parent TraceContext
+
+	// SpanID holds the ID to assign to the span. If this is zero, a new ID
+	// will be generated and used instead.
+	SpanID SpanID
 
 	// parent, if non-nil, holds the parent span.
 	//

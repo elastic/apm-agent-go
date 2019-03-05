@@ -57,16 +57,28 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 	tx.Type = transactionType
 
 	var root bool
-	if opts.TraceContext.Trace.Validate() == nil && opts.TraceContext.Span.Validate() == nil {
+	if opts.TraceContext.Trace.Validate() == nil {
 		tx.traceContext.Trace = opts.TraceContext.Trace
-		tx.parentSpan = opts.TraceContext.Span
-		binary.LittleEndian.PutUint64(tx.traceContext.Span[:], tx.rand.Uint64())
+		tx.traceContext.Options = opts.TraceContext.Options
+		if opts.TraceContext.Span.Validate() == nil {
+			tx.parentSpan = opts.TraceContext.Span
+		}
+		if opts.TransactionID.Validate() == nil {
+			tx.traceContext.Span = opts.TransactionID
+		} else {
+			binary.LittleEndian.PutUint64(tx.traceContext.Span[:], tx.rand.Uint64())
+		}
 	} else {
-		// Start a new trace. We reuse the trace ID for the root transaction's ID.
+		// Start a new trace. We reuse the trace ID for the root transaction's ID
+		// if one is not specified in the options.
 		root = true
 		binary.LittleEndian.PutUint64(tx.traceContext.Trace[:8], tx.rand.Uint64())
 		binary.LittleEndian.PutUint64(tx.traceContext.Trace[8:], tx.rand.Uint64())
-		copy(tx.traceContext.Span[:], tx.traceContext.Trace[:])
+		if opts.TransactionID.Validate() == nil {
+			tx.traceContext.Span = opts.TransactionID
+		} else {
+			copy(tx.traceContext.Span[:], tx.traceContext.Trace[:])
+		}
 	}
 
 	// Take a snapshot of the max spans config to ensure
@@ -112,6 +124,10 @@ type TransactionOptions struct {
 	// TraceContext holds the TraceContext for a new transaction. If this is
 	// zero, a new trace will be started.
 	TraceContext TraceContext
+
+	// TransactionID holds the ID to assign to the transaction. If this is
+	// zero, a new ID will be generated and used instead.
+	TransactionID SpanID
 
 	// Start is the start time of the transaction. If this has the
 	// zero value, time.Now() will be used instead.

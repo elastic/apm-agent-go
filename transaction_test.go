@@ -59,10 +59,6 @@ func TestStartTransactionInvalidTraceContext(t *testing.T) {
 		// Trace is all zeroes, which is invalid.
 		Span: apm.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
 	})
-	startTransactionInvalidTraceContext(t, apm.TraceContext{
-		Trace: apm.TraceID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
-		// Span is all zeroes, which is invalid.
-	})
 }
 
 func startTransactionInvalidTraceContext(t *testing.T, traceContext apm.TraceContext) {
@@ -78,6 +74,36 @@ func startTransactionInvalidTraceContext(t *testing.T, traceContext apm.TraceCon
 	opts := apm.TransactionOptions{TraceContext: traceContext}
 	tx := tracer.StartTransactionOptions("name", "type", opts)
 	assert.True(t, samplerCalled)
+	tx.Discard()
+}
+
+func TestStartTransactionTraceParentSpanIDSpecified(t *testing.T) {
+	startTransactionIDSpecified(t, apm.TraceContext{
+		Trace: apm.TraceID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+		Span:  apm.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
+	})
+}
+
+func TestStartTransactionTraceIDSpecified(t *testing.T) {
+	startTransactionIDSpecified(t, apm.TraceContext{
+		Trace: apm.TraceID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+	})
+}
+
+func TestStartTransactionIDSpecified(t *testing.T) {
+	startTransactionIDSpecified(t, apm.TraceContext{})
+}
+
+func startTransactionIDSpecified(t *testing.T, traceContext apm.TraceContext) {
+	tracer, _ := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	opts := apm.TransactionOptions{
+		TraceContext:  traceContext,
+		TransactionID: apm.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
+	}
+	tx := tracer.StartTransactionOptions("name", "type", opts)
+	assert.Equal(t, opts.TransactionID, tx.TraceContext().Span)
 	tx.Discard()
 }
 
