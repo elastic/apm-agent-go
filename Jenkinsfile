@@ -1,6 +1,6 @@
 #!/usr/bin/env groovy
 
-@Library('apm@v1.0.6') _
+@Library('apm@v1.0.9') _
 
 pipeline {
   agent any
@@ -181,12 +181,6 @@ pipeline {
     stage('Documentation') {
       agent { label 'linux && immutable' }
       options { skipDefaultCheckout() }
-      environment {
-        PATH = "${env.PATH}:${env.WORKSPACE}/bin"
-        HOME = "${env.WORKSPACE}"
-        GOPATH = "${env.WORKSPACE}"
-        ELASTIC_DOCS = "${env.WORKSPACE}/elastic/docs"
-      }
       when {
         beforeAgent true
         allOf {
@@ -206,16 +200,8 @@ pipeline {
       steps {
         deleteDir()
         unstash 'source'
-        checkoutElasticDocsTools(basedir: "${ELASTIC_DOCS}")
         dir("${BASE_DIR}"){
-          sh """#!/bin/bash
-          make docs
-          """
-        }
-      }
-      post{
-        success {
-          tar(file: "doc-files.tgz", archive: true, dir: "html", pathPrefix: "${BASE_DIR}/docs")
+          buildDocs(docsDir: "docs", archive: true)
         }
       }
     }
