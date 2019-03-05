@@ -8,6 +8,7 @@
  - module/apmmongo: introduce instrumentation for the MongoDB Go Driver (#452)
  - Introduce ErrorDetailer interface (#453)
  - module/apmhttp: add CloseIdleConnectons and CancelRequest to RoundTripper (#457)
+ - Allow specifying transaction (span) ID via TransactionOptions/SpanOptions (#463)
 
 ## [v1.2.0](https://github.com/elastic/apm-agent-go/releases/tag/v1.2.0)
 
