@@ -98,8 +98,14 @@ func ParseTraceparentHeader(h string) (apm.TraceContext, error) {
 		if _, err := hex.Decode(out.Trace[:], []byte(h[:traceIDEnd])); err != nil {
 			return out, errors.Wrapf(err, "error decoding trace-id for version %d", version)
 		}
+		if err := out.Trace.Validate(); err != nil {
+			return out, errors.Wrap(err, "invalid trace-id")
+		}
 		if _, err := hex.Decode(out.Span[:], []byte(h[spanIDStart:spanIDEnd])); err != nil {
 			return out, errors.Wrapf(err, "error decoding span-id for version %d", version)
+		}
+		if err := out.Span.Validate(); err != nil {
+			return out, errors.Wrap(err, "invalid span-id")
 		}
 		var traceOptions [1]byte
 		if _, err := hex.Decode(traceOptions[:], []byte(h[traceOptionsStart:traceOptionsEnd])); err != nil {
