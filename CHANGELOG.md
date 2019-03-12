@@ -10,6 +10,7 @@
  - module/apmhttp: add CloseIdleConnectons and CancelRequest to RoundTripper (#457)
  - Allow specifying transaction (span) ID via TransactionOptions/SpanOptions (#463)
  - module/apmzerolog: introduce zerolog log correlation and exception-tracking writer (#428)
+ - module/apmelasticsearch: capture body for \_msearch, template and rollup search (#470)
 
 ## [v1.2.0](https://github.com/elastic/apm-agent-go/releases/tag/v1.2.0)
 
