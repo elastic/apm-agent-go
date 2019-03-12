@@ -222,3 +222,13 @@ https://github.com/uber-go/zap/releases/tag/v1.0.0[v1.0.0] and greater.
 
 See <<builtin-modules-apmzap, module/apmzap>> for more information
 about Zap integration.
+
+[float]
+==== Zerolog
+
+We support log correlation and exception tracking with
+https://github.com/rs/zerolog/[Zerolog],
+https://github.com/rs/zerolog/releases/tag/v1.12.0[v1.12.0] and greater.
+
+See <<builtin-modules-apmzerolog, module/apmzerolog>> for more information
+about Zerolog integration.

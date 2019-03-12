@@ -26,6 +26,7 @@ COPY module/apmredigo/go.mod module/apmredigo/go.sum /go/src/go.elastic.co/apm/m
 COPY module/apmrestful/go.mod module/apmrestful/go.sum /go/src/go.elastic.co/apm/module/apmrestful/
 COPY module/apmsql/go.mod module/apmsql/go.sum /go/src/go.elastic.co/apm/module/apmsql/
 COPY module/apmzap/go.mod module/apmzap/go.sum /go/src/go.elastic.co/apm/module/apmzap/
+COPY module/apmzerolog/go.mod module/apmzerolog/go.sum /go/src/go.elastic.co/apm/module/apmzerolog/
 COPY scripts/genmod/go.mod scripts/genmod/go.sum /go/src/go.elastic.co/apm/scripts/genmod/
 
 RUN cd /go/src/go.elastic.co/apm && go mod download
@@ -52,6 +53,7 @@ RUN cd /go/src/go.elastic.co/apm/module/apmredigo && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmrestful && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmsql && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmzap && go mod download
+RUN cd /go/src/go.elastic.co/apm/module/apmzerolog && go mod download
 RUN cd /go/src/go.elastic.co/apm/scripts/genmod && go mod download
 
 WORKDIR /go/src/go.elastic.co/apm

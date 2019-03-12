@@ -12,8 +12,9 @@ precheck: check-goimports check-lint check-vet check-dockerfile-testing check-li
 .PHONY: check-goimports
 .PHONY: check-dockerfile-testing
 .PHONY: check-lint
+.PHONY: check-licenses
 .PHONY: check-modules
-ifeq ($(shell go run ./scripts/mingoversion.go -print 1.11),true)
+ifeq ($(shell go run ./scripts/mingoversion.go -print 1.12),true)
 check-goimports:
 	sh scripts/check_goimports.sh
 
@@ -77,5 +78,6 @@ else
 	@exit 1
 endif
 
+.PHONY: update-licenses
 update-licenses:
 	go-licenser $(patsubst %, -exclude %, $(GO_LICENSER_EXCLUDE)) .
