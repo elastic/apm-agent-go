@@ -149,7 +149,8 @@ about Redigo instrumentation.
 ==== Elasticsearch
 
 We provide instrumentation for Elasticsearch clients. This is usable with
-the https://github.com/olivere/elastic[olivere/elastic] client, and should
+the https://github.com/elastic/go-elasticsearch[go-elasticsearch] and
+https://github.com/olivere/elastic[olivere/elastic] clients, and should
 also be usable with any other clients that provide a means of configuring
 the underlying `net/http.RoundTripper`.
 
