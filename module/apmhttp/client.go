@@ -31,6 +31,11 @@ import (
 // such that client requests are reported as spans to Elastic APM
 // if their context contains a sampled transaction.
 //
+// Spans are started just before the request is sent, and ended
+// immediately if the request returned an error (e.g. due to socket
+// timeout, but not a valid response with a non-200 status code),
+// or otherwise when the response body is fully consumed or closed.
+//
 // If c is nil, then http.DefaultClient is wrapped.
 func WrapClient(c *http.Client, o ...ClientOption) *http.Client {
 	if c == nil {
