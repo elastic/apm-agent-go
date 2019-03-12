@@ -23,7 +23,8 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"strings"
+	"net/url"
+	"path"
 	"sync/atomic"
 	"unsafe"
 
@@ -53,8 +54,8 @@ type roundTripper struct {
 
 // RoundTrip delegates to r.r, emitting a span if req's context contains a transaction.
 //
-// If req.URL.Path ends with "/_search", then RoundTrip will attempt to extract the
-// search query to use as the span context's "database statement". If the query is
+// If req.URL.Path corresponds to a search request, then RoundTrip will attempt to extract
+// the search query to use as the span context's "database statement". If the query is
 // passed in as a query parameter (i.e. "/_search?q=foo:bar"), then that will be used;
 // otherwise, the request body will be read. In the latter case, req.GetBody is used
 // if defined, otherwise we read req.Body, preserving its contents for the underlying
@@ -131,7 +132,7 @@ type ClientOption func(*roundTripper)
 // then captureSearchStatement returns a new *http.Request to be passed
 // to the underlying http.RoundTripper. Otherwise, req is returned.
 func captureSearchStatement(req *http.Request) (string, *http.Request) {
-	if !strings.HasSuffix(req.URL.Path, "/_search") {
+	if !isSearchURL(req.URL) {
 		return "", req
 	}
 
@@ -192,6 +193,23 @@ func captureSearchStatement(req *http.Request) (string, *http.Request) {
 		statement = bodyBuf.String()
 	}
 	return statement, req
+}
+
+func isSearchURL(url *url.URL) bool {
+	switch dir, file := path.Split(url.Path); file {
+	case "_search", "_msearch", "_rollup_search":
+		return true
+	case "template":
+		if dir == "" {
+			return false
+		}
+		switch _, file := path.Split(dir[:len(dir)-1]); file {
+		case "_search", "_msearch":
+			// ".../_search/template" or ".../_msearch/template"
+			return true
+		}
+	}
+	return false
 }
 
 func limitedBody(r io.Reader, n int64) io.Reader {

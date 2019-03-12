@@ -120,7 +120,7 @@ func TestStatementNonSearch(t *testing.T) {
 	defer server.Close()
 
 	client := &http.Client{Transport: apmelasticsearch.WrapRoundTripper(http.DefaultTransport)}
-	req, _ := http.NewRequest("GET", server.URL+"/twitter/_msearch", strings.NewReader("Request.Body"))
+	req, _ := http.NewRequest("POST", server.URL+"/twitter/_update_by_query", strings.NewReader("Request.Body"))
 
 	_, spans, errs := apmtest.WithTransaction(func(ctx context.Context) {
 		resp, err := client.Do(req.WithContext(ctx))
@@ -135,27 +135,37 @@ func TestStatementNonSearch(t *testing.T) {
 }
 
 func TestStatementGetBody(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {}))
-	defer server.Close()
+	testStatementGetBody(t, "_search")
+	testStatementGetBody(t, "_msearch")
+	testStatementGetBody(t, "_search/template")
+	testStatementGetBody(t, "_msearch/template")
+	testStatementGetBody(t, "_rollup_search")
+}
 
-	client := &http.Client{Transport: apmelasticsearch.WrapRoundTripper(http.DefaultTransport)}
-	req, _ := http.NewRequest("GET", server.URL+"/twitter/_search", strings.NewReader("Request.Body"))
-	req.GetBody = func() (io.ReadCloser, error) {
-		return ioutil.NopCloser(strings.NewReader("Request.GetBody")), nil
-	}
+func testStatementGetBody(t *testing.T, path string) {
+	t.Run(path, func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {}))
+		defer server.Close()
 
-	_, spans, errs := apmtest.WithTransaction(func(ctx context.Context) {
-		resp, err := client.Do(req.WithContext(ctx))
-		require.NoError(t, err)
-		resp.Body.Close()
+		client := &http.Client{Transport: apmelasticsearch.WrapRoundTripper(http.DefaultTransport)}
+		req, _ := http.NewRequest("GET", server.URL+"/twitter/"+path, strings.NewReader("Request.Body"))
+		req.GetBody = func() (io.ReadCloser, error) {
+			return ioutil.NopCloser(strings.NewReader("Request.GetBody")), nil
+		}
+
+		_, spans, errs := apmtest.WithTransaction(func(ctx context.Context) {
+			resp, err := client.Do(req.WithContext(ctx))
+			require.NoError(t, err)
+			resp.Body.Close()
+		})
+		assert.Empty(t, errs)
+		require.Len(t, spans, 1)
+
+		assert.Equal(t, &model.DatabaseSpanContext{
+			Type:      "elasticsearch",
+			Statement: "Request.GetB", // limited to Content-Length
+		}, spans[0].Context.Database)
 	})
-	assert.Empty(t, errs)
-	require.Len(t, spans, 1)
-
-	assert.Equal(t, &model.DatabaseSpanContext{
-		Type:      "elasticsearch",
-		Statement: "Request.GetB", // limited to Content-Length
-	}, spans[0].Context.Database)
 }
 
 func TestStatementGetBodyErrors(t *testing.T) {
