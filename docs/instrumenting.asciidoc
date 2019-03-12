@@ -520,8 +520,9 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
 [[builtin-modules-apmelasticsearch]]
 ===== module/apmelasticsearch
 Package apmelasticsearch provides a means of instrumenting the HTTP transport
-of Elasticsearch clients, such as https://github.com/olivere/elastic[olivere/elastic],
-so that Elasticsearch requests are reported as spans within the current transaction.
+of Elasticsearch clients, such as https://github.com/elastic/go-elasticsearch[go-elasticsearch]
+and https://github.com/olivere/elastic[olivere/elastic], so that Elasticsearch
+requests are reported as spans within the current transaction.
 
 To create spans for an Elasticsearch request, you should wrap the client's HTTP
 transport using the `WrapRoundTripper` function, and then associate the request
