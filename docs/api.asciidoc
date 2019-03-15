@@ -170,6 +170,17 @@ TransactionFromContext returns a transaction previously stored in the context us
 <<apm-context-with-transaction, apm.ContextWithTransaction>>, or nil if the context
 does not contain a transaction.
 
+[float]
+[[apm-detached-context]]
+==== `func DetachedContext(context.Context) context.Context`
+
+DetachedContext returns a new context detached from the lifetime of the input, but
+which still returns the same values as the input.
+
+DetachedContext can be used to maintain trace context required to correlate events,
+but where the operation is "fire-and-forget" and should not be affected by the
+deadline or cancellation of the surrounding context.
+
 // -------------------------------------------------------------------------------------------------
 
 [float]

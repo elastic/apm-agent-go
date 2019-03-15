@@ -133,3 +133,47 @@ func TestContextStartSpanOptions(t *testing.T) {
 	span0Start := time.Time(tx.Timestamp).Add(time.Minute)
 	assert.Equal(t, model.Time(span0Start), spans[3].Timestamp)
 }
+
+func TestDetachedContext(t *testing.T) {
+	funcB := func(ctx context.Context) chan chan error {
+		chch := make(chan chan error)
+		go func() {
+			ch := <-chch
+			span, ctx := apm.StartSpan(ctx, "funcB", "custom")
+			defer span.End()
+			ch <- ctx.Err()
+		}()
+		return chch
+	}
+
+	funcA := func(ctx context.Context) chan chan error {
+		span, ctx := apm.StartSpan(ctx, "funcA", "custom")
+		defer span.End()
+		return funcB(apm.DetachedContext(ctx))
+	}
+
+	tx, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+		// Call funcA and immediately cancel its context after it returns.
+		ctx, cancel := context.WithCancel(ctx)
+		chch := funcA(ctx)
+		cancel()
+
+		// Sending a channel to the goroutine spawned by funcB will cause
+		// it to start a new span from the context passed by funcA. The
+		// "funcA" span in the context is ended, and the context of funcA
+		// is canceled; but the context of funcB is not canceled because
+		// it was passed a "detached context".
+		ch := make(chan error)
+		chch <- ch
+		err := <-ch
+		assert.NoError(t, err)
+	})
+	require.Len(t, spans, 2)
+
+	assert.Equal(t, tx.ID, spans[0].ParentID)
+	assert.Equal(t, spans[0].ID, spans[1].ParentID)
+	for _, span := range spans {
+		assert.Equal(t, tx.ID, span.TransactionID)
+		assert.Equal(t, tx.TraceID, span.TraceID)
+	}
+}
