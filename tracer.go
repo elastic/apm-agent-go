@@ -40,12 +40,10 @@ import (
 )
 
 const (
-	defaultPreContext      = 3
-	defaultPostContext     = 3
-	gracePeriodJitter      = 0.1 // +/- 10%
-	transactionsChannelCap = 1000
-	spansChannelCap        = 1000
-	errorsChannelCap       = 1000
+	defaultPreContext     = 3
+	defaultPostContext    = 3
+	gracePeriodJitter     = 0.1 // +/- 10%
+	tracerEventChannelCap = 1000
 )
 
 var (
@@ -215,9 +213,7 @@ type Tracer struct {
 	forceFlush        chan chan<- struct{}
 	forceSendMetrics  chan chan<- struct{}
 	configCommands    chan tracerConfigCommand
-	transactions      chan *TransactionData
-	spans             chan *SpanData
-	errors            chan *ErrorData
+	events            chan tracerEvent
 
 	statsMu sync.Mutex
 	stats   TracerStats
@@ -274,9 +270,7 @@ func newTracer(opts options) *Tracer {
 		forceFlush:            make(chan chan<- struct{}),
 		forceSendMetrics:      make(chan chan<- struct{}),
 		configCommands:        make(chan tracerConfigCommand),
-		transactions:          make(chan *TransactionData, transactionsChannelCap),
-		spans:                 make(chan *SpanData, spansChannelCap),
-		errors:                make(chan *ErrorData, errorsChannelCap),
+		events:                make(chan tracerEvent, tracerEventChannelCap),
 		active:                1,
 		maxSpans:              opts.maxSpans,
 		sampler:               opts.sampler,
@@ -626,14 +620,17 @@ func (t *Tracer) loop() {
 				}
 			}
 			continue
-		case tx := <-t.transactions:
-			modelWriter.writeTransaction(tx)
-		case s := <-t.spans:
-			modelWriter.writeSpan(s)
-		case e := <-t.errors:
-			// Flush the buffer to transmit the error immediately.
-			modelWriter.writeError(e)
-			flushRequest = true
+		case event := <-t.events:
+			switch event.eventType {
+			case transactionEvent:
+				modelWriter.writeTransaction(event.tx.Transaction, event.tx.TransactionData)
+			case spanEvent:
+				modelWriter.writeSpan(event.span.Span, event.span.SpanData)
+			case errorEvent:
+				modelWriter.writeError(event.err)
+				// Flush the buffer to transmit the error immediately.
+				flushRequest = true
+			}
 		case <-requestTimer.C:
 			requestTimerActive = false
 			closeRequest = true
@@ -658,14 +655,16 @@ func (t *Tracer) loop() {
 			}
 		case flushed = <-t.forceFlush:
 			// Drain any objects buffered in the channels.
-			for n := len(t.spans); n > 0; n-- {
-				modelWriter.writeSpan(<-t.spans)
-			}
-			for n := len(t.transactions); n > 0; n-- {
-				modelWriter.writeTransaction(<-t.transactions)
-			}
-			for n := len(t.errors); n > 0; n-- {
-				modelWriter.writeError(<-t.errors)
+			for n := len(t.events); n > 0; n-- {
+				event := <-t.events
+				switch event.eventType {
+				case transactionEvent:
+					modelWriter.writeTransaction(event.tx.Transaction, event.tx.TransactionData)
+				case spanEvent:
+					modelWriter.writeSpan(event.span.Span, event.span.SpanData)
+				case errorEvent:
+					modelWriter.writeError(event.err)
+				}
 			}
 			if !requestActive && buffer.Len() == 0 && metricsBuffer.Len() == 0 {
 				flushed <- struct{}{}
@@ -879,4 +878,38 @@ func (t *Tracer) gatherMetrics(ctx context.Context, gatherers []MetricsGatherer,
 		}
 		gathered <- struct{}{}
 	}()
+}
+
+type tracerEventType int
+
+const (
+	transactionEvent tracerEventType = iota
+	spanEvent
+	errorEvent
+)
+
+type tracerEvent struct {
+	eventType tracerEventType
+
+	// err is set only if eventType == errorEvent.
+	err *ErrorData
+
+	// tx is set only if eventType == transactionEvent.
+	tx struct {
+		*Transaction
+		// Transaction.TransactionData is nil at the
+		// point tracerEvent is created (to signify
+		// that the transaction is ended), so we pass
+		// it along side.
+		*TransactionData
+	}
+
+	// span is set only if eventType == spanEvent.
+	span struct {
+		*Span
+		// Span.SpanData is nil at the point tracerEvent
+		// is created (to signify that the span is ended),
+		// so we pass it along side.
+		*SpanData
+	}
 }

@@ -45,27 +45,27 @@ type modelWriter struct {
 }
 
 // writeTransaction encodes tx as JSON to the buffer, and then resets tx.
-func (w *modelWriter) writeTransaction(tx *TransactionData) {
+func (w *modelWriter) writeTransaction(tx *Transaction, td *TransactionData) {
 	var modelTx model.Transaction
-	w.buildModelTransaction(&modelTx, tx)
+	w.buildModelTransaction(&modelTx, tx, td)
 	w.json.RawString(`{"transaction":`)
 	modelTx.MarshalFastJSON(&w.json)
 	w.json.RawByte('}')
 	w.buffer.WriteBlock(w.json.Bytes(), transactionBlockTag)
 	w.json.Reset()
-	tx.reset()
+	td.reset(tx.tracer)
 }
 
 // writeSpan encodes s as JSON to the buffer, and then resets s.
-func (w *modelWriter) writeSpan(s *SpanData) {
+func (w *modelWriter) writeSpan(s *Span, sd *SpanData) {
 	var modelSpan model.Span
-	w.buildModelSpan(&modelSpan, s)
+	w.buildModelSpan(&modelSpan, s, sd)
 	w.json.RawString(`{"span":`)
 	modelSpan.MarshalFastJSON(&w.json)
 	w.json.RawByte('}')
 	w.buffer.WriteBlock(w.json.Bytes(), spanBlockTag)
 	w.json.Reset()
-	s.reset()
+	sd.reset(s.tracer)
 }
 
 // writeError encodes e as JSON to the buffer, and then resets e.
@@ -95,24 +95,23 @@ func (w *modelWriter) writeMetrics(m *Metrics) {
 	m.reset()
 }
 
-func (w *modelWriter) buildModelTransaction(out *model.Transaction, tx *TransactionData) {
+func (w *modelWriter) buildModelTransaction(out *model.Transaction, tx *Transaction, td *TransactionData) {
 	out.ID = model.SpanID(tx.traceContext.Span)
 	out.TraceID = model.TraceID(tx.traceContext.Trace)
-	out.ParentID = model.SpanID(tx.parentSpan)
-
-	out.Name = truncateString(tx.Name)
-	out.Type = truncateString(tx.Type)
-	out.Result = truncateString(tx.Result)
-	out.Timestamp = model.Time(tx.timestamp.UTC())
-	out.Duration = tx.Duration.Seconds() * 1000
-	out.SpanCount.Started = tx.spansCreated
-	out.SpanCount.Dropped = tx.spansDropped
-
 	if !tx.traceContext.Options.Recorded() {
 		out.Sampled = &notSampled
 	}
 
-	out.Context = tx.Context.build()
+	out.ParentID = model.SpanID(td.parentSpan)
+	out.Name = truncateString(td.Name)
+	out.Type = truncateString(td.Type)
+	out.Result = truncateString(td.Result)
+	out.Timestamp = model.Time(td.timestamp.UTC())
+	out.Duration = td.Duration.Seconds() * 1000
+	out.SpanCount.Started = td.spansCreated
+	out.SpanCount.Dropped = td.spansDropped
+
+	out.Context = td.Context.build()
 	if len(w.cfg.sanitizedFieldNames) != 0 && out.Context != nil {
 		if out.Context.Request != nil {
 			sanitizeRequest(out.Context.Request, w.cfg.sanitizedFieldNames)
@@ -123,22 +122,22 @@ func (w *modelWriter) buildModelTransaction(out *model.Transaction, tx *Transact
 	}
 }
 
-func (w *modelWriter) buildModelSpan(out *model.Span, span *SpanData) {
+func (w *modelWriter) buildModelSpan(out *model.Span, span *Span, sd *SpanData) {
 	w.modelStacktrace = w.modelStacktrace[:0]
 	out.ID = model.SpanID(span.traceContext.Span)
 	out.TraceID = model.TraceID(span.traceContext.Trace)
-	out.ParentID = model.SpanID(span.parentID)
 	out.TransactionID = model.SpanID(span.transactionID)
 
-	out.Name = truncateString(span.Name)
-	out.Type = truncateString(span.Type)
-	out.Subtype = truncateString(span.Subtype)
-	out.Action = truncateString(span.Action)
-	out.Timestamp = model.Time(span.timestamp.UTC())
-	out.Duration = span.Duration.Seconds() * 1000
-	out.Context = span.Context.build()
+	out.ParentID = model.SpanID(sd.parentID)
+	out.Name = truncateString(sd.Name)
+	out.Type = truncateString(sd.Type)
+	out.Subtype = truncateString(sd.Subtype)
+	out.Action = truncateString(sd.Action)
+	out.Timestamp = model.Time(sd.timestamp.UTC())
+	out.Duration = sd.Duration.Seconds() * 1000
+	out.Context = sd.Context.build()
 
-	w.modelStacktrace = appendModelStacktraceFrames(w.modelStacktrace, span.stacktrace)
+	w.modelStacktrace = appendModelStacktraceFrames(w.modelStacktrace, sd.stacktrace)
 	out.Stacktrace = w.modelStacktrace
 	w.setStacktraceContext(out.Stacktrace)
 }

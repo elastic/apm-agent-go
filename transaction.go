@@ -39,7 +39,6 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 	td, _ := t.transactionDataPool.Get().(*TransactionData)
 	if td == nil {
 		td = &TransactionData{
-			tracer:   t,
 			Duration: -1,
 			Context: Context{
 				captureBodyMask: CaptureBodyTransactions,
@@ -51,7 +50,7 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 		}
 		td.rand = rand.New(rand.NewSource(seed))
 	}
-	tx := &Transaction{TransactionData: td}
+	tx := &Transaction{tracer: t, TransactionData: td}
 
 	tx.Name = name
 	tx.Type = transactionType
@@ -136,6 +135,9 @@ type TransactionOptions struct {
 
 // Transaction describes an event occurring in the monitored service.
 type Transaction struct {
+	tracer       *Tracer
+	traceContext TraceContext
+
 	mu sync.RWMutex
 
 	// TransactionData holds the transaction data. This field is set to
@@ -148,34 +150,24 @@ func (tx *Transaction) Sampled() bool {
 	if tx == nil {
 		return false
 	}
-	tx.mu.RLock()
-	defer tx.mu.RUnlock()
-	if tx.ended() {
-		return false
-	}
 	return tx.traceContext.Options.Recorded()
 }
 
 // TraceContext returns the transaction's TraceContext.
 //
 // The resulting TraceContext's Span field holds the transaction's ID.
-// If tx is nil, or has already been ended, a zero (invalid) TraceContext
-// is returned.
+// If tx is nil, a zero (invalid) TraceContext is returned.
 func (tx *Transaction) TraceContext() TraceContext {
 	if tx == nil {
-		return TraceContext{}
-	}
-	tx.mu.RLock()
-	defer tx.mu.RUnlock()
-	if tx.ended() {
 		return TraceContext{}
 	}
 	return tx.traceContext
 }
 
 // EnsureParent returns the span ID for for tx's parent, generating a
-// parent span ID if one has not already been set. If tx is nil, a zero
-// (invalid) SpanID is returned.
+// parent span ID if one has not already been set and tx has not been
+// ended. If tx is nil or has been ended, a zero (invalid) SpanID is
+// returned.
 //
 // This method can be used for generating a span ID for the RUM
 // (Real User Monitoring) agent, where the RUM agent is initialized
@@ -184,7 +176,15 @@ func (tx *Transaction) EnsureParent() SpanID {
 	if tx == nil {
 		return SpanID{}
 	}
+
+	tx.mu.Lock()
+	defer tx.mu.Unlock()
+	if tx.ended() {
+		return SpanID{}
+	}
+
 	tx.TransactionData.mu.Lock()
+	defer tx.TransactionData.mu.Unlock()
 	if tx.parentSpan.isZero() {
 		// parentSpan can only be zero if tx is a root transaction
 		// for which GenerateParentTraceContext() has not previously
@@ -193,7 +193,6 @@ func (tx *Transaction) EnsureParent() SpanID {
 		// transaction ID.
 		copy(tx.parentSpan[:], tx.traceContext.Trace[8:])
 	}
-	tx.TransactionData.mu.Unlock()
 	return tx.parentSpan
 }
 
@@ -207,8 +206,7 @@ func (tx *Transaction) Discard() {
 	if tx.ended() {
 		return
 	}
-	tx.TransactionData.reset()
-	tx.TransactionData = nil
+	tx.reset(tx.tracer)
 }
 
 // End enqueues tx for sending to the Elastic APM server.
@@ -227,13 +225,28 @@ func (tx *Transaction) End() {
 	if tx.Duration < 0 {
 		tx.Duration = time.Since(tx.timestamp)
 	}
-	tx.TransactionData.enqueue()
+	tx.enqueue()
 	tx.TransactionData = nil
+}
+
+func (tx *Transaction) enqueue() {
+	event := tracerEvent{eventType: transactionEvent}
+	event.tx.Transaction = tx
+	event.tx.TransactionData = tx.TransactionData
+	select {
+	case tx.tracer.events <- event:
+	default:
+		// Enqueuing a transaction should never block.
+		tx.tracer.statsMu.Lock()
+		tx.tracer.stats.TransactionsDropped++
+		tx.tracer.statsMu.Unlock()
+		tx.reset(tx.tracer)
+	}
 }
 
 // ended reports whether or not End or Discard has been called.
 //
-// This must be called with tx.mu held for reading.
+// This must be called with tx.mu held.
 func (tx *Transaction) ended() bool {
 	return tx.TransactionData == nil
 }
@@ -263,40 +276,27 @@ type TransactionData struct {
 	// Result holds the transaction result.
 	Result string
 
-	tracer                *Tracer
 	maxSpans              int
 	spanFramesMinDuration time.Duration
 	timestamp             time.Time
-	traceContext          TraceContext
 
 	mu           sync.Mutex
-	parentSpan   SpanID
 	spansCreated int
 	spansDropped int
 	rand         *rand.Rand // for ID generation
+	// parentSpan holds the transaction's parent ID. It is protected by
+	// mu, since it can be updated by calling EnsureParent.
+	parentSpan SpanID
 }
 
-func (td *TransactionData) enqueue() {
-	select {
-	case td.tracer.transactions <- td:
-	default:
-		// Enqueuing a transaction should never block.
-		td.tracer.statsMu.Lock()
-		td.tracer.stats.TransactionsDropped++
-		td.tracer.statsMu.Unlock()
-		td.reset()
-	}
-}
-
-// reset resets the Transaction back to its zero state and places it back
+// reset resets the TransactionData back to its zero state and places it back
 // into the transaction pool.
-func (td *TransactionData) reset() {
+func (td *TransactionData) reset(tracer *Tracer) {
 	*td = TransactionData{
-		tracer:   td.tracer,
 		Context:  td.Context,
 		Duration: -1,
 		rand:     td.rand,
 	}
 	td.Context.reset()
-	td.tracer.transactionDataPool.Put(td)
+	tracer.transactionDataPool.Put(td)
 }

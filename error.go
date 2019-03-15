@@ -232,46 +232,41 @@ func (e *Error) Error() string {
 
 // SetTransaction sets TraceID, TransactionID, and ParentID to the transaction's
 // IDs, and records the transaction's Type and whether or not it was sampled.
-//
-// SetTransaction has no effect if called with an ended transaction.
 func (e *Error) SetTransaction(tx *Transaction) {
 	tx.mu.RLock()
+	traceContext := tx.traceContext
+	var txType string
 	if !tx.ended() {
-		e.setSpanData(tx.TransactionData, nil)
+		txType = tx.Type
 	}
 	tx.mu.RUnlock()
+	e.setSpanData(traceContext, traceContext.Span, txType)
 }
 
 // SetSpan sets TraceID, TransactionID, and ParentID to the span's IDs.
 //
-// If you call both SetTransaction and SetSpan, SetSpan must be called second
-// in order to set the error's ParentID correctly. When calling SetSpan, it is
-// only necessary to call SetTransaction in order to set the error's transaction
-// type.
-//
-// SetSpan has no effect if called with an ended span.
+// There is no need to call both SetTransaction and SetSpan. If you do call
+// both, then SetSpan must be called second in order to set the error's
+// ParentID correctly.
 func (e *Error) SetSpan(s *Span) {
-	s.mu.RLock()
-	if !s.ended() {
-		e.setSpanData(nil, s.SpanData)
+	var txType string
+	if s.tx != nil {
+		s.tx.mu.RLock()
+		if !s.tx.ended() {
+			txType = s.tx.Type
+		}
+		s.tx.mu.RUnlock()
 	}
-	s.mu.RUnlock()
+	e.setSpanData(s.traceContext, s.transactionID, txType)
 }
 
-func (e *Error) setSpanData(td *TransactionData, sd *SpanData) {
-	if sd != nil {
-		e.TraceID = sd.traceContext.Trace
-		e.ParentID = sd.traceContext.Span
-		e.TransactionID = sd.transactionID
-		e.transactionSampled = true // by virtue of there being a span
-	} else if td != nil {
-		e.TraceID = td.traceContext.Trace
-		e.ParentID = td.traceContext.Span
-		e.TransactionID = e.ParentID
-		e.transactionSampled = td.traceContext.Options.Recorded()
-	}
-	if e.transactionSampled && td != nil {
-		e.transactionType = td.Type
+func (e *Error) setSpanData(traceContext TraceContext, transactionID SpanID, transactionType string) {
+	e.TraceID = traceContext.Trace
+	e.ParentID = traceContext.Span
+	e.TransactionID = transactionID
+	e.transactionSampled = traceContext.Options.Recorded()
+	if e.transactionSampled {
+		e.transactionType = transactionType
 	}
 }
 
@@ -293,7 +288,7 @@ func (e *Error) sent() bool {
 
 func (e *ErrorData) enqueue() {
 	select {
-	case e.tracer.errors <- e:
+	case e.tracer.events <- tracerEvent{eventType: errorEvent, err: e}:
 	default:
 		// Enqueuing an error should never block.
 		e.tracer.statsMu.Lock()

@@ -66,9 +66,17 @@ func StartSpan(ctx context.Context, name, spanType string) (*Span, context.Conte
 // StartSpanOptions always returns a non-nil Span. Its End method must be called
 // when the span completes.
 func StartSpanOptions(ctx context.Context, name, spanType string, opts SpanOptions) (*Span, context.Context) {
-	tx := TransactionFromContext(ctx)
-	opts.parent = SpanFromContext(ctx)
-	span := tx.StartSpanOptions(name, spanType, opts)
+	var span *Span
+	if opts.parent = SpanFromContext(ctx); opts.parent != nil {
+		if opts.parent.tx == nil && opts.parent.tracer != nil {
+			span = opts.parent.tracer.StartSpan(name, spanType, opts.parent.transactionID, opts)
+		} else {
+			span = opts.parent.tx.StartSpanOptions(name, spanType, opts)
+		}
+	} else {
+		tx := TransactionFromContext(ctx)
+		span = tx.StartSpanOptions(name, spanType, opts)
+	}
 	if !span.Dropped() {
 		ctx = ContextWithSpan(ctx, span)
 	}
@@ -88,32 +96,23 @@ func CaptureError(ctx context.Context, err error) *Error {
 	if err == nil {
 		return nil
 	}
-
-	var tracer *Tracer
-	var txData *TransactionData
-	var spanData *SpanData
-	if tx := TransactionFromContext(ctx); tx != nil {
-		tx.mu.RLock()
-		defer tx.mu.RUnlock()
-		if !tx.ended() {
-			txData = tx.TransactionData
-			tracer = tx.tracer
-		}
-	}
 	if span := SpanFromContext(ctx); span != nil {
-		span.mu.RLock()
-		defer span.mu.RUnlock()
-		if !span.ended() {
-			spanData = span.SpanData
-			tracer = span.tracer
+		if span.tracer == nil {
+			return &Error{cause: err, err: err.Error()}
 		}
-	}
-	if tracer == nil {
+		e := span.tracer.NewError(err)
+		e.Handled = true
+		e.SetSpan(span)
+		return e
+	} else if tx := TransactionFromContext(ctx); tx != nil {
+		if tx.tracer == nil {
+			return &Error{cause: err, err: err.Error()}
+		}
+		e := tx.tracer.NewError(err)
+		e.Handled = true
+		e.SetTransaction(tx)
+		return e
+	} else {
 		return &Error{cause: err, err: err.Error()}
 	}
-
-	e := tracer.NewError(err)
-	e.Handled = true
-	e.setSpanData(txData, spanData)
-	return e
 }
