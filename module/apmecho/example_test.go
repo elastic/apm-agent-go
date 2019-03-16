@@ -18,7 +18,7 @@
 package apmecho_test
 
 import (
-	"github.com/labstack/echo"
+	"github.com/labstack/echo/v4"
 
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/module/apmecho"
