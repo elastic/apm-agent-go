@@ -15,9 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Package apmecho provides middleware for the Echo framework,
-// for tracing HTTP requests.
-
 // +build go1.9
 
+// Package apmecho provides middleware for the Echo framework,
+// for tracing HTTP requests.
 package apmecho
