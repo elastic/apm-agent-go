@@ -21,7 +21,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"go.elastic.co/apm"
-	"go.elastic.co/apm/module/apmecho"
+	"go.elastic.co/apm/module/apmecho/v4"
 )
 
 func ExampleMiddleware() {

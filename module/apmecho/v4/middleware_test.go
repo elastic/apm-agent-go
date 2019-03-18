@@ -31,7 +31,7 @@ import (
 
 	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/model"
-	"go.elastic.co/apm/module/apmecho"
+	"go.elastic.co/apm/module/apmecho/v4"
 	"go.elastic.co/apm/transport/transporttest"
 )
 
