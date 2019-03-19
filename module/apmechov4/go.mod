@@ -1,4 +1,4 @@
-module go.elastic.co/apm/module/apmecho/v4
+module go.elastic.co/apm/module/apmechov4
 
 require (
 	github.com/labstack/echo/v4 v4.0.0
@@ -8,6 +8,6 @@ require (
 	go.elastic.co/apm/module/apmhttp v1.2.0
 )
 
-replace go.elastic.co/apm => ../../..
+replace go.elastic.co/apm => ../..
 
-replace go.elastic.co/apm/module/apmhttp => ../../apmhttp
+replace go.elastic.co/apm/module/apmhttp => ../apmhttp

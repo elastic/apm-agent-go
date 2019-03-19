@@ -17,7 +17,7 @@
 
 // +build go1.9
 
-package apmecho
+package apmechov4
 
 import (
 	"errors"

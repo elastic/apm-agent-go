@@ -17,7 +17,7 @@
 
 // +build go1.9
 
-package apmecho_test
+package apmechov4_test
 
 import (
 	"fmt"
@@ -33,7 +33,7 @@ import (
 
 	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/model"
-	"go.elastic.co/apm/module/apmecho/v4"
+	apmecho "go.elastic.co/apm/module/apmechov4"
 	"go.elastic.co/apm/transport/transporttest"
 )
 
