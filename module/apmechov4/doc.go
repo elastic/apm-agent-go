@@ -17,6 +17,6 @@
 
 // +build go1.9
 
-// Package apmecho provides middleware for the Echo framework,
+// Package apmechov4 provides middleware for the version 4 of Echo framework,
 // for tracing HTTP requests.
 package apmechov4
