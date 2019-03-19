@@ -25,6 +25,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/apmtest"
@@ -49,7 +50,7 @@ func TestContextStartSpanTransactionEnded(t *testing.T) {
 				tx.End()
 				apm.CaptureError(ctx, errors.New("boom")).Send()
 				span, _ := apm.StartSpan(ctx, "name", "type")
-				assert.True(t, span.Dropped())
+				assert.False(t, span.Dropped())
 				span.End()
 			}
 		}()
@@ -76,7 +77,7 @@ func TestContextStartSpanSpanEnded(t *testing.T) {
 				span1.End()
 				apm.CaptureError(ctx, errors.New("boom")).Send()
 				span2, _ := apm.StartSpan(ctx, "name", "type")
-				assert.True(t, span2.Dropped())
+				assert.False(t, span2.Dropped())
 				span2.End()
 				tx.End()
 			}
@@ -111,21 +112,24 @@ func TestContextStartSpanOptions(t *testing.T) {
 		assert.False(t, span2.Dropped())
 		span2.End()
 
-		// span3 should be dropped. The parent in ctx has been ended, and
-		// Parent was not specified in options.
-		span3, ctx := apm.StartSpanOptions(ctx, "name", "type", apm.SpanOptions{})
-		assert.True(t, span3.Dropped())
+		// span3 should not be dropped. Even though the parent in ctx has been ended,
+		// we still record the span to allow for fire-and-forget type patterns.
+		span3, ctx := apm.StartSpanOptions(ctx, "span3", "type", apm.SpanOptions{})
+		assert.False(t, span3.Dropped())
 		span3.End()
 	})
 
-	assert.Equal(t, "span0", spans[2].Name) // span 0 ended last
+	require.Len(t, spans, 4)
+	assert.Equal(t, "span0", spans[3].Name) // span 0 ended last
 	assert.Equal(t, "span1", spans[0].Name)
 	assert.Equal(t, "span2", spans[1].Name)
+	assert.Equal(t, "span3", spans[2].Name)
 
-	assert.Equal(t, tx.ID, spans[2].ParentID)
-	assert.Equal(t, spans[2].ID, spans[0].ParentID)
+	assert.Equal(t, tx.ID, spans[3].ParentID)
+	assert.Equal(t, spans[3].ID, spans[0].ParentID)
 	assert.Equal(t, spans[0].ID, spans[1].ParentID)
+	assert.Equal(t, spans[1].ID, spans[2].ParentID)
 
 	span0Start := time.Time(tx.Timestamp).Add(time.Minute)
-	assert.Equal(t, model.Time(span0Start), spans[2].Timestamp)
+	assert.Equal(t, model.Time(span0Start), spans[3].Timestamp)
 }

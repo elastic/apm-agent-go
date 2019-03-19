@@ -123,6 +123,12 @@ func TestTransactionEnsureParent(t *testing.T) {
 	assert.Equal(t, parentSpan, parentSpan2)
 
 	tx.End()
+
+	// For an ended transaction, EnsureParent will return a zero value
+	// even if the transaction had a parent at the time it was ended.
+	parentSpan3 := tx.EnsureParent()
+	assert.Zero(t, parentSpan3)
+
 	tracer.Flush(nil)
 	payloads := transport.Payloads()
 	require.Len(t, payloads.Transactions, 1)
