@@ -43,7 +43,11 @@ that framework's API. The request context can be used for reporting <<custom-ins
 
 [[builtin-modules-apmecho]]
 ===== module/apmecho
-Package apmecho provides middleware for the https://github.com/labstack/echo[Echo] web framework.
+Packages apmecho and apmechov4 provide middleware for the https://github.com/labstack/echo[Echo]
+web framework, versions 3.x and 4.x respectively.
+
+If you are using Echo 4.x (`github.com/labstack/echo/v4`), then you should use `module/apmechov4`.
+For the older Echo 3.x versions (`github.com/labstack/echo`), you should use `module/apmecho`.
 
 For each request, a transaction is stored in the request context, which can be obtained via
 https://godoc.org/github.com/labstack/echo#Context[echo.Context]`.Request().Context()` in your handler.
@@ -51,19 +55,20 @@ https://godoc.org/github.com/labstack/echo#Context[echo.Context]`.Request().Cont
 [source,go]
 ----
 import (
-	"github.com/labstack/echo"
-	"go.elastic.co/apm/module/apmecho"
+	echo "github.com/labstack/echo/v4"
+
+	"go.elastic.co/apm/module/apmechov4"
 )
 
 func main() {
 	e := echo.New()
-	e.Use(apmecho.Middleware())
+	e.Use(apmechov4.Middleware())
 	...
 }
 ----
 
-The apmecho middleware will recover panics and send them to Elastic APM,
-so you do not need to install the echo/middleware.Recover middleware.
+The middleware will recover panics and send them to Elastic APM, so you do not need to install
+the echo/middleware.Recover middleware.
 
 [[builtin-modules-apmgin]]
 ===== module/apmgin

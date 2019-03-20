@@ -47,6 +47,9 @@ information about httprouter instrumentation.
 We support the https://echo.labstack.com/[Echo] web framework,
 https://github.com/labstack/echo/releases/tag/3.3.5[v3.3.5] and greater.
 
+We provide different packages for the Echo v3 and v4 versions:
+`module/apmecho` for Echo v3.x, and `module/apmechov4` for Echo v4.x.
+
 See <<builtin-modules-apmecho, module/apmecho>> for more information
 about Echo instrumentation.
 

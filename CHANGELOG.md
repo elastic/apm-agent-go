@@ -13,6 +13,7 @@
  - module/apmelasticsearch: capture body for \_msearch, template and rollup search (#470)
  - Ended Transactions/Spans may now be used as parents (#478)
  - Introduce apm.DetachedContext for async/fire-and-forget trace propagation (#481)
+ - module/apmechov4: add a copy of apmecho supporting echo/v4 (#477)
 
 ## [v1.2.0](https://github.com/elastic/apm-agent-go/releases/tag/v1.2.0)
 
