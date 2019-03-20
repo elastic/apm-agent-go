@@ -17,10 +17,4 @@
 
 // Package apmmongo provides a CommandMonitor implementation
 // for tracing Mongo commands.
-//
-// NOTE: because the MongoDB Go Driver has not yet stabilised
-// its API, we may need to change this instrumention at the
-// driver API evolves. Package apmmongo's API should not be
-// considered stable until the MongoDB Go Driver's API is, and
-// we may break compatibility with unstable pre-1.0.0 versions.
 package apmmongo
