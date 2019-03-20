@@ -795,6 +795,25 @@ func getList(ctx context.Context) (
 }
 ----
 
+Contexts can have deadlines associated, and can be explicitly canceled. In some cases you may
+wish to propagate the trace context (parent transaction/span) to some code without propagating
+the cancellation. For example, an HTTP request's context will be canceled when the client's
+connection closes. You may want to perform some operation in the request handler without it
+being canceled due to the client connection closing, such as in a fire-and-forget operation.
+To handle scenarios like this, we provide the function <<apm-detached-context, apm.DetachedContext>>.
+
+[source,go]
+----
+func handleRequest(w http.ResponseWriter, req *http.Request) {
+	go fireAndForget(apm.DetachedContext(req.Context()))
+
+	// After handleRequest returns, req.Context() will be canceled,
+	// but the "detached context" passed into fireAndForget will not.
+	// Any spans created by fireAndForget will still be joined to
+	// the handleRequest transaction.
+}
+----
+
 ===== Panic recovery and errors
 
 If you want to recover panics, and report them along with your transaction, you can use the
