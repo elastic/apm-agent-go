@@ -139,6 +139,7 @@ func TestDetachedContext(t *testing.T) {
 		chch := make(chan chan error)
 		go func() {
 			ch := <-chch
+			defer close(ch)
 			span, ctx := apm.StartSpan(ctx, "funcB", "custom")
 			defer span.End()
 			ch <- ctx.Err()
@@ -167,6 +168,10 @@ func TestDetachedContext(t *testing.T) {
 		chch <- ch
 		err := <-ch
 		assert.NoError(t, err)
+
+		// wait for ch to be closed, at which point we know that funcB's
+		// span has ended.
+		<-ch
 	})
 	require.Len(t, spans, 2)
 
