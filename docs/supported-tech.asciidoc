@@ -161,11 +161,10 @@ information about Elasticsearch client instrumentation.
 ==== MongoDB
 
 We provide instrumentation for the official
-https://github.com/mongodb/mongo-go-driver[MongoDB Go Driver]. Spans will
-be created for each MongoDB command executed within a context containing a
-transaction.
-
-experimental[The MongoDB Go Driver has not yet stabilized its API. The apmmongo instrumentation should not be considered stable until the MongoDB Go Driver's API is, and we may break compatibility with unstable pre-1.0.0 versions.]
+https://github.com/mongodb/mongo-go-driver[MongoDB Go Driver],
+https://github.com/mongodb/mongo-go-driver/releases/tag/v1.0.0[v1.0.0] and
+greater. Spans will be created for each MongoDB command executed within a
+context containing a transaction.
 
 See <<builtin-modules-apmmongo, module/apmmongo>> for more information about
 the MongoDB Go Driver instrumentation.
