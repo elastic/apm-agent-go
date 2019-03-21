@@ -11,8 +11,8 @@ require (
 	github.com/pkg/errors v0.8.0
 	github.com/stretchr/testify v1.2.2
 	github.com/ugorji/go/codec v0.0.0-20181209151446-772ced7fd4c2 // indirect
-	go.elastic.co/apm v1.2.0
-	go.elastic.co/apm/module/apmhttp v1.2.0
+	go.elastic.co/apm v1.3.0
+	go.elastic.co/apm/module/apmhttp v1.3.0
 	golang.org/x/net v0.0.0-20181220203305-927f97764cc3 // indirect
 	golang.org/x/sync v0.0.0-20181221193216-37e7f081c4d4 // indirect
 	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
