@@ -23,11 +23,11 @@ import (
 	"testing"
 
 	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/harness"
 	"github.com/stretchr/testify/suite"
 
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/module/apmhttp"
-	"go.elastic.co/apm/module/apmot/internal/harness"
 	"go.elastic.co/apm/transport/transporttest"
 )
 
