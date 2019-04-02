@@ -18,7 +18,6 @@
 package apmot
 
 import (
-	"sync"
 	"time"
 
 	opentracing "github.com/opentracing/opentracing-go"
@@ -29,13 +28,9 @@ import (
 type spanContext struct {
 	tracer *otTracer // for origin of tx/span
 
-	txSpanContext *spanContext // spanContext for OT span which created tx
-	traceContext  apm.TraceContext
-	transactionID apm.SpanID
-	startTime     time.Time
-
-	mu sync.RWMutex
-	tx *apm.Transaction
+	tx           *apm.Transaction
+	traceContext apm.TraceContext
+	startTime    time.Time
 }
 
 // TraceContext returns the trace context for the transaction or span
@@ -46,9 +41,6 @@ func (s *spanContext) TraceContext() apm.TraceContext {
 
 // Transaction returns the transaction associated with this span context.
 func (s *spanContext) Transaction() *apm.Transaction {
-	if s.txSpanContext != nil {
-		return s.txSpanContext.tx
-	}
 	return s.tx
 }
 
@@ -76,7 +68,6 @@ func parentSpanContext(refs []opentracing.SpanReference) (*spanContext, bool) {
 				tx:           apmSpanContext.Transaction(),
 				traceContext: apmSpanContext.TraceContext(),
 			}
-			spanContext.transactionID = spanContext.tx.TraceContext().Span
 			return spanContext, true
 		}
 	}

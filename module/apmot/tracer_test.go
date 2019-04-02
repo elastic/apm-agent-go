@@ -213,8 +213,8 @@ func TestStartSpanParentFinished(t *testing.T) {
 
 	apmtracer.Flush(nil)
 	payloads := recorder.Payloads()
-	assert.Len(t, payloads.Transactions, 1)
-	assert.Len(t, payloads.Spans, 2)
+	require.Len(t, payloads.Transactions, 1)
+	require.Len(t, payloads.Spans, 2)
 
 	tx := payloads.Transactions[0]
 	assert.Equal(t, tx.ID, payloads.Spans[0].ParentID)

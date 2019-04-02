@@ -20,5 +20,5 @@
 // Things not implemented by this tracer:
 //  - binary propagation format
 //  - baggage
-//  - logging
+//  - logging (generally; errors are reported)
 package apmot
