@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"testing"
 
 	"github.com/go-chi/chi"
@@ -28,6 +29,7 @@ import (
 
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/module/apmchi"
+	"go.elastic.co/apm/module/apmhttp"
 	"go.elastic.co/apm/transport/transporttest"
 )
 
@@ -138,6 +140,63 @@ func TestMiddleware_NotFound(t *testing.T) {
 	transaction := payloads.Transactions[0]
 
 	assert.Equal(t, "POST unknown route", transaction.Name)
+}
+
+func TestWithTracer_panics(t *testing.T) {
+	assert.Panics(t, func() {
+		apmchi.WithTracer(nil)
+	})
+}
+
+func TestWithRequestIgnorer(t *testing.T) {
+	cases := []struct {
+		name    string
+		ignorer apmhttp.RequestIgnorerFunc
+		expect  bool
+	}{
+		{
+			"nil-ignorer",
+			nil,
+			true,
+		},
+		{
+			"apmhttp.IgnoreNone",
+			apmhttp.IgnoreNone,
+			true,
+		},
+		{
+			"apmhttp.NewRegexpRequestIgnorer",
+			apmhttp.NewRegexpRequestIgnorer(regexp.MustCompile(".*")),
+			false,
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			tracer, transport := transporttest.NewRecorderTracer()
+			defer tracer.Close()
+
+			r := chi.NewRouter()
+			r.Use(apmchi.Middleware(
+				apmchi.WithTracer(tracer),
+				apmchi.WithRequestIgnorer(tt.ignorer),
+			))
+			r.Route("/prefix", func(r chi.Router) {
+				r.Get("/articles/{category}/{id}", articleHandler)
+			})
+
+			w := doRequest(r, "POST", "http://server.testing/bad/url")
+			assert.Equal(t, http.StatusNotFound, w.Code)
+			tracer.Flush(nil)
+
+			payloads := transport.Payloads()
+			if tt.expect {
+				assert.Equal(t, len(payloads.Transactions), 1)
+			} else {
+				assert.Equal(t, len(payloads.Transactions), 0)
+			}
+		})
+	}
 }
 
 func articleHandler(w http.ResponseWriter, req *http.Request) {
