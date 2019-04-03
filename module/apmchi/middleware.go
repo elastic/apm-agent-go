@@ -29,6 +29,9 @@ import (
 // Middleware returns a new chi middleware handler
 // for tracing requests and reporting errors.
 //
+// The server request name will use the fully matched,
+// parametrized route.
+//
 // By default, the middleware will use apm.DefaultTracer.
 // Use WithTracer to specify an alternative tracer.
 func Middleware(o ...Option) func(http.Handler) http.Handler {
@@ -54,16 +57,12 @@ func routeRequestName(r *http.Request) string {
 }
 
 func getRequestPattern(r *http.Request) string {
-	rctx := chi.RouteContext(r.Context())
-	if pattern := rctx.RoutePattern(); pattern != "" {
-		return pattern
-	}
-
 	routePath := r.URL.Path
 	if r.URL.RawPath != "" {
 		routePath = r.URL.RawPath
 	}
 
+	rctx := chi.RouteContext(r.Context())
 	tctx := chi.NewRouteContext()
 	if !rctx.Routes.Match(tctx, r.Method, routePath) {
 		return "unknown route"

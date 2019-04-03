@@ -81,6 +81,45 @@ func TestMiddleware(t *testing.T) {
 	}, transaction.Context)
 }
 
+func TestMiddleware_NestedUse(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	r := chi.NewRouter()
+	r.Route("/prefix", func(r chi.Router) {
+		r.Use(apmchi.Middleware(apmchi.WithTracer(tracer)))
+		r.Get("/articles/{category}/{id}", articleHandler)
+	})
+
+	w := doRequest(r, "GET", "http://server.testing/prefix/articles/fiction/123?foo=123")
+	assert.Equal(t, http.StatusOK, w.Code)
+	tracer.Flush(nil)
+
+	payloads := transport.Payloads()
+	transaction := payloads.Transactions[0]
+
+	assert.Equal(t, "GET /prefix/articles/{category}/{id}", transaction.Name)
+}
+
+func TestMiddleware_With(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	r := chi.NewRouter()
+	r.Route("/prefix", func(r chi.Router) {
+		r.With(apmchi.Middleware(apmchi.WithTracer(tracer))).Get("/articles/{category}/{id}", articleHandler)
+	})
+
+	w := doRequest(r, "GET", "http://server.testing/prefix/articles/fiction/123?foo=123")
+	assert.Equal(t, http.StatusOK, w.Code)
+	tracer.Flush(nil)
+
+	payloads := transport.Payloads()
+	transaction := payloads.Transactions[0]
+
+	assert.Equal(t, "GET /prefix/articles/{category}/{id}", transaction.Name)
+}
+
 func TestMiddleware_NotFound(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
