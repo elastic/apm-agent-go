@@ -55,6 +55,29 @@ func TestMiddleware(t *testing.T) {
 	assert.Equal(t, "testController.Get", payloads.Spans[0].Name)
 }
 
+func TestMiddlewareUnknownRoute(t *testing.T) {
+	handlers := beego.NewControllerRegister()
+	handlers.Add("/thing/:id:int", &testController{}, "get:Get")
+	apmbeego.AddFilters(handlers)
+
+	tracer, transport := transporttest.NewRecorderTracer()
+	server := httptest.NewServer(
+		apmbeego.Middleware(apmbeego.WithTracer(tracer))(handlers),
+	)
+	defer server.Close()
+
+	resp, err := http.Get(server.URL + "/zing/1")
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	tracer.Flush(nil)
+	payloads := transport.Payloads()
+	require.Len(t, payloads.Transactions, 1)
+	require.Len(t, payloads.Spans, 0)
+	assert.Equal(t, "GET unknown route", payloads.Transactions[0].Name)
+	assert.Equal(t, "HTTP 4xx", payloads.Transactions[0].Result)
+}
+
 func TestMiddlewareControllerPanic(t *testing.T) {
 	handlers := beego.NewControllerRegister()
 	handlers.Add("/thing/:id:int", &testController{}, "get:Get")
