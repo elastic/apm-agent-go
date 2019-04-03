@@ -66,7 +66,7 @@ func getRequestPattern(r *http.Request) string {
 
 	tctx := chi.NewRouteContext()
 	if !rctx.Routes.Match(tctx, r.Method, routePath) {
-		return routePath
+		return "unknown route"
 	}
 
 	return tctx.RoutePattern()

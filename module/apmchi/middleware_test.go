@@ -98,7 +98,7 @@ func TestMiddleware_NotFound(t *testing.T) {
 	payloads := transport.Payloads()
 	transaction := payloads.Transactions[0]
 
-	assert.Equal(t, "POST /bad/url", transaction.Name)
+	assert.Equal(t, "POST unknown route", transaction.Name)
 }
 
 func articleHandler(w http.ResponseWriter, req *http.Request) {
