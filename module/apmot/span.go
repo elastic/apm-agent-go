@@ -100,18 +100,14 @@ func (s *otSpan) FinishWithOptions(opts opentracing.FinishOptions) {
 		s.span.End()
 	} else {
 		s.setTransactionContext()
-		s.ctx.mu.Lock()
-		tx := s.ctx.tx
-		s.ctx.tx = nil
-		s.ctx.mu.Unlock()
 		for _, record := range opts.LogRecords {
 			timestamp := record.Timestamp
 			if timestamp.IsZero() {
 				timestamp = opts.FinishTime
 			}
-			logFields(s.tracer.tracer, tx, nil, timestamp, record.Fields)
+			logFields(s.tracer.tracer, s.ctx.tx, nil, timestamp, record.Fields)
 		}
-		tx.End()
+		s.ctx.tx.End()
 	}
 }
 

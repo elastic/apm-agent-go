@@ -74,36 +74,14 @@ func (t *otTracer) StartSpanWithOptions(name string, opts opentracing.StartSpanO
 
 	var parentTraceContext apm.TraceContext
 	if parentCtx, ok := parentSpanContext(opts.References); ok {
-		if parentCtx.tracer == t && parentCtx.txSpanContext != nil {
-			parentCtx.txSpanContext.mu.RLock()
-			defer parentCtx.txSpanContext.mu.RUnlock()
+		if parentCtx.tx != nil && (parentCtx.tracer == t || parentCtx.tracer == nil) {
 			opts := apm.SpanOptions{
-				Parent: parentCtx.traceContext,
-				Start:  otSpan.ctx.startTime,
-			}
-			if parentCtx.txSpanContext.tx != nil {
-				otSpan.span = parentCtx.txSpanContext.tx.StartSpanOptions(name, "", opts)
-			} else {
-				otSpan.span = t.tracer.StartSpan(name, "",
-					parentCtx.transactionID,
-					opts,
-				)
-			}
-			otSpan.ctx.traceContext = otSpan.span.TraceContext()
-			otSpan.ctx.transactionID = parentCtx.transactionID
-			otSpan.ctx.txSpanContext = parentCtx.txSpanContext
-			return otSpan
-		} else if parentCtx.txSpanContext == nil && parentCtx.tx != nil {
-			// parentCtx is a synthesized spanContext object. It has no
-			// txSpanContext, so we treat it as the transaction creator.
-			opts := apm.SpanOptions{
-				Parent: parentCtx.traceContext,
+				Parent: parentCtx.traceContext, // parent span
 				Start:  otSpan.ctx.startTime,
 			}
 			otSpan.span = parentCtx.tx.StartSpanOptions(name, "", opts)
+			otSpan.ctx.tx = parentCtx.tx
 			otSpan.ctx.traceContext = otSpan.span.TraceContext()
-			otSpan.ctx.transactionID = parentCtx.transactionID
-			otSpan.ctx.txSpanContext = parentCtx
 			return otSpan
 		}
 		parentTraceContext = parentCtx.traceContext
@@ -115,8 +93,6 @@ func (t *otTracer) StartSpanWithOptions(name string, opts opentracing.StartSpanO
 		Start:        otSpan.ctx.startTime,
 	})
 	otSpan.ctx.traceContext = otSpan.ctx.tx.TraceContext()
-	otSpan.ctx.transactionID = otSpan.ctx.traceContext.Span
-	otSpan.ctx.txSpanContext = &otSpan.ctx
 	return otSpan
 }
 
