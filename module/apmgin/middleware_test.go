@@ -117,6 +117,22 @@ func TestMiddleware(t *testing.T) {
 	}, transaction.Context)
 }
 
+func TestMiddlewareUnknownRoute(t *testing.T) {
+	debugOutput.Reset()
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	e := gin.New()
+	e.Use(apmgin.Middleware(e, apmgin.WithTracer(tracer)))
+
+	w := doRequest(e, "PUT", "http://server.testing/foo")
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	tracer.Flush(nil)
+
+	transaction := transport.Payloads().Transactions[0]
+	assert.Equal(t, "PUT unknown route", transaction.Name)
+}
+
 func TestMiddlewarePanic(t *testing.T) {
 	debugOutput.Reset()
 	tracer, transport := transporttest.NewRecorderTracer()

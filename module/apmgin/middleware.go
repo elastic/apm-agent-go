@@ -89,10 +89,12 @@ func (m *middleware) handle(c *gin.Context) {
 		m.routeMap = rm
 	})
 
-	requestName := c.Request.Method
+	var requestName string
 	handlerName := c.HandlerName()
 	if routeInfo, ok := m.routeMap[c.Request.Method][handlerName]; ok {
 		requestName = routeInfo.transactionName
+	} else {
+		requestName = apmhttp.UnknownRouteRequestName(c.Request)
 	}
 	tx, req := apmhttp.StartTransaction(m.tracer, requestName, c.Request)
 	c.Request = req
