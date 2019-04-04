@@ -25,6 +25,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/module/apmgorilla"
@@ -78,6 +79,27 @@ func TestMuxMiddleware(t *testing.T) {
 			}},
 		},
 	}, transaction.Context)
+}
+
+func TestInstrumentUnknownRoute(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	r := mux.NewRouter()
+	apmgorilla.Instrument(r, apmgorilla.WithTracer(tracer))
+	r.HandleFunc("/foo", articleHandler).Methods("GET")
+
+	w := doRequest(r, "GET", "http://server.testing/bar")
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	w = doRequest(r, "PUT", "http://server.testing/foo")
+	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
+	tracer.Flush(nil)
+
+	transactions := transport.Payloads().Transactions
+	require.Len(t, transactions, 2)
+
+	assert.Equal(t, "GET unknown route", transactions[0].Name)
+	assert.Equal(t, "PUT unknown route", transactions[1].Name)
 }
 
 func articleHandler(w http.ResponseWriter, req *http.Request) {
