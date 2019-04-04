@@ -56,7 +56,12 @@ func (f *filter) filter(req *restful.Request, resp *restful.Response, chain *res
 		return
 	}
 
-	name := req.Request.Method + " " + massageRoutePath(req.SelectedRoutePath())
+	var name string
+	if routePath := massageRoutePath(req.SelectedRoutePath()); routePath != "" {
+		name = req.Request.Method + " " + massageRoutePath(req.SelectedRoutePath())
+	} else {
+		name = apmhttp.UnknownRouteRequestName(req.Request)
+	}
 	tx, httpRequest := apmhttp.StartTransaction(f.tracer, name, req.Request)
 	defer tx.End()
 	req.Request = httpRequest
