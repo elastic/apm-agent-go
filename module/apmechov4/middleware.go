@@ -23,6 +23,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"reflect"
+	"runtime"
 
 	"github.com/labstack/echo/v4"
 
@@ -102,7 +104,37 @@ func (m *middleware) handle(c echo.Context) error {
 	}()
 
 	handlerErr = m.handler(c)
-	if handlerErr == nil && !resp.Committed {
+	if handlerErr != nil {
+		resp.Status = http.StatusInternalServerError
+		if handlerErr, ok := handlerErr.(*echo.HTTPError); ok {
+			resp.Status = handlerErr.Code
+			reqPath := req.URL.RawPath
+			if reqPath == "" {
+				reqPath = req.URL.Path
+			}
+			if c.Path() == reqPath {
+				// When c.Path() matches the request path exactly,
+				// that means either there's no matching route, or
+				// there's an exactly matching route.
+				//
+				// When ErrNotFound or ErrMethodNotAllowed are
+				// returned, it's probably because there's no
+				// matching route, as opposed to the handler
+				// returning them. We can confirm this by looking
+				// for exact-matching routes.
+				var unknownRoute bool
+				switch handlerErr {
+				case echo.ErrNotFound:
+					unknownRoute = isNotFoundHandler(c.Handler())
+				case echo.ErrMethodNotAllowed:
+					unknownRoute = isMethodNotAllowedHandler(c.Handler())
+				}
+				if unknownRoute {
+					tx.Name = apmhttp.UnknownRouteRequestName(req)
+				}
+			}
+		}
+	} else if !resp.Committed {
 		resp.WriteHeader(http.StatusOK)
 	}
 	return handlerErr
@@ -144,5 +176,51 @@ func WithRequestIgnorer(r apmhttp.RequestIgnorerFunc) Option {
 	}
 	return func(o *options) {
 		o.requestIgnorer = r
+	}
+}
+
+func isNotFoundHandler(h echo.HandlerFunc) bool {
+	return isHandler(h, notFoundHandlerIdentity, &echo.NotFoundHandler)
+}
+
+func isMethodNotAllowedHandler(h echo.HandlerFunc) bool {
+	return isHandler(h, methodNotAllowedHandlerIdentity, &echo.MethodNotAllowedHandler)
+}
+
+func isHandler(h echo.HandlerFunc, ident handlerFuncIdentity, handlerVar *func(echo.Context) error) bool {
+	rv := reflect.ValueOf(h)
+	ptr := rv.Pointer()
+	if ptr == ident.rv.Pointer() {
+		return true
+	}
+	// A sufficiently smart compiler could perform whole program optimisation
+	// to determine that echo.NotFoundHandler and/or echo.MethodNotAllowedHandler
+	// are only written to once to a defined function, enabling callers to inline
+	// the assigned function. In this case, the function PC will not match.
+	name := runtime.FuncForPC(ptr).Name()
+	if name == ident.name {
+		return true
+	}
+	// The global variables could have been reassigned since we read
+	// their values during package init.
+	ident = getHandlerFuncIdentity(*handlerVar)
+	return ptr == ident.rv.Pointer() || name == ident.name
+}
+
+var (
+	notFoundHandlerIdentity         = getHandlerFuncIdentity(echo.NotFoundHandler)
+	methodNotAllowedHandlerIdentity = getHandlerFuncIdentity(echo.MethodNotAllowedHandler)
+)
+
+type handlerFuncIdentity struct {
+	rv   reflect.Value
+	name string
+}
+
+func getHandlerFuncIdentity(h func(echo.Context) error) handlerFuncIdentity {
+	rv := reflect.ValueOf(h)
+	return handlerFuncIdentity{
+		rv:   rv,
+		name: runtime.FuncForPC(rv.Pointer()).Name(),
 	}
 }
