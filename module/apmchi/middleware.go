@@ -53,10 +53,13 @@ func Middleware(o ...Option) func(http.Handler) http.Handler {
 }
 
 func routeRequestName(r *http.Request) string {
-	return r.Method + " " + getRequestPattern(r)
+	if routePattern, ok := getRoutePattern(r); ok {
+		return r.Method + " " + routePattern
+	}
+	return apmhttp.UnknownRouteRequestName(r)
 }
 
-func getRequestPattern(r *http.Request) string {
+func getRoutePattern(r *http.Request) (string, bool) {
 	routePath := r.URL.Path
 	if r.URL.RawPath != "" {
 		routePath = r.URL.RawPath
@@ -64,11 +67,10 @@ func getRequestPattern(r *http.Request) string {
 
 	rctx := chi.RouteContext(r.Context())
 	tctx := chi.NewRouteContext()
-	if !rctx.Routes.Match(tctx, r.Method, routePath) {
-		return "unknown route"
+	if rctx.Routes.Match(tctx, r.Method, routePath) {
+		return tctx.RoutePattern(), true
 	}
-
-	return tctx.RoutePattern()
+	return "", false
 }
 
 type options struct {
