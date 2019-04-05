@@ -8,6 +8,7 @@ pipeline {
     BASE_DIR="src/go.elastic.co/apm"
     NOTIFY_TO = credentials('notify-to')
     JOB_GCS_BUCKET = credentials('gcs-bucket')
+    CODECOV_SECRET = 'secret/apm-team/ci/apm-agent-go-codecov'
   }
   options {
     timeout(time: 1, unit: 'HOURS')
@@ -114,9 +115,6 @@ pipeline {
             beforeAgent true
             allOf {
               anyOf {
-                not {
-                  changeRequest()
-                }
                 branch 'master'
                 branch "\\d+\\.\\d+"
                 branch "v\\d?"
@@ -171,7 +169,9 @@ pipeline {
               junit(allowEmptyResults: true,
                 keepLongStdio: true,
                 testResults: "${BASE_DIR}/build/junit-*.xml")
-              codecov(repo: 'apm-agent-go', basedir: "${BASE_DIR}", flags: "-f build/coverage/coverage.cov -X search")
+              codecov(repo: 'apm-agent-go', basedir: "${BASE_DIR}", 
+                flags: "-f build/coverage/coverage.cov -X search",
+                secret: "${CODECOV_SECRET}")
             }
           }
         }
@@ -187,9 +187,6 @@ pipeline {
         beforeAgent true
         allOf {
           anyOf {
-            not {
-              changeRequest()
-            }
             branch 'master'
             branch "\\d+\\.\\d+"
             branch "v\\d?"
