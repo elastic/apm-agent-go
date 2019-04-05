@@ -475,6 +475,30 @@ func main() {
 }
 ----
 
+[[builtin-modules-apmchi]]
+===== module/apmchi
+Package apmchi provides middleware for https://github.com/go-chi/chi[chi] routers,
+for tracing requests and capturing panics.
+
+For each request, a transaction is stored in the request context, which can be obtained via
+https://golang.org/pkg/net/http/#Request[http.Request]`.Context()` in your handler.
+
+[source,go]
+----
+import (
+	"github.com/go-chi/chi"
+
+	"go.elastic.co/apm/module/apmchi"
+)
+
+func main() {
+	r := chi.NewRouter()
+	r.Use(apmchi.Middleware())
+	r.Get("/route/{pattern}", routeHandler)
+	...
+}
+----
+
 [[builtin-modules-apmlogrus]]
 ===== module/apmlogrus
 Package apmlogrus provides a https://github.com/sirupsen/logrus[logrus] Hook
