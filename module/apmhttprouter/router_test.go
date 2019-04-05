@@ -107,6 +107,29 @@ func TestRouterHTTPHandler(t *testing.T) {
 	assert.Contains(t, names, "GET /handlerfunc")
 }
 
+func TestRouterUnknownRoute(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+	router := apmhttprouter.New(apmhttprouter.WithTracer(tracer))
+
+	router.HandlerFunc("GET", "/foo", func(http.ResponseWriter, *http.Request) {})
+
+	w := httptest.NewRecorder()
+	sendRequest(router, w, "PUT", "/foo")
+	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
+
+	w = httptest.NewRecorder()
+	sendRequest(router, w, "GET", "/bar")
+	assert.Equal(t, http.StatusNotFound, w.Code)
+
+	tracer.Flush(nil)
+	transactions := transport.Payloads().Transactions
+	require.Len(t, transactions, 2)
+
+	assert.Equal(t, "PUT unknown route", transactions[0].Name)
+	assert.Equal(t, "GET unknown route", transactions[1].Name)
+}
+
 func transactionNames(transactions []model.Transaction) []string {
 	names := make([]string, len(transactions))
 	for i, tx := range transactions {

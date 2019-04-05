@@ -33,9 +33,15 @@ type Router struct {
 
 // New returns a new Router which will instrument all added routes
 // except static content served with ServeFiles.
+//
+// Router.NotFound and Router.MethodNotAllowed will be set, and will
+// report transactions with the name "<METHOD> unknown route".
 func New(o ...Option) *Router {
+	router := httprouter.New()
+	router.NotFound = WrapNotFoundHandler(router.NotFound, o...)
+	router.MethodNotAllowed = WrapMethodNotAllowedHandler(router.MethodNotAllowed, o...)
 	return &Router{
-		Router: httprouter.New(),
+		Router: router,
 		opts:   o,
 	}
 }

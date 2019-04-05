@@ -57,7 +57,7 @@ func Middleware(o ...Option) func(http.Handler) http.Handler {
 				req = apmhttp.RequestWithContext(ctx, req)
 			}
 			h.ServeHTTP(w, req)
-		}), apmhttp.WithTracer(opts.tracer))
+		}), apmhttp.WithTracer(opts.tracer), apmhttp.WithServerRequestName(apmhttp.UnknownRouteRequestName))
 	}
 }
 

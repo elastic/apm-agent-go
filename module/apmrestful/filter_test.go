@@ -174,3 +174,28 @@ func TestContainerFilterPanic(t *testing.T) {
 func handlePanic(req *restful.Request, resp *restful.Response) {
 	panic("kablamo")
 }
+
+func TestContainerFilterUnknownRoute(t *testing.T) {
+	var ws restful.WebService
+	ws.Path("/things").Consumes(restful.MIME_JSON, restful.MIME_XML).Produces(restful.MIME_JSON, restful.MIME_XML)
+	ws.Route(ws.GET("/{id}/foo").To(handlePanic))
+
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	container := restful.NewContainer()
+	container.Add(&ws)
+	container.Filter(apmrestful.Filter(apmrestful.WithTracer(tracer)))
+
+	server := httptest.NewServer(container)
+	defer server.Close()
+	resp, err := http.Get(server.URL + "/things/123/bar")
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+	tracer.Flush(nil)
+
+	payloads := transport.Payloads()
+	require.Len(t, payloads.Transactions, 1)
+	assert.Equal(t, "GET unknown route", payloads.Transactions[0].Name)
+}

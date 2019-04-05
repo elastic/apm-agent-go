@@ -105,6 +105,44 @@ func TestEchoMiddleware(t *testing.T) {
 	}, transaction.Context)
 }
 
+func TestEchoMiddlewareUnknownRoute(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	e := echo.New()
+	e.Use(apmecho.Middleware(apmecho.WithTracer(tracer)))
+	e.GET("/hello/there", func(c echo.Context) error {
+		return echo.ErrNotFound
+	})
+
+	doRequest(e, "GET", "http://server.testing/hello/there")
+	doRequest(e, "PUT", "http://server.testing/hello/there")
+	doRequest(e, "GET", "http://server.testing/ahoy/thar")
+	doRequest(e, "PUT", "http://server.testing/ahoy/thar")
+
+	// Replace echo.NotFoundHandler so the function pointers
+	// don't match.
+	oldHandler := echo.NotFoundHandler
+	echo.NotFoundHandler = func(echo.Context) error {
+		return echo.ErrNotFound
+	}
+	defer func() { echo.NotFoundHandler = oldHandler }()
+	doRequest(e, "GET", "http://server.testing/ahoy/thar")
+
+	tracer.Flush(nil)
+	transactions := transport.Payloads().Transactions
+	require.Len(t, transactions, 5)
+
+	assert.Equal(t, "GET /hello/there", transactions[0].Name)
+	assert.Equal(t, "PUT unknown route", transactions[1].Name)
+	assert.Equal(t, "GET unknown route", transactions[2].Name)
+	assert.Equal(t, "PUT unknown route", transactions[3].Name)
+	assert.Equal(t, "GET unknown route", transactions[4].Name)
+	for _, tx := range transactions {
+		assert.Equal(t, "HTTP 4xx", tx.Result)
+	}
+}
+
 func TestEchoMiddlewarePanic(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()

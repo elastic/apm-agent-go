@@ -36,16 +36,7 @@ import (
 // them to the configured tracer. To override this behaviour, use
 // WithRecovery.
 func Wrap(h httprouter.Handle, route string, o ...Option) httprouter.Handle {
-	opts := options{
-		tracer:         apm.DefaultTracer,
-		requestIgnorer: apmhttp.DefaultServerRequestIgnorer(),
-	}
-	for _, o := range o {
-		o(&opts)
-	}
-	if opts.recovery == nil {
-		opts.recovery = apmhttp.NewTraceRecovery(opts.tracer)
-	}
+	opts := gatherOptions(o...)
 	return func(w http.ResponseWriter, req *http.Request, p httprouter.Params) {
 		if !opts.tracer.Active() || opts.requestIgnorer(req) {
 			h(w, req, p)
@@ -70,6 +61,50 @@ func Wrap(h httprouter.Handle, route string, o ...Option) httprouter.Handle {
 			resp.StatusCode = http.StatusOK
 		}
 	}
+}
+
+// WrapNotFoundHandler wraps h so that it is traced. If h is nil, then http.NotFoundHandler() will be used.
+func WrapNotFoundHandler(h http.Handler, o ...Option) http.Handler {
+	if h == nil {
+		h = http.NotFoundHandler()
+	}
+	return wrapHandlerUnknownRoute(h, o...)
+}
+
+// WrapMethodNotAllowedHandler wraps h so that it is traced. If h is nil, then a default handler
+// will be used that returns status code 405.
+func WrapMethodNotAllowedHandler(h http.Handler, o ...Option) http.Handler {
+	if h == nil {
+		h = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		})
+	}
+	return wrapHandlerUnknownRoute(h, o...)
+}
+
+func wrapHandlerUnknownRoute(h http.Handler, o ...Option) http.Handler {
+	opts := gatherOptions(o...)
+	return apmhttp.Wrap(
+		h,
+		apmhttp.WithTracer(opts.tracer),
+		apmhttp.WithRecovery(opts.recovery),
+		apmhttp.WithServerRequestName(apmhttp.UnknownRouteRequestName),
+		apmhttp.WithServerRequestIgnorer(opts.requestIgnorer),
+	)
+}
+
+func gatherOptions(o ...Option) options {
+	opts := options{
+		tracer:         apm.DefaultTracer,
+		requestIgnorer: apmhttp.DefaultServerRequestIgnorer(),
+	}
+	for _, o := range o {
+		o(&opts)
+	}
+	if opts.recovery == nil {
+		opts.recovery = apmhttp.NewTraceRecovery(opts.tracer)
+	}
+	return opts
 }
 
 type options struct {
