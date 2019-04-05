@@ -26,6 +26,8 @@ import (
 )
 
 // Context provides methods for setting transaction and error context.
+//
+// NOTE this is entirely unrelated to the standard library's context.Context.
 type Context struct {
 	model            model.Context
 	request          model.Request
