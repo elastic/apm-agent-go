@@ -3,7 +3,8 @@
 ## [Unreleased](https://github.com/elastic/apm-agent-go/compare/v1.2.0...master)
 
  - Update opentracing-go dependency to v1.1.0
- - Update HTTP routers to return "<METHOD> unknown route" if route cannot be matched (#)
+ - Update HTTP routers to return "<METHOD> unknown route" if route cannot be matched (#486)
+ - module/apmchi: introduce instrumentation for go-chi/chi router (#495)
 
 ## [v1.3.0](https://github.com/elastic/apm-agent-go/releases/tag/v1.3.0)
 

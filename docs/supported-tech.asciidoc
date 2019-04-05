@@ -91,6 +91,15 @@ See <<builtin-modules-apmrestful, module/apmrestful>> for more information
 about go-restful instrumentation.
 
 [float]
+==== chi
+
+We support https://github.com/go-chi/chi[chi],
+https://github.com/go-chi/chi/releases/tag/v4.0.0[v4.0.0] and greater.
+
+See <<builtin-modules-apmchi, module/apmchi>> for more information
+about chi instrumentation.
+
+[float]
 [[supported-tech-databases]]
 === Databases
 
