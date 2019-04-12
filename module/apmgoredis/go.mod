@@ -7,3 +7,5 @@ require (
 	github.com/stretchr/testify v1.2.2
 	go.elastic.co/apm v1.3.0
 )
+
+replace go.elastic.co/apm => ../..
