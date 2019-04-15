@@ -36,6 +36,13 @@ before_install:
           git clone https://github.com/go-sql-driver/mysql &&
           cd mysql && git checkout v1.4.1
         );
+        # Pin olivere/elastic to release-branch.v6 for Go 1.8.
+        mkdir -p $GOPATH/src/github.com/olivere/elastic;
+        (
+          cd $GOPATH/src/github.com/olivere &&
+          git clone https://github.com/olivere/elastic &&
+          cd elastic && git checkout release-branch.v6
+        );
       fi;
 
 script:
