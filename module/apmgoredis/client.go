@@ -26,13 +26,14 @@ import (
 	"go.elastic.co/apm"
 )
 
-// Client is the interface returned by ContextClient.
+// Client is the interface returned by Wrap.
 //
 // Client implements redis.UniversalClient
 type Client interface {
 	redis.UniversalClient
 
-	// ClusterClient returns the eventually embedded redis.ClusterClient or nil
+	// ClusterClient returns the wrapped *redis.ClusterClient,
+	// or nil if a non-cluster client is wrapped.
 	Cluster() *redis.ClusterClient
 
 	// WithContext returns a shallow copy of the client with
@@ -43,21 +44,19 @@ type Client interface {
 	WithContext(ctx context.Context) Client
 }
 
-// Wrap according to client type. The context can be changed using Client.WithContext.
-// That will add instrumentation with client.WrapProcess and client.WrapProcessPipeline
+// Wrap wraps client such that executed commands are reported as spans to Elastic APM,
+// using the client's associated context.
+// A context-specific client may be obtained by using Client.WithContext.
 func Wrap(client redis.UniversalClient) Client {
 	switch client.(type) {
-	case contextClient:
-		return client.(contextClient)
-	case contextClusterClient:
-		return client.(contextClusterClient)
 	case *redis.Client:
 		return contextClient{Client: client.(*redis.Client)}
 	case *redis.ClusterClient:
 		return contextClusterClient{ClusterClient: client.(*redis.ClusterClient)}
 	}
 
-	return nil
+	return client.(Client)
+
 }
 
 type contextClient struct {
@@ -109,19 +108,19 @@ func process(ctx context.Context) func(oldProcess func(cmd redis.Cmder) error) f
 func processPipeline(ctx context.Context) func(oldProcess func(cmds []redis.Cmder) error) func(cmds []redis.Cmder) error {
 	return func(oldProcess func(cmds []redis.Cmder) error) func(cmds []redis.Cmder) error {
 		return func(cmds []redis.Cmder) error {
-			cmdNames := make([]string, len(cmds))
-			for i, cmd := range cmds {
-				cmdName := strings.ToUpper(cmd.Name())
+			pipelineSpan, ctx := apm.StartSpan(ctx, "(pipeline)", "db.redis")
+
+			for i := len(cmds); i > 0; i-- {
+				cmdName := strings.ToUpper(cmds[i -1].Name())
 				if cmdName == "" {
-					cmdName = "(flush pipeline)"
+					cmdName = "(empty command)"
 				}
 
-				cmdNames[i] = cmdName
+				span, _ := apm.StartSpan(ctx, cmdName, "db.redis")
+				defer span.End()
 			}
 
-			spanName := "(pipeline) " + strings.Join(cmdNames, " ")
-			span, _ := apm.StartSpan(ctx, spanName, "db.redis")
-			defer span.End()
+			defer pipelineSpan.End()
 
 			return oldProcess(cmds)
 		}

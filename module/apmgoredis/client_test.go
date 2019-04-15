@@ -33,31 +33,24 @@ import (
 
 var (
 	unitTestCases = []struct {
-		isTxWrapped bool
 		client      redis.UniversalClient
 	}{
 		{
-			true,
 			redisEmptyClient(),
 		},
 		{
-			true,
 			apmgoredis.Wrap(redisEmptyClient()),
 		},
 		{
-			true,
 			apmgoredis.Wrap(redisEmptyClient()).WithContext(context.Background()),
 		},
 		{
-			false,
 			redisEmptyClusterClient(),
 		},
 		{
-			false,
 			apmgoredis.Wrap(redisEmptyClusterClient()),
 		},
 		{
-			false,
 			apmgoredis.Wrap(redisEmptyClusterClient()).WithContext(context.Background()),
 		},
 	}
@@ -86,7 +79,7 @@ func TestWithContext(t *testing.T) {
 			span, ctx := apm.StartSpan(ctx, "ping", "custom")
 			defer span.End()
 
-			// bind conn to the ctx containing the span above
+			// bind client to the ctx containing the span above
 			client = client.WithContext(ctx)
 			client.Ping()
 		}
@@ -115,8 +108,10 @@ func TestWrapPipeline(t *testing.T) {
 			pipe.Exec()
 		})
 
-		require.Len(t, spans, 1)
-		assert.Equal(t, "(pipeline) (flush pipeline) (flush pipeline)", spans[0].Name)
+		require.Len(t, spans, 3)
+		assert.Equal(t, "(pipeline)", spans[0].Name)
+		assert.Equal(t, "(empty command)", spans[1].Name)
+		assert.Equal(t, "(empty command)", spans[2].Name)
 	}
 }
 
@@ -132,13 +127,10 @@ func TestWrapPipelineTransaction(t *testing.T) {
 			pipe.Exec()
 		})
 
-		switch testCase.isTxWrapped {
-		case true:
-			require.Len(t, spans, 1)
-			assert.Equal(t, "(pipeline) (flush pipeline) (flush pipeline)", spans[0].Name)
-		case false:
-			assert.Len(t, spans, 0)
-		}
+		require.Len(t, spans, 3)
+		assert.Equal(t, "(pipeline)", spans[0].Name)
+		assert.Equal(t, "(empty command)", spans[1].Name)
+		assert.Equal(t, "(empty command)", spans[2].Name)
 	}
 }
 
@@ -158,8 +150,11 @@ func TestWrapPipelined(t *testing.T) {
 			})
 		})
 
-		require.Len(t, spans, 1)
-		assert.Equal(t, "(pipeline) SET GET FLUSHDB", spans[0].Name)
+		require.Len(t, spans, 4)
+		assert.Equal(t, "(pipeline)", spans[0].Name)
+		assert.Equal(t, "SET", spans[1].Name)
+		assert.Equal(t, "GET", spans[2].Name)
+		assert.Equal(t, "FLUSHDB", spans[3].Name)
 	}
 }
 
@@ -179,13 +174,11 @@ func TestWrapPipelinedTransaction(t *testing.T) {
 			})
 		})
 
-		switch testCase.isTxWrapped {
-		case true:
-			require.Len(t, spans, 1)
-			assert.Equal(t, "(pipeline) SET GET FLUSHDB", spans[0].Name)
-		case false:
-			assert.Len(t, spans, 0)
-		}
+		require.Len(t, spans, 4)
+		assert.Equal(t, "(pipeline)", spans[0].Name)
+		assert.Equal(t, "SET", spans[1].Name)
+		assert.Equal(t, "GET", spans[2].Name)
+		assert.Equal(t, "FLUSHDB", spans[3].Name)
 	}
 }
 

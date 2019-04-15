@@ -15,8 +15,7 @@ services:
       MYSQL_HOST: mysql
       PGHOST: postgres
       REDIS_URL: redis://redis
-      GOREDIS_URL: redis:6379
-      GOREDIS_CLUSTER_URLS: redis-node-1:6380 redis-node-2:6381 redis-node-3:6382
+      REDIS_CLUSTER_URLS: redis://redis-node-1:6380 redis://redis-node-2:6381 redis://redis-node-3:6382
       ELASTICSEARCH_URL: http://elasticsearch:9200
     depends_on:
       - cassandra

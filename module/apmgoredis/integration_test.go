@@ -19,9 +19,6 @@ package apmgoredis_test
 
 import (
 	"context"
-	"errors"
-	"fmt"
-	"net"
 	"os"
 	"strings"
 	"testing"
@@ -109,8 +106,11 @@ func TestPipelined(t *testing.T) {
 			require.NoError(t, err)
 		})
 
-		assert.Len(t, spans, 1)
-		assert.Equal(t, "(pipeline) SET GET FLUSHDB", spans[0].Name)
+		require.Len(t, spans, 4)
+		assert.Equal(t, "(pipeline)", spans[0].Name)
+		assert.Equal(t, "SET", spans[1].Name)
+		assert.Equal(t, "GET", spans[2].Name)
+		assert.Equal(t, "FLUSHDB", spans[3].Name)
 	}
 }
 
@@ -144,8 +144,11 @@ func TestPipeline(t *testing.T) {
 			require.NoError(t, err)
 		})
 
-		require.Len(t, spans, 1)
-		assert.Equal(t, "(pipeline) SET GET FLUSHDB", spans[0].Name)
+		require.Len(t, spans, 4)
+		assert.Equal(t, "(pipeline)", spans[0].Name)
+		assert.Equal(t, "SET", spans[1].Name)
+		assert.Equal(t, "GET", spans[2].Name)
+		assert.Equal(t, "FLUSHDB", spans[3].Name)
 	}
 }
 
@@ -187,13 +190,11 @@ func TestPipelinedTransaction(t *testing.T) {
 			assert.NoError(t, err)
 		})
 
-		switch testCase.isTxWrapped {
-		case true:
-			assert.Len(t, spans, 1)
-			assert.Equal(t, "(pipeline) INCR INCR INCR", spans[0].Name)
-		case false:
-			assert.Len(t, spans, 0)
-		}
+		require.Len(t, spans, 4)
+		assert.Equal(t, "(pipeline)", spans[0].Name)
+		assert.Equal(t, "INCR", spans[1].Name)
+		assert.Equal(t, "INCR", spans[2].Name)
+		assert.Equal(t, "INCR", spans[3].Name)
 	}
 }
 
@@ -231,71 +232,52 @@ func TestPipelineTransaction(t *testing.T) {
 			assert.Equal(t, int64(2), incr3.Val())
 		})
 
-		switch testCase.isTxWrapped {
-		case true:
-			assert.Len(t, spans, 1)
-			assert.Equal(t, "(pipeline) INCR INCR INCR", spans[0].Name)
-		case false:
-			assert.Len(t, spans, 0)
-		}
+		require.Len(t, spans, 4)
+		assert.Equal(t, "(pipeline)", spans[0].Name)
+		assert.Equal(t, "INCR", spans[1].Name)
+		assert.Equal(t, "INCR", spans[2].Name)
+		assert.Equal(t, "INCR", spans[3].Name)
 	}
 }
 
 func redisClient(t *testing.T) *redis.Client {
-	redisURL := os.Getenv("GOREDIS_URL")
+	redisURL := os.Getenv("REDIS_URL")
 	if redisURL == "" {
-		t.Skipf("GOREDIS_URL not specified")
+		t.Skipf("REDIS_URL not specified")
 	}
 
-	var err error
-	redisURL, err = lookupIPFromHostPort(redisURL)
+	opt, err := redis.ParseURL(redisURL)
 	if err != nil {
 		return nil
 	}
 
-	closeConn := true
 	client := redis.NewClient(&redis.Options{
-		Addr: redisURL,
+		Addr: opt.Addr,
 	})
 
-	defer func() {
-		if closeConn {
-			client.Close()
-		}
-	}()
-
-	closeConn = false
 	return client
 }
 
 func redisClusterClient(t *testing.T) *redis.ClusterClient {
-	redisURLs := strings.Split(os.Getenv("GOREDIS_CLUSTER_URLS"), " ")
+	redisURLs := strings.Split(os.Getenv("REDIS_CLUSTER_URLS"), " ")
 	if len(redisURLs) == 0 {
 		if t != nil {
-			t.Skipf("GOREDIS_CLUSTER_URLS not specified")
+			t.Skipf("REDIS_CLUSTER_URLS not specified")
 		}
 	}
 
 	for i, redisURL := range redisURLs {
-		var err error
-		redisURLs[i], err = lookupIPFromHostPort(redisURL)
+		opt, err := redis.ParseURL(redisURL)
+		redisURLs[i] = opt.Addr
 		if err != nil {
 			return nil
 		}
 	}
 
-	closeConn := true
 	client := redis.NewClusterClient(&redis.ClusterOptions{
 		Addrs: redisURLs,
 	})
 
-	defer func() {
-		if closeConn {
-			client.Close()
-		}
-	}()
-
-	closeConn = false
 	return client
 }
 
@@ -336,55 +318,36 @@ func cleanRedis(t *testing.T, client redis.UniversalClient, isCluster bool) {
 	}
 }
 
-func lookupIPFromHostPort(hostPort string) (string, error) {
-	data := strings.Split(hostPort, ":")
-	ips, err := net.LookupIP(data[0])
-
-	if len(ips) == 0 {
-		return "", errors.New("cannot lookup ip")
-	}
-
-	return fmt.Sprintf("%s:%s", ips[0], data[1]), err
-}
-
 func getTestCases(t *testing.T) []struct {
 	isCluster   bool
-	isTxWrapped bool
 	client      redis.UniversalClient
 } {
 	return []struct {
 		isCluster   bool
-		isTxWrapped bool
 		client      redis.UniversalClient
 	}{
 		{
 			false,
-			true,
 			redisClient(t),
 		},
 		{
 			false,
-			true,
 			apmgoredis.Wrap(redisClient(t)),
 		},
 		{
 			false,
-			true,
 			apmgoredis.Wrap(redisClient(t)).WithContext(context.Background()),
 		},
 		{
 			true,
-			false,
 			redisClusterClient(t),
 		},
 		{
 			true,
-			false,
 			apmgoredis.Wrap(redisClusterClient(t)),
 		},
 		{
 			true,
-			false,
 			apmgoredis.Wrap(redisClusterClient(t)).WithContext(context.Background()),
 		},
 	}
