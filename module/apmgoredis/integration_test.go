@@ -268,10 +268,11 @@ func redisClusterClient(t *testing.T) *redis.ClusterClient {
 
 	for i, redisURL := range redisURLs {
 		opt, err := redis.ParseURL(redisURL)
-		redisURLs[i] = opt.Addr
 		if err != nil {
 			return nil
 		}
+
+		redisURLs[i] = opt.Addr
 	}
 
 	client := redis.NewClusterClient(&redis.ClusterOptions{
