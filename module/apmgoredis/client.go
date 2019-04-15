@@ -111,7 +111,7 @@ func processPipeline(ctx context.Context) func(oldProcess func(cmds []redis.Cmde
 			pipelineSpan, ctx := apm.StartSpan(ctx, "(pipeline)", "db.redis")
 
 			for i := len(cmds); i > 0; i-- {
-				cmdName := strings.ToUpper(cmds[i -1].Name())
+				cmdName := strings.ToUpper(cmds[i-1].Name())
 				if cmdName == "" {
 					cmdName = "(empty command)"
 				}

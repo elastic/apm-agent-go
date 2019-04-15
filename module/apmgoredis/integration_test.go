@@ -320,12 +320,12 @@ func cleanRedis(t *testing.T, client redis.UniversalClient, isCluster bool) {
 }
 
 func getTestCases(t *testing.T) []struct {
-	isCluster   bool
-	client      redis.UniversalClient
+	isCluster bool
+	client    redis.UniversalClient
 } {
 	return []struct {
-		isCluster   bool
-		client      redis.UniversalClient
+		isCluster bool
+		client    redis.UniversalClient
 	}{
 		{
 			false,

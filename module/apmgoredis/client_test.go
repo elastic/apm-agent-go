@@ -33,7 +33,7 @@ import (
 
 var (
 	unitTestCases = []struct {
-		client      redis.UniversalClient
+		client redis.UniversalClient
 	}{
 		{
 			redisEmptyClient(),
