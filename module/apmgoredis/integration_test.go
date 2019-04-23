@@ -259,35 +259,6 @@ func TestPipelineTransaction(t *testing.T) {
 	}
 }
 
-func TestWatch(t *testing.T) {
-	for i, testCase := range unitTestCases {
-		t.Run(fmt.Sprintf("test %d", i), func(t *testing.T) {
-			client := testCase.client
-
-			_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
-				client := apmgoredis.Wrap(client).WithContext(ctx)
-
-				client.Watch(func(tx *redis.Tx) error {
-					err := tx.Set("foo", "bar", 0).Err()
-					require.NoError(t, err)
-
-					err = tx.Get("foo").Err()
-					require.NoError(t, err)
-
-					err = tx.FlushDB().Err()
-					require.NoError(t, err)
-
-					return nil
-				}, "foo")
-			})
-
-			require.Len(t, spans, 2)
-			assert.Equal(t, "WATCH", spans[0].Name)
-			assert.Equal(t, "UNWATCH", spans[1].Name)
-		})
-	}
-}
-
 func redisClient(t *testing.T) *redis.Client {
 	redisURL := os.Getenv("REDIS_URL")
 	if redisURL == "" {
