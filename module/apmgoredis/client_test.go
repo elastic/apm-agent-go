@@ -19,6 +19,7 @@ package apmgoredis_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -31,154 +32,223 @@ import (
 	"go.elastic.co/apm/module/apmgoredis"
 )
 
+const (
+	clientTypeBase = iota
+	clientTypeCluster
+	clientTypeRing
+)
+
 var (
 	unitTestCases = []struct {
-		client redis.UniversalClient
+		clientType int
+		client     redis.UniversalClient
 	}{
 		{
+			clientTypeBase,
 			redisEmptyClient(),
 		},
 		{
+			clientTypeBase,
 			apmgoredis.Wrap(redisEmptyClient()),
 		},
 		{
+			clientTypeBase,
 			apmgoredis.Wrap(redisEmptyClient()).WithContext(context.Background()),
 		},
 		{
+			clientTypeCluster,
 			redisEmptyClusterClient(),
 		},
 		{
+			clientTypeCluster,
 			apmgoredis.Wrap(redisEmptyClusterClient()),
 		},
 		{
+			clientTypeCluster,
+			apmgoredis.Wrap(redisEmptyClusterClient()).WithContext(context.Background()),
+		},
+		{
+			clientTypeRing,
+			redisEmptyRing(),
+		},
+		{
+			clientTypeRing,
+			apmgoredis.Wrap(redisEmptyRing()),
+		},
+		{
+			clientTypeRing,
 			apmgoredis.Wrap(redisEmptyClusterClient()).WithContext(context.Background()),
 		},
 	}
 )
 
 func TestWrap(t *testing.T) {
-	for _, testCase := range unitTestCases {
-		client := testCase.client
+	for i, testCase := range unitTestCases {
+		t.Run(fmt.Sprintf("test %d", i), func(t *testing.T) {
+			client := testCase.client
 
-		_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
-			client := apmgoredis.Wrap(client).WithContext(ctx)
-			client.Ping()
+			_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+				client := apmgoredis.Wrap(client).WithContext(ctx)
+				client.Ping()
+			})
+			require.Len(t, spans, 1)
+			assert.Equal(t, "PING", spans[0].Name)
+			assert.Equal(t, "db", spans[0].Type)
+			assert.Equal(t, "redis", spans[0].Subtype)
 		})
-		require.Len(t, spans, 1)
-		assert.Equal(t, "PING", spans[0].Name)
-		assert.Equal(t, "db", spans[0].Type)
-		assert.Equal(t, "redis", spans[0].Subtype)
 	}
 }
 
 func TestWithContext(t *testing.T) {
-	for _, testCase := range unitTestCases {
-		client := testCase.client
+	for i, testCase := range unitTestCases {
+		t.Run(fmt.Sprintf("test %d", i), func(t *testing.T) {
+			client := testCase.client
 
-		ping := func(ctx context.Context, client apmgoredis.Client) {
-			span, ctx := apm.StartSpan(ctx, "ping", "custom")
-			defer span.End()
+			ping := func(ctx context.Context, client apmgoredis.Client) {
+				span, ctx := apm.StartSpan(ctx, "ping", "custom")
+				defer span.End()
 
-			// bind client to the ctx containing the span above
-			client = client.WithContext(ctx)
-			client.Ping()
-		}
+				// bind client to the ctx containing the span above
+				client = client.WithContext(ctx)
+				client.Ping()
+			}
 
-		_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
-			client := apmgoredis.Wrap(client)
-			ping(ctx, client)
+			_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+				client := apmgoredis.Wrap(client)
+				ping(ctx, client)
+			})
+
+			require.Len(t, spans, 2)
+			assert.Equal(t, "PING", spans[0].Name)
+			assert.Equal(t, "ping", spans[1].Name)
+			assert.Equal(t, spans[1].ID, spans[0].ParentID)
 		})
-
-		require.Len(t, spans, 2)
-		assert.Equal(t, "PING", spans[0].Name)
-		assert.Equal(t, "ping", spans[1].Name)
-		assert.Equal(t, spans[1].ID, spans[0].ParentID)
 	}
 }
 
 func TestWrapPipeline(t *testing.T) {
-	for _, testCase := range unitTestCases {
-		client := testCase.client
+	for i, testCase := range unitTestCases {
+		t.Run(fmt.Sprintf("test %d", i), func(t *testing.T) {
+			client := testCase.client
 
-		_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
-			client := apmgoredis.Wrap(client).WithContext(ctx)
-			pipe := client.Pipeline()
-			pipe.Do("")
-			pipe.Do("")
-			pipe.Exec()
+			_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+				client := apmgoredis.Wrap(client).WithContext(ctx)
+				pipe := client.Pipeline()
+				pipe.Do("")
+				pipe.Do("")
+				pipe.Exec()
+			})
+
+			require.Len(t, spans, 3)
+			assert.Equal(t, "(pipeline)", spans[0].Name)
+			assert.Equal(t, "(empty command)", spans[1].Name)
+			assert.Equal(t, "(empty command)", spans[2].Name)
 		})
-
-		require.Len(t, spans, 3)
-		assert.Equal(t, "(pipeline)", spans[0].Name)
-		assert.Equal(t, "(empty command)", spans[1].Name)
-		assert.Equal(t, "(empty command)", spans[2].Name)
 	}
 }
 
 func TestWrapPipelineTransaction(t *testing.T) {
-	for _, testCase := range unitTestCases {
-		client := testCase.client
+	for i, testCase := range unitTestCases {
+		t.Run(fmt.Sprintf("test %d", i), func(t *testing.T) {
+			if testCase.clientType == clientTypeRing {
+				t.Skipf("redis.Ring doesn't support Transaction")
+			}
 
-		_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
-			client := apmgoredis.Wrap(client).WithContext(ctx)
-			pipe := client.TxPipeline()
-			pipe.Do("")
-			pipe.Do("")
-			pipe.Exec()
+			client := testCase.client
+
+			_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+				client := apmgoredis.Wrap(client).WithContext(ctx)
+				pipe := client.TxPipeline()
+				pipe.Do("")
+				pipe.Do("")
+				pipe.Exec()
+			})
+
+			require.Len(t, spans, 3)
+			assert.Equal(t, "(pipeline)", spans[0].Name)
+			assert.Equal(t, "(empty command)", spans[1].Name)
+			assert.Equal(t, "(empty command)", spans[2].Name)
 		})
-
-		require.Len(t, spans, 3)
-		assert.Equal(t, "(pipeline)", spans[0].Name)
-		assert.Equal(t, "(empty command)", spans[1].Name)
-		assert.Equal(t, "(empty command)", spans[2].Name)
 	}
 }
 
 func TestWrapPipelined(t *testing.T) {
-	for _, testCase := range unitTestCases {
-		client := testCase.client
+	for i, testCase := range unitTestCases {
+		t.Run(fmt.Sprintf("test %d", i), func(t *testing.T) {
+			client := testCase.client
 
-		_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
-			client := apmgoredis.Wrap(client).WithContext(ctx)
+			_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+				client := apmgoredis.Wrap(client).WithContext(ctx)
 
-			client.Pipelined(func(pipe redis.Pipeliner) error {
-				pipe.Set("foo", "bar", 0)
-				pipe.Get("foo")
-				pipe.FlushDB()
+				client.Pipelined(func(pipe redis.Pipeliner) error {
+					pipe.Set("foo", "bar", 0)
+					pipe.Get("foo")
+					pipe.FlushDB()
 
-				return nil
+					return nil
+				})
 			})
-		})
 
-		require.Len(t, spans, 4)
-		assert.Equal(t, "(pipeline)", spans[0].Name)
-		assert.Equal(t, "SET", spans[1].Name)
-		assert.Equal(t, "GET", spans[2].Name)
-		assert.Equal(t, "FLUSHDB", spans[3].Name)
+			require.Len(t, spans, 4)
+			assert.Equal(t, "(pipeline)", spans[0].Name)
+			assert.Equal(t, "SET", spans[1].Name)
+			assert.Equal(t, "GET", spans[2].Name)
+			assert.Equal(t, "FLUSHDB", spans[3].Name)
+		})
 	}
 }
 
 func TestWrapPipelinedTransaction(t *testing.T) {
-	for _, testCase := range unitTestCases {
-		client := testCase.client
+	for i, testCase := range unitTestCases {
+		t.Run(fmt.Sprintf("test %d", i), func(t *testing.T) {
+			if testCase.clientType == clientTypeRing {
+				t.Skipf("redis.Ring doesn't support Transaction")
+			}
 
-		_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
-			client := apmgoredis.Wrap(client).WithContext(ctx)
+			client := testCase.client
 
-			client.TxPipelined(func(pipe redis.Pipeliner) error {
-				pipe.Set("foo", "bar", 0)
-				pipe.Get("foo")
-				pipe.FlushDB()
+			_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+				client := apmgoredis.Wrap(client).WithContext(ctx)
 
-				return nil
+				client.TxPipelined(func(pipe redis.Pipeliner) error {
+					pipe.Set("foo", "bar", 0)
+					pipe.Get("foo")
+					pipe.FlushDB()
+
+					return nil
+				})
 			})
-		})
 
-		require.Len(t, spans, 4)
-		assert.Equal(t, "(pipeline)", spans[0].Name)
-		assert.Equal(t, "SET", spans[1].Name)
-		assert.Equal(t, "GET", spans[2].Name)
-		assert.Equal(t, "FLUSHDB", spans[3].Name)
+			require.Len(t, spans, 4)
+			assert.Equal(t, "(pipeline)", spans[0].Name)
+			assert.Equal(t, "SET", spans[1].Name)
+			assert.Equal(t, "GET", spans[2].Name)
+			assert.Equal(t, "FLUSHDB", spans[3].Name)
+		})
+	}
+}
+
+func TestWrapWatch(t *testing.T) {
+	for i, testCase := range unitTestCases {
+		t.Run(fmt.Sprintf("test %d", i), func(t *testing.T) {
+			if testCase.clientType != clientTypeBase {
+				t.Skipf("only redis.Client can be united tested for Watch")
+			}
+
+			client := testCase.client
+
+			_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+				client := apmgoredis.Wrap(client).WithContext(ctx)
+
+				client.Watch(func(tx *redis.Tx) error {
+					return nil
+				}, "foo")
+			})
+
+			require.Len(t, spans, 2)
+			assert.Equal(t, "WATCH", spans[0].Name)
+			assert.Equal(t, "UNWATCH", spans[1].Name)
+		})
 	}
 }
 
@@ -188,4 +258,8 @@ func redisEmptyClient() *redis.Client {
 
 func redisEmptyClusterClient() *redis.ClusterClient {
 	return redis.NewClusterClient(&redis.ClusterOptions{})
+}
+
+func redisEmptyRing() *redis.Ring {
+	return redis.NewRing(&redis.RingOptions{})
 }

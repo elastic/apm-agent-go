@@ -16,12 +16,14 @@ services:
       PGHOST: postgres
       REDIS_URL: redis://redis
       REDIS_CLUSTER_URLS: redis://redis-node-1:6380 redis://redis-node-2:6381 redis://redis-node-3:6382
+      REDIS_RING_URLS: redis://redis redis://redis-2:6383
       ELASTICSEARCH_URL: http://elasticsearch:9200
     depends_on:
       - cassandra
       - mysql
       - postgres
       - redis
+      - redis-2
       - redis-node-1
       - redis-node-2
       - redis-node-3
@@ -67,6 +69,13 @@ services:
 
   redis:
     image: redis:latest
+
+  redis-2:
+    image: redis:latest
+    entrypoint:
+      - sh
+      - -c
+      - "redis-server --bind 0.0.0.0 --port 6383 --appendonly yes"
 
   redis-node-1:
     image: redis:latest

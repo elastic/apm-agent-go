@@ -19,6 +19,7 @@ package apmgoredis_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -42,55 +43,100 @@ func TestMain(m *testing.M) {
 func TestRequestContext(t *testing.T) {
 	testCases := getTestCases(t)
 
-	for _, testCase := range testCases {
-		client := testCase.client
-		if client == nil {
-			t.Errorf("cannot create client")
-		}
-
-		defer client.Close()
-		cleanRedis(t, client, testCase.isCluster)
-
-		_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
-			for i := 0; i < 2; i++ {
-				wrappedClient := apmgoredis.Wrap(client).WithContext(ctx)
-
-				cmd := wrappedClient.Get("content")
-				if cmd.Err() == nil {
-					return
-				}
-
-				value := []byte("Lorem ipsum dolor sit amet")
-				if cmd := wrappedClient.Set("content", value, 0); cmd.Err() != nil {
-					require.NoError(t, cmd.Err())
-				}
+	for i, testCase := range testCases {
+		t.Run(fmt.Sprintf("test %d", i), func(t *testing.T) {
+			client := testCase.client
+			if client == nil {
+				t.Errorf("cannot create client")
 			}
+
+			defer client.Close()
+			cleanRedis(t, client, testCase.clientType)
+
+			_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+				for i := 0; i < 2; i++ {
+					wrappedClient := apmgoredis.Wrap(client).WithContext(ctx)
+
+					cmd := wrappedClient.Get("content")
+					if cmd.Err() == nil {
+						return
+					}
+
+					value := []byte("Lorem ipsum dolor sit amet")
+					if cmd := wrappedClient.Set("content", value, 0); cmd.Err() != nil {
+						require.NoError(t, cmd.Err())
+					}
+				}
+			})
+
+			require.Len(t, spans, 3)
+
+			assert.Equal(t, "GET", spans[0].Name)
+			assert.Equal(t, "SET", spans[1].Name)
+			assert.Equal(t, "GET", spans[2].Name)
 		})
-
-		require.Len(t, spans, 3)
-
-		assert.Equal(t, "GET", spans[0].Name)
-		assert.Equal(t, "SET", spans[1].Name)
-		assert.Equal(t, "GET", spans[2].Name)
 	}
 }
 
 func TestPipelined(t *testing.T) {
 	testCases := getTestCases(t)
 
-	for _, testCase := range testCases {
-		client := testCase.client
-		if client == nil {
-			t.Errorf("cannot create client")
-		}
+	for i, testCase := range testCases {
+		t.Run(fmt.Sprintf("test %d", i), func(t *testing.T) {
+			client := testCase.client
+			if client == nil {
+				t.Errorf("cannot create client")
+			}
 
-		defer client.Close()
-		cleanRedis(t, client, testCase.isCluster)
+			defer client.Close()
+			cleanRedis(t, client, testCase.clientType)
 
-		_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
-			wrappedClient := apmgoredis.Wrap(client).WithContext(ctx)
+			_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+				wrappedClient := apmgoredis.Wrap(client).WithContext(ctx)
 
-			_, err := wrappedClient.Pipelined(func(pipe redis.Pipeliner) error {
+				_, err := wrappedClient.Pipelined(func(pipe redis.Pipeliner) error {
+					err := pipe.Set("foo", "bar", 0).Err()
+					require.NoError(t, err)
+
+					err = pipe.Get("foo").Err()
+					require.NoError(t, err)
+
+					err = pipe.FlushDB().Err()
+					require.NoError(t, err)
+
+					return err
+				})
+
+				require.NoError(t, err)
+			})
+
+			require.Len(t, spans, 4)
+			assert.Equal(t, "(pipeline)", spans[0].Name)
+			assert.Equal(t, "SET", spans[1].Name)
+			assert.Equal(t, "GET", spans[2].Name)
+			assert.Equal(t, "FLUSHDB", spans[3].Name)
+		})
+	}
+}
+
+func TestPipeline(t *testing.T) {
+	testCases := getTestCases(t)
+
+	for i, testCase := range testCases {
+		t.Run(fmt.Sprintf("test %d", i), func(t *testing.T) {
+			client := testCase.client
+			if client == nil {
+				t.Errorf("cannot create client")
+			}
+
+			defer client.Close()
+			cleanRedis(t, client, testCase.clientType)
+
+			_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+				wrappedClient := apmgoredis.Wrap(client).WithContext(ctx)
+
+				pipe := wrappedClient.Pipeline()
+
 				err := pipe.Set("foo", "bar", 0).Err()
 				require.NoError(t, err)
 
@@ -100,143 +146,145 @@ func TestPipelined(t *testing.T) {
 				err = pipe.FlushDB().Err()
 				require.NoError(t, err)
 
-				return err
+				_, err = pipe.Exec()
+				require.NoError(t, err)
 			})
 
-			require.NoError(t, err)
+			require.Len(t, spans, 4)
+			assert.Equal(t, "(pipeline)", spans[0].Name)
+			assert.Equal(t, "SET", spans[1].Name)
+			assert.Equal(t, "GET", spans[2].Name)
+			assert.Equal(t, "FLUSHDB", spans[3].Name)
 		})
-
-		require.Len(t, spans, 4)
-		assert.Equal(t, "(pipeline)", spans[0].Name)
-		assert.Equal(t, "SET", spans[1].Name)
-		assert.Equal(t, "GET", spans[2].Name)
-		assert.Equal(t, "FLUSHDB", spans[3].Name)
-	}
-}
-
-func TestPipeline(t *testing.T) {
-	testCases := getTestCases(t)
-
-	for _, testCase := range testCases {
-		client := testCase.client
-		if client == nil {
-			t.Errorf("cannot create client")
-		}
-
-		defer client.Close()
-		cleanRedis(t, client, testCase.isCluster)
-
-		_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
-			wrappedClient := apmgoredis.Wrap(client).WithContext(ctx)
-
-			pipe := wrappedClient.Pipeline()
-
-			err := pipe.Set("foo", "bar", 0).Err()
-			require.NoError(t, err)
-
-			err = pipe.Get("foo").Err()
-			require.NoError(t, err)
-
-			err = pipe.FlushDB().Err()
-			require.NoError(t, err)
-
-			_, err = pipe.Exec()
-			require.NoError(t, err)
-		})
-
-		require.Len(t, spans, 4)
-		assert.Equal(t, "(pipeline)", spans[0].Name)
-		assert.Equal(t, "SET", spans[1].Name)
-		assert.Equal(t, "GET", spans[2].Name)
-		assert.Equal(t, "FLUSHDB", spans[3].Name)
 	}
 }
 
 func TestPipelinedTransaction(t *testing.T) {
 	testCases := getTestCases(t)
 
-	for _, testCase := range testCases {
-		client := testCase.client
-		if client == nil {
-			t.Errorf("cannot create client")
-		}
+	for i, testCase := range testCases {
+		t.Run(fmt.Sprintf("test %d", i), func(t *testing.T) {
+			if testCase.clientType == clientTypeRing {
+				t.Skipf("redis.Ring doesn't support Transaction")
+			}
 
-		defer client.Close()
-		cleanRedis(t, client, testCase.isCluster)
+			client := testCase.client
+			if client == nil {
+				t.Errorf("cannot create client")
+			}
 
-		_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
-			wrappedClient := apmgoredis.Wrap(client).WithContext(ctx)
+			defer client.Close()
+			cleanRedis(t, client, testCase.clientType)
 
-			var incr1 *redis.IntCmd
-			var incr2 *redis.IntCmd
-			var incr3 *redis.IntCmd
-			_, err := wrappedClient.TxPipelined(func(pipe redis.Pipeliner) error {
-				incr1 = pipe.Incr("foo")
-				assert.NoError(t, incr1.Err())
+			_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+				wrappedClient := apmgoredis.Wrap(client).WithContext(ctx)
 
-				incr2 = pipe.Incr("bar")
-				assert.NoError(t, incr2.Err())
+				var incr1 *redis.IntCmd
+				var incr2 *redis.IntCmd
+				var incr3 *redis.IntCmd
+				_, err := wrappedClient.TxPipelined(func(pipe redis.Pipeliner) error {
+					incr1 = pipe.Incr("foo")
+					assert.NoError(t, incr1.Err())
 
-				incr3 = pipe.Incr("bar")
-				assert.NoError(t, incr3.Err())
+					incr2 = pipe.Incr("bar")
+					assert.NoError(t, incr2.Err())
 
-				return nil
+					incr3 = pipe.Incr("bar")
+					assert.NoError(t, incr3.Err())
+
+					return nil
+				})
+
+				assert.Equal(t, int64(1), incr1.Val())
+				assert.Equal(t, int64(1), incr2.Val())
+				assert.Equal(t, int64(2), incr3.Val())
+
+				assert.NoError(t, err)
 			})
 
-			assert.Equal(t, int64(1), incr1.Val())
-			assert.Equal(t, int64(1), incr2.Val())
-			assert.Equal(t, int64(2), incr3.Val())
-
-			assert.NoError(t, err)
+			require.Len(t, spans, 4)
+			assert.Equal(t, "(pipeline)", spans[0].Name)
+			assert.Equal(t, "INCR", spans[1].Name)
+			assert.Equal(t, "INCR", spans[2].Name)
+			assert.Equal(t, "INCR", spans[3].Name)
 		})
-
-		require.Len(t, spans, 4)
-		assert.Equal(t, "(pipeline)", spans[0].Name)
-		assert.Equal(t, "INCR", spans[1].Name)
-		assert.Equal(t, "INCR", spans[2].Name)
-		assert.Equal(t, "INCR", spans[3].Name)
 	}
 }
 
 func TestPipelineTransaction(t *testing.T) {
 	testCases := getTestCases(t)
 
-	for _, testCase := range testCases {
-		client := testCase.client
-		if client == nil {
-			t.Errorf("cannot create client")
-		}
+	for i, testCase := range testCases {
+		t.Run(fmt.Sprintf("test %d", i), func(t *testing.T) {
+			if testCase.clientType == clientTypeRing {
+				t.Skipf("redis.Ring doesn't support Transaction")
+			}
 
-		defer client.Close()
-		cleanRedis(t, client, testCase.isCluster)
+			client := testCase.client
+			if client == nil {
+				t.Errorf("cannot create client")
+			}
 
-		_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
-			wrappedClient := apmgoredis.Wrap(client).WithContext(ctx)
+			defer client.Close()
+			cleanRedis(t, client, testCase.clientType)
 
-			pipe := wrappedClient.TxPipeline()
+			_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+				wrappedClient := apmgoredis.Wrap(client).WithContext(ctx)
 
-			incr1 := pipe.Incr("foo")
-			assert.NoError(t, incr1.Err())
+				pipe := wrappedClient.TxPipeline()
 
-			incr2 := pipe.Incr("bar")
-			assert.NoError(t, incr2.Err())
+				incr1 := pipe.Incr("foo")
+				assert.NoError(t, incr1.Err())
 
-			incr3 := pipe.Incr("bar")
-			assert.NoError(t, incr3.Err())
+				incr2 := pipe.Incr("bar")
+				assert.NoError(t, incr2.Err())
 
-			_, err := pipe.Exec()
-			require.NoError(t, err)
+				incr3 := pipe.Incr("bar")
+				assert.NoError(t, incr3.Err())
 
-			assert.Equal(t, int64(1), incr1.Val())
-			assert.Equal(t, int64(1), incr2.Val())
-			assert.Equal(t, int64(2), incr3.Val())
+				_, err := pipe.Exec()
+				require.NoError(t, err)
+
+				assert.Equal(t, int64(1), incr1.Val())
+				assert.Equal(t, int64(1), incr2.Val())
+				assert.Equal(t, int64(2), incr3.Val())
+			})
+
+			require.Len(t, spans, 4)
+			assert.Equal(t, "(pipeline)", spans[0].Name)
+			assert.Equal(t, "INCR", spans[1].Name)
+			assert.Equal(t, "INCR", spans[2].Name)
+			assert.Equal(t, "INCR", spans[3].Name)
 		})
+	}
+}
 
-		require.Len(t, spans, 4)
-		assert.Equal(t, "(pipeline)", spans[0].Name)
-		assert.Equal(t, "INCR", spans[1].Name)
-		assert.Equal(t, "INCR", spans[2].Name)
-		assert.Equal(t, "INCR", spans[3].Name)
+func TestWatch(t *testing.T) {
+	for i, testCase := range unitTestCases {
+		t.Run(fmt.Sprintf("test %d", i), func(t *testing.T) {
+			client := testCase.client
+
+			_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+				client := apmgoredis.Wrap(client).WithContext(ctx)
+
+				client.Watch(func(tx *redis.Tx) error {
+					err := tx.Set("foo", "bar", 0).Err()
+					require.NoError(t, err)
+
+					err = tx.Get("foo").Err()
+					require.NoError(t, err)
+
+					err = tx.FlushDB().Err()
+					require.NoError(t, err)
+
+					return nil
+				}, "foo")
+			})
+
+			require.Len(t, spans, 2)
+			assert.Equal(t, "WATCH", spans[0].Name)
+			assert.Equal(t, "UNWATCH", spans[1].Name)
+		})
 	}
 }
 
@@ -253,6 +301,31 @@ func redisClient(t *testing.T) *redis.Client {
 
 	client := redis.NewClient(&redis.Options{
 		Addr: opt.Addr,
+	})
+
+	return client
+}
+
+func redisRingClient(t *testing.T) *redis.Ring {
+	redisURLs := strings.Split(os.Getenv("REDIS_RING_URLS"), " ")
+	if len(redisURLs) == 0 {
+		if t != nil {
+			t.Skipf("REDIS_RING_URLS not specified")
+		}
+	}
+
+	optRedisURLs := make(map[string]string, len(redisURLs))
+	for _, redisURL := range redisURLs {
+		opt, err := redis.ParseURL(redisURL)
+		if err != nil {
+			return nil
+		}
+
+		optRedisURLs[opt.Addr] = opt.Addr
+	}
+
+	client := redis.NewRing(&redis.RingOptions{
+		Addrs: optRedisURLs,
 	})
 
 	return client
@@ -297,12 +370,12 @@ func clusterReset() {
 	})
 }
 
-func cleanRedis(t *testing.T, client redis.UniversalClient, isCluster bool) {
-	switch isCluster {
-	case false:
+func cleanRedis(t *testing.T, client redis.UniversalClient, clientType int) {
+	switch clientType {
+	case clientTypeBase:
 		st := client.FlushDB()
 		require.NoError(t, st.Err())
-	case true:
+	case clientTypeCluster:
 		var err error
 		switch client.(type) {
 		case *redis.ClusterClient:
@@ -316,40 +389,66 @@ func cleanRedis(t *testing.T, client redis.UniversalClient, isCluster bool) {
 		}
 
 		require.NoError(t, err)
+	case clientTypeRing:
+		var err error
+		switch client.(type) {
+		case *redis.Ring:
+			err = client.(*redis.Ring).ForEachShard(func(shard *redis.Client) error {
+				return shard.FlushDB().Err()
+			})
+		case apmgoredis.Client:
+			err = client.(apmgoredis.Client).RingClient().ForEachShard(func(shard *redis.Client) error {
+				return shard.FlushDB().Err()
+			})
+		}
+
+		require.NoError(t, err)
 	}
 }
 
 func getTestCases(t *testing.T) []struct {
-	isCluster bool
-	client    redis.UniversalClient
+	clientType int
+	client     redis.UniversalClient
 } {
 	return []struct {
-		isCluster bool
-		client    redis.UniversalClient
+		clientType int
+		client     redis.UniversalClient
 	}{
 		{
-			false,
+			clientTypeBase,
 			redisClient(t),
 		},
 		{
-			false,
+			clientTypeBase,
 			apmgoredis.Wrap(redisClient(t)),
 		},
 		{
-			false,
+			clientTypeBase,
 			apmgoredis.Wrap(redisClient(t)).WithContext(context.Background()),
 		},
 		{
-			true,
+			clientTypeCluster,
 			redisClusterClient(t),
 		},
 		{
-			true,
+			clientTypeCluster,
 			apmgoredis.Wrap(redisClusterClient(t)),
 		},
 		{
-			true,
+			clientTypeCluster,
 			apmgoredis.Wrap(redisClusterClient(t)).WithContext(context.Background()),
+		},
+		{
+			clientTypeRing,
+			redisRingClient(t),
+		},
+		{
+			clientTypeRing,
+			apmgoredis.Wrap(redisRingClient(t)),
+		},
+		{
+			clientTypeRing,
+			apmgoredis.Wrap(redisRingClient(t)).WithContext(context.Background()),
 		},
 	}
 }
