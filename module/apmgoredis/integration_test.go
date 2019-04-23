@@ -45,6 +45,10 @@ func TestRequestContext(t *testing.T) {
 
 	for i, testCase := range testCases {
 		t.Run(fmt.Sprintf("test %d", i), func(t *testing.T) {
+			if testCase.clientType == clientTypeRing {
+				t.Skipf("redis.Ring doesn't support Cmdble instrumentation")
+			}
+
 			client := testCase.client
 			if client == nil {
 				t.Errorf("cannot create client")
