@@ -85,10 +85,6 @@ var (
 func TestWrap(t *testing.T) {
 	for i, testCase := range unitTestCases {
 		t.Run(fmt.Sprintf("test %d", i), func(t *testing.T) {
-			if testCase.clientType == clientTypeRing {
-				t.Skipf("redis.Ring doesn't support Cmdble instrumentation")
-			}
-
 			client := testCase.client
 
 			_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
@@ -122,15 +118,10 @@ func TestWithContext(t *testing.T) {
 				ping(ctx, client)
 			})
 
-			if testCase.clientType == clientTypeRing {
-				require.Len(t, spans, 1)
-				assert.Equal(t, "ping", spans[0].Name)
-			} else {
-				require.Len(t, spans, 2)
-				assert.Equal(t, "PING", spans[0].Name)
-				assert.Equal(t, "ping", spans[1].Name)
-				assert.Equal(t, spans[1].ID, spans[0].ParentID)
-			}
+			require.Len(t, spans, 2)
+			assert.Equal(t, "PING", spans[0].Name)
+			assert.Equal(t, "ping", spans[1].Name)
+			assert.Equal(t, spans[1].ID, spans[0].ParentID)
 		})
 	}
 }
