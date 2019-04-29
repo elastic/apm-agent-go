@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package sqlutil_test
+package apmsql_test
 
 import (
 	"encoding/json"
@@ -25,7 +25,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"go.elastic.co/apm/internal/sqlutil"
+	"go.elastic.co/apm/module/apmsql"
 )
 
 type test struct {
@@ -36,7 +36,7 @@ type test struct {
 
 func TestQuerySignature(t *testing.T) {
 	var tests []test
-	data, err := ioutil.ReadFile("testdata/tests.json")
+	data, err := ioutil.ReadFile("testdata/signature_tests.json")
 	require.NoError(t, err)
 	err = json.Unmarshal(data, &tests)
 	require.NoError(t, err)
@@ -48,8 +48,8 @@ func TestQuerySignature(t *testing.T) {
 			msgFormat += " (%s)"
 			args = append(args, test.Comment)
 		}
-		out := sqlutil.QuerySignature(test.Input)
-		if assert.Equal(t, test.Output, out, append([]interface{}{msgFormat}, args...)) {
+		out := apmsql.QuerySignature(test.Input)
+		if !assert.Equal(t, test.Output, out, append([]interface{}{msgFormat}, args...)) {
 			if test.Comment != "" {
 				t.Logf("// %s", test.Comment)
 			}
@@ -61,7 +61,7 @@ func TestQuerySignature(t *testing.T) {
 func BenchmarkQuerySignature(b *testing.B) {
 	sql := "SELECT *,(SELECT COUNT(*) FROM table2 WHERE table2.field1 = table1.id) AS count FROM table1 WHERE table1.field1 = 'value'"
 	for i := 0; i < b.N; i++ {
-		signature := sqlutil.QuerySignature(sql)
+		signature := apmsql.QuerySignature(sql)
 		if signature != "SELECT FROM table1" {
 			panic("unexpected result: " + signature)
 		}

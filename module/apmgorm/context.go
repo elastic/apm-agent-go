@@ -26,7 +26,6 @@ import (
 	"github.com/jinzhu/gorm"
 
 	"go.elastic.co/apm"
-	"go.elastic.co/apm/internal/sqlutil"
 	"go.elastic.co/apm/module/apmsql"
 )
 
@@ -127,7 +126,7 @@ func newAfterCallback(dsnInfo apmsql.DSNInfo) func(*gorm.Scope) {
 		if span == nil {
 			return
 		}
-		span.Name = sqlutil.QuerySignature(scope.SQL)
+		span.Name = apmsql.QuerySignature(scope.SQL)
 		span.Context.SetDatabase(apm.DatabaseSpanContext{
 			Instance:  dsnInfo.Database,
 			Statement: scope.SQL,
