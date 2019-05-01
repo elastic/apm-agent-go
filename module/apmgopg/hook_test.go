@@ -31,6 +31,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"go.elastic.co/apm/apmtest"
+	"go.elastic.co/apm/module/apmgopg"
 )
 
 type User struct {
@@ -53,10 +54,12 @@ func TestWithContext(t *testing.T) {
 			Password: "hunter2",
 			Database: "test_db",
 		})
+		db.AddQueryHook(&apmgopg.QueryHook{})
 
 		_, err := db.Exec("SELECT 1")
 		require.NoError(t, err)
 
+		db.DropTable(&User{}, &orm.DropTableOptions{})
 		db.CreateTable(&User{}, &orm.CreateTableOptions{})
 
 		defer db.Close()
@@ -67,7 +70,7 @@ func TestWithContext(t *testing.T) {
 
 		assert.NoError(t, db.Model(&User{}).Where("id = ?", 1337).Select())
 
-		_, err = db.Model(&User{Id: 1337, Name: "new name"}).WherePK().Update("Name")
+		_, err = db.Model(&User{Id: 1337, Name: "new name"}).Column("name").WherePK().Update()
 		assert.NoError(t, err)
 	})
 
