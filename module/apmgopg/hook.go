@@ -26,7 +26,12 @@ import (
 
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/module/apmsql"
+	"go.elastic.co/apm/stacktrace"
 )
+
+func init() {
+	stacktrace.RegisterLibraryPackage("github.com/go-pg/pg")
+}
 
 const elasticApmSpanKey = "go-apm-agent:span"
 
