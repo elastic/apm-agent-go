@@ -345,6 +345,29 @@ func main() {
 Spans will be created for queries and other statement executions if the context methods are
 used, and the context includes a transaction.
 
+[[builtin-modules-apmgopg]]
+===== module/apmgopg
+Package apmgopg provides a means of instrumenting http://github.com/go-pg/pg[go-pg] database operations.
+
+To trace `go-pg` statements, simply add the `apmgopg.QueryHook` to the database instance you plan on using and provide
+a context that contains an apm transaction.
+
+[source,go]
+----
+import (
+	"github.com/go-pg/pg"
+
+	"go.elastic.co/apm/module/apmgopg"
+)
+
+func main() {
+    db := pg.Connect(&pg.Options{})
+    db.AddQueryHook(&apmgopg.QueryHook{})
+
+    db.WithContext(ctx).Model(...)
+}
+----
+
 [[builtin-modules-apmgorm]]
 ===== module/apmgorm
 Package apmgorm provides a means of instrumenting http://gorm.io[GORM] database operations.
