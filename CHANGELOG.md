@@ -5,6 +5,10 @@
  - Update opentracing-go dependency to v1.1.0
  - Update HTTP routers to return "<METHOD> unknown route" if route cannot be matched (#486)
  - module/apmchi: introduce instrumentation for go-chi/chi router (#495)
+ - module/apmgoredis: introduce instrumentation for the go-redis/redis client (#505)
+ - module/apmsql: exposed the QuerySignature function (#515)
+ - module/apmgopg: introduce instrumentation for the go-pg/pg ORM (#516)
+ - module/apmmongo: set minimum Go version to Go 1.10 (#522)
 
 ## [v1.3.0](https://github.com/elastic/apm-agent-go/releases/tag/v1.3.0)
 
