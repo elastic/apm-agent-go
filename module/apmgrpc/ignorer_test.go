@@ -19,49 +19,41 @@ package apmgrpc_test
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
 	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
 	"go.elastic.co/apm/module/apmgrpc"
+	"google.golang.org/grpc"
 )
 
 func TestDefaultServerRequestIgnorer(t *testing.T) {
-	s1 := "/helloworld.Greeter/SayHello"
-	s2 := "/bar.Foo/World"
-	s3 := "/foo?bar=baz"
+	s1 := &grpc.UnaryServerInfo{FullMethod: "/helloworld.Greeter/SayHello"}
+	s2 := &grpc.UnaryServerInfo{FullMethod: "/bar.Foo/World"}
+	s3 := &grpc.UnaryServerInfo{FullMethod: "/foo?bar=baz"}
 
-	testDefaultServerRequestIgnorer(t, "", s1, false)
-	testDefaultServerRequestIgnorer(t, "", s2, false)
-	testDefaultServerRequestIgnorer(t, "", s3, false)
-	testDefaultServerRequestIgnorer(t, ",", s1, false) // equivalent to empty
-	
-	testDefaultServerRequestIgnorer(t, s1, s1, true)
-	testDefaultServerRequestIgnorer(t, "*/helloworld*", s1, true)
-	testDefaultServerRequestIgnorer(t, "*/bar*", s2, true)
-	testDefaultServerRequestIgnorer(t, "*/Bar*", s2, true)
-	testDefaultServerRequestIgnorer(t, "*/foo*", s3, true)
-	testDefaultServerRequestIgnorer(t, "*/BAR*", s2, true) // case insensitive by default
+	testDefaultServerRequestIgnorer(t, "", s1, true) // equivalent to *
+	testDefaultServerRequestIgnorer(t, "", s2, true)
+	testDefaultServerRequestIgnorer(t, "", s3, true)
 
-	testDefaultServerRequestIgnorer(t, "*/foo?bar=baz", s1, false)
-	testDefaultServerRequestIgnorer(t, "*/foo?bar=baz", s2, false)
-	testDefaultServerRequestIgnorer(t, "*/foo?bar=baz", s3, true)
+	testDefaultServerRequestIgnorer(t, s1.FullMethod, s1, true)
+	testDefaultServerRequestIgnorer(t, `^*/helloworld*`, s1, true)
+	testDefaultServerRequestIgnorer(t, `^*/bar.*`, s2, true)
+	testDefaultServerRequestIgnorer(t, `(?i)^*/Bar.*`, s2, true) // case insensitive
+	testDefaultServerRequestIgnorer(t, `(?i)^*/foo.*`, s3, true)
+	testDefaultServerRequestIgnorer(t, `^*/BAR.*`, s2, false)
+
+	testDefaultServerRequestIgnorer(t, `^*/foo\?bar=baz`, s1, false)
+	testDefaultServerRequestIgnorer(t, `^*/foo\?bar=baz`, s2, false)
+	testDefaultServerRequestIgnorer(t, `^*/foo\?bar=baz`, s3, true)
 }
 
-func testDefaultServerRequestIgnorer(t *testing.T, ignoreURLs string, s string, expect bool) {
-	testName := fmt.Sprintf("%s_%s", ignoreURLs, s)
+func testDefaultServerRequestIgnorer(t *testing.T, ignoreURLs string, r *grpc.UnaryServerInfo, expect bool) {
+	testName := fmt.Sprintf("%s_%s", ignoreURLs, r.FullMethod)
 	t.Run(testName, func(t *testing.T) {
-		if os.Getenv("_INSIDE_TEST") != "1" {
-			cmd := exec.Command(os.Args[0], "-test.run=^"+regexp.QuoteMeta(t.Name())+"$")
-			cmd.Env = append(os.Environ(), "_INSIDE_TEST=1")
-			cmd.Env = append(cmd.Env, "ELASTIC_APM_IGNORE_URLS="+ignoreURLs)
-			assert.NoError(t, cmd.Run())
-			return
-		}
-		ignorer := apmgrpc.DefaultServerRequestIgnorer()
-		assert.Equal(t, expect, ignorer(&s))
+		re, err := regexp.Compile(ignoreURLs)
+		_ = err
+		ignorer := apmgrpc.NewRegexpRequestIgnorer(re)
+		assert.Equal(t, expect, ignorer(r))
 	})
 }

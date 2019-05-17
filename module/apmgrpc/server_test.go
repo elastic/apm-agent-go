@@ -189,7 +189,7 @@ func TestServerIgnorer(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
-	s, _, addr := newServer(t, tracer, apmgrpc.WithRecovery(), apmgrpc.WithServerRequestIgnorer(func(*string) bool {
+	s, _, addr := newServer(t, tracer, apmgrpc.WithRecovery(), apmgrpc.WithServerRequestIgnorer(func(*grpc.UnaryServerInfo) bool {
 		return true
 	}))
 	defer s.GracefulStop()
