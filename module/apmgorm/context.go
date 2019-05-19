@@ -87,6 +87,10 @@ func registerCallbacks(db *gorm.DB, dsnInfo apmsql.DSNInfo) {
 			spanType:  execSpanType,
 			processor: func() *gorm.CallbackProcessor { return db.Callback().Update() },
 		},
+		"gorm:row_query": {
+			spanType:  querySpanType,
+			processor: func() *gorm.CallbackProcessor { return db.Callback().RowQuery() },
+		},
 	}
 	for name, params := range callbacks {
 		const callbackPrefix = "elasticapm"
