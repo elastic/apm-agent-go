@@ -18,6 +18,7 @@
 package apmhttp_test
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -102,17 +103,57 @@ func TestHandler(t *testing.T) {
 	}, transaction.Context)
 }
 
-func TestHandlerCaptureBodyRaw(t *testing.T) {
-	tracer, transport := transporttest.NewRecorderTracer()
-	defer tracer.Close()
+// Mimics http.body for closing behavior
 
-	tracer.SetCaptureBody(apm.CaptureBodyTransactions)
-	h := apmhttp.Wrap(
-		http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}),
-		apmhttp.WithTracer(tracer),
-	)
-	tx := testPostTransaction(h, tracer, transport, strings.NewReader("foo"))
-	assert.Equal(t, &model.RequestBody{Raw: "foo"}, tx.Context.Request.Body)
+type closingBody struct {
+	src    io.Reader
+	closed bool
+}
+
+func (cb *closingBody) Close() error {
+	cb.closed = true
+	return nil
+}
+
+func (cb *closingBody) Read(p []byte) (n int, err error) {
+	if cb.closed {
+		return 0, http.ErrBodyReadAfterClose
+	}
+	return cb.src.Read(p)
+}
+
+func TestHandlerCaptureBodyRaw(t *testing.T) {
+
+	t.Run("capture unread body", func(t *testing.T) {
+		tracer, transport := transporttest.NewRecorderTracer()
+		defer tracer.Close()
+
+		tracer.SetCaptureBody(apm.CaptureBodyTransactions)
+		h := apmhttp.Wrap(
+			http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}),
+			apmhttp.WithTracer(tracer),
+		)
+		tx := testPostTransaction(h, tracer, transport, strings.NewReader("foo"))
+		assert.Equal(t, &model.RequestBody{Raw: "foo"}, tx.Context.Request.Body)
+	})
+
+	t.Run("capture body that has been closed", func(t *testing.T) {
+		tracer, transport := transporttest.NewRecorderTracer()
+		defer tracer.Close()
+
+		tracer.SetCaptureBody(apm.CaptureBodyTransactions)
+		h := apmhttp.Wrap(
+			http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
+				err := req.Body.Close()
+				if err != nil {
+					fmt.Println(err)
+				}
+			}),
+			apmhttp.WithTracer(tracer),
+		)
+		tx := testPostTransaction(h, tracer, transport, &closingBody{src: strings.NewReader("close me")})
+		assert.Equal(t, &model.RequestBody{Raw: "close me"}, tx.Context.Request.Body)
+	})
 }
 
 func TestHandlerCaptureBodyForm(t *testing.T) {

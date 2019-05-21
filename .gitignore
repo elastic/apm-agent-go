@@ -2,3 +2,7 @@
 *.test
 *.out
 docs/html
+
+# IntelliJ IDE
+.idea/
+*.iml

@@ -70,13 +70,19 @@ func (t *Tracer) CaptureHTTPRequestBody(req *http.Request) *BodyCapturer {
 		io.Reader
 		io.Closer
 	}
+	var err error
+	copiedBody := req.Body
+	copiedBody, req.Body, err = drainBody(req.Body)
+	if err != nil {
+		return nil
+	}
 	bc := BodyCapturer{
 		captureBody:  captureBody,
 		request:      req,
-		originalBody: req.Body,
+		originalBody: copiedBody,
 	}
 	req.Body = &readerCloser{
-		Reader: io.TeeReader(req.Body, &bc.buffer),
+		Reader: req.Body,
 		Closer: req.Body,
 	}
 	return &bc
@@ -87,7 +93,6 @@ func (t *Tracer) CaptureHTTPRequestBody(req *http.Request) *BodyCapturer {
 type BodyCapturer struct {
 	captureBody  CaptureBodyMode
 	originalBody io.ReadCloser
-	buffer       bytes.Buffer
 	request      *http.Request
 }
 
@@ -110,13 +115,34 @@ func (bc *BodyCapturer) setContext(out *model.RequestBody) bool {
 		return true
 	}
 
-	// Read from the buffer and anything remaining in the body.
-	r := io.MultiReader(bytes.NewReader(bc.buffer.Bytes()), bc.originalBody)
-	all, err := ioutil.ReadAll(r)
+	// Read from the copied body.
+	all, err := ioutil.ReadAll(bc.originalBody)
 	if err != nil {
 		// TODO(axw) log error?
 		return false
 	}
 	out.Raw = truncateString(string(all))
 	return true
+}
+
+// Mimics http.drainBody
+//
+// drainBody reads all of b to memory and then returns two equivalent
+// ReadClosers yielding the same bytes.
+//
+// It returns an error if the initial slurp of all bytes fails. It does not attempt
+// to make the returned ReadClosers have identical error-matching behavior.
+func drainBody(b io.ReadCloser) (r1, r2 io.ReadCloser, err error) {
+	if b == http.NoBody {
+		// No copying needed. Preserve the magic sentinel meaning of NoBody.
+		return http.NoBody, http.NoBody, nil
+	}
+	var buf bytes.Buffer
+	if _, err = buf.ReadFrom(b); err != nil {
+		return nil, b, err
+	}
+	if err = b.Close(); err != nil {
+		return nil, b, err
+	}
+	return ioutil.NopCloser(&buf), ioutil.NopCloser(bytes.NewReader(buf.Bytes())), nil
 }
