@@ -53,7 +53,7 @@ func TestDefaultServerRequestIgnorer(t *testing.T) {
 func testDefaultServerRequestIgnorer(t *testing.T, ignoreURLs string, r *grpc.UnaryServerInfo, expect bool) {
 	testName := fmt.Sprintf("%s_%s", ignoreURLs, r.FullMethod)
 	t.Run(testName, func(t *testing.T) {
-		re, err := regexp.Compile(ignoreURLs)
+		re := regexp.MustCompile(ignoreURLs)
 		_ = err
 		ignorer := apmgrpc.NewRegexpRequestIgnorer(re)
 		assert.Equal(t, expect, ignorer(r))
