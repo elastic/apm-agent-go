@@ -25,8 +25,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"go.elastic.co/apm/module/apmgrpc"
 	"google.golang.org/grpc"
+
+	"go.elastic.co/apm/module/apmgrpc"
 )
 
 func TestDefaultServerRequestIgnorer(t *testing.T) {
