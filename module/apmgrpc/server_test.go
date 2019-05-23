@@ -185,6 +185,26 @@ func TestServerRecovery(t *testing.T) {
 	assert.Equal(t, "boom", e.Exception.Message)
 }
 
+func TestServerIgnorer(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	s, _, addr := newServer(t, tracer, apmgrpc.WithRecovery(), apmgrpc.WithServerRequestIgnorer(func(*grpc.UnaryServerInfo) bool {
+		return true
+	}))
+	defer s.GracefulStop()
+
+	conn, client := newClient(t, addr)
+	defer conn.Close()
+
+	resp, err := client.SayHello(context.Background(), &pb.HelloRequest{Name: "birita"})
+	require.NoError(t, err)
+	assert.Equal(t, resp, &pb.HelloReply{Message: "hello, birita"})
+
+	tracer.Flush(nil)
+	assert.Empty(t, transport.Payloads())
+}
+
 func newServer(t *testing.T, tracer *apm.Tracer, opts ...apmgrpc.ServerOption) (*grpc.Server, *helloworldServer, net.Addr) {
 	// We always install grpc_recovery first to avoid panics
 	// aborting the test process. We install it before the
