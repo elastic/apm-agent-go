@@ -9,6 +9,7 @@
  - module/apmsql: exposed the QuerySignature function (#515)
  - module/apmgopg: introduce instrumentation for the go-pg/pg ORM (#516)
  - module/apmmongo: set minimum Go version to Go 1.10 (#522)
+ - internal/sqlscanner: bug fix for multi-byte rune handling (#535)
 
 ## [v1.3.0](https://github.com/elastic/apm-agent-go/releases/tag/v1.3.0)
 
