@@ -21,7 +21,7 @@ pipeline {
     quietPeriod(10)
   }
   triggers {
-    issueCommentTrigger('.*(?:jenkins\\W+)?run\\W+(?:the\\W+)?tests(?:\\W+please)?.*')
+    issueCommentTrigger('(?i).*(?:jenkins\\W+)?run\\W+(?:the\\W+)?tests(?:\\W+please)?.*')
   }
   parameters {
     string(name: 'GO_VERSION', defaultValue: "1.12.0", description: "Go version to use.")
@@ -169,7 +169,7 @@ pipeline {
               junit(allowEmptyResults: true,
                 keepLongStdio: true,
                 testResults: "${BASE_DIR}/build/junit-*.xml")
-              codecov(repo: 'apm-agent-go', basedir: "${BASE_DIR}", 
+              codecov(repo: 'apm-agent-go', basedir: "${BASE_DIR}",
                 flags: "-f build/coverage/coverage.cov -X search",
                 secret: "${CODECOV_SECRET}")
             }
