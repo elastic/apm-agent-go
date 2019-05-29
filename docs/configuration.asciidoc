@@ -161,6 +161,22 @@ Enable or disable the agent. If set to false, then the Go agent does not send
 any data to the Elastic APM server, and instrumentation overhead is minimized.
 
 [float]
+[[config-global-labels]]
+=== `ELASTIC_APM_GLOBAL_LABELS`
+
+[options="header"]
+|============
+| Environment                 | Default | Example
+| `ELASTIC_APM_GLOBAL_LABELS` |         | `dept=engineering,rack=number8`
+|============
+
+Labels added to all events, with the format key=value[,key=value[,...]].
+Any labels set by application via the API will override global labels with the same keys.
+
+This option requires APM Server 7.2 or greater, and will have no effect when using older
+server versions.
+
+[float]
 [[config-ignore-urls]]
 === `ELASTIC_APM_IGNORE_URLS`
 

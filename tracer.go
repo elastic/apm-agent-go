@@ -854,6 +854,10 @@ func (t *Tracer) jsonRequestMetadata() []byte {
 	t.process.MarshalFastJSON(&json)
 	json.RawString(`,"service":`)
 	service.MarshalFastJSON(&json)
+	if len(globalLabels) > 0 {
+		json.RawString(`,"labels":`)
+		globalLabels.MarshalFastJSON(&json)
+	}
 	json.RawString("}}\n")
 	return json.Bytes()
 }

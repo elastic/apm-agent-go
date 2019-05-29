@@ -190,13 +190,28 @@ func testTracerSanitizeFieldNamesEnv(t *testing.T, envValue, expect string) {
 }
 
 func TestTracerServiceNameEnvSanitizationSpecified(t *testing.T) {
-	_, _, service := getSubprocessMetadata(t, "ELASTIC_APM_SERVICE_NAME=foo!bar")
+	_, _, service, _ := getSubprocessMetadata(t, "ELASTIC_APM_SERVICE_NAME=foo!bar")
 	assert.Equal(t, "foo_bar", service.Name)
 }
 
 func TestTracerServiceNameEnvSanitizationExecutableName(t *testing.T) {
-	_, _, service := getSubprocessMetadata(t)
+	_, _, service, _ := getSubprocessMetadata(t)
 	assert.Equal(t, "apm_test", service.Name) // .test -> _test
+}
+
+func TestTracerGlobalLabelsUnspecified(t *testing.T) {
+	_, _, _, labels := getSubprocessMetadata(t)
+	assert.Equal(t, model.StringMap{}, labels)
+}
+
+func TestTracerGlobalLabelsSpecified(t *testing.T) {
+	_, _, _, labels := getSubprocessMetadata(t, "ELASTIC_APM_GLOBAL_LABELS=a=b,c = d")
+	assert.Equal(t, model.StringMap{{Key: "a", Value: "b"}, {Key: "c", Value: "d"}}, labels)
+}
+
+func TestTracerGlobalLabelsIgnoreInvalid(t *testing.T) {
+	_, _, _, labels := getSubprocessMetadata(t, "ELASTIC_APM_GLOBAL_LABELS=a,=,b==c,d=")
+	assert.Equal(t, model.StringMap{{Key: "b", Value: "=c"}, {Key: "d", Value: ""}}, labels)
 }
 
 func TestTracerCaptureBodyEnv(t *testing.T) {
@@ -308,7 +323,7 @@ func TestTracerEnvironmentEnv(t *testing.T) {
 	tracer.StartTransaction("name", "type").End()
 	tracer.Flush(nil)
 
-	_, _, service := transport.Metadata()
+	_, _, service, _ := transport.Metadata()
 	assert.Equal(t, "friendly", service.Environment)
 }
 
