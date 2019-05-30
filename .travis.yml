@@ -27,6 +27,17 @@ before_install:
         go get -v github.com/elastic/go-licenser;
       fi
   - |
+      if (go run scripts/mingoversion.go 1.9 &>/dev/null); then
+        # Pin go-pg/pg to v8.0.4, the last version before v9
+        # which breaks the QueryEvent/QueryHook interface.
+        mkdir -p $GOPATH/src/github.com/go-pg;
+        (
+          cd $GOPATH/src/github.com/go-pg &&
+          git clone https://github.com/go-pg/pg &&
+          cd pg && git checkout v8.0.4
+        );
+      fi;
+  - |
       if (! go run scripts/mingoversion.go 1.9 &>/dev/null); then
         # For Go 1.8.x, pin go-sql-driver to v1.4.1,
         # the last release that supports Go 1.8.

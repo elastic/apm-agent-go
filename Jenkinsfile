@@ -5,10 +5,11 @@
 pipeline {
   agent any
   environment {
-    BASE_DIR="src/go.elastic.co/apm"
+    BASE_DIR = "src/go.elastic.co/apm"
     NOTIFY_TO = credentials('notify-to')
     JOB_GCS_BUCKET = credentials('gcs-bucket')
     CODECOV_SECRET = 'secret/apm-team/ci/apm-agent-go-codecov'
+    GO111MODULE = 'on'
   }
   options {
     timeout(time: 1, unit: 'HOURS')
