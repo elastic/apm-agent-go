@@ -66,10 +66,10 @@ func (r *RecorderTransport) SendStream(ctx context.Context, stream io.Reader) er
 
 // Metadata returns the metadata recorded by the transport. If metadata is yet to
 // be received, this method will panic.
-func (r *RecorderTransport) Metadata() (model.System, model.Process, model.Service) {
+func (r *RecorderTransport) Metadata() (_ model.System, _ model.Process, _ model.Service, labels model.StringMap) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.metadata.System, r.metadata.Process, r.metadata.Service
+	return r.metadata.System, r.metadata.Process, r.metadata.Service, r.metadata.Labels
 }
 
 // Payloads returns the payloads recorded by SendStream.
@@ -166,7 +166,8 @@ func (p *Payloads) Len() int {
 }
 
 type metadata struct {
-	System  model.System  `json:"system"`
-	Process model.Process `json:"process"`
-	Service model.Service `json:"service"`
+	System  model.System    `json:"system"`
+	Process model.Process   `json:"process"`
+	Service model.Service   `json:"service"`
+	Labels  model.StringMap `json:"labels,omitempty"`
 }
