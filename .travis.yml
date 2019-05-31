@@ -9,6 +9,9 @@ go:
   - "1.11.x"
   - "1.12.x"
 
+env:
+  - GO111MODULE=on
+
 go_import_path: go.elastic.co/apm
 
 dist: xenial
@@ -53,6 +56,20 @@ before_install:
           cd $GOPATH/src/github.com/olivere &&
           git clone https://github.com/olivere/elastic &&
           cd elastic && git checkout release-branch.v6
+        );
+      fi;
+  - |
+      if (! go run scripts/mingoversion.go 1.11 &>/dev/null); then
+        # NOTE(axw) temporary hack to pin prometheus/procfs
+        # to the version supported by go-sysinfo. This should
+        # be undone once go-sysinfo is updated. Note that we're
+        # using modules for Go 1.11+, so this only applies for
+        # Go 1.10 and older.
+        mkdir -p $GOPATH/src/github.com/prometheus;
+        (
+          cd $GOPATH/src/github.com/prometheus &&
+          git clone https://github.com/prometheus/procfs &&
+          cd procfs && git checkout 65bdadfa96aecebf4dcf888da995a29eab4fc964
         );
       fi;
 
