@@ -281,11 +281,7 @@ is `*apmhttprouter.Router`, and not `*httprouter.Router`.
 
 [source,go]
 ----
-import (
-	"github.com/julienschmidt/httprouter"
-
-	"go.elastic.co/apm/module/apmhttprouter"
-)
+import "go.elastic.co/apm/module/apmhttprouter"
 
 func main() {
 	router := apmhttprouter.New()
