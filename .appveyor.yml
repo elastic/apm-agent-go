@@ -6,6 +6,7 @@ deploy: off
 environment:
   PATH: C:\msys64\mingw64\bin;%PATH%
   GOPATH: C:\gopath
+  GO111MODULE: on
 
 build_script:
 - cmd: go get -t ./...
