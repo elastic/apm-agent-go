@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased](https://github.com/elastic/apm-agent-go/compare/v1.2.0...master)
+## [Unreleased](https://github.com/elastic/apm-agent-go/compare/v1.3.0...master)
 
  - Update opentracing-go dependency to v1.1.0
  - Update HTTP routers to return "<METHOD> unknown route" if route cannot be matched (#486)
@@ -12,6 +12,7 @@
  - internal/sqlscanner: bug fix for multi-byte rune handling (#535)
  - module/apmgrpc: added WithServerRequestIgnorer server option (#531)
  - Introduce `ELASTIC_APM_GLOBAL_LABELS` config (#539)
+ - module/apmgorm: register `row_query` callbacks (#532)
 
 ## [v1.3.0](https://github.com/elastic/apm-agent-go/releases/tag/v1.3.0)
 
