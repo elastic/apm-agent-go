@@ -225,6 +225,7 @@ import (
 
 	"golang.org/x/net/context/ctxhttp"
 
+	"go.elastic.co/apm"
 	"go.elastic.co/apm/module/apmhttp"
 )
 
@@ -234,7 +235,7 @@ func serverHandler(w http.ResponseWriter, req *http.Request) {
 	// Propagate the transaction context contained in req.Context().
 	resp, err := ctxhttp.Get(req.Context(), tracingClient, "http://backend.local/foo")
 	if err != nil {
-		apm.CaptureError(req.Context()).Send()
+		apm.CaptureError(req.Context(), err).Send()
 		http.Error(w, "failed to query backend", 500)
 		return
 	}
