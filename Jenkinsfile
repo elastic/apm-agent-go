@@ -10,6 +10,7 @@ pipeline {
     JOB_GCS_BUCKET = credentials('gcs-bucket')
     CODECOV_SECRET = 'secret/apm-team/ci/apm-agent-go-codecov'
     GO111MODULE = 'on'
+    GOPROXY = 'https://proxy.golang.org'
   }
   options {
     timeout(time: 1, unit: 'HOURS')
