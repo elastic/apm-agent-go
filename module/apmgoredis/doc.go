@@ -15,5 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+// +build go1.11
+
 // Package apmgoredis provides helpers for tracing github.com/go-redis/redis client operations as spans.
 package apmgoredis
