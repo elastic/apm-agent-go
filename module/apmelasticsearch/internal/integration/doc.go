@@ -15,6 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
+// +build go1.10
+
 // Package integration holds integration tests for apmelasticsearch.
 //
 // This exists as a separate module to avoid adding unnecessary
