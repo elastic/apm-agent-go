@@ -54,9 +54,10 @@ func TestWithContext(t *testing.T) {
 			Password: "hunter2",
 			Database: "test_db",
 		})
-		db.AddQueryHook(&apmgopg.QueryHook{})
+		err := apmgopg.Instrument(db)
+		require.NoError(t, err)
 
-		_, err := db.Exec("SELECT 1")
+		_, err = db.Exec("SELECT 1")
 		require.NoError(t, err)
 
 		db.DropTable(&User{}, &orm.DropTableOptions{})

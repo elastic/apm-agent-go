@@ -346,7 +346,7 @@ used, and the context includes a transaction.
 ===== module/apmgopg
 Package apmgopg provides a means of instrumenting http://github.com/go-pg/pg[go-pg] database operations.
 
-To trace `go-pg` statements, simply add the `apmgopg.QueryHook` to the database instance you plan on using and provide
+To trace `go-pg` statements, call `apmgopg.Instrument` with the database instance you plan on using and provide
 a context that contains an apm transaction.
 
 [source,go]
@@ -358,10 +358,10 @@ import (
 )
 
 func main() {
-    db := pg.Connect(&pg.Options{})
-    db.AddQueryHook(&apmgopg.QueryHook{})
+	db := pg.Connect(&pg.Options{})
+	apmgopg.Instrument(db)
 
-    db.WithContext(ctx).Model(...)
+	db.WithContext(ctx).Model(...)
 }
 ----
 
