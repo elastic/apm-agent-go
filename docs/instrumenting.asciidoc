@@ -464,6 +464,40 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
 }
 ----
 
+[[builtin-modules-apmgoredis]]
+===== module/apmgoredis
+Package apmgoredis provides a means of instrumenting https://github.com/go-redis/redis[go-redis/redis]
+so that Redis commands are reported as spans within the current transaction.
+
+To report Redis commands, you can use the top-level `Wrap` function to wrap a
+`redis.Client`, `redis.ClusterClient`, or `redis.Ring`. Initially, the wrapped
+client will be associated with the background context; its `WithContext` method
+may be used to obtain a shallow copy with another context. For example, in an
+HTTP middleware you might bind a client to the request context, which would
+associate spans with the request's APM transaction.
+
+[source,go]
+----
+import (
+	"net/http"
+
+	"github.com/go-redis/redis"
+
+	"go.elastic.co/apm/module/apmgoredis"
+)
+
+var redisClient *redis.Client // initialized at program startup
+
+func handleRequest(w http.ResponseWriter, req *http.Request) {
+	// Wrap and bind redisClient to the request context. If the HTTP
+	// server is instrumented with Elastic APM (e.g. with apmhttp),
+	// Redis commands will be reported as spans within the request's
+	// transaction.
+	client := apmgoredis.Wrap(redisClient).WithContext(req.Context())
+	...
+}
+----
+
 [[builtin-modules-apmrestful]]
 ===== module/apmrestful
 Package apmrestful provides a https://github.com/emicklei/go-restful[go-restful] filter
