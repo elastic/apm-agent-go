@@ -88,7 +88,7 @@ func TestHTTPTransportUserAgent(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, h.requests, 2)
 
-	assert.Regexp(t, "Go-http-client/.*", h.requests[0].UserAgent())
+	assert.Regexp(t, "elasticapm-go/.* go/.*", h.requests[0].UserAgent())
 	assert.Equal(t, "foo", h.requests[1].UserAgent())
 }
 
