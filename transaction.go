@@ -91,6 +91,10 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 	tx.spanFramesMinDuration = t.spanFramesMinDuration
 	t.spanFramesMinDurationMu.RUnlock()
 
+	t.stackTraceLimitMu.RLock()
+	tx.stackTraceLimit = t.stackTraceLimit
+	t.stackTraceLimitMu.RUnlock()
+
 	t.captureHeadersMu.RLock()
 	tx.Context.captureHeaders = t.captureHeaders
 	t.captureHeadersMu.RUnlock()
@@ -278,6 +282,7 @@ type TransactionData struct {
 
 	maxSpans              int
 	spanFramesMinDuration time.Duration
+	stackTraceLimit       int
 	timestamp             time.Time
 
 	mu           sync.Mutex

@@ -50,6 +50,7 @@ const (
 	envMetricsBufferSize     = "ELASTIC_APM_METRICS_BUFFER_SIZE"
 	envDisableMetrics        = "ELASTIC_APM_DISABLE_METRICS"
 	envGlobalLabels          = "ELASTIC_APM_GLOBAL_LABELS"
+	envStackTraceLimit       = "ELASTIC_APM_STACK_TRACE_LIMIT"
 
 	defaultAPIRequestSize        = 750 * apmconfig.KByte
 	defaultAPIRequestTime        = 10 * time.Second
@@ -60,6 +61,7 @@ const (
 	defaultCaptureHeaders        = true
 	defaultCaptureBody           = CaptureBodyOff
 	defaultSpanFramesMinDuration = 5 * time.Millisecond
+	defaultStackTraceLimit       = 50
 
 	minAPIBufferSize     = 10 * apmconfig.KByte
 	maxAPIBufferSize     = 100 * apmconfig.MByte
@@ -231,4 +233,16 @@ func initialActive() (bool, error) {
 
 func initialDisabledMetrics() wildcard.Matchers {
 	return apmconfig.ParseWildcardPatternsEnv(envDisableMetrics, nil)
+}
+
+func initialStackTraceLimit() (int, error) {
+	value := os.Getenv(envStackTraceLimit)
+	if value == "" {
+		return defaultStackTraceLimit, nil
+	}
+	limit, err := strconv.Atoi(value)
+	if err != nil {
+		return 0, errors.Wrapf(err, "failed to parse %s", envStackTraceLimit)
+	}
+	return limit, nil
 }

@@ -122,7 +122,7 @@ func TestTracerErrors(t *testing.T) {
 	assert.Equal(t, "zing", exception.Message)
 	assert.Equal(t, "errors", exception.Module)
 	assert.Equal(t, "errorString", exception.Type)
-	assert.NotEmpty(t, stacktrace)
+	require.NotEmpty(t, stacktrace)
 	assert.Equal(t, "TestTracerErrors", stacktrace[0].Function)
 }
 
@@ -237,7 +237,7 @@ func TestSpanStackTrace(t *testing.T) {
 	tracer.Flush(nil)
 
 	spans := r.Payloads().Spans
-	assert.Len(t, spans, 3)
+	require.Len(t, spans, 3)
 
 	// Span 0 took only 9ms, so we don't set its stacktrace.
 	assert.Nil(t, spans[0].Stacktrace)

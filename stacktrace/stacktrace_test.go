@@ -111,3 +111,24 @@ func assertFunction(t *testing.T, got, expect string) {
 		t.Errorf("got function %q, expected %q", got, expect)
 	}
 }
+
+func BenchmarkAppendStacktraceUnlimited(b *testing.B) {
+	var frames []stacktrace.Frame
+	for i := 0; i < b.N; i++ {
+		frames = stacktrace.AppendStacktrace(frames[:0], 0, -1)
+	}
+}
+
+func BenchmarkAppendStacktrace10(b *testing.B) {
+	var frames []stacktrace.Frame
+	for i := 0; i < b.N; i++ {
+		frames = stacktrace.AppendStacktrace(frames[:0], 0, 10)
+	}
+}
+
+func BenchmarkAppendStacktrace50(b *testing.B) {
+	var frames []stacktrace.Frame
+	for i := 0; i < b.N; i++ {
+		frames = stacktrace.AppendStacktrace(frames[:0], 0, 50)
+	}
+}

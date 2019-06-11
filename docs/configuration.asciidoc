@@ -333,6 +333,22 @@ place in your code that causes the span, collecting this stack trace does have
 some processing and storage overhead.
 
 [float]
+[[config-stack-trace-limit]]
+=== `ELASTIC_APM_STACK_TRACE_LIMIT`
+
+[options="header"]
+|============
+| Environment                     | Default
+| `ELASTIC_APM_STACK_TRACE_LIMIT` | `50`
+|============
+
+Limits the number of frames captured for each stack trace.
+
+Setting the limit to 0 will disable stack trace collection, while any positive
+integer value will be used as the maximum number of frames to collect. Setting
+a negative value, such as -1, means that all frames will be collected.
+
+[float]
 [[config-transaction-sample-rate]]
 === `ELASTIC_APM_TRANSACTION_SAMPLE_RATE`
 

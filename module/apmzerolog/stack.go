@@ -43,7 +43,7 @@ func MarshalErrorStack(err error) interface{} {
 	}
 
 	var frames []stacktrace.Frame
-	pkgerrorsutil.AppendStacktrace(stackTracer.StackTrace(), &frames)
+	pkgerrorsutil.AppendStacktrace(stackTracer.StackTrace(), &frames, -1)
 	if len(frames) == 0 {
 		return nil
 	}

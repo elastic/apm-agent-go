@@ -290,6 +290,40 @@ func TestTracerSpanFramesMinDurationEnvInvalid(t *testing.T) {
 	assert.EqualError(t, err, "failed to parse ELASTIC_APM_SPAN_FRAMES_MIN_DURATION: invalid duration aeon")
 }
 
+func TestTracerStackTraceLimitEnv(t *testing.T) {
+	os.Setenv("ELASTIC_APM_STACK_TRACE_LIMIT", "0")
+	defer os.Unsetenv("ELASTIC_APM_STACK_TRACE_LIMIT")
+
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	sendSpan := func() {
+		tx := tracer.StartTransaction("name", "type")
+		s := tx.StartSpan("name", "type", nil)
+		s.Duration = time.Second
+		s.End()
+		tx.End()
+	}
+
+	sendSpan()
+	tracer.SetStackTraceLimit(2)
+	sendSpan()
+
+	tracer.Flush(nil)
+	spans := transport.Payloads().Spans
+	require.Len(t, spans, 2)
+	assert.Nil(t, spans[0].Stacktrace)
+	assert.Len(t, spans[1].Stacktrace, 2)
+}
+
+func TestTracerStackTraceLimitEnvInvalid(t *testing.T) {
+	os.Setenv("ELASTIC_APM_STACK_TRACE_LIMIT", "sky")
+	defer os.Unsetenv("ELASTIC_APM_STACK_TRACE_LIMIT")
+
+	_, err := apm.NewTracer("tracer_testing", "")
+	assert.EqualError(t, err, "failed to parse ELASTIC_APM_STACK_TRACE_LIMIT: strconv.Atoi: parsing \"sky\": invalid syntax")
+}
+
 func TestTracerActiveEnv(t *testing.T) {
 	os.Setenv("ELASTIC_APM_ACTIVE", "false")
 	defer os.Unsetenv("ELASTIC_APM_ACTIVE")

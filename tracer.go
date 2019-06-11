@@ -76,6 +76,7 @@ type options struct {
 	captureHeaders        bool
 	captureBody           CaptureBodyMode
 	spanFramesMinDuration time.Duration
+	stackTraceLimit       int
 	serviceName           string
 	serviceVersion        string
 	serviceEnvironment    string
@@ -146,6 +147,11 @@ func (opts *options) init(continueOnError bool) error {
 		spanFramesMinDuration = defaultSpanFramesMinDuration
 	}
 
+	stackTraceLimit, err := initialStackTraceLimit()
+	if failed(err) {
+		stackTraceLimit = defaultStackTraceLimit
+	}
+
 	active, err := initialActive()
 	if failed(err) {
 		active = true
@@ -170,6 +176,7 @@ func (opts *options) init(continueOnError bool) error {
 	opts.captureHeaders = captureHeaders
 	opts.captureBody = captureBody
 	opts.spanFramesMinDuration = spanFramesMinDuration
+	opts.stackTraceLimit = stackTraceLimit
 	opts.serviceName, opts.serviceVersion, opts.serviceEnvironment = initialService()
 	opts.active = active
 	return nil
@@ -224,6 +231,9 @@ type Tracer struct {
 	spanFramesMinDurationMu sync.RWMutex
 	spanFramesMinDuration   time.Duration
 
+	stackTraceLimitMu sync.RWMutex
+	stackTraceLimit   int
+
 	samplerMu sync.RWMutex
 	sampler   Sampler
 
@@ -277,6 +287,7 @@ func newTracer(opts options) *Tracer {
 		captureHeaders:        opts.captureHeaders,
 		captureBody:           opts.captureBody,
 		spanFramesMinDuration: opts.spanFramesMinDuration,
+		stackTraceLimit:       opts.stackTraceLimit,
 		bufferSize:            opts.bufferSize,
 		metricsBufferSize:     opts.metricsBufferSize,
 	}
@@ -471,6 +482,14 @@ func (t *Tracer) SetSpanFramesMinDuration(d time.Duration) {
 	t.spanFramesMinDurationMu.Lock()
 	t.spanFramesMinDuration = d
 	t.spanFramesMinDurationMu.Unlock()
+}
+
+// SetStackTraceLimit sets the the maximum number of stack frames to collect
+// for each stack trace. If limit is negative, then all frames will be collected.
+func (t *Tracer) SetStackTraceLimit(limit int) {
+	t.stackTraceLimitMu.Lock()
+	t.stackTraceLimit = limit
+	t.stackTraceLimitMu.Unlock()
 }
 
 // SetCaptureHeaders enables or disables capturing of HTTP headers.
