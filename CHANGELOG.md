@@ -14,6 +14,8 @@
  - Introduce `ELASTIC_APM_GLOBAL_LABELS` config (#539)
  - module/apmgorm: register `row_query` callbacks (#532)
  - Introduce `ELASTIC_APM_STACK_TRACE_LIMIT` config (#559)
+ - Include agent name/version and Go version in User-Agent (#560)
+ - Truncate `error.culprit` at 1024 chars (#561)
 
 ## [v1.3.0](https://github.com/elastic/apm-agent-go/releases/tag/v1.3.0)
 

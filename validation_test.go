@@ -215,6 +215,13 @@ func TestValidateErrorException(t *testing.T) {
 			}).Send()
 		})
 	})
+	t.Run("culprit", func(t *testing.T) {
+		validatePayloads(t, func(tracer *apm.Tracer) {
+			e := tracer.NewError(&testError{message: "foo"})
+			e.Culprit = strings.Repeat("x", 1025)
+			e.Send()
+		})
+	})
 	t.Run("code", func(t *testing.T) {
 		validatePayloads(t, func(tracer *apm.Tracer) {
 			tracer.NewError(&testError{

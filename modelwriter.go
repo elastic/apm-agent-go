@@ -195,6 +195,7 @@ func (w *modelWriter) buildModelError(out *model.Error, e *ErrorData) {
 			out.Culprit = stacktraceCulprit(out.Log.Stacktrace)
 		}
 	}
+	out.Culprit = truncateString(out.Culprit)
 }
 
 func stacktraceCulprit(frames []model.StacktraceFrame) string {
