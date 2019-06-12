@@ -48,7 +48,7 @@ func TestSummary(t *testing.T) {
 	s := prometheus.NewSummary(prometheus.SummaryOpts{
 		Name:       "summary",
 		Help:       "halp",
-		Objectives: prometheus.DefObjectives,
+		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 	})
 	r.MustRegister(s)
 
