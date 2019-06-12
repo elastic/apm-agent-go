@@ -13,6 +13,7 @@
  - module/apmgrpc: added WithServerRequestIgnorer server option (#531)
  - Introduce `ELASTIC_APM_GLOBAL_LABELS` config (#539)
  - module/apmgorm: register `row_query` callbacks (#532)
+ - Introduce `ELASTIC_APM_STACK_TRACE_LIMIT` config (#559)
 
 ## [v1.3.0](https://github.com/elastic/apm-agent-go/releases/tag/v1.3.0)
 

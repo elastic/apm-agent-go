@@ -108,6 +108,7 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 		binary.LittleEndian.PutUint64(span.traceContext.Span[:], tx.rand.Uint64())
 	}
 	span.stackFramesMinDuration = tx.spanFramesMinDuration
+	span.stackTraceLimit = tx.stackTraceLimit
 	span.tx = tx
 	tx.spansCreated++
 	return span
@@ -142,9 +143,15 @@ func (t *Tracer) StartSpan(name, spanType string, transactionID SpanID, opts Spa
 	}
 	span := t.startSpan(name, spanType, transactionID, opts)
 	span.traceContext.Span = spanID
+
 	t.spanFramesMinDurationMu.RLock()
 	span.stackFramesMinDuration = t.spanFramesMinDuration
 	t.spanFramesMinDurationMu.RUnlock()
+
+	t.stackTraceLimitMu.RLock()
+	span.stackTraceLimit = t.stackTraceLimit
+	t.stackTraceLimitMu.RUnlock()
+
 	return span
 }
 
@@ -310,6 +317,7 @@ func (s *Span) ended() bool {
 type SpanData struct {
 	parentID               SpanID
 	stackFramesMinDuration time.Duration
+	stackTraceLimit        int
 	timestamp              time.Time
 
 	// Name holds the span name, initialized with the value passed to StartSpan.
@@ -340,7 +348,7 @@ type SpanData struct {
 }
 
 func (s *SpanData) setStacktrace(skip int) {
-	s.stacktrace = stacktrace.AppendStacktrace(s.stacktrace[:0], skip+1, -1)
+	s.stacktrace = stacktrace.AppendStacktrace(s.stacktrace[:0], skip+1, s.stackTraceLimit)
 }
 
 func (s *SpanData) reset(tracer *Tracer) {
