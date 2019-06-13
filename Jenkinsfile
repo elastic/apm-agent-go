@@ -56,10 +56,12 @@ pipeline {
         */
         stage('build') {
           steps {
-            deleteDir()
-            unstash 'source'
-            dir("${BASE_DIR}"){
-              sh './scripts/jenkins/build.sh'
+            withGithubNotify(context: 'Build') {
+              deleteDir()
+              unstash 'source'
+              dir("${BASE_DIR}"){
+                sh './scripts/jenkins/build.sh'
+              }
             }
           }
         }
@@ -85,10 +87,12 @@ pipeline {
             expression { return params.test_ci }
           }
           steps {
-            deleteDir()
-            unstash 'source'
-            dir("${BASE_DIR}"){
-              sh './scripts/jenkins/test.sh'
+            withGithubNotify(context: 'Unit Test', tab: 'tests') {
+              deleteDir()
+              unstash 'source'
+              dir("${BASE_DIR}"){
+                sh './scripts/jenkins/test.sh'
+              }
             }
           }
           post {
@@ -125,11 +129,13 @@ pipeline {
             }
           }
           steps {
-            deleteDir()
-            unstash 'source'
-            dir("${BASE_DIR}"){
-              sh './scripts/jenkins/bench.sh'
-              sendBenchmarks(file: 'build/bench.out', index: "benchmark-go")
+            withGithubNotify(context: 'Benchmarks', tab: 'tests') {
+              deleteDir()
+              unstash 'source'
+              dir("${BASE_DIR}"){
+                sh './scripts/jenkins/bench.sh'
+                sendBenchmarks(file: 'build/bench.out', index: "benchmark-go")
+              }
             }
           }
           post {
@@ -143,7 +149,7 @@ pipeline {
         /**
           Run tests in a docker container and store the results in jenkins and codecov.
         */
-        stage('Docker tests') {
+        stage('Docker Tests') {
           agent { label 'linux && docker && immutable' }
           options { skipDefaultCheckout() }
           environment {
@@ -157,10 +163,12 @@ pipeline {
             expression { return params.docker_test_ci }
           }
           steps {
-            deleteDir()
-            unstash 'source'
-            dir("${BASE_DIR}"){
-              sh './scripts/jenkins/docker-test.sh'
+            withGithubNotify(context: 'Docker Tests', tab: 'tests') {
+              deleteDir()
+              unstash 'source'
+              dir("${BASE_DIR}"){
+                sh './scripts/jenkins/docker-test.sh'
+              }
             }
           }
           post {
@@ -169,7 +177,7 @@ pipeline {
               junit(allowEmptyResults: true,
                 keepLongStdio: true,
                 testResults: "${BASE_DIR}/build/junit-*.xml")
-              codecov(repo: 'apm-agent-go', basedir: "${BASE_DIR}", 
+              codecov(repo: 'apm-agent-go', basedir: "${BASE_DIR}",
                 flags: "-f build/coverage/coverage.cov -X search",
                 secret: "${CODECOV_SECRET}")
             }
@@ -197,10 +205,12 @@ pipeline {
         }
       }
       steps {
-        deleteDir()
-        unstash 'source'
-        dir("${BASE_DIR}"){
-          buildDocs(docsDir: "docs", archive: true)
+        withGithubNotify(context: 'Documentation', tab: 'artifacts') {
+          deleteDir()
+          unstash 'source'
+          dir("${BASE_DIR}"){
+            buildDocs(docsDir: "docs", archive: true)
+          }
         }
       }
     }
