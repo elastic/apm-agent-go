@@ -3,6 +3,8 @@
 ## [Unreleased](https://github.com/elastic/apm-agent-go/compare/v1.4.0...master)
 
  - Add Context.SetCustom (#581)
+ - Add support for extracting UUID-like container IDs (#577)
+ - Introduce transaction/span breakdown metrics (#564)
 
 ## [v1.4.0](https://github.com/elastic/apm-agent-go/releases/tag/v1.4.0)
 

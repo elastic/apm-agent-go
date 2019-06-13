@@ -85,6 +85,13 @@ func (w *modelWriter) writeError(e *ErrorData) {
 // Note that we do not write metrics to the main ring buffer (w.buffer), as
 // periodic metrics would be evicted by transactions/spans in a busy system.
 func (w *modelWriter) writeMetrics(m *Metrics) {
+	for _, m := range m.transactionGroupMetrics {
+		w.json.RawString(`{"metricset":`)
+		m.MarshalFastJSON(&w.json)
+		w.json.RawString("}")
+		w.metricsBuffer.WriteBlock(w.json.Bytes(), metricsBlockTag)
+		w.json.Reset()
+	}
 	for _, m := range m.metrics {
 		w.json.RawString(`{"metricset":`)
 		m.MarshalFastJSON(&w.json)

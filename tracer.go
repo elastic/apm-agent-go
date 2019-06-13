@@ -221,6 +221,7 @@ type Tracer struct {
 	forceSendMetrics  chan chan<- struct{}
 	configCommands    chan tracerConfigCommand
 	events            chan tracerEvent
+	breakdownMetrics  *breakdownMetrics
 
 	statsMu sync.Mutex
 	stats   TracerStats
@@ -282,6 +283,7 @@ func newTracer(opts options) *Tracer {
 		configCommands:        make(chan tracerConfigCommand),
 		events:                make(chan tracerEvent, tracerEventChannelCap),
 		active:                1,
+		breakdownMetrics:      newBreakdownMetrics(),
 		maxSpans:              opts.maxSpans,
 		sampler:               opts.sampler,
 		captureHeaders:        opts.captureHeaders,
@@ -294,6 +296,10 @@ func newTracer(opts options) *Tracer {
 	t.Service.Name = opts.serviceName
 	t.Service.Version = opts.serviceVersion
 	t.Service.Environment = opts.serviceEnvironment
+
+	// NOTE(axw) if/when disabledMetrics becomes dynamically modifiable,
+	// we'll need to change how we update and check these flags.
+	t.breakdownMetrics.flags.set(opts.disabledMetrics)
 
 	if !opts.active {
 		t.active = 0
@@ -324,7 +330,7 @@ type tracerConfig struct {
 	requestSize             int
 	requestDuration         time.Duration
 	metricsInterval         time.Duration
-	logger                  Logger
+	logger                  WarningLogger
 	metricsGatherers        []MetricsGatherer
 	contextSetter           stacktrace.ContextSetter
 	preContext, postContext int
@@ -396,12 +402,15 @@ func (t *Tracer) SetContextSetter(setter stacktrace.ContextSetter) {
 // SetLogger sets the Logger to be used for logging the operation of
 // the tracer.
 //
+// If logger implements WarningLogger, its Warningf method will be used
+// for logging warnings. Otherwise, warnings will logged using Debugf.
+//
 // The tracer is initialized with a default logger configured with the
 // environment variables ELASTIC_APM_LOG_FILE and ELASTIC_APM_LOG_LEVEL.
 // Calling SetLogger will replace the default logger.
 func (t *Tracer) SetLogger(logger Logger) {
 	t.sendConfigCommand(func(cfg *tracerConfig) {
-		cfg.logger = logger
+		cfg.logger = makeWarningLogger(logger)
 	})
 }
 
@@ -575,6 +584,7 @@ func (t *Tracer) loop() {
 		}
 	}()
 
+	var breakdownMetricsLimitWarningLogged bool
 	var stats TracerStats
 	var metrics Metrics
 	var sentMetrics chan<- struct{}
@@ -642,6 +652,12 @@ func (t *Tracer) loop() {
 		case event := <-t.events:
 			switch event.eventType {
 			case transactionEvent:
+				if !t.breakdownMetrics.recordTransaction(event.tx.TransactionData) {
+					if !breakdownMetricsLimitWarningLogged && cfg.logger != nil {
+						cfg.logger.Warningf("%s", breakdownMetricsLimitWarning)
+						breakdownMetricsLimitWarningLogged = true
+					}
+				}
 				modelWriter.writeTransaction(event.tx.Transaction, event.tx.TransactionData)
 			case spanEvent:
 				modelWriter.writeSpan(event.span.Span, event.span.SpanData)
@@ -678,6 +694,12 @@ func (t *Tracer) loop() {
 				event := <-t.events
 				switch event.eventType {
 				case transactionEvent:
+					if !t.breakdownMetrics.recordTransaction(event.tx.TransactionData) {
+						if !breakdownMetricsLimitWarningLogged && cfg.logger != nil {
+							cfg.logger.Warningf("%s", breakdownMetricsLimitWarning)
+							breakdownMetricsLimitWarningLogged = true
+						}
+					}
 					modelWriter.writeTransaction(event.tx.Transaction, event.tx.TransactionData)
 				case spanEvent:
 					modelWriter.writeSpan(event.span.Span, event.span.SpanData)
@@ -896,6 +918,9 @@ func (t *Tracer) gatherMetrics(ctx context.Context, gatherers []MetricsGatherer,
 	}
 	go func() {
 		group.Wait()
+		for _, m := range m.transactionGroupMetrics {
+			m.Timestamp = timestamp
+		}
 		for _, m := range m.metrics {
 			m.Timestamp = timestamp
 		}

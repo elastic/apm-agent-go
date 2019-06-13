@@ -18,13 +18,18 @@
 package apm_test
 
 import (
+	"fmt"
+	"math/rand"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/transport"
 	"go.elastic.co/apm/transport/transporttest"
 )
 
@@ -133,6 +138,33 @@ func TestTransactionEnsureParent(t *testing.T) {
 	payloads := transport.Payloads()
 	require.Len(t, payloads.Transactions, 1)
 	assert.Equal(t, model.SpanID(parentSpan), payloads.Transactions[0].ParentID)
+}
+
+func BenchmarkTransaction(b *testing.B) {
+	tracer, err := apm.NewTracer("service", "")
+	require.NoError(b, err)
+
+	tracer.Transport = transport.Discard
+	defer tracer.Close()
+
+	names := []string{}
+	for i := 0; i < 1000; i++ {
+		names = append(names, fmt.Sprintf("/some/route/%d", i))
+	}
+
+	var mu sync.Mutex
+	globalRand := rand.New(rand.NewSource(time.Now().UnixNano()))
+	b.ResetTimer()
+
+	b.RunParallel(func(pb *testing.PB) {
+		mu.Lock()
+		rand := rand.New(rand.NewSource(globalRand.Int63()))
+		mu.Unlock()
+		for pb.Next() {
+			tx := tracer.StartTransaction(names[rand.Intn(len(names))], "type")
+			tx.End()
+		}
+	})
 }
 
 type samplerFunc func(apm.TraceContext) bool

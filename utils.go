@@ -196,3 +196,9 @@ func jitterDuration(d time.Duration, rng *rand.Rand, j float64) time.Duration {
 	r := (rng.Float64() * j * 2) - j
 	return d + time.Duration(float64(d)*r)
 }
+
+func durationMicros(d time.Duration) float64 {
+	us := d / time.Microsecond
+	ns := d % time.Microsecond
+	return float64(us) + float64(ns)/1e9
+}

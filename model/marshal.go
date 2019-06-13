@@ -622,6 +622,14 @@ func (t *ErrorTransaction) isZero() bool {
 	return *t == ErrorTransaction{}
 }
 
+func (t *MetricsTransaction) isZero() bool {
+	return *t == MetricsTransaction{}
+}
+
+func (s *MetricsSpan) isZero() bool {
+	return *s == MetricsSpan{}
+}
+
 func writeHex(w *fastjson.Writer, v []byte) {
 	const hextable = "0123456789abcdef"
 	for _, v := range v {
