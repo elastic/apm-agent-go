@@ -190,13 +190,28 @@ func testTracerSanitizeFieldNamesEnv(t *testing.T, envValue, expect string) {
 }
 
 func TestTracerServiceNameEnvSanitizationSpecified(t *testing.T) {
-	_, _, service := getSubprocessMetadata(t, "ELASTIC_APM_SERVICE_NAME=foo!bar")
+	_, _, service, _ := getSubprocessMetadata(t, "ELASTIC_APM_SERVICE_NAME=foo!bar")
 	assert.Equal(t, "foo_bar", service.Name)
 }
 
 func TestTracerServiceNameEnvSanitizationExecutableName(t *testing.T) {
-	_, _, service := getSubprocessMetadata(t)
+	_, _, service, _ := getSubprocessMetadata(t)
 	assert.Equal(t, "apm_test", service.Name) // .test -> _test
+}
+
+func TestTracerGlobalLabelsUnspecified(t *testing.T) {
+	_, _, _, labels := getSubprocessMetadata(t)
+	assert.Equal(t, model.StringMap{}, labels)
+}
+
+func TestTracerGlobalLabelsSpecified(t *testing.T) {
+	_, _, _, labels := getSubprocessMetadata(t, "ELASTIC_APM_GLOBAL_LABELS=a=b,c = d")
+	assert.Equal(t, model.StringMap{{Key: "a", Value: "b"}, {Key: "c", Value: "d"}}, labels)
+}
+
+func TestTracerGlobalLabelsIgnoreInvalid(t *testing.T) {
+	_, _, _, labels := getSubprocessMetadata(t, "ELASTIC_APM_GLOBAL_LABELS=a,=,b==c,d=")
+	assert.Equal(t, model.StringMap{{Key: "b", Value: "=c"}, {Key: "d", Value: ""}}, labels)
 }
 
 func TestTracerCaptureBodyEnv(t *testing.T) {
@@ -275,6 +290,40 @@ func TestTracerSpanFramesMinDurationEnvInvalid(t *testing.T) {
 	assert.EqualError(t, err, "failed to parse ELASTIC_APM_SPAN_FRAMES_MIN_DURATION: invalid duration aeon")
 }
 
+func TestTracerStackTraceLimitEnv(t *testing.T) {
+	os.Setenv("ELASTIC_APM_STACK_TRACE_LIMIT", "0")
+	defer os.Unsetenv("ELASTIC_APM_STACK_TRACE_LIMIT")
+
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	sendSpan := func() {
+		tx := tracer.StartTransaction("name", "type")
+		s := tx.StartSpan("name", "type", nil)
+		s.Duration = time.Second
+		s.End()
+		tx.End()
+	}
+
+	sendSpan()
+	tracer.SetStackTraceLimit(2)
+	sendSpan()
+
+	tracer.Flush(nil)
+	spans := transport.Payloads().Spans
+	require.Len(t, spans, 2)
+	assert.Nil(t, spans[0].Stacktrace)
+	assert.Len(t, spans[1].Stacktrace, 2)
+}
+
+func TestTracerStackTraceLimitEnvInvalid(t *testing.T) {
+	os.Setenv("ELASTIC_APM_STACK_TRACE_LIMIT", "sky")
+	defer os.Unsetenv("ELASTIC_APM_STACK_TRACE_LIMIT")
+
+	_, err := apm.NewTracer("tracer_testing", "")
+	assert.EqualError(t, err, "failed to parse ELASTIC_APM_STACK_TRACE_LIMIT: strconv.Atoi: parsing \"sky\": invalid syntax")
+}
+
 func TestTracerActiveEnv(t *testing.T) {
 	os.Setenv("ELASTIC_APM_ACTIVE", "false")
 	defer os.Unsetenv("ELASTIC_APM_ACTIVE")
@@ -308,7 +357,7 @@ func TestTracerEnvironmentEnv(t *testing.T) {
 	tracer.StartTransaction("name", "type").End()
 	tracer.Flush(nil)
 
-	_, _, service := transport.Metadata()
+	_, _, service, _ := transport.Metadata()
 	assert.Equal(t, "friendly", service.Environment)
 }
 

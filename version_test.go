@@ -15,7 +15,22 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// +build go1.11
+package apm_test
 
-// Package apmgoredis provides helpers for tracing github.com/go-redis/redis client operations as spans.
-package apmgoredis
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/internal/apmversion"
+)
+
+func TestAgentVersion(t *testing.T) {
+	// Ensure apmversion.AgentVersion is kept in sync.
+	//
+	// NOTE We do not want a dependency from apmversion back
+	// to apm, and we want to use a string literal in the
+	// apm package for godoc.
+	assert.Equal(t, apmversion.AgentVersion, apm.AgentVersion)
+}

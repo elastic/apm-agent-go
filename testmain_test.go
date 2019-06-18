@@ -48,7 +48,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func getSubprocessMetadata(t *testing.T, env ...string) (*model.System, *model.Process, *model.Service) {
+func getSubprocessMetadata(t *testing.T, env ...string) (*model.System, *model.Process, *model.Service, model.StringMap) {
 	cmd := exec.Command(os.Args[0], "-dump-metadata")
 	cmd.Env = append(os.Environ(), env...)
 
@@ -62,6 +62,7 @@ func getSubprocessMetadata(t *testing.T, env ...string) (*model.System, *model.P
 	var system model.System
 	var process model.Process
 	var service model.Service
+	var labels model.StringMap
 
 	output := stdout.String()
 	d := json.NewDecoder(&stdout)
@@ -71,7 +72,8 @@ func getSubprocessMetadata(t *testing.T, env ...string) (*model.System, *model.P
 	}
 	require.NoError(t, d.Decode(&process))
 	require.NoError(t, d.Decode(&service))
-	return &system, &process, &service
+	require.NoError(t, d.Decode(&labels))
+	return &system, &process, &service, labels
 }
 
 func dumpMetadata() {
@@ -82,10 +84,10 @@ func dumpMetadata() {
 
 	tracer.StartTransaction("name", "type").End()
 	tracer.Flush(nil)
-	system, process, service := transport.Metadata()
+	system, process, service, labels := transport.Metadata()
 
 	var w fastjson.Writer
-	for _, m := range []fastjson.Marshaler{&system, &process, &service} {
+	for _, m := range []fastjson.Marshaler{&system, &process, &service, labels} {
 		if err := m.MarshalFastJSON(&w); err != nil {
 			panic(err)
 		}

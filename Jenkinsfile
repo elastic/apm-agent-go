@@ -6,10 +6,12 @@ pipeline {
   agent any
   environment {
     REPO = 'apm-agent-go'
-    BASE_DIR="src/go.elastic.co/apm"
+    BASE_DIR = "src/go.elastic.co/apm"
     NOTIFY_TO = credentials('notify-to')
     JOB_GCS_BUCKET = credentials('gcs-bucket')
     CODECOV_SECRET = 'secret/apm-team/ci/apm-agent-go-codecov'
+    GO111MODULE = 'on'
+    GOPROXY = 'https://proxy.golang.org'
     GITHUB_CHECK_ITS_NAME = 'Integration Tests'
     ITS_PIPELINE = 'apm-integration-tests-mbp/master'
   }
@@ -24,7 +26,7 @@ pipeline {
     quietPeriod(10)
   }
   triggers {
-    issueCommentTrigger('.*(?:jenkins\\W+)?run\\W+(?:the\\W+)?tests(?:\\W+please)?.*')
+    issueCommentTrigger('(?i).*(?:jenkins\\W+)?run\\W+(?:the\\W+)?tests(?:\\W+please)?.*')
   }
   parameters {
     string(name: 'GO_VERSION', defaultValue: "1.12.0", description: "Go version to use.")
@@ -59,10 +61,12 @@ pipeline {
         */
         stage('build') {
           steps {
-            deleteDir()
-            unstash 'source'
-            dir("${BASE_DIR}"){
-              sh './scripts/jenkins/build.sh'
+            withGithubNotify(context: 'Build') {
+              deleteDir()
+              unstash 'source'
+              dir("${BASE_DIR}"){
+                sh './scripts/jenkins/build.sh'
+              }
             }
           }
         }
@@ -88,10 +92,12 @@ pipeline {
             expression { return params.test_ci }
           }
           steps {
-            deleteDir()
-            unstash 'source'
-            dir("${BASE_DIR}"){
-              sh './scripts/jenkins/test.sh'
+            withGithubNotify(context: 'Unit Test', tab: 'tests') {
+              deleteDir()
+              unstash 'source'
+              dir("${BASE_DIR}"){
+                sh './scripts/jenkins/test.sh'
+              }
             }
           }
           post {
@@ -128,11 +134,13 @@ pipeline {
             }
           }
           steps {
-            deleteDir()
-            unstash 'source'
-            dir("${BASE_DIR}"){
-              sh './scripts/jenkins/bench.sh'
-              sendBenchmarks(file: 'build/bench.out', index: "benchmark-go")
+            withGithubNotify(context: 'Benchmarks', tab: 'tests') {
+              deleteDir()
+              unstash 'source'
+              dir("${BASE_DIR}"){
+                sh './scripts/jenkins/bench.sh'
+                sendBenchmarks(file: 'build/bench.out', index: "benchmark-go")
+              }
             }
           }
           post {
@@ -146,7 +154,7 @@ pipeline {
         /**
           Run tests in a docker container and store the results in jenkins and codecov.
         */
-        stage('Docker tests') {
+        stage('Docker Tests') {
           agent { label 'linux && docker && immutable' }
           options { skipDefaultCheckout() }
           environment {
@@ -160,10 +168,12 @@ pipeline {
             expression { return params.docker_test_ci }
           }
           steps {
-            deleteDir()
-            unstash 'source'
-            dir("${BASE_DIR}"){
-              sh './scripts/jenkins/docker-test.sh'
+            withGithubNotify(context: 'Docker Tests', tab: 'tests') {
+              deleteDir()
+              unstash 'source'
+              dir("${BASE_DIR}"){
+                sh './scripts/jenkins/docker-test.sh'
+              }
             }
           }
           post {
@@ -231,18 +241,8 @@ pipeline {
     }
   }
   post {
-    success {
-      echoColor(text: '[SUCCESS]', colorfg: 'green', colorbg: 'default')
-    }
-    aborted {
-      echoColor(text: '[ABORTED]', colorfg: 'magenta', colorbg: 'default')
-    }
-    failure {
-      echoColor(text: '[FAILURE]', colorfg: 'red', colorbg: 'default')
-      step([$class: 'Mailer', notifyEveryUnstableBuild: true, recipients: "${NOTIFY_TO}", sendToIndividuals: false])
-    }
-    unstable {
-      echoColor(text: '[UNSTABLE]', colorfg: 'yellow', colorbg: 'default')
+    always {
+      notifyBuildResult()
     }
   }
 }

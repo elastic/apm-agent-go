@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strconv"
 	"syscall"
 	"testing"
 
@@ -60,9 +61,26 @@ func TestErrorsStackTrace(t *testing.T) {
 	assert.Equal(t, "zing", exception.Message)
 	assert.Equal(t, "go.elastic.co/apm_test", exception.Module)
 	assert.Equal(t, "errorsStackTracer", exception.Type)
-	assert.Len(t, stacktrace, 2)
+	require.Len(t, stacktrace, 2)
 	assert.Equal(t, "newErrorsStackTrace", stacktrace[0].Function)
 	assert.Equal(t, "TestErrorsStackTrace", stacktrace[1].Function)
+}
+
+func TestErrorsStackTraceLimit(t *testing.T) {
+	defer os.Unsetenv("ELASTIC_APM_STACK_TRACE_LIMIT")
+	const n = 2
+	for i := -1; i < n; i++ {
+		os.Setenv("ELASTIC_APM_STACK_TRACE_LIMIT", strconv.Itoa(i))
+		modelError := sendError(t, &errorsStackTracer{
+			"zing", newErrorsStackTrace(0, n),
+		})
+		stacktrace := modelError.Exception.Stacktrace
+		if i == -1 {
+			require.Len(t, stacktrace, n)
+		} else {
+			require.Len(t, stacktrace, i)
+		}
+	}
 }
 
 func TestInternalStackTrace(t *testing.T) {
@@ -93,6 +111,47 @@ func TestInternalStackTrace(t *testing.T) {
 		Module:       "encoding/json",
 		LibraryFrame: true,
 	}}, stacktrace)
+}
+
+func TestInternalStackTraceLimit(t *testing.T) {
+	inFrames := []stacktrace.Frame{
+		{Function: "pkg/path.FuncName"},
+		{Function: "FuncName2", Line: 123},
+		{Function: "encoding/json.Marshal"},
+	}
+	outFrames := []model.StacktraceFrame{{
+		Function: "FuncName",
+		Module:   "pkg/path",
+	}, {
+		Function: "FuncName2",
+		Line:     123,
+	}, {
+		Function:     "Marshal",
+		Module:       "encoding/json",
+		LibraryFrame: true,
+	}}
+
+	defer os.Unsetenv("ELASTIC_APM_STACK_TRACE_LIMIT")
+	for i := -1; i < len(inFrames); i++ {
+		os.Setenv("ELASTIC_APM_STACK_TRACE_LIMIT", strconv.Itoa(i))
+		modelError := sendError(t, &internalStackTracer{
+			"zing", []stacktrace.Frame{
+				{Function: "pkg/path.FuncName"},
+				{Function: "FuncName2", Line: 123},
+				{Function: "encoding/json.Marshal"},
+			},
+		})
+		stacktrace := modelError.Exception.Stacktrace
+		if i == 0 {
+			assert.Nil(t, stacktrace)
+			continue
+		}
+		expect := outFrames
+		if i > 0 {
+			expect = expect[:i]
+		}
+		assert.Equal(t, expect, stacktrace)
+	}
 }
 
 func TestErrorAutoStackTraceReuse(t *testing.T) {

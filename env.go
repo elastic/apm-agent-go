@@ -29,6 +29,7 @@ import (
 
 	"go.elastic.co/apm/internal/apmconfig"
 	"go.elastic.co/apm/internal/wildcard"
+	"go.elastic.co/apm/model"
 )
 
 const (
@@ -48,6 +49,8 @@ const (
 	envAPIBufferSize         = "ELASTIC_APM_API_BUFFER_SIZE"
 	envMetricsBufferSize     = "ELASTIC_APM_METRICS_BUFFER_SIZE"
 	envDisableMetrics        = "ELASTIC_APM_DISABLE_METRICS"
+	envGlobalLabels          = "ELASTIC_APM_GLOBAL_LABELS"
+	envStackTraceLimit       = "ELASTIC_APM_STACK_TRACE_LIMIT"
 
 	defaultAPIRequestSize        = 750 * apmconfig.KByte
 	defaultAPIRequestTime        = 10 * time.Second
@@ -58,6 +61,7 @@ const (
 	defaultCaptureHeaders        = true
 	defaultCaptureBody           = CaptureBodyOff
 	defaultSpanFramesMinDuration = 5 * time.Millisecond
+	defaultStackTraceLimit       = 50
 
 	minAPIBufferSize     = 10 * apmconfig.KByte
 	maxAPIBufferSize     = 100 * apmconfig.MByte
@@ -81,6 +85,21 @@ var (
 		"authorization",
 		"set-cookie",
 	}, ","))
+
+	globalLabels = func() model.StringMap {
+		var labels model.StringMap
+		for _, kv := range apmconfig.ParseListEnv(envGlobalLabels, ",", nil) {
+			i := strings.IndexRune(kv, '=')
+			if i > 0 {
+				k, v := strings.TrimSpace(kv[:i]), strings.TrimSpace(kv[i+1:])
+				labels = append(labels, model.StringMapItem{
+					Key:   cleanTagKey(k),
+					Value: truncateString(v),
+				})
+			}
+		}
+		return labels
+	}()
 )
 
 func initialRequestDuration() (time.Duration, error) {
@@ -214,4 +233,16 @@ func initialActive() (bool, error) {
 
 func initialDisabledMetrics() wildcard.Matchers {
 	return apmconfig.ParseWildcardPatternsEnv(envDisableMetrics, nil)
+}
+
+func initialStackTraceLimit() (int, error) {
+	value := os.Getenv(envStackTraceLimit)
+	if value == "" {
+		return defaultStackTraceLimit, nil
+	}
+	limit, err := strconv.Atoi(value)
+	if err != nil {
+		return 0, errors.Wrapf(err, "failed to parse %s", envStackTraceLimit)
+	}
+	return limit, nil
 }

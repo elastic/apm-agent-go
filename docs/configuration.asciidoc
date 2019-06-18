@@ -142,10 +142,12 @@ of the deployed revision, e.g. the output of `git rev-parse HEAD`.
 
 The name of the environment this service is deployed in, e.g. "production" or "staging".
 
-WARNING: the APM UI does not currently group services by environment, so metrics for
-all environments will be combined. Consider changing the service name if you want to
-see the metrics separated by environment. Alternatively, you can use the search bar
-introduced with the 6.4 release.
+Environments allow you to easily filter data on a global level in the APM UI.
+It's important to be consistent when naming environments across agents.
+See {kibana-ref}/filters.html#environment-selector[environment selector] in the Kibana UI for more information.
+
+NOTE: This feature is fully supported in the APM UI in Kibana versions >= 7.2.
+You must use the query bar to filter for a specific environment in versions prior to 7.2.
 
 [float]
 [[config-active]]
@@ -159,6 +161,22 @@ introduced with the 6.4 release.
 
 Enable or disable the agent. If set to false, then the Go agent does not send
 any data to the Elastic APM server, and instrumentation overhead is minimized.
+
+[float]
+[[config-global-labels]]
+=== `ELASTIC_APM_GLOBAL_LABELS`
+
+[options="header"]
+|============
+| Environment                 | Default | Example
+| `ELASTIC_APM_GLOBAL_LABELS` |         | `dept=engineering,rack=number8`
+|============
+
+Labels added to all events, with the format key=value[,key=value[,...]].
+Any labels set by application via the API will override global labels with the same keys.
+
+This option requires APM Server 7.2 or greater, and will have no effect when using older
+server versions.
 
 [float]
 [[config-ignore-urls]]
@@ -315,6 +333,22 @@ The APM agent will collect a stack trace for every recorded span whose duration
 exceeds this configured value. While this is very helpful to find the exact
 place in your code that causes the span, collecting this stack trace does have
 some processing and storage overhead.
+
+[float]
+[[config-stack-trace-limit]]
+=== `ELASTIC_APM_STACK_TRACE_LIMIT`
+
+[options="header"]
+|============
+| Environment                     | Default
+| `ELASTIC_APM_STACK_TRACE_LIMIT` | `50`
+|============
+
+Limits the number of frames captured for each stack trace.
+
+Setting the limit to 0 will disable stack trace collection, while any positive
+integer value will be used as the maximum number of frames to collect. Setting
+a negative value, such as -1, means that all frames will be collected.
 
 [float]
 [[config-transaction-sample-rate]]

@@ -15,11 +15,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// +build go1.9
+// +build go1.11
 
 package apmgopg
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/go-pg/pg"
@@ -35,19 +36,31 @@ func init() {
 
 const elasticApmSpanKey = "go-apm-agent:span"
 
-// QueryHook is an implementation of pg.QueryHook that reports queries as spans to Elastic APM.
-type QueryHook struct{}
+// Instrument modifies db such that operations are hooked and reported as spans
+// to Elastic APM if they occur within the context of a captured transaction.
+//
+// If Instrument cannot instrument db, then an error will be returned.
+func Instrument(db *pg.DB) error {
+	qh := &queryHook{}
+	switch qh := ((interface{})(qh)).(type) {
+	case pg.QueryHook:
+		db.AddQueryHook(qh)
+		return nil
+	}
+	return errors.New("cannot instrument pg.DB, does not implement required interface")
+}
+
+// queryHook is an implementation of pg.QueryHook that reports queries as spans to Elastic APM.
+type queryHook struct{}
 
 // BeforeQuery initiates the span for the database query
-func (qh *QueryHook) BeforeQuery(evt *pg.QueryEvent) {
+func (qh *queryHook) BeforeQuery(evt *pg.QueryEvent) {
 	var (
 		database string
 		user     string
 	)
-
 	if db, ok := evt.DB.(*pg.DB); ok {
 		opts := db.Options()
-
 		user = opts.User
 		database = opts.Database
 	}
@@ -67,17 +80,15 @@ func (qh *QueryHook) BeforeQuery(evt *pg.QueryEvent) {
 		User:     user,
 		Instance: database,
 	})
-
 	evt.Data[elasticApmSpanKey] = span
 }
 
 // AfterQuery ends the initiated span from BeforeQuery
-func (qh *QueryHook) AfterQuery(evt *pg.QueryEvent) {
+func (qh *queryHook) AfterQuery(evt *pg.QueryEvent) {
 	span, ok := evt.Data[elasticApmSpanKey]
 	if !ok {
 		return
 	}
-
 	if s, ok := span.(*apm.Span); ok {
 		s.End()
 	}

@@ -17,7 +17,7 @@ Install the Elastic APM Go agent package using `go get`:
 
 [source,bash]
 ----
-go get go.elastic.co/apm
+go get -u go.elastic.co/apm
 ----
 
 ==== Requirements
@@ -225,6 +225,7 @@ import (
 
 	"golang.org/x/net/context/ctxhttp"
 
+	"go.elastic.co/apm"
 	"go.elastic.co/apm/module/apmhttp"
 )
 
@@ -234,7 +235,7 @@ func serverHandler(w http.ResponseWriter, req *http.Request) {
 	// Propagate the transaction context contained in req.Context().
 	resp, err := ctxhttp.Get(req.Context(), tracingClient, "http://backend.local/foo")
 	if err != nil {
-		apm.CaptureError(req.Context()).Send()
+		apm.CaptureError(req.Context(), err).Send()
 		http.Error(w, "failed to query backend", 500)
 		return
 	}
@@ -280,11 +281,7 @@ is `*apmhttprouter.Router`, and not `*httprouter.Router`.
 
 [source,go]
 ----
-import (
-	"github.com/julienschmidt/httprouter"
-
-	"go.elastic.co/apm/module/apmhttprouter"
-)
+import "go.elastic.co/apm/module/apmhttprouter"
 
 func main() {
 	router := apmhttprouter.New()
@@ -349,7 +346,7 @@ used, and the context includes a transaction.
 ===== module/apmgopg
 Package apmgopg provides a means of instrumenting http://github.com/go-pg/pg[go-pg] database operations.
 
-To trace `go-pg` statements, simply add the `apmgopg.QueryHook` to the database instance you plan on using and provide
+To trace `go-pg` statements, call `apmgopg.Instrument` with the database instance you plan on using and provide
 a context that contains an apm transaction.
 
 [source,go]
@@ -361,10 +358,10 @@ import (
 )
 
 func main() {
-    db := pg.Connect(&pg.Options{})
-    db.AddQueryHook(&apmgopg.QueryHook{})
+	db := pg.Connect(&pg.Options{})
+	apmgopg.Instrument(db)
 
-    db.WithContext(ctx).Model(...)
+	db.WithContext(ctx).Model(...)
 }
 ----
 
@@ -463,6 +460,40 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
 	// transaction.
 	conn := apmredigo.Wrap(redisPool.Get()).WithContext(req.Context())
 	defer conn.Close()
+	...
+}
+----
+
+[[builtin-modules-apmgoredis]]
+===== module/apmgoredis
+Package apmgoredis provides a means of instrumenting https://github.com/go-redis/redis[go-redis/redis]
+so that Redis commands are reported as spans within the current transaction.
+
+To report Redis commands, you can use the top-level `Wrap` function to wrap a
+`redis.Client`, `redis.ClusterClient`, or `redis.Ring`. Initially, the wrapped
+client will be associated with the background context; its `WithContext` method
+may be used to obtain a shallow copy with another context. For example, in an
+HTTP middleware you might bind a client to the request context, which would
+associate spans with the request's APM transaction.
+
+[source,go]
+----
+import (
+	"net/http"
+
+	"github.com/go-redis/redis"
+
+	"go.elastic.co/apm/module/apmgoredis"
+)
+
+var redisClient *redis.Client // initialized at program startup
+
+func handleRequest(w http.ResponseWriter, req *http.Request) {
+	// Wrap and bind redisClient to the request context. If the HTTP
+	// server is instrumented with Elastic APM (e.g. with apmhttp),
+	// Redis commands will be reported as spans within the request's
+	// transaction.
+	client := apmgoredis.Wrap(redisClient).WithContext(req.Context())
 	...
 }
 ----

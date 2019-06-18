@@ -138,6 +138,10 @@ func (t *Tracer) newError() *Error {
 	e.Context.captureHeaders = t.captureHeaders
 	t.captureHeadersMu.RUnlock()
 
+	t.stackTraceLimitMu.RLock()
+	e.stackTraceLimit = t.stackTraceLimit
+	t.stackTraceLimitMu.RUnlock()
+
 	return &Error{ErrorData: e}
 }
 
@@ -160,6 +164,7 @@ type Error struct {
 // When the error is sent, its ErrorData field will be set to nil.
 type ErrorData struct {
 	tracer             *Tracer
+	stackTraceLimit    int
 	stacktrace         []stacktrace.Frame
 	exception          exceptionData
 	log                ErrorLogRecord
@@ -385,11 +390,15 @@ func initStacktrace(e *Error, err error) {
 	}
 	switch stackTracer := err.(type) {
 	case internalStackTracer:
-		e.stacktrace = append(e.stacktrace[:0], stackTracer.StackTrace()...)
+		stackTrace := stackTracer.StackTrace()
+		if e.stackTraceLimit >= 0 && len(stackTrace) > e.stackTraceLimit {
+			stackTrace = stackTrace[:e.stackTraceLimit]
+		}
+		e.stacktrace = append(e.stacktrace[:0], stackTrace...)
 	case errorsStackTracer:
 		stackTrace := stackTracer.StackTrace()
 		e.stacktrace = e.stacktrace[:0]
-		pkgerrorsutil.AppendStacktrace(stackTrace, &e.stacktrace)
+		pkgerrorsutil.AppendStacktrace(stackTrace, &e.stacktrace, e.stackTraceLimit)
 	}
 }
 
@@ -398,12 +407,13 @@ func initStacktrace(e *Error, err error) {
 // the SetStacktrace function.
 func (e *Error) SetStacktrace(skip int) {
 	retain := e.stacktrace[:0]
+	limit := e.stackTraceLimit
 	if e.log.Message != "" {
 		// This is a log error; the exception stacktrace
 		// is unaffected by SetStacktrace in this case.
 		retain = e.stacktrace[:e.exceptionStacktraceFrames]
 	}
-	e.stacktrace = stacktrace.AppendStacktrace(retain, skip+1, -1)
+	e.stacktrace = stacktrace.AppendStacktrace(retain, skip+1, limit)
 }
 
 // ErrorLogRecord holds details of an error log record.

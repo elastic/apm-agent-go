@@ -30,12 +30,14 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
 	"github.com/pkg/errors"
 
 	"go.elastic.co/apm/internal/apmconfig"
+	"go.elastic.co/apm/internal/apmversion"
 )
 
 const (
@@ -147,6 +149,7 @@ func NewHTTPTransport() (*HTTPTransport, error) {
 	headers.Set("Content-Type", "application/x-ndjson")
 	headers.Set("Content-Encoding", "deflate")
 	headers.Set("Transfer-Encoding", "chunked")
+	headers.Set("User-Agent", defaultUserAgent())
 	t := &HTTPTransport{
 		Client:  client,
 		headers: headers,
@@ -346,4 +349,8 @@ func verifyPeerCertificate(rawCerts [][]byte, trusted *x509.Certificate) error {
 		return errors.New("failed to verify server certificate")
 	}
 	return nil
+}
+
+func defaultUserAgent() string {
+	return fmt.Sprintf("elasticapm-go/%s go/%s", apmversion.AgentVersion, runtime.Version())
 }
