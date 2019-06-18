@@ -15,6 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
+// +build go1.10
+
 package integration_test
 
 import (

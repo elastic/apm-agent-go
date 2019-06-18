@@ -15,7 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// +build go1.11
+package apmversion
 
-// Package apmgoredis provides helpers for tracing github.com/go-redis/redis client operations as spans.
-package apmgoredis
+const (
+	// AgentVersion is the Elastic APM Go Agent version.
+	AgentVersion = "1.3.0"
+)

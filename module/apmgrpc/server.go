@@ -48,8 +48,9 @@ var (
 // alternative tracer, and WithRecovery to enable panic recovery.
 func NewUnaryServerInterceptor(o ...ServerOption) grpc.UnaryServerInterceptor {
 	opts := serverOptions{
-		tracer:  apm.DefaultTracer,
-		recover: false,
+		tracer:         apm.DefaultTracer,
+		recover:        false,
+		requestIgnorer: DefaultServerRequestIgnorer(),
 	}
 	for _, o := range o {
 		o(&opts)
@@ -60,7 +61,7 @@ func NewUnaryServerInterceptor(o ...ServerOption) grpc.UnaryServerInterceptor {
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (resp interface{}, err error) {
-		if !opts.tracer.Active() {
+		if !opts.tracer.Active() || opts.requestIgnorer(info) {
 			return handler(ctx, req)
 		}
 		tx, ctx := startTransaction(ctx, opts.tracer, info.FullMethod)
@@ -119,8 +120,9 @@ func setTransactionResult(tx *apm.Transaction, err error) {
 }
 
 type serverOptions struct {
-	tracer  *apm.Tracer
-	recover bool
+	tracer         *apm.Tracer
+	recover        bool
+	requestIgnorer RequestIgnorerFunc
 }
 
 // ServerOption sets options for server-side tracing.
@@ -147,5 +149,21 @@ func WithTracer(t *apm.Tracer) ServerOption {
 func WithRecovery() ServerOption {
 	return func(o *serverOptions) {
 		o.recover = true
+	}
+}
+
+// RequestIgnorerFunc is the type of a function for use in
+// WithServerRequestIgnorer.
+type RequestIgnorerFunc func(*grpc.UnaryServerInfo) bool
+
+// WithServerRequestIgnorer returns a ServerOption which sets r as the
+// function to use to determine whether or not a server request should
+// be ignored. If r is nil, all requests will be reported.
+func WithServerRequestIgnorer(r RequestIgnorerFunc) ServerOption {
+	if r == nil {
+		r = IgnoreNone
+	}
+	return func(o *serverOptions) {
+		o.requestIgnorer = r
 	}
 }

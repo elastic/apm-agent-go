@@ -69,7 +69,7 @@ func (s *Scanner) scan() Token {
 			return eof
 		}
 	}
-	s.start = s.pos - 1
+	s.start = s.pos - utf8.RuneLen(r)
 
 	if r == '_' || unicode.IsLetter(r) {
 		return s.scanKeywordOrIdentifier(r != '_')
@@ -205,6 +205,8 @@ loop:
 		if r == delim {
 			if delim == '"' {
 				if r, ok := s.peek(); ok && r == delim {
+					// Skip escaped double quotes,
+					// e.g. "He said ""great""".
 					s.next()
 					continue loop
 				}
@@ -212,6 +214,7 @@ loop:
 			break
 		}
 	}
+	// Remove quotes from identifier.
 	s.start++
 	s.end--
 	return IDENT
@@ -259,6 +262,7 @@ func (s *Scanner) scanStringLiteral() Token {
 			return eof
 		}
 		if r == '\\' {
+			// Skip escaped character, e.g. 'what\'s up?'
 			s.next()
 			continue
 		}
@@ -312,6 +316,10 @@ func (s *Scanner) scanBracketedComment() Token {
 	}
 }
 
+// next returns the next rune if there is one, and advances
+// the scanner position, or returns utf8.RuneError if there
+// is no valid next rune. The bool result indicates whether
+// a valid rune is returned.
 func (s *Scanner) next() (rune, bool) {
 	r, rlen := s.peekLen()
 	if r != utf8.RuneError {
@@ -322,6 +330,9 @@ func (s *Scanner) next() (rune, bool) {
 	return r, false
 }
 
+// peek returns the next rune if there is one, or
+// utf8.RuneError if not. The bool result indicates
+// whether a valid rune is returned.
 func (s *Scanner) peek() (rune, bool) {
 	r, _ := s.peekLen()
 	if r == utf8.RuneError {
@@ -330,6 +341,9 @@ func (s *Scanner) peek() (rune, bool) {
 	return r, true
 }
 
+// peekLen returns the next rune (if there is one)
+// and its length. If there is no next valid rune,
+// utf8.RuneError and a length of -1 are returned.
 func (s *Scanner) peekLen() (rune, int) {
 	if s.pos >= len(s.input) {
 		return utf8.RuneError, -1

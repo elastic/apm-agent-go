@@ -85,6 +85,9 @@ func testWithContext(t *testing.T, dsnInfo apmsql.DSNInfo, dialect string, args 
 		db.Create(&Product{Code: "L1212", Price: 1000})
 
 		var product Product
+		var count int
+		assert.NoError(t, db.Model(&product).Count(&count).Error)
+		assert.Equal(t, 1, count)
 		assert.NoError(t, db.First(&product, "code = ?", "L1212").Error)
 		assert.NoError(t, db.Model(&product).Update("Price", 2000).Error)
 		assert.NoError(t, db.Delete(&product).Error)            // soft
@@ -105,6 +108,7 @@ func testWithContext(t *testing.T, dsnInfo apmsql.DSNInfo, dialect string, args 
 	}
 	assert.Equal(t, []string{
 		"INSERT INTO products",
+		"SELECT FROM products", // count
 		"SELECT FROM products",
 		"UPDATE products",
 		"UPDATE products", // soft delete

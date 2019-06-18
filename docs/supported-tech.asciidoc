@@ -136,6 +136,16 @@ See <<builtin-modules-apmgorm, module/apmgorm>> for more information
 about GORM instrumentation.
 
 [float]
+==== go-pg/pg
+
+We support the https://github.com/go-pg/pg[go-pg/pg] PostgreSQL ORM,
+https://github.com/go-pg/pg/releases/tag/v8.0.4[v8.0.4]. Spans will
+be created for each database operation.
+
+See <<builtin-modules-apmgopg, module/apmgopg>> for more information
+about go-pg instrumentation.
+
+[float]
 ==== Cassandra (gocql)
 
 https://gocql.github.io/[GoCQL] does not have a stable API, so we will
@@ -156,6 +166,16 @@ We provide helper functions for reporting Redis commands as spans.
 
 See <<builtin-modules-apmredigo, module/apmredigo>> for more information
 about Redigo instrumentation.
+
+[float]
+==== Redis (go-redis/redis)
+
+We support https://github.com/go-redis/redis[go-redis],
+https://github.com/go-redis/redis/tree/v6.15.3[v6.15.3].
+We provide helper functions for reporting Redis commands as spans.
+
+See <<builtin-modules-apmgoredis, module/apmgoredis>> for more information
+about go-redis instrumentation.
 
 [float]
 ==== Elasticsearch

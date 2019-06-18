@@ -122,7 +122,7 @@ func TestTracerErrors(t *testing.T) {
 	assert.Equal(t, "zing", exception.Message)
 	assert.Equal(t, "errors", exception.Module)
 	assert.Equal(t, "errorString", exception.Type)
-	assert.NotEmpty(t, stacktrace)
+	require.NotEmpty(t, stacktrace)
 	assert.Equal(t, "TestTracerErrors", stacktrace[0].Function)
 }
 
@@ -237,7 +237,7 @@ func TestSpanStackTrace(t *testing.T) {
 	tracer.Flush(nil)
 
 	spans := r.Payloads().Spans
-	assert.Len(t, spans, 3)
+	require.Len(t, spans, 3)
 
 	// Span 0 took only 9ms, so we don't set its stacktrace.
 	assert.Nil(t, spans[0].Stacktrace)
@@ -385,7 +385,7 @@ func TestTracerMetadata(t *testing.T) {
 	tracer.Flush(nil)
 
 	// TODO(axw) check other metadata
-	system, _, _ := recorder.Metadata()
+	system, _, _, _ := recorder.Metadata()
 	container, err := apmhostutil.Container()
 	if err != nil {
 		assert.Nil(t, system.Container)
@@ -397,19 +397,19 @@ func TestTracerMetadata(t *testing.T) {
 
 func TestTracerKubernetesMetadata(t *testing.T) {
 	t.Run("no-env", func(t *testing.T) {
-		system, _, _ := getSubprocessMetadata(t)
+		system, _, _, _ := getSubprocessMetadata(t)
 		assert.Nil(t, system.Kubernetes)
 	})
 
 	t.Run("namespace-only", func(t *testing.T) {
-		system, _, _ := getSubprocessMetadata(t, "KUBERNETES_NAMESPACE=myapp")
+		system, _, _, _ := getSubprocessMetadata(t, "KUBERNETES_NAMESPACE=myapp")
 		assert.Equal(t, &model.Kubernetes{
 			Namespace: "myapp",
 		}, system.Kubernetes)
 	})
 
 	t.Run("pod-only", func(t *testing.T) {
-		system, _, _ := getSubprocessMetadata(t, "KUBERNETES_POD_NAME=luna", "KUBERNETES_POD_UID=oneone!11")
+		system, _, _, _ := getSubprocessMetadata(t, "KUBERNETES_POD_NAME=luna", "KUBERNETES_POD_UID=oneone!11")
 		assert.Equal(t, &model.Kubernetes{
 			Pod: &model.KubernetesPod{
 				Name: "luna",
@@ -419,7 +419,7 @@ func TestTracerKubernetesMetadata(t *testing.T) {
 	})
 
 	t.Run("node-only", func(t *testing.T) {
-		system, _, _ := getSubprocessMetadata(t, "KUBERNETES_NODE_NAME=noddy")
+		system, _, _, _ := getSubprocessMetadata(t, "KUBERNETES_NODE_NAME=noddy")
 		assert.Equal(t, &model.Kubernetes{
 			Node: &model.KubernetesNode{
 				Name: "noddy",

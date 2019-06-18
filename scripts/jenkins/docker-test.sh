@@ -18,6 +18,5 @@ mkdir -p build/coverage
 ./scripts/docker-compose-testing up -d --build
 ./scripts/docker-compose-testing run -T --rm go-agent-tests make coverage GOFLAGS=-v 2> >(tee ${OUT_FILE} 1>&2) > ${COV_FILE}
 
-go tool cover -html="${COV_FILE}" -o build/coverage/coverage-apm-agent-go-docker-report.html
 gocover-cobertura < "${COV_FILE}" > build/coverage/coverage-apm-agent-go-docker-report.xml
 go-junit-report > build/junit-apm-agent-go-docker.xml < ${OUT_FILE}

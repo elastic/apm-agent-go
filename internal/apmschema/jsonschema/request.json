@@ -16,16 +16,12 @@
         "headers": {
             "description": "Should include any headers sent by the requester. Cookies will be taken by headers if supplied.",
             "type": ["object", "null"],
-            "properties": {
-                "content-type": {
-                    "type": ["string", "null"]
-                },
-                "cookie": {
-                    "description": "Cookies sent with the request. It is expected to have values delimited by semicolons.",
-                    "type": ["string", "null"]
-                },
-                "user-agent": {
-                    "type": ["string", "null"]
+            "patternProperties": {
+                "[.*]*$": {
+                    "type": ["string", "array", "null"],
+                    "items": {
+                        "type": ["string"]
+                    }
                 }
             }
         },
@@ -76,7 +72,7 @@
                     "maxLength": 1024
                 },
                 "port": {
-                    "type": ["string", "null"],
+                    "type": ["string", "integer","null"],
                     "description": "The port of the request, e.g. '443'",
                     "maxLength": 1024
                 },
