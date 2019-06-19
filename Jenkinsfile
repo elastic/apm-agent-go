@@ -13,7 +13,7 @@ pipeline {
     GO111MODULE = 'on'
     GOPROXY = 'https://proxy.golang.org'
     GITHUB_CHECK_ITS_NAME = 'Integration Tests'
-    ITS_PIPELINE = 'apm-integration-tests-mbp/master'
+    ITS_PIPELINE = 'apm-integration-tests-selector-mbp/master'
   }
   options {
     timeout(time: 1, unit: 'HOURS')
@@ -231,7 +231,7 @@ pipeline {
       steps {
         log(level: 'INFO', text: 'Launching Async ITs')
         build(job: env.ITS_PIPELINE, propagate: false, wait: false,
-              parameters: [booleanParam(name: 'Run_As_Master_Branch', value: true),
+              parameters: [string(name: 'AGENT_INTEGRATION_TEST', value: 'Go'),
                            string(name: 'BUILD_OPTS', value: "--go-agent-version ${env.GIT_BASE_COMMIT}"),
                            string(name: 'GITHUB_CHECK_NAME', value: env.GITHUB_CHECK_ITS_NAME),
                            string(name: 'GITHUB_CHECK_REPO', value: env.REPO),
