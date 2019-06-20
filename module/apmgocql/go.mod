@@ -5,7 +5,7 @@ require (
 	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 // indirect
 	github.com/gocql/gocql v0.0.0-20181124151448-70385f88b28b
 	github.com/stretchr/testify v1.2.2
-	go.elastic.co/apm v1.3.0
+	go.elastic.co/apm v1.4.0
 )
 
 replace go.elastic.co/apm => ../..
