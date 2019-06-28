@@ -8,8 +8,8 @@ require (
 	github.com/jinzhu/gorm v1.9.2
 	github.com/jinzhu/inflection v0.0.0-20180308033659-04140366298a // indirect
 	github.com/jinzhu/now v0.0.0-20181116074157-8ec929ed50c3 // indirect
-	github.com/pkg/errors v0.8.0
-	github.com/stretchr/testify v1.2.2
+	github.com/pkg/errors v0.8.1
+	github.com/stretchr/testify v1.3.0
 	go.elastic.co/apm v1.4.0
 	go.elastic.co/apm/module/apmsql v1.4.0
 	golang.org/x/crypto v0.0.0-20181203042331-505ab145d0a9 // indirect
