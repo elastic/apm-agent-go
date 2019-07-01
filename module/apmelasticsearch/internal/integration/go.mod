@@ -4,7 +4,7 @@ require (
 	github.com/fortytw2/leaktest v1.3.0 // indirect
 	github.com/mailru/easyjson v0.0.0-20180823135443-60711f1a8329 // indirect
 	github.com/olivere/elastic v6.2.16+incompatible
-	github.com/stretchr/testify v1.2.2
+	github.com/stretchr/testify v1.3.0
 	go.elastic.co/apm v1.4.0
 	go.elastic.co/apm/module/apmelasticsearch v1.4.0
 )
