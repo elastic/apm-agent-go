@@ -20,6 +20,7 @@ package apmhttp_test
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -119,6 +120,7 @@ func (cb *closingBody) Read(p []byte) (n int, err error) {
 	if cb.closed {
 		return 0, http.ErrBodyReadAfterClose
 	}
+	cb.Close()
 	return cb.src.Read(p)
 }
 
@@ -144,7 +146,8 @@ func TestHandlerCaptureBodyRaw(t *testing.T) {
 		tracer.SetCaptureBody(apm.CaptureBodyTransactions)
 		h := apmhttp.Wrap(
 			http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
-				err := req.Body.Close()
+				// Read body for closing
+				_, err := ioutil.ReadAll(req.Body)
 				if err != nil {
 					fmt.Println(err)
 				}
