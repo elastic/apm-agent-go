@@ -123,6 +123,33 @@ func TestHandlerCaptureBodyRaw(t *testing.T) {
 	assert.Equal(t, &model.RequestBody{Raw: "foo"}, tx.Context.Request.Body)
 }
 
+func TestHandlerCaptureBodyRawTruncated(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	tracer.SetCaptureBody(apm.CaptureBodyTransactions)
+	h := apmhttp.Wrap(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Reading 1024 bytes will read enough
+			// to form the truncated body for single
+			// byte runes, but not for multi-byte.
+			r.Body.Read(make([]byte, 1024))
+		}),
+		apmhttp.WithTracer(tracer),
+	)
+
+	// Run through once with single-byte runes, and once
+	// with multi-byte runes. This will give us coverage
+	// over all code paths for body capture.
+	bodyChars := []string{"x", "世"}
+	for _, bodyChar := range bodyChars {
+		body := strings.Repeat(bodyChar, 1025)
+		tx := testPostTransaction(h, tracer, transport, strings.NewReader(body))
+		assert.Equal(t, &model.RequestBody{Raw: strings.Repeat(bodyChar, 1024)}, tx.Context.Request.Body)
+		transport.ResetPayloads()
+	}
+}
+
 func TestHandlerCaptureBodyForm(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()

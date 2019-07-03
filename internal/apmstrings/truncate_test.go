@@ -19,6 +19,7 @@ package apmstrings_test
 
 import (
 	"testing"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
 
@@ -29,8 +30,9 @@ func TestTruncate(t *testing.T) {
 	const limit = 2
 	test := func(name, in, expect string) {
 		t.Run(name, func(t *testing.T) {
-			out := apmstrings.Truncate(in, limit)
-			assert.Equal(t, out, expect)
+			out, n := apmstrings.Truncate(in, limit)
+			assert.Equal(t, expect, out)
+			assert.Equal(t, utf8.RuneCountInString(out), n)
 		})
 	}
 	test("empty", "", "")
