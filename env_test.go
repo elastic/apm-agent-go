@@ -149,7 +149,7 @@ func TestTracerTransactionRateEnvInvalid(t *testing.T) {
 	defer os.Unsetenv("ELASTIC_APM_TRANSACTION_SAMPLE_RATE")
 
 	_, err := apm.NewTracer("tracer_testing", "")
-	assert.EqualError(t, err, "invalid ELASTIC_APM_TRANSACTION_SAMPLE_RATE value 2.0: out of range [0,1.0]")
+	assert.EqualError(t, err, "invalid value for ELASTIC_APM_TRANSACTION_SAMPLE_RATE: 2.0 (out of range [0,1.0])")
 }
 
 func testTracerTransactionRateEnv(t *testing.T, envValue string, ratio float64) {

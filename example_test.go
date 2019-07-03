@@ -170,6 +170,10 @@ func (r *recorder) count() int {
 }
 
 func (r *recorder) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	if req.URL.Path != "/intake/v2/events" {
+		// Ignore config requests.
+		return
+	}
 	body, err := zlib.NewReader(req.Body)
 	if err != nil {
 		panic(err)
