@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"go.elastic.co/apm/internal/apmstrings"
 	"go.elastic.co/apm/model"
 )
 
@@ -110,13 +111,21 @@ func (bc *BodyCapturer) setContext(out *model.RequestBody) bool {
 		return true
 	}
 
-	// Read from the buffer and anything remaining in the body.
-	r := io.MultiReader(bytes.NewReader(bc.buffer.Bytes()), bc.originalBody)
-	all, err := ioutil.ReadAll(r)
-	if err != nil {
-		// TODO(axw) log error?
-		return false
+	body, n := apmstrings.Truncate(bc.buffer.String(), stringLengthLimit)
+	if n == stringLengthLimit {
+		// There is at least enough data in the buffer
+		// to hit the string length limit, so we don't
+		// need to read from bc.originalBody as well.
+		out.Raw = body
+		return true
 	}
-	out.Raw = truncateString(string(all))
-	return true
+
+	// Read the remaining body, limiting to the maximum number of bytes
+	// that could make up the truncation limit. We ignore any errors here,
+	// and just return whatever we can.
+	rem := stringLengthLimit - n
+	r := io.LimitReader(bc.originalBody, int64(4*rem))
+	remainder, _ := ioutil.ReadAll(r)
+	out.Raw = truncateString(body + string(remainder))
+	return out.Raw != ""
 }

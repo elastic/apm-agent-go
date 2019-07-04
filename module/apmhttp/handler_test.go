@@ -19,6 +19,7 @@ package apmhttp_test
 
 import (
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -108,11 +109,45 @@ func TestHandlerCaptureBodyRaw(t *testing.T) {
 
 	tracer.SetCaptureBody(apm.CaptureBodyTransactions)
 	h := apmhttp.Wrap(
-		http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}),
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Read and close the body, which will cause further
+			// reads of the body to return an error. This should
+			// *not* cause the BodyCapturer to discard the body;
+			// see https://github.com/elastic/apm-agent-go/issues/568.
+			ioutil.ReadAll(r.Body)
+			r.Body.Close()
+		}),
 		apmhttp.WithTracer(tracer),
 	)
 	tx := testPostTransaction(h, tracer, transport, strings.NewReader("foo"))
 	assert.Equal(t, &model.RequestBody{Raw: "foo"}, tx.Context.Request.Body)
+}
+
+func TestHandlerCaptureBodyRawTruncated(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	tracer.SetCaptureBody(apm.CaptureBodyTransactions)
+	h := apmhttp.Wrap(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Reading 1024 bytes will read enough
+			// to form the truncated body for single
+			// byte runes, but not for multi-byte.
+			r.Body.Read(make([]byte, 1024))
+		}),
+		apmhttp.WithTracer(tracer),
+	)
+
+	// Run through once with single-byte runes, and once
+	// with multi-byte runes. This will give us coverage
+	// over all code paths for body capture.
+	bodyChars := []string{"x", "世"}
+	for _, bodyChar := range bodyChars {
+		body := strings.Repeat(bodyChar, 1025)
+		tx := testPostTransaction(h, tracer, transport, strings.NewReader(body))
+		assert.Equal(t, &model.RequestBody{Raw: strings.Repeat(bodyChar, 1024)}, tx.Context.Request.Body)
+		transport.ResetPayloads()
+	}
 }
 
 func TestHandlerCaptureBodyForm(t *testing.T) {
@@ -163,10 +198,16 @@ func TestHandlerCaptureBodyErrorIgnored(t *testing.T) {
 }
 
 func testPostTransaction(h http.Handler, tracer *apm.Tracer, transport *transporttest.RecorderTransport, body io.Reader) model.Transaction {
-	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("POST", "http://server.testing/foo", body)
+	server := httptest.NewServer(h)
+	defer server.Close()
+
+	req, _ := http.NewRequest("POST", server.URL+"/foo", body)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	h.ServeHTTP(w, req)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	resp.Body.Close()
 	tracer.Flush(nil)
 	return transport.Payloads().Transactions[0]
 }
