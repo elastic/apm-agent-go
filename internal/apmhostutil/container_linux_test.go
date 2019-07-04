@@ -59,6 +59,16 @@ func TestCgroupContainerInfoECS(t *testing.T) {
 	assert.Equal(t, &model.Container{ID: "7e9139716d9e5d762d22f9f877b87d1be8b1449ac912c025a984750c5dbff157"}, container)
 }
 
+func TestCgroupContainerInfoCloudFoundryGarden(t *testing.T) {
+	container, kubernetes, err := readCgroupContainerInfo(strings.NewReader(`
+1:name=systemd:/system.slice/garden.service/garden/70eb4ce5-a065-4401-6990-88ed
+`[1:]))
+
+	assert.NoError(t, err)
+	assert.Nil(t, kubernetes)
+	assert.Equal(t, &model.Container{ID: "70eb4ce5-a065-4401-6990-88ed"}, container)
+}
+
 func TestCgroupContainerInfoNonContainer(t *testing.T) {
 	container, _, err := readCgroupContainerInfo(strings.NewReader(`
 12:devices:/user.slice
