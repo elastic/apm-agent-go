@@ -543,6 +543,18 @@ func (v *Context) MarshalFastJSON(w *fastjson.Writer) error {
 	var firstErr error
 	w.RawByte('{')
 	first := true
+	if !v.Custom.isZero() {
+		const prefix = ",\"custom\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		if err := v.Custom.MarshalFastJSON(w); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
 	if v.Request != nil {
 		const prefix = ",\"request\":"
 		if first {

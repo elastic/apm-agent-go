@@ -137,6 +137,20 @@ func TestValidateContextTags(t *testing.T) {
 	})
 }
 
+func TestValidateContextCustom(t *testing.T) {
+	t.Run("long_value", func(t *testing.T) {
+		validateTransaction(t, func(tx *apm.Transaction) {
+			// Context values are not indexed, so they're not truncated.
+			tx.Context.SetCustom("x", strings.Repeat("x", 1025))
+		})
+	})
+	t.Run("reserved_key_chars", func(t *testing.T) {
+		validateTransaction(t, func(tx *apm.Transaction) {
+			tx.Context.SetCustom("x.y", "z")
+		})
+	})
+}
+
 func TestValidateRequestMethod(t *testing.T) {
 	validateTransaction(t, func(tx *apm.Transaction) {
 		req, _ := http.NewRequest(strings.Repeat("x", 1025), "/", nil)

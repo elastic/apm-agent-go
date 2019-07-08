@@ -29,6 +29,7 @@ import (
 	"github.com/pkg/errors"
 
 	"go.elastic.co/apm/internal/pkgerrorsutil"
+	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/stacktrace"
 )
 
@@ -237,15 +238,20 @@ func (e *Error) Error() string {
 
 // SetTransaction sets TraceID, TransactionID, and ParentID to the transaction's
 // IDs, and records the transaction's Type and whether or not it was sampled.
+//
+// If any custom context has been recorded in tx, it will also be carried across
+// to e, but will not override any custom context already recorded on e.
 func (e *Error) SetTransaction(tx *Transaction) {
 	tx.mu.RLock()
 	traceContext := tx.traceContext
 	var txType string
+	var custom model.IfaceMap
 	if !tx.ended() {
 		txType = tx.Type
+		custom = tx.Context.model.Custom
 	}
 	tx.mu.RUnlock()
-	e.setSpanData(traceContext, traceContext.Span, txType)
+	e.setSpanData(traceContext, traceContext.Span, txType, custom)
 }
 
 // SetSpan sets TraceID, TransactionID, and ParentID to the span's IDs.
@@ -253,25 +259,46 @@ func (e *Error) SetTransaction(tx *Transaction) {
 // There is no need to call both SetTransaction and SetSpan. If you do call
 // both, then SetSpan must be called second in order to set the error's
 // ParentID correctly.
+//
+// If any custom context has been recorded in s's transaction, it will
+// also be carried across to e, but will not override any custom context
+// already recorded on e.
 func (e *Error) SetSpan(s *Span) {
 	var txType string
+	var custom model.IfaceMap
 	if s.tx != nil {
 		s.tx.mu.RLock()
 		if !s.tx.ended() {
 			txType = s.tx.Type
+			custom = s.tx.Context.model.Custom
 		}
 		s.tx.mu.RUnlock()
 	}
-	e.setSpanData(s.traceContext, s.transactionID, txType)
+	e.setSpanData(s.traceContext, s.transactionID, txType, custom)
 }
 
-func (e *Error) setSpanData(traceContext TraceContext, transactionID SpanID, transactionType string) {
+func (e *Error) setSpanData(
+	traceContext TraceContext,
+	transactionID SpanID,
+	transactionType string,
+	customContext model.IfaceMap,
+) {
 	e.TraceID = traceContext.Trace
 	e.ParentID = traceContext.Span
 	e.TransactionID = transactionID
 	e.transactionSampled = traceContext.Options.Recorded()
 	if e.transactionSampled {
 		e.transactionType = transactionType
+	}
+	if n := len(customContext); n != 0 {
+		m := len(e.Context.model.Custom)
+		e.Context.model.Custom = append(e.Context.model.Custom, customContext...)
+		// If there was already custom context in e, shift the custom context from
+		// tx to the beginning of the slice so that e's context takes precedence.
+		if m != 0 {
+			copy(e.Context.model.Custom[n:], e.Context.model.Custom[:m])
+			copy(e.Context.model.Custom[:n], customContext)
+		}
 	}
 }
 

@@ -285,6 +285,49 @@ func TestErrorTransactionSampledNoTransaction(t *testing.T) {
 	assert.Nil(t, payloads.Errors[0].Transaction.Sampled)
 }
 
+func TestErrorTransactionCustomContext(t *testing.T) {
+	tracer, recorder := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	tx := tracer.StartTransaction("name", "type")
+	tx.Context.SetCustom("k1", "v1")
+	tx.Context.SetCustom("k2", "v2")
+	ctx := apm.ContextWithTransaction(context.Background(), tx)
+	apm.CaptureError(ctx, errors.New("boom")).Send()
+
+	_, ctx = apm.StartSpan(ctx, "foo", "bar")
+	apm.CaptureError(ctx, errors.New("boom")).Send()
+
+	// Create an error with custom context set before setting
+	// the transaction. Such custom context should override
+	// whatever is carried over from the transaction.
+	e := tracer.NewError(errors.New("boom"))
+	e.Context.SetCustom("k1", "!!")
+	e.Context.SetCustom("k3", "v3")
+	e.SetTransaction(tx)
+	e.Send()
+
+	tracer.Flush(nil)
+	payloads := recorder.Payloads()
+	require.Len(t, payloads.Errors, 3)
+
+	assert.Equal(t, model.IfaceMap{
+		{Key: "k1", Value: "v1"},
+		{Key: "k2", Value: "v2"},
+	}, payloads.Errors[0].Context.Custom)
+
+	assert.Equal(t, model.IfaceMap{
+		{Key: "k1", Value: "v1"},
+		{Key: "k2", Value: "v2"},
+	}, payloads.Errors[1].Context.Custom)
+
+	assert.Equal(t, model.IfaceMap{
+		{Key: "k1", Value: "!!"},
+		{Key: "k2", Value: "v2"},
+		{Key: "k3", Value: "v3"},
+	}, payloads.Errors[2].Context.Custom)
+}
+
 func TestErrorDetailer(t *testing.T) {
 	type error1 struct{ error }
 	apm.RegisterTypeErrorDetailer(reflect.TypeOf(error1{}), apm.ErrorDetailerFunc(func(err error, details *apm.ErrorDetails) {
