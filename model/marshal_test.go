@@ -49,6 +49,12 @@ func TestMarshalTransaction(t *testing.T) {
 		"duration":  123.456,
 		"result":    "418",
 		"context": map[string]interface{}{
+			"custom": map[string]interface{}{
+				"bar": true,
+				"baz": 3.45,
+				"foo": "one",
+				"qux": map[string]interface{}{"quux": float64(6)},
+			},
 			"service": map[string]interface{}{
 				"framework": map[string]interface{}{
 					"name":    "framework-name",
@@ -493,6 +499,12 @@ func fakeTransaction() model.Transaction {
 				Headers: model.Headers{{
 					Key: "Content-Type", Values: []string{"text/html"},
 				}},
+			},
+			Custom: model.IfaceMap{
+				{Key: "bar", Value: true},
+				{Key: "baz", Value: 3.45},
+				{Key: "foo", Value: "one"},
+				{Key: "qux", Value: map[string]interface{}{"quux": float64(6)}},
 			},
 			User: &model.User{
 				Username: "wanda",

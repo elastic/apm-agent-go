@@ -294,6 +294,9 @@ type HTTPSpanContext struct {
 
 // Context holds contextual information relating to a transaction or error.
 type Context struct {
+	// Custom holds custom context relating to the transaction or error.
+	Custom IfaceMap `json:"custom,omitempty"`
+
 	// Request holds details of the HTTP request relating to the
 	// transaction or error, if relevant.
 	Request *Request `json:"request,omitempty"`
