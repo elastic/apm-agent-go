@@ -83,6 +83,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			h.recovery(w, req, resp, body, tx, v)
 		}
 		SetTransactionContext(tx, req, resp, body)
+		body.Discard()
 	}()
 	h.handler.ServeHTTP(w, req)
 	if resp.StatusCode == 0 {

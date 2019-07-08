@@ -18,12 +18,14 @@
 package apmhttp_test
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -121,6 +123,47 @@ func TestHandlerCaptureBodyRaw(t *testing.T) {
 	)
 	tx := testPostTransaction(h, tracer, transport, strings.NewReader("foo"))
 	assert.Equal(t, &model.RequestBody{Raw: "foo"}, tx.Context.Request.Body)
+}
+
+func TestHandlerCaptureBodyConcurrency(t *testing.T) {
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+
+	tracer.SetCaptureBody(apm.CaptureBodyTransactions)
+	h := apmhttp.Wrap(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}),
+		apmhttp.WithTracer(tracer.Tracer),
+	)
+	server := httptest.NewServer(h)
+	defer server.Close()
+
+	var wg sync.WaitGroup
+	const N = 200
+	sentBodies := make([]string, N)
+	for i := 0; i < N; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			sentBodies[i] = fmt.Sprint(i)
+			req, _ := http.NewRequest("POST", server.URL+"/foo", strings.NewReader(sentBodies[i]))
+			resp, err := http.DefaultClient.Do(req)
+			if !assert.NoError(t, err) {
+				return
+			}
+			resp.Body.Close()
+		}(i)
+	}
+	wg.Wait()
+	tracer.Flush(nil)
+
+	transactions := tracer.Payloads().Transactions
+	assert.Len(t, transactions, N)
+
+	bodies := make([]string, N)
+	for i, tx := range transactions {
+		bodies[i] = tx.Context.Request.Body.Raw
+	}
+	assert.ElementsMatch(t, sentBodies, bodies)
 }
 
 func TestHandlerCaptureBodyRawTruncated(t *testing.T) {

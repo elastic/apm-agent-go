@@ -127,6 +127,7 @@ func (m *middleware) handle(c *gin.Context) {
 			e.Handled = true
 			e.Send()
 		}
+		body.Discard()
 	}()
 	c.Next()
 }

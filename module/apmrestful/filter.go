@@ -89,6 +89,7 @@ func (f *filter) filter(req *restful.Request, resp *restful.Response, chain *res
 			e.Send()
 		}
 		apmhttp.SetTransactionContext(tx, req.Request, httpResp, body)
+		body.Discard()
 	}()
 	chain.ProcessFilter(req, resp)
 	if httpResp.StatusCode == 0 {
