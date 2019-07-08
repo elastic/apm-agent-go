@@ -2,6 +2,8 @@
 
 ## [Unreleased](https://github.com/elastic/apm-agent-go/compare/v1.4.0...master)
 
+ - Add Context.SetCustom (#581)
+
 ## [v1.4.0](https://github.com/elastic/apm-agent-go/releases/tag/v1.4.0)
 
  - Update opentracing-go dependency to v1.1.0

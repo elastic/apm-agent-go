@@ -321,6 +321,24 @@ Defining too many unique fields in an index is a condition that can lead to a
 {ref}/mapping.html#mapping-limit-settings[mapping explosion].
 
 [float]
+[[context-set-custom]]
+==== `func (*Context) SetCustom(key string, value interface{})`
+
+SetCustom is used to add custom, non-indexed, contextual information to
+transactions or errors. If the key contains any special characters
+(`.`, `*`, `"`), they will be replaced with underscores.
+
+Non-indexed means the data is not searchable or aggregatable in Elasticsearch,
+and you cannot build dashboards on top of the data. However, non-indexed
+information is useful for other reasons, like providing contextual information
+to help you quickly debug performance issues or errors.
+
+The value can be of any type that can be encoded using `encoding/json`.
+
+TIP: Before using custom context, ensure you understand the different types of
+{apm-overview-ref-v}/metadata.html[metadata] that are available.
+
+[float]
 [[context-set-username]]
 ==== `func (*Context) SetUsername(username string)`
 

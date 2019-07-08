@@ -40,3 +40,9 @@ func ExampleContext_SetUserEmail() {
 	tx := apm.TransactionFromContext(ctx)
 	tx.Context.SetUsername("admin@example.com")
 }
+
+func ExampleContext_SetCustom() {
+	var ctx context.Context // request context
+	tx := apm.TransactionFromContext(ctx)
+	tx.Context.SetCustom("key", "value")
+}

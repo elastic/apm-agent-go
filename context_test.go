@@ -93,6 +93,25 @@ func TestContextFramework(t *testing.T) {
 	})
 }
 
+func TestContextCustom(t *testing.T) {
+	type arbitraryStruct struct {
+		Field string
+	}
+	tx := testSendTransaction(t, func(tx *apm.Transaction) {
+		tx.Context.SetCustom("string", "string")
+		tx.Context.SetCustom("bool", true)
+		tx.Context.SetCustom("number", 1.23)
+		tx.Context.SetCustom("struct", arbitraryStruct{Field: "foo"})
+	})
+	require.NotNil(t, tx.Context)
+	assert.Equal(t, model.IfaceMap{
+		{Key: "bool", Value: true},
+		{Key: "number", Value: 1.23},
+		{Key: "string", Value: "string"},
+		{Key: "struct", Value: map[string]interface{}{"Field": "foo"}},
+	}, tx.Context.Custom)
+}
+
 func testSendTransaction(t *testing.T, f func(tx *apm.Transaction)) model.Transaction {
 	transaction, _, _ := apmtest.WithTransaction(func(ctx context.Context) {
 		f(apm.TransactionFromContext(ctx))
