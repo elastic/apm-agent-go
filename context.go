@@ -84,6 +84,11 @@ func (c *Context) SetTag(key, value string) {
 	})
 }
 
+// ResetTags deletes all tags from the context.
+func (c *Context) ResetTags() {
+	c.model.Tags = c.model.Tags[:0]
+}
+
 // SetCustom sets custom context.
 //
 // Invalid characters ('.', '*', and '"') in the key will be

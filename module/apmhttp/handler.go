@@ -113,6 +113,7 @@ func StartTransaction(tracer *apm.Tracer, name string, req *http.Request) (*apm.
 func SetTransactionContext(tx *apm.Transaction, req *http.Request, resp *Response, body *apm.BodyCapturer) {
 	tx.Result = StatusCodeResult(resp.StatusCode)
 	if !tx.Sampled() {
+		tx.Context.ResetTags()
 		return
 	}
 	SetContext(&tx.Context, req, resp, body)
