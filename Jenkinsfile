@@ -76,9 +76,11 @@ pipeline {
                   // For the cutting edge
                   def edge = readYaml(file: '.jenkins-edge.yml')
                   go['GO_VERSION'].each{ version ->
-                    parallelTasks["Go-${version}"] = catchError(buildResult: 'SUCCESS', message: 'Cutting Edge Tests', stageResult: 'UNSTABLE') {
-                      generateStep(version)
-                    }
+                    parallelTasks["Go-${version}"] = return {
+                      catchError(buildResult: 'SUCCESS', message: 'Cutting Edge Tests', stageResult: 'UNSTABLE') {
+                        generateStep(version)
+                        }
+                      }
                   }
                   parallel(parallelTasks)
                 }
