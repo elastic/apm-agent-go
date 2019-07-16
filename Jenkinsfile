@@ -68,37 +68,19 @@ pipeline {
               unstash 'source'
               dir("${BASE_DIR}"){
                 script {
-                  def node = readYaml(file: '.jenkins.yml')
+                  def go = readYaml(file: '.jenkins.yml')
                   def parallelTasks = [:]
-                  node['GO_VERSION'].each{ version ->
+                  go['GO_VERSION'].each{ version ->
                     parallelTasks["Go-${version}"] = generateStep(version)
+                  }
+                  // For the cutting edge
+                  def edge = readYaml(file: '.jenkins-edge.yml')
+                  go['GO_VERSION'].each{ version ->
+                    parallelTasks["Go-${version}"] = catchError(buildResult: 'SUCCESS', message: 'Cutting Edge Tests', stageResult: 'UNSTABLE') {
+                      generateStep(version)
+                    }
                   }
                   parallel(parallelTasks)
-                }
-              }
-            }
-          }
-        }
-        /**
-        Execute cutting edge unit tests.
-        */
-        stage('Cutting Edge Tests') {
-          agent { label 'linux && immutable' }
-          options { skipDefaultCheckout() }
-          steps {
-            withGithubNotify(context: 'Edge Tests', tab: 'tests') {
-              deleteDir()
-              unstash 'source'
-              dir("${BASE_DIR}"){
-                script {
-                  def node = readYaml(file: '.jenkins-edge.yml')
-                  def parallelTasks = [:]
-                  node['GO_VERSION'].each{ version ->
-                    parallelTasks["Go-${version}"] = generateStep(version)
-                  }
-                  catchError(buildResult: 'SUCCESS', message: 'Cutting Edge Tests', stageResult: 'UNSTABLE') {
-                    parallel(parallelTasks)
-                  }
                 }
               }
             }
