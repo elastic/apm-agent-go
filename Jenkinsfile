@@ -76,11 +76,7 @@ pipeline {
                   // For the cutting edge
                   def edge = readYaml(file: '.jenkins-edge.yml')
                   go['GO_VERSION'].each{ version ->
-                    parallelTasks["Go-${version}"] = return {
-                      catchError(buildResult: 'SUCCESS', message: 'Cutting Edge Tests', stageResult: 'UNSTABLE') {
-                        generateStep(version)
-                        }
-                      }
+                    parallelTasks["Go-${version}"] = generateStepAndCatchError(version)
                   }
                   parallel(parallelTasks)
                 }
@@ -253,6 +249,14 @@ def generateStep(version){
           keepLongStdio: true,
           testResults: "${BASE_DIR}/build/junit-*.xml")
       }
+    }
+  }
+}
+
+def generateStepAndCatchError(version){
+  return {
+    catchError(buildResult: 'SUCCESS', message: 'Cutting Edge Tests', stageResult: 'UNSTABLE') {
+      generateStep(version)
     }
   }
 }
