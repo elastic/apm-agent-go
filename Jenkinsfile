@@ -56,102 +56,107 @@ pipeline {
             stash allowEmpty: true, name: 'source', useDefaultExcludes: false
           }
         }
-        /**
-        Execute unit tests.
-        */
         stage('Tests') {
-          agent { label 'linux && immutable' }
-          options { skipDefaultCheckout() }
-          steps {
-            withGithubNotify(context: 'Tests', tab: 'tests') {
-              deleteDir()
-              unstash 'source'
-              dir("${BASE_DIR}"){
-                script {
-                  def node = readYaml(file: '.jenkins.yml')
-                  def parallelTasks = [:]
-                  node['GO_VERSION'].each{ version ->
-                    parallelTasks["Go-${version}"] = generateStep(version)
-                  }
-                  parallel(parallelTasks)
-                }
-              }
-            }
-          }
-        }
-        /**
-        Execute cutting edge unit tests.
-        */
-        stage('Cutting Edge Tests') {
-          agent { label 'linux && immutable' }
-          options { skipDefaultCheckout() }
-          steps {
-            withGithubNotify(context: 'Edge Tests', tab: 'tests') {
-              deleteDir()
-              unstash 'source'
-              dir("${BASE_DIR}"){
-                script {
-                  def node = readYaml(file: '.jenkins-edge.yml')
-                  def parallelTasks = [:]
-                  node['GO_VERSION'].each{ version ->
-                    parallelTasks["Go-${version}"] = generateStep(version)
-                  }
-                  catchError(buildResult: 'SUCCESS', message: 'Cutting Edge Tests', stageResult: 'UNSTABLE') {
-                    parallel(parallelTasks)
+          failFast true
+          parallel {
+            /**
+            Execute unit tests.
+            */
+            stage('Unit Tests') {
+              agent { label 'linux && immutable' }
+              options { skipDefaultCheckout() }
+              steps {
+                withGithubNotify(context: 'Unit Tests', tab: 'tests') {
+                  deleteDir()
+                  unstash 'source'
+                  dir("${BASE_DIR}"){
+                    script {
+                      def node = readYaml(file: '.jenkins.yml')
+                      def parallelTasks = [:]
+                      node['GO_VERSION'].each{ version ->
+                        parallelTasks["Go-${version}"] = generateStep(version)
+                      }
+                      parallel(parallelTasks)
+                    }
                   }
                 }
               }
             }
-          }
-        }
-        stage('Coverage') {
-          agent { label 'linux && immutable' }
-          options { skipDefaultCheckout() }
-          steps {
-            withGithubNotify(context: 'Coverage') {
-              deleteDir()
-              unstash 'source'
-              dir("${BASE_DIR}"){
-                sh script: './scripts/jenkins/docker-test.sh', label: 'Docker tests'
+            /**
+            Execute cutting edge unit tests.
+            */
+            stage('Cutting Edge Tests') {
+              agent { label 'linux && immutable' }
+              options { skipDefaultCheckout() }
+              steps {
+                withGithubNotify(context: 'Edge Tests', tab: 'tests') {
+                  deleteDir()
+                  unstash 'source'
+                  dir("${BASE_DIR}"){
+                    script {
+                      def node = readYaml(file: '.jenkins-edge.yml')
+                      def parallelTasks = [:]
+                      node['GO_VERSION'].each{ version ->
+                        parallelTasks["Go-${version}"] = generateStep(version)
+                      }
+                      catchError(buildResult: 'SUCCESS', message: 'Cutting Edge Tests', stageResult: 'UNSTABLE') {
+                        parallel(parallelTasks)
+                      }
+                    }
+                  }
+                }
               }
             }
-          }
-          post {
-            always {
-              coverageReport("${BASE_DIR}/build/coverage")
-              codecov(repo: env.REPO, basedir: "${BASE_DIR}",
-                flags: "-f build/coverage/coverage.cov -X search",
-                secret: "${CODECOV_SECRET}")
-              junit(allowEmptyResults: true,
-                keepLongStdio: true,
-                testResults: "${BASE_DIR}/build/junit-*.xml")
-            }
-          }
-        }
-        stage('Benchmark') {
-          agent { label 'linux && immutable' }
-          options { skipDefaultCheckout() }
-          steps {
-            withGithubNotify(context: 'Benchmark', tab: 'tests') {
-              deleteDir()
-              unstash 'source'
-              dir("${BASE_DIR}"){
-                sh script: './scripts/jenkins/bench.sh', label: 'Benchmarking'
-                sendBenchmarks(file: 'build/bench.out', index: 'benchmark-go')
+            stage('Coverage') {
+              agent { label 'linux && immutable' }
+              options { skipDefaultCheckout() }
+              steps {
+                withGithubNotify(context: 'Coverage') {
+                  deleteDir()
+                  unstash 'source'
+                  dir("${BASE_DIR}"){
+                    sh script: './scripts/jenkins/docker-test.sh', label: 'Docker tests'
+                  }
+                }
+              }
+              post {
+                always {
+                  coverageReport("${BASE_DIR}/build/coverage")
+                  codecov(repo: env.REPO, basedir: "${BASE_DIR}",
+                    flags: "-f build/coverage/coverage.cov -X search",
+                    secret: "${CODECOV_SECRET}")
+                  junit(allowEmptyResults: true,
+                    keepLongStdio: true,
+                    testResults: "${BASE_DIR}/build/junit-*.xml")
+                }
               }
             }
-          }
-        }
-        stage('OSX') {
-          agent none
-          steps {
-            echo 'TBD'
-          }
-        }
-        stage('Windows') {
-          agent none
-          steps {
-            echo 'TBD'
+            stage('Benchmark') {
+              agent { label 'linux && immutable' }
+              options { skipDefaultCheckout() }
+              steps {
+                withGithubNotify(context: 'Benchmark', tab: 'tests') {
+                  deleteDir()
+                  unstash 'source'
+                  dir("${BASE_DIR}"){
+                    sh script: './scripts/jenkins/bench.sh', label: 'Benchmarking'
+                    sendBenchmarks(file: 'build/bench.out', index: 'benchmark-go')
+                  }
+                }
+              }
+            }
+            stage('OSX') {
+              agent none
+              steps {
+                echo 'TBD'
+              }
+            }
+            stage('Windows') {
+              agent none
+              steps {
+                echo 'TBD'
+              }
+            }
           }
         }
       }
