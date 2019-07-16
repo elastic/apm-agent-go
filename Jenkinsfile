@@ -163,12 +163,13 @@ def generateStep(version){
         env.HOME = "${WORKSPACE}"
         deleteDir()
         unstash 'source'
+        echo "${version}"
         dir("${BASE_DIR}"){
-          sh './scripts/before_install.sh'
-          sh './scripts/jenkins/build-test.sh'
-          sh './scripts/jenkins/bench.sh'
+          sh script: './scripts/before_install.sh', label: 'Install dependencies'
+          sh script: './scripts/jenkins/build-test.sh', label: 'Build and test'
+          sh script: './scripts/jenkins/bench.sh', label: 'Benchmarking'
           sendBenchmarks(file: 'build/bench.out', index: 'benchmark-go')
-          sh './scripts/jenkins/docker-test.sh'
+          sh script: './scripts/jenkins/docker-test.sh', label: 'Docker tests'
         }
       } catch(e){
         error(e.toString())
