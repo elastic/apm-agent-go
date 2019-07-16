@@ -102,6 +102,23 @@ pipeline {
               codecov(repo: env.REPO, basedir: "${BASE_DIR}",
                 flags: "-f build/coverage/coverage.cov -X search",
                 secret: "${CODECOV_SECRET}")
+              junit(allowEmptyResults: true,
+                keepLongStdio: true,
+                testResults: "${BASE_DIR}/build/junit-*.xml")
+            }
+          }
+        }
+        stage('Benchmark') {
+          agent { label 'linux && immutable' }
+          options { skipDefaultCheckout() }
+          steps {
+            withGithubNotify(context: 'Benchmark', tab: 'tests') {
+              deleteDir()
+              unstash 'source'
+              dir("${BASE_DIR}"){
+                sh script: './scripts/jenkins/bench.sh', label: 'Benchmarking'
+                sendBenchmarks(file: 'build/bench.out', index: 'benchmark-go')
+              }
             }
           }
         }
@@ -188,8 +205,6 @@ def generateStep(version){
         dir("${BASE_DIR}"){
           sh script: './scripts/before_install.sh', label: 'Install dependencies'
           sh script: './scripts/jenkins/build-test.sh', label: 'Build and test'
-          sh script: './scripts/jenkins/bench.sh', label: 'Benchmarking'
-          sendBenchmarks(file: 'build/bench.out', index: 'benchmark-go')
         }
       } catch(e){
         error(e.toString())
