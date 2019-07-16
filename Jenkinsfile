@@ -159,14 +159,15 @@ def generateStep(version){
   return {
     node('docker && linux && immutable'){
       try {
+        env.GO_VERSION = "${version}"
         env.HOME = "${WORKSPACE}"
         deleteDir()
         unstash 'source'
         dir("${BASE_DIR}"){
           sh './scripts/before_install.sh'
-          sh 'make install check'
+          sh './scripts/jenkins/build-test.sh'
           sh './scripts/jenkins/bench.sh'
-          sendBenchmarks(file: 'build/bench.out', index: "benchmark-go")
+          sendBenchmarks(file: 'build/bench.out', index: 'benchmark-go')
           sh './scripts/jenkins/docker-test.sh'
         }
       } catch(e){

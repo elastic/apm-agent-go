@@ -11,4 +11,4 @@ go get -u -v golang.org/x/tools/cmd/goimports
 go get -u -v golang.org/x/lint/golint
 go get -u -v github.com/elastic/go-licenser
 
-make install precheck
+make install check
