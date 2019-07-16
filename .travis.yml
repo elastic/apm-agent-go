@@ -37,5 +37,5 @@ jobs:
       services:
         - docker
       script:
-        - ./scripts/jenkins/docker-test.sh
+        - ./scripts/docker-test.sh
         - bash <(curl -s https://codecov.io/bash)
