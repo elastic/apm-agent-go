@@ -57,134 +57,30 @@ pipeline {
           }
         }
         /**
-        Build on a linux environment.
+        Execute unit tests.
         */
-        stage('build') {
-          steps {
-            withGithubNotify(context: 'Build') {
-              deleteDir()
-              unstash 'source'
-              dir("${BASE_DIR}"){
-                sh './scripts/jenkins/build.sh'
-              }
-            }
-          }
-        }
-      }
-    }
-    stage('Test') {
-      failFast true
-      parallel {
-        /**
-          Run unit tests and store the results in Jenkins.
-        */
-        stage('Unit Test') {
+        stage('Tests') {
           agent { label 'linux && immutable' }
           options { skipDefaultCheckout() }
           environment {
             PATH = "${env.PATH}:${env.WORKSPACE}/bin"
             HOME = "${env.WORKSPACE}"
             GOPATH = "${env.WORKSPACE}"
-            GO_VERSION = "${params.GO_VERSION}"
-          }
-          when {
-            beforeAgent true
-            expression { return params.test_ci }
           }
           steps {
-            withGithubNotify(context: 'Unit Test', tab: 'tests') {
+            withGithubNotify(context: 'Tests', tab: 'tests') {
               deleteDir()
               unstash 'source'
               dir("${BASE_DIR}"){
-                sh './scripts/jenkins/test.sh'
+                script {
+                  def node = readYaml(file: '.jenkins.yml')
+                  def parallelTasks = [:]
+                  node['GO_VERSION'].each{ version ->
+                    parallelTasks["Go-${version}"] = generateStep(version)
+                  }
+                  parallel(parallelTasks)
+                }
               }
-            }
-          }
-          post {
-            always {
-              junit(allowEmptyResults: true,
-                keepLongStdio: true,
-                testResults: "${BASE_DIR}/build/junit-*.xml")
-            }
-          }
-        }
-        /**
-          Run Benchmarks and send the results to ES.
-        */
-        stage('Benchmarks') {
-          agent { label 'linux && immutable' }
-          options { skipDefaultCheckout() }
-          environment {
-            PATH = "${env.PATH}:${env.WORKSPACE}/bin"
-            HOME = "${env.WORKSPACE}"
-            GOPATH = "${env.WORKSPACE}"
-            GO_VERSION = "${params.GO_VERSION}"
-          }
-          when {
-            beforeAgent true
-            allOf {
-              anyOf {
-                branch 'master'
-                branch "\\d+\\.\\d+"
-                branch "v\\d?"
-                tag "v\\d+\\.\\d+\\.\\d+*"
-                expression { return params.Run_As_Master_Branch }
-              }
-              expression { return params.bench_ci }
-            }
-          }
-          steps {
-            withGithubNotify(context: 'Benchmarks', tab: 'tests') {
-              deleteDir()
-              unstash 'source'
-              dir("${BASE_DIR}"){
-                sh './scripts/jenkins/bench.sh'
-                sendBenchmarks(file: 'build/bench.out', index: "benchmark-go")
-              }
-            }
-          }
-          post {
-            always {
-              junit(allowEmptyResults: true,
-                keepLongStdio: true,
-                testResults: "${BASE_DIR}/build/junit-*.xml")
-            }
-          }
-        }
-        /**
-          Run tests in a docker container and store the results in jenkins and codecov.
-        */
-        stage('Docker Tests') {
-          agent { label 'linux && docker && immutable' }
-          options { skipDefaultCheckout() }
-          environment {
-            PATH = "${env.PATH}:${env.WORKSPACE}/bin"
-            HOME = "${env.WORKSPACE}"
-            GOPATH = "${env.WORKSPACE}"
-            GO_VERSION = "${params.GO_VERSION}"
-          }
-          when {
-            beforeAgent true
-            expression { return params.docker_test_ci }
-          }
-          steps {
-            withGithubNotify(context: 'Docker Tests', tab: 'tests') {
-              deleteDir()
-              unstash 'source'
-              dir("${BASE_DIR}"){
-                sh './scripts/jenkins/docker-test.sh'
-              }
-            }
-          }
-          post {
-            always {
-              coverageReport("${BASE_DIR}/build/coverage")
-              junit(allowEmptyResults: true,
-                keepLongStdio: true,
-                testResults: "${BASE_DIR}/build/junit-*.xml")
-              codecov(repo: env.REPO, basedir: "${BASE_DIR}",
-                flags: "-f build/coverage/coverage.cov -X search",
-                secret: "${CODECOV_SECRET}")
             }
           }
         }
@@ -243,6 +139,35 @@ pipeline {
   post {
     cleanup {
       notifyBuildResult()
+    }
+  }
+}
+
+def generateStep(version){
+  return {
+    node('docker && linux && immutable'){
+      try {
+        env.HOME = "${WORKSPACE}"
+        deleteDir()
+        unstash 'source'
+        dir("${BASE_DIR}"){
+          sh './scripts/before_install.sh'
+          sh 'make install check'
+          sh './scripts/jenkins/bench.sh'
+          sendBenchmarks(file: 'build/bench.out', index: "benchmark-go")
+          sh './scripts/jenkins/docker-test.sh'
+        }
+      } catch(e){
+        error(e.toString())
+      } finally {
+        junit(allowEmptyResults: true,
+          keepLongStdio: true,
+          testResults: "${BASE_DIR}/build/junit-*.xml")
+        coverageReport("${BASE_DIR}/build/coverage")
+        codecov(repo: env.REPO, basedir: "${BASE_DIR}",
+          flags: "-f build/coverage/coverage.cov -X search",
+          secret: "${CODECOV_SECRET}")
+      }
     }
   }
 }
