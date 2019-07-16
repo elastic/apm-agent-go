@@ -62,11 +62,6 @@ pipeline {
         stage('Tests') {
           agent { label 'linux && immutable' }
           options { skipDefaultCheckout() }
-          environment {
-            PATH = "${env.PATH}:${env.WORKSPACE}/bin"
-            HOME = "${env.WORKSPACE}"
-            GOPATH = "${env.WORKSPACE}"
-          }
           steps {
             withGithubNotify(context: 'Tests', tab: 'tests') {
               deleteDir()
@@ -79,6 +74,31 @@ pipeline {
                     parallelTasks["Go-${version}"] = generateStep(version)
                   }
                   parallel(parallelTasks)
+                }
+              }
+            }
+          }
+        }
+        /**
+        Execute cutting edge unit tests.
+        */
+        stage('Cutting Edge Tests') {
+          agent { label 'linux && immutable' }
+          options { skipDefaultCheckout() }
+          steps {
+            withGithubNotify(context: 'Edge Tests', tab: 'tests') {
+              deleteDir()
+              unstash 'source'
+              dir("${BASE_DIR}"){
+                script {
+                  def node = readYaml(file: '.jenkins-edge.yml')
+                  def parallelTasks = [:]
+                  node['GO_VERSION'].each{ version ->
+                    parallelTasks["Go-${version}"] = generateStep(version)
+                  }
+                  catchError(buildResult: 'SUCCESS', message: 'Cutting Edge Tests', stageResult: 'UNSTABLE') {
+                    parallel(parallelTasks)
+                  }
                 }
               }
             }
