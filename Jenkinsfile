@@ -84,6 +84,27 @@ pipeline {
             }
           }
         }
+        stage('Coverage') {
+          agent { label 'linux && immutable' }
+          options { skipDefaultCheckout() }
+          steps {
+            withGithubNotify(context: 'Coverage') {
+              deleteDir()
+              unstash 'source'
+              dir("${BASE_DIR}"){
+                sh script: './scripts/jenkins/docker-test.sh', label: 'Docker tests'
+              }
+            }
+          }
+          post {
+            always {
+              coverageReport("${BASE_DIR}/build/coverage")
+              codecov(repo: env.REPO, basedir: "${BASE_DIR}",
+                flags: "-f build/coverage/coverage.cov -X search",
+                secret: "${CODECOV_SECRET}")
+            }
+          }
+        }
         stage('OSX') {
           agent none
           steps {
@@ -169,7 +190,6 @@ def generateStep(version){
           sh script: './scripts/jenkins/build-test.sh', label: 'Build and test'
           sh script: './scripts/jenkins/bench.sh', label: 'Benchmarking'
           sendBenchmarks(file: 'build/bench.out', index: 'benchmark-go')
-          sh script: './scripts/jenkins/docker-test.sh', label: 'Docker tests'
         }
       } catch(e){
         error(e.toString())
@@ -177,10 +197,6 @@ def generateStep(version){
         junit(allowEmptyResults: true,
           keepLongStdio: true,
           testResults: "${BASE_DIR}/build/junit-*.xml")
-        coverageReport("${BASE_DIR}/build/coverage")
-        codecov(repo: env.REPO, basedir: "${BASE_DIR}",
-          flags: "-f build/coverage/coverage.cov -X search",
-          secret: "${CODECOV_SECRET}")
       }
     }
   }
