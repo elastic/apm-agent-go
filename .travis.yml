@@ -32,18 +32,10 @@ jobs:
   include:
     - os: osx
 
-    - name: "W3C Distributed Tracing Validation"
-      sudo: required
-      services:
-        - docker
-      script:
-        - scripts/docker-compose-testing run -T --rm trace-context-harness
-
     - stage: coverage
       sudo: required
       services:
         - docker
       script:
-        - scripts/docker-compose-testing up -d --build
-        - scripts/docker-compose-testing run -T --rm go-agent-tests make coverage > coverage.txt
+        - ./scripts/jenkins/docker-test.sh
         - bash <(curl -s https://codecov.io/bash)

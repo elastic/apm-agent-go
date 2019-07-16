@@ -15,6 +15,9 @@ export COV_FILE="build/coverage/coverage.cov"
 export OUT_FILE="build/test-report.out"
 mkdir -p build/coverage
 
+echo "W3C Distributed Tracing Validation"
+./scripts/docker-compose-testing run -T --rm trace-context-harness
+
 ./scripts/docker-compose-testing up -d --build
 ./scripts/docker-compose-testing run -T --rm go-agent-tests make coverage GOFLAGS=-v 2> >(tee ${OUT_FILE} 1>&2) > ${COV_FILE}
 
