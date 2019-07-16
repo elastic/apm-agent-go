@@ -84,6 +84,18 @@ pipeline {
             }
           }
         }
+        stage('OSX') {
+          agent none
+          steps {
+            echo 'TBD'
+          }
+        }
+        stage('Windows') {
+          agent none
+          steps {
+            echo 'TBD'
+          }
+        }
       }
     }
     /**
