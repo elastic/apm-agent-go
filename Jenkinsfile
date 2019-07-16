@@ -75,7 +75,7 @@ pipeline {
                   }
                   // For the cutting edge
                   def edge = readYaml(file: '.jenkins-edge.yml')
-                  go['GO_VERSION'].each{ version ->
+                  edge['GO_VERSION'].each{ version ->
                     parallelTasks["Go-${version}"] = generateStepAndCatchError(version)
                   }
                   parallel(parallelTasks)
@@ -259,4 +259,8 @@ def generateStepAndCatchError(version){
       generateStep(version)
     }
   }
+}
+
+def cleanDir(path){
+  powershell label: "Clean ${path}", script: "Remove-Item -Recurse -Force ${path}"
 }
