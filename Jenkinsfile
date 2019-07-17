@@ -55,41 +55,6 @@ pipeline {
             stash allowEmpty: true, name: 'source', useDefaultExcludes: false
           }
         }
-        stage('Windows') {
-          agent { label 'windows' }
-          options { skipDefaultCheckout() }
-          environment {
-            GOROOT = "c:\\Go"
-            GOPATH = "${env.WORKSPACE}"
-            PATH = "${env.PATH};${env.GOROOT}\\bin;${env.GOPATH}\\bin"
-          }
-          stages{
-            stage('Install tools') {
-              steps {
-                bat 'choco config set cacheLocation %WORKSPACE%'
-                bat 'choco install golang --version %GO_VERSION% -y --no-progress'
-              }
-            }
-            stage('Build') {
-              steps {
-                withGithubNotify(context: 'Build - Windows') {
-                  cleanDir("${WORKSPACE}/${BASE_DIR}")
-                  unstash 'source'
-                  dir("${BASE_DIR}"){
-                    bat 'scripts/jenkins/windows/build-test.bat'
-                  }
-                }
-              }
-            }
-          }
-          post {
-            always {
-              junit(allowEmptyResults: true, keepLongStdio: true, testResults: "${BASE_DIR}/build/junit-*.xml")
-              bat 'choco uninstall golang --version %GO_VERSION% -y'
-              cleanWs(disableDeferredWipeout: true, notFailBuild: true)
-            }
-          }
-        }
         /**
         Execute unit tests.
         */
@@ -156,8 +121,48 @@ pipeline {
             }
           }
         }
+        stage('Windows') {
+          agent { label 'windows' }
+          options { skipDefaultCheckout() }
+          environment {
+            GOROOT = "c:\\Go"
+            GOPATH = "${env.WORKSPACE}"
+            PATH = "${env.PATH};${env.GOROOT}\\bin;${env.GOPATH}\\bin"
+          }
+          stages{
+            stage('Install tools') {
+              steps {
+                bat 'choco config set cacheLocation %WORKSPACE%'
+                bat 'choco install golang --version %GO_VERSION% -y --no-progress'
+              }
+            }
+            stage('Build') {
+              steps {
+                withGithubNotify(context: 'Build - Windows') {
+                  cleanDir("${WORKSPACE}/${BASE_DIR}")
+                  unstash 'source'
+                  dir("${BASE_DIR}"){
+                    bat 'scripts/jenkins/windows/build-test.bat'
+                  }
+                }
+              }
+            }
+          }
+          post {
+            always {
+              junit(allowEmptyResults: true, keepLongStdio: true, testResults: "${BASE_DIR}/build/junit-*.xml")
+              bat 'choco uninstall golang --version %GO_VERSION% -y'
+              cleanWs(disableDeferredWipeout: true, notFailBuild: true)
+            }
+          }
+        }
         stage('OSX') {
           agent none
+          /** TODO: As soon as MacOSX are available we will provide the stage implementation */
+          when {
+            beforeAgent true
+            expression { return false }
+          }
           steps {
             echo 'TBD'
           }
