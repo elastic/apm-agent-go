@@ -60,6 +60,7 @@ pipeline {
           options { skipDefaultCheckout() }
           environment {
             GOROOT = "${env.WORKSPACE}"
+            PATH = "${env.PATH};${env.GOROOT}\\bin;${env.DOTNET_ROOT};c:\\tools;c:\\tools\\go;c:\\tools\\go\\bin"
           }
           stages{
             /**
@@ -69,7 +70,10 @@ pipeline {
               steps {
                 dir("${HOME}"){
                   bat 'choco config set cacheLocation %GOROOT%'
-                  bat '''choco install golang --version %GO_VERSION% -y -vv'''
+                  bat 'choco install golang --version %GO_VERSION% -y'
+                  bat 'SET'
+                  bat 'dir c:\\tools'
+                  bat 'dir c:\\tools\\go'
                   bat 'go version'
                 }
               }
