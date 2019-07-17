@@ -67,8 +67,6 @@ pipeline {
             */
             stage('Install tools') {
               steps {
-                //cleanDir("${WORKSPACE}/*")
-                unstash 'source'
                 dir("${HOME}"){
                   bat 'choco install golang --version %GO_VERSION% -y -vv -ia "INSTALLDIR=""$env:GOROOT"""'
                   bat 'go version'
@@ -92,6 +90,7 @@ pipeline {
           }
           post {
             always {
+              bat 'choco uninstall golang --version %GO_VERSION% -y -vv'
               cleanWs(disableDeferredWipeout: true, notFailBuild: true)
             }
           }
