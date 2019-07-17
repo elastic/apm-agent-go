@@ -44,6 +44,7 @@ pipeline {
         HOME = "${env.WORKSPACE}"
         GOPATH = "${env.WORKSPACE}"
         GO_VERSION = "${params.GO_VERSION}"
+        PATH = "${env.PATH}:${env.WORKSPACE}/bin"
       }
       stages {
         /**
@@ -121,49 +122,50 @@ pipeline {
             }
           }
         }
-        stage('Windows') {
-          agent { label 'windows' }
-          options { skipDefaultCheckout() }
-          environment {
-            GOROOT = "c:\\Go"
-            GOPATH = "${env.WORKSPACE}"
-            PATH = "${env.PATH};${env.GOROOT}\\bin;${env.GOPATH}\\bin"
-          }
-          stages{
-            stage('Build-Test') {
-              steps {
-                withGithubNotify(context: 'Build-Test - Windows') {
-                  cleanDir("${WORKSPACE}/${BASE_DIR}")
-                  unstash 'source'
-                  dir("${BASE_DIR}"){
-                    bat script: 'scripts/jenkins/windows/install-tools.bat', label: 'Install tools'
-                    bat script: 'scripts/jenkins/windows/build-test.bat', label: 'Build and test'
-                  }
-                }
-              }
-            }
-          }
-          post {
-            always {
-              junit(allowEmptyResults: true, keepLongStdio: true, testResults: "${BASE_DIR}/build/junit-*.xml")
-              dir("${BASE_DIR}"){
-                bat script: 'scripts/jenkins/windows/uninstall-tools.bat', label: 'Uninstall tools'
-              }
-              cleanWs(disableDeferredWipeout: true, notFailBuild: true)
-            }
-          }
-        }
-        stage('OSX') {
-          agent none
-          /** TODO: As soon as MacOSX are available we will provide the stage implementation */
-          when {
-            beforeAgent true
-            expression { return false }
-          }
+      }
+    }
+    stage('Windows') {
+      agent { label 'windows' }
+      options { skipDefaultCheckout() }
+      environment {
+        GOROOT = "c:\\Go"
+        GOPATH = "${env.WORKSPACE}"
+        PATH = "${env.PATH};${env.GOROOT}\\bin;${env.GOPATH}\\bin"
+        GO_VERSION = "${params.GO_VERSION}"
+      }
+      stages{
+        stage('Build-Test') {
           steps {
-            echo 'TBD'
+            withGithubNotify(context: 'Build-Test - Windows') {
+              cleanDir("${WORKSPACE}/${BASE_DIR}")
+              unstash 'source'
+              dir("${BASE_DIR}"){
+                bat script: 'scripts/jenkins/windows/install-tools.bat', label: 'Install tools'
+                bat script: 'scripts/jenkins/windows/build-test.bat', label: 'Build and test'
+              }
+            }
           }
         }
+      }
+      post {
+        always {
+          junit(allowEmptyResults: true, keepLongStdio: true, testResults: "${BASE_DIR}/build/junit-*.xml")
+          dir("${BASE_DIR}"){
+            bat script: 'scripts/jenkins/windows/uninstall-tools.bat', label: 'Uninstall tools'
+          }
+          cleanWs(disableDeferredWipeout: true, notFailBuild: true)
+        }
+      }
+    }
+    stage('OSX') {
+      agent none
+      /** TODO: As soon as MacOSX are available we will provide the stage implementation */
+      when {
+        beforeAgent true
+        expression { return false }
+      }
+      steps {
+        echo 'TBD'
       }
     }
     /**
