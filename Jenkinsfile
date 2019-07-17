@@ -227,14 +227,16 @@ def generateStep(version){
   return {
     node('docker && linux && immutable'){
       try {
-        env.GO_VERSION = "${version}"
-        env.HOME = "${WORKSPACE}"
         deleteDir()
         unstash 'source'
         echo "${version}"
         dir("${BASE_DIR}"){
-          sh script: './scripts/before_install.sh', label: 'Install dependencies'
-          sh script: './scripts/jenkins/build-test.sh', label: 'Build and test'
+          withEnv([
+            "GO_VERSION=${version}",
+            "HOME=${WORKSPACE}"]) {
+            sh script: './scripts/before_install.sh', label: 'Install dependencies'
+            sh script: './scripts/jenkins/build-test.sh', label: 'Build and test'
+          }
         }
       } catch(e){
         error(e.toString())
