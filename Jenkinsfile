@@ -41,7 +41,6 @@ pipeline {
       agent { label 'linux && immutable' }
       options { skipDefaultCheckout() }
       environment {
-        PATH = "${env.PATH}:${env.WORKSPACE}/bin"
         HOME = "${env.WORKSPACE}"
         GOPATH = "${env.WORKSPACE}"
         GO_VERSION = "${params.GO_VERSION}"
