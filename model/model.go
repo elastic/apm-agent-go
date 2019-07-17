@@ -585,6 +585,14 @@ type Metrics struct {
 	// Timestamp holds the time at which the metric samples were taken.
 	Timestamp Time `json:"timestamp"`
 
+	// Transaction optionally holds the name and type of transactions
+	// with which these metrics are associated.
+	Transaction MetricsTransaction `json:"transaction,omitempty"`
+
+	// Span optionally holds the type and subtype of the spans with
+	// which these metrics are associated.
+	Span MetricsSpan `json:"span,omitempty"`
+
 	// Labels holds a set of labels associated with the metrics.
 	// The labels apply uniformly to all metric samples in the set.
 	//
@@ -595,6 +603,18 @@ type Metrics struct {
 
 	// Samples holds a map of metric samples, keyed by metric name.
 	Samples map[string]Metric `json:"samples"`
+}
+
+// MetricsTransaction holds transaction identifiers for metrics.
+type MetricsTransaction struct {
+	Type string `json:"type,omitempty"`
+	Name string `json:"name,omitempty"`
+}
+
+// MetricsSpan holds span identifiers for metrics.
+type MetricsSpan struct {
+	Type    string `json:"type,omitempty"`
+	Subtype string `json:"subtype,omitempty"`
 }
 
 // Metric holds metric values.

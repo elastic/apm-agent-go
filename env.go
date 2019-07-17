@@ -55,7 +55,7 @@ const (
 	defaultAPIRequestSize        = 750 * apmconfig.KByte
 	defaultAPIRequestTime        = 10 * time.Second
 	defaultAPIBufferSize         = 1 * apmconfig.MByte
-	defaultMetricsBufferSize     = 100 * apmconfig.KByte
+	defaultMetricsBufferSize     = 750 * apmconfig.KByte
 	defaultMetricsInterval       = 30 * time.Second
 	defaultMaxSpans              = 500
 	defaultCaptureHeaders        = true
