@@ -58,6 +58,9 @@ pipeline {
         stage('Windows') {
           agent { label 'windows' }
           options { skipDefaultCheckout() }
+          environment {
+            GOROOT = "${env.WORKSPACE}"
+          }
           stages{
             /**
             Checkout the code and stash it, to use it on other stages.
@@ -67,7 +70,8 @@ pipeline {
                 //cleanDir("${WORKSPACE}/*")
                 unstash 'source'
                 dir("${HOME}"){
-                  bat 'choco install golang -y --version ${GO_VERSION}'
+                  bat 'choco install golang --version %GO_VERSION% -y -vv -ia "INSTALLDIR=""$env:GOROOT"""'
+                  bat 'go version'
                 }
               }
             }
