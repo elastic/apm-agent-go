@@ -71,7 +71,7 @@ pipeline {
             */
             stage('Install tools') {
               steps {
-                cleanDir("${WORKSPACE}/*")
+                //cleanDir("${WORKSPACE}/*")
                 unstash 'source'
                 dir("${HOME}"){
                   powershell label: 'Install tools', script: "${BASE_DIR}\\scripts\\windows\\tools.ps1 -goroot ${GO_ROOT} -version ${GO_VERSION}"
@@ -83,9 +83,9 @@ pipeline {
             */
             stage('Build') {
               steps {
-                withGithubNotify(context: 'Build MSBuild - Windows') {
-                  cleanDir("${WORKSPACE}/${BASE_DIR}")
-                  unstash 'source'
+                withGithubNotify(context: 'Build - Windows') {
+                  //cleanDir("${WORKSPACE}/${BASE_DIR}")
+                  //unstash 'source'
                   dir("${BASE_DIR}"){
                     bat 'scripts/windows/build.bat'
                   }
