@@ -135,17 +135,13 @@ pipeline {
         PATH = "${env.PATH};${env.GOROOT}\\bin;${env.GOPATH}\\bin"
         GO_VERSION = "${params.GO_VERSION}"
       }
-      stages{
-        stage('Build-Test') {
-          steps {
-            withGithubNotify(context: 'Build-Test - Windows') {
-              cleanDir("${WORKSPACE}/${BASE_DIR}")
-              unstash 'source'
-              dir("${BASE_DIR}"){
-                bat script: 'scripts/jenkins/windows/install-tools.bat', label: 'Install tools'
-                bat script: 'scripts/jenkins/windows/build-test.bat', label: 'Build and test'
-              }
-            }
+      steps {
+        withGithubNotify(context: 'Build-Test - Windows') {
+          cleanDir("${WORKSPACE}/${BASE_DIR}")
+          unstash 'source'
+          dir("${BASE_DIR}"){
+            bat script: 'scripts/jenkins/windows/install-tools.bat', label: 'Install tools'
+            bat script: 'scripts/jenkins/windows/build-test.bat', label: 'Build and test'
           }
         }
       }
