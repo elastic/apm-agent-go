@@ -81,8 +81,8 @@ pipeline {
             stage('Build') {
               steps {
                 withGithubNotify(context: 'Build - Windows') {
-                  //cleanDir("${WORKSPACE}/${BASE_DIR}")
-                  //unstash 'source'
+                  cleanDir("${WORKSPACE}/${BASE_DIR}")
+                  unstash 'source'
                   dir("${BASE_DIR}"){
                     bat 'scripts/jenkins/windows/build.bat'
                   }
