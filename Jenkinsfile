@@ -96,6 +96,7 @@ pipeline {
           }
           post {
             always {
+              junit(allowEmptyResults: true, keepLongStdio: true, testResults: "${BASE_DIR}/build/junit-*.xml")
               bat 'choco uninstall golang --version %GO_VERSION% -y'
               cleanWs(disableDeferredWipeout: true, notFailBuild: true)
             }

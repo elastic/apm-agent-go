@@ -1,4 +1,8 @@
 ::
 :: This script runs the build
 ::
-make install check
+
+go get -v -u github.com/jstemmer/go-junit-report
+go get -t ./...
+mkdir -p build
+go test -v ./... 2>&1 | go-junit-report > build/junit-apm-agent-go.xml
