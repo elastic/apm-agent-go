@@ -84,7 +84,7 @@ pipeline {
                   //cleanDir("${WORKSPACE}/${BASE_DIR}")
                   //unstash 'source'
                   dir("${BASE_DIR}"){
-                    bat 'scripts/windows/build.bat'
+                    bat 'scripts/jenkins/windows/build.bat'
                   }
                 }
               }
