@@ -56,6 +56,49 @@ pipeline {
             stash allowEmpty: true, name: 'source', useDefaultExcludes: false
           }
         }
+        stage('Windows') {
+          agent { label 'windows' }
+          options { skipDefaultCheckout() }
+          environment {
+            HOME = "${env.WORKSPACE}"
+            TEMP = "${env.WORKSPACE}\\tmp"
+            GO_ROOT = "${env.WORKSPACE}\\go"
+            PATH = "${env.PATH};${env.HOME}\\bin;${env.GO_ROOT}${GO_VERSION};${env.GO_ROOT}${GO_VERSION}\\bin"
+          }
+          stages{
+            /**
+            Checkout the code and stash it, to use it on other stages.
+            */
+            stage('Install tools') {
+              steps {
+                cleanDir("${WORKSPACE}/*")
+                unstash 'source'
+                dir("${HOME}"){
+                  powershell label: 'Install tools', script: "${BASE_DIR}\\scripts\\windows\\tools.ps1 -goroot ${GO_ROOT} -version ${GO_VERSION}"
+                }
+              }
+            }
+            /**
+            Build the project from code..
+            */
+            stage('Build') {
+              steps {
+                withGithubNotify(context: 'Build MSBuild - Windows') {
+                  cleanDir("${WORKSPACE}/${BASE_DIR}")
+                  unstash 'source'
+                  dir("${BASE_DIR}"){
+                    bat 'scripts/windows/build.bat'
+                  }
+                }
+              }
+            }
+          }
+          post {
+            always {
+              cleanWs(disableDeferredWipeout: true, notFailBuild: true)
+            }
+          }
+        }
         /**
         Execute unit tests.
         */
@@ -126,48 +169,6 @@ pipeline {
           agent none
           steps {
             echo 'TBD'
-          }
-        }
-        stage('Windows') {
-          options { skipDefaultCheckout() }
-          environment {
-            HOME = "${env.WORKSPACE}"
-            TEMP = "${env.WORKSPACE}\\tmp"
-            GO_ROOT = "${env.WORKSPACE}\\go"
-            PATH = "${env.PATH};${env.HOME}\\bin;${env.GO_ROOT}${GO_VERSION};${env.GO_ROOT}${GO_VERSION}\\bin"
-          }
-          stages{
-            /**
-            Checkout the code and stash it, to use it on other stages.
-            */
-            stage('Install tools') {
-              steps {
-                cleanDir("${WORKSPACE}/*")
-                unstash 'source'
-                dir("${HOME}"){
-                  powershell label: 'Install tools', script: "${BASE_DIR}\\scripts\\windows\\tools.ps1 -goroot ${GO_ROOT} -version ${GO_VERSION}"
-                }
-              }
-            }
-            /**
-            Build the project from code..
-            */
-            stage('Build') {
-              steps {
-                withGithubNotify(context: 'Build MSBuild - Windows') {
-                  cleanDir("${WORKSPACE}/${BASE_DIR}")
-                  unstash 'source'
-                  dir("${BASE_DIR}"){
-                    bat 'scripts/windows/build.bat'
-                  }
-                }
-              }
-            }
-          }
-          post {
-            always {
-              cleanWs(disableDeferredWipeout: true, notFailBuild: true)
-            }
           }
         }
       }
