@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euxo pipefail
 
 if (go run scripts/mingoversion.go 1.10 &>/dev/null); then
   go get -v golang.org/x/lint/golint;
