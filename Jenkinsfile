@@ -71,11 +71,7 @@ pipeline {
               steps {
                 dir("${HOME}"){
                   bat 'choco config set cacheLocation %WORKSPACE%'
-                  bat 'choco install golang --version %GO_VERSION% -y'
-                  bat 'SET'
-                  bat 'dir c:\\Go'
-                  bat 'dir c:\\Go\\bin'
-                  bat 'go version'
+                  bat 'choco install golang --version %GO_VERSION% -y --no-progress'
                 }
               }
             }
