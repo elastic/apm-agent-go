@@ -61,7 +61,7 @@ pipeline {
           environment {
             GOROOT = "c:\\Go"
             GOPATH = "${env.GOROOT}"
-            PATH = "${env.PATH};${env.GOROOT}\\bin"
+            PATH = "${env.PATH};${env.GOROOT}\\bin;${env.WORKSPACE}\\bin"
           }
           stages{
             /**
