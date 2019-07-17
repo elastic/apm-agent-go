@@ -29,7 +29,7 @@ pipeline {
     issueCommentTrigger('(?i).*(?:jenkins\\W+)?run\\W+(?:the\\W+)?tests(?:\\W+please)?.*')
   }
   parameters {
-    string(name: 'GO_VERSION', defaultValue: "1.12.0", description: "Go version to use.")
+    string(name: 'GO_VERSION', defaultValue: "1.12.7", description: "Go version to use.")
     booleanParam(name: 'Run_As_Master_Branch', defaultValue: false, description: 'Allow to run any steps on a PR, some steps normally only run on master branch.')
     booleanParam(name: 'test_ci', defaultValue: true, description: 'Enable test')
     booleanParam(name: 'docker_test_ci', defaultValue: true, description: 'Enable run docker tests')
@@ -67,8 +67,7 @@ pipeline {
                 //cleanDir("${WORKSPACE}/*")
                 unstash 'source'
                 dir("${HOME}"){
-                  bat 'choco info golang'
-                  bat 'choco install golang'
+                  bat 'choco install golang -y --version ${GO_VERSION}'
                 }
               }
             }
