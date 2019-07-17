@@ -60,7 +60,6 @@ pipeline {
           options { skipDefaultCheckout() }
           environment {
             GOROOT = "${env.WORKSPACE}"
-            LOCALAPPDATA = "${env.WORKSPACE}"
           }
           stages{
             /**
@@ -69,8 +68,8 @@ pipeline {
             stage('Install tools') {
               steps {
                 dir("${HOME}"){
-                  bat 'SET'
-                  bat '''choco install golang --version %GO_VERSION% -y -vv -ia "INSTALLDIR=""$env:GOROOT"""'''
+                  bat 'choco config set cacheLocation %GOROOT%'
+                  bat '''choco install golang --version %GO_VERSION% -y -vv'''
                   bat 'go version'
                 }
               }
@@ -92,7 +91,7 @@ pipeline {
           }
           post {
             always {
-              bat 'type C:/ProgramData/chocolatey/logs/chocolatey.log'
+              bat 'type C:\\ProgramData\\chocolatey\\logs\\chocolatey.log'
               bat 'choco uninstall golang --version %GO_VERSION% -y -vv'
               cleanWs(disableDeferredWipeout: true, notFailBuild: true)
             }
