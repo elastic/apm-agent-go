@@ -60,8 +60,8 @@ pipeline {
           options { skipDefaultCheckout() }
           environment {
             GOROOT = "c:\\Go"
-            GOPATH = "${env.GOROOT}"
-            PATH = "${env.PATH};${env.GOROOT}\\bin;${env.WORKSPACE}\\bin"
+            GOPATH = "${env.WORKSPACE}"
+            PATH = "${env.PATH};${env.GOROOT}\\bin;${env.GOPATH}\\bin"
           }
           stages{
             /**
