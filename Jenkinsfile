@@ -59,12 +59,6 @@ pipeline {
         stage('Windows') {
           agent { label 'windows' }
           options { skipDefaultCheckout() }
-          environment {
-            HOME = "${env.WORKSPACE}"
-            TEMP = "${env.WORKSPACE}\\tmp"
-            GO_ROOT = "${env.WORKSPACE}\\go"
-            PATH = "${env.PATH};${env.HOME}\\bin;${env.GO_ROOT}${GO_VERSION};${env.GO_ROOT}${GO_VERSION}\\bin"
-          }
           stages{
             /**
             Checkout the code and stash it, to use it on other stages.
@@ -74,7 +68,8 @@ pipeline {
                 //cleanDir("${WORKSPACE}/*")
                 unstash 'source'
                 dir("${HOME}"){
-                  powershell label: 'Install tools', script: "${BASE_DIR}\\scripts\\windows\\tools.ps1 -goroot ${GO_ROOT} -version ${GO_VERSION}"
+                  bat 'choco info golang'
+                  bat 'choco install golang'
                 }
               }
             }
