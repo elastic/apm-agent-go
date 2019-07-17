@@ -60,6 +60,7 @@ pipeline {
           options { skipDefaultCheckout() }
           environment {
             GOROOT = "c:\\Go"
+            GOPATH = "${env.GOROOT}"
             PATH = "${env.PATH};${env.GOROOT}\\bin"
           }
           stages{
@@ -95,8 +96,7 @@ pipeline {
           }
           post {
             always {
-              bat 'type C:\\ProgramData\\chocolatey\\logs\\chocolatey.log'
-              bat 'choco uninstall golang --version %GO_VERSION% -y -vv'
+              bat 'choco uninstall golang --version %GO_VERSION% -y'
               cleanWs(disableDeferredWipeout: true, notFailBuild: true)
             }
           }
