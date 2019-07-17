@@ -64,20 +64,12 @@ pipeline {
             PATH = "${env.PATH};${env.GOROOT}\\bin;${env.GOPATH}\\bin"
           }
           stages{
-            /**
-            Checkout the code and stash it, to use it on other stages.
-            */
             stage('Install tools') {
               steps {
-                dir("${HOME}"){
-                  bat 'choco config set cacheLocation %WORKSPACE%'
-                  bat 'choco install golang --version %GO_VERSION% -y --no-progress'
-                }
+                bat 'choco config set cacheLocation %WORKSPACE%'
+                bat 'choco install golang --version %GO_VERSION% -y --no-progress'
               }
             }
-            /**
-            Build the project from code..
-            */
             stage('Build') {
               steps {
                 withGithubNotify(context: 'Build - Windows') {
