@@ -92,6 +92,7 @@ pipeline {
               deleteDir()
               unstash 'source'
               dir("${BASE_DIR}"){
+                sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
                 sh script: './scripts/jenkins/docker-test.sh', label: 'Docker tests'
               }
             }
@@ -116,6 +117,7 @@ pipeline {
               deleteDir()
               unstash 'source'
               dir("${BASE_DIR}"){
+                sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
                 sh script: './scripts/jenkins/bench.sh', label: 'Benchmarking'
                 sendBenchmarks(file: 'build/bench.out', index: 'benchmark-go')
               }
@@ -236,7 +238,7 @@ def generateStep(version){
           withEnv([
             "GO_VERSION=${version}",
             "HOME=${WORKSPACE}"]) {
-            sh script: './scripts/before_install.sh', label: 'Install dependencies'
+            sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
             sh script: './scripts/jenkins/build-test.sh', label: 'Build and test'
           }
         }
