@@ -130,19 +130,14 @@ pipeline {
             PATH = "${env.PATH};${env.GOROOT}\\bin;${env.GOPATH}\\bin"
           }
           stages{
-            stage('Install tools') {
+            stage('Build-Test') {
               steps {
-                bat 'choco config set cacheLocation %WORKSPACE%'
-                bat 'choco install golang --version %GO_VERSION% -y --no-progress'
-              }
-            }
-            stage('Build') {
-              steps {
-                withGithubNotify(context: 'Build - Windows') {
+                withGithubNotify(context: 'Build-Test - Windows') {
                   cleanDir("${WORKSPACE}/${BASE_DIR}")
                   unstash 'source'
                   dir("${BASE_DIR}"){
-                    bat 'scripts/jenkins/windows/build-test.bat'
+                    bat script: 'scripts/jenkins/windows/install-tools.bat', label: 'Install tools'
+                    bat script: 'scripts/jenkins/windows/build-test.bat', label: 'Build and test'
                   }
                 }
               }
@@ -151,7 +146,9 @@ pipeline {
           post {
             always {
               junit(allowEmptyResults: true, keepLongStdio: true, testResults: "${BASE_DIR}/build/junit-*.xml")
-              bat 'choco uninstall golang --version %GO_VERSION% -y'
+              dir("${BASE_DIR}"){
+                bat script: 'scripts/jenkins/windows/uninstall-tools.bat', label: 'Uninstall tools'
+              }
               cleanWs(disableDeferredWipeout: true, notFailBuild: true)
             }
           }

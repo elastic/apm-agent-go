@@ -1,5 +1,5 @@
 ::
-:: This script runs the build
+:: This script runs the build and test
 ::
 
 go get -v -u github.com/jstemmer/go-junit-report
