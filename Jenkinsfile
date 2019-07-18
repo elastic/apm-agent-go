@@ -62,6 +62,10 @@ pipeline {
         stage('Tests') {
           agent { label 'linux && immutable' }
           options { skipDefaultCheckout() }
+          when {
+            beforeAgent true
+            expression { return params.test_ci }
+          }
           steps {
             withGithubNotify(context: 'Tests', tab: 'tests') {
               deleteDir()
@@ -87,6 +91,10 @@ pipeline {
         stage('Coverage') {
           agent { label 'linux && immutable' }
           options { skipDefaultCheckout() }
+          when {
+            beforeAgent true
+            expression { return params.docker_test_ci }
+          }
           steps {
             withGithubNotify(context: 'Coverage') {
               deleteDir()
@@ -112,6 +120,19 @@ pipeline {
         stage('Benchmark') {
           agent { label 'linux && immutable' }
           options { skipDefaultCheckout() }
+          when {
+            beforeAgent true
+            allOf {
+              anyOf {
+                branch 'master'
+                branch "\\d+\\.\\d+"
+                branch "v\\d?"
+                tag "v\\d+\\.\\d+\\.\\d+*"
+                expression { return params.Run_As_Master_Branch }
+              }
+              expression { return params.bench_ci }
+            }
+          }
           steps {
             withGithubNotify(context: 'Benchmark', tab: 'tests') {
               deleteDir()
