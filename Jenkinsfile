@@ -29,7 +29,7 @@ pipeline {
     issueCommentTrigger('(?i).*(?:jenkins\\W+)?run\\W+(?:the\\W+)?tests(?:\\W+please)?.*')
   }
   parameters {
-    string(name: 'GO_VERSION', defaultValue: "1.12.0", description: "Go version to use.")
+    string(name: 'GO_VERSION', defaultValue: "1.12.7", description: "Go version to use.")
     booleanParam(name: 'Run_As_Master_Branch', defaultValue: false, description: 'Allow to run any steps on a PR, some steps normally only run on master branch.')
     booleanParam(name: 'test_ci', defaultValue: true, description: 'Enable test')
     booleanParam(name: 'docker_test_ci', defaultValue: true, description: 'Enable run docker tests')
@@ -41,10 +41,10 @@ pipeline {
       agent { label 'linux && immutable' }
       options { skipDefaultCheckout() }
       environment {
-        PATH = "${env.PATH}:${env.WORKSPACE}/bin"
         HOME = "${env.WORKSPACE}"
         GOPATH = "${env.WORKSPACE}"
         GO_VERSION = "${params.GO_VERSION}"
+        PATH = "${env.PATH}:${env.WORKSPACE}/bin"
       }
       stages {
         /**
@@ -57,69 +57,69 @@ pipeline {
           }
         }
         /**
-        Build on a linux environment.
+        Execute unit tests.
         */
-        stage('build') {
-          steps {
-            withGithubNotify(context: 'Build') {
-              deleteDir()
-              unstash 'source'
-              dir("${BASE_DIR}"){
-                sh './scripts/jenkins/build.sh'
-              }
-            }
-          }
-        }
-      }
-    }
-    stage('Test') {
-      failFast true
-      parallel {
-        /**
-          Run unit tests and store the results in Jenkins.
-        */
-        stage('Unit Test') {
+        stage('Tests') {
           agent { label 'linux && immutable' }
           options { skipDefaultCheckout() }
-          environment {
-            PATH = "${env.PATH}:${env.WORKSPACE}/bin"
-            HOME = "${env.WORKSPACE}"
-            GOPATH = "${env.WORKSPACE}"
-            GO_VERSION = "${params.GO_VERSION}"
-          }
           when {
             beforeAgent true
             expression { return params.test_ci }
           }
           steps {
-            withGithubNotify(context: 'Unit Test', tab: 'tests') {
+            withGithubNotify(context: 'Tests', tab: 'tests') {
               deleteDir()
               unstash 'source'
               dir("${BASE_DIR}"){
-                sh './scripts/jenkins/test.sh'
+                script {
+                  def go = readYaml(file: '.jenkins.yml')
+                  def parallelTasks = [:]
+                  go['GO_VERSION'].each{ version ->
+                    parallelTasks["Go-${version}"] = generateStep(version)
+                  }
+                  // For the cutting edge
+                  def edge = readYaml(file: '.jenkins-edge.yml')
+                  edge['GO_VERSION'].each{ version ->
+                    parallelTasks["Go-${version}"] = generateStepAndCatchError(version)
+                  }
+                  parallel(parallelTasks)
+                }
+              }
+            }
+          }
+        }
+        stage('Coverage') {
+          agent { label 'linux && immutable' }
+          options { skipDefaultCheckout() }
+          when {
+            beforeAgent true
+            expression { return params.docker_test_ci }
+          }
+          steps {
+            withGithubNotify(context: 'Coverage') {
+              deleteDir()
+              unstash 'source'
+              dir("${BASE_DIR}"){
+                sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
+                sh script: './scripts/jenkins/docker-test.sh', label: 'Docker tests'
               }
             }
           }
           post {
             always {
+              coverageReport("${BASE_DIR}/build/coverage")
+              codecov(repo: env.REPO, basedir: "${BASE_DIR}",
+                flags: "-f build/coverage/coverage.cov -X search",
+                secret: "${CODECOV_SECRET}")
               junit(allowEmptyResults: true,
                 keepLongStdio: true,
                 testResults: "${BASE_DIR}/build/junit-*.xml")
             }
           }
         }
-        /**
-          Run Benchmarks and send the results to ES.
-        */
-        stage('Benchmarks') {
+        stage('Benchmark') {
           agent { label 'linux && immutable' }
           options { skipDefaultCheckout() }
-          environment {
-            PATH = "${env.PATH}:${env.WORKSPACE}/bin"
-            HOME = "${env.WORKSPACE}"
-            GOPATH = "${env.WORKSPACE}"
-            GO_VERSION = "${params.GO_VERSION}"
-          }
           when {
             beforeAgent true
             allOf {
@@ -134,60 +134,57 @@ pipeline {
             }
           }
           steps {
-            withGithubNotify(context: 'Benchmarks', tab: 'tests') {
+            withGithubNotify(context: 'Benchmark', tab: 'tests') {
               deleteDir()
               unstash 'source'
               dir("${BASE_DIR}"){
-                sh './scripts/jenkins/bench.sh'
-                sendBenchmarks(file: 'build/bench.out', index: "benchmark-go")
+                sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
+                sh script: './scripts/jenkins/bench.sh', label: 'Benchmarking'
+                sendBenchmarks(file: 'build/bench.out', index: 'benchmark-go')
               }
             }
           }
-          post {
-            always {
-              junit(allowEmptyResults: true,
-                keepLongStdio: true,
-                testResults: "${BASE_DIR}/build/junit-*.xml")
-            }
+        }
+      }
+    }
+    stage('Windows') {
+      agent { label 'windows' }
+      options { skipDefaultCheckout() }
+      environment {
+        GOROOT = "c:\\Go"
+        GOPATH = "${env.WORKSPACE}"
+        PATH = "${env.PATH};${env.GOROOT}\\bin;${env.GOPATH}\\bin"
+        GO_VERSION = "${params.GO_VERSION}"
+      }
+      steps {
+        withGithubNotify(context: 'Build-Test - Windows') {
+          cleanDir("${WORKSPACE}/${BASE_DIR}")
+          unstash 'source'
+          dir("${BASE_DIR}"){
+            bat script: 'scripts/jenkins/windows/install-tools.bat', label: 'Install tools'
+            bat script: 'scripts/jenkins/windows/build-test.bat', label: 'Build and test'
           }
         }
-        /**
-          Run tests in a docker container and store the results in jenkins and codecov.
-        */
-        stage('Docker Tests') {
-          agent { label 'linux && docker && immutable' }
-          options { skipDefaultCheckout() }
-          environment {
-            PATH = "${env.PATH}:${env.WORKSPACE}/bin"
-            HOME = "${env.WORKSPACE}"
-            GOPATH = "${env.WORKSPACE}"
-            GO_VERSION = "${params.GO_VERSION}"
+      }
+      post {
+        always {
+          junit(allowEmptyResults: true, keepLongStdio: true, testResults: "${BASE_DIR}/build/junit-*.xml")
+          dir("${BASE_DIR}"){
+            bat script: 'scripts/jenkins/windows/uninstall-tools.bat', label: 'Uninstall tools'
           }
-          when {
-            beforeAgent true
-            expression { return params.docker_test_ci }
-          }
-          steps {
-            withGithubNotify(context: 'Docker Tests', tab: 'tests') {
-              deleteDir()
-              unstash 'source'
-              dir("${BASE_DIR}"){
-                sh './scripts/jenkins/docker-test.sh'
-              }
-            }
-          }
-          post {
-            always {
-              coverageReport("${BASE_DIR}/build/coverage")
-              junit(allowEmptyResults: true,
-                keepLongStdio: true,
-                testResults: "${BASE_DIR}/build/junit-*.xml")
-              codecov(repo: env.REPO, basedir: "${BASE_DIR}",
-                flags: "-f build/coverage/coverage.cov -X search",
-                secret: "${CODECOV_SECRET}")
-            }
-          }
+          cleanWs(disableDeferredWipeout: true, notFailBuild: true)
         }
+      }
+    }
+    stage('OSX') {
+      agent none
+      /** TODO: As soon as MacOSX are available we will provide the stage implementation */
+      when {
+        beforeAgent true
+        expression { return false }
+      }
+      steps {
+        echo 'TBD'
       }
     }
     /**
@@ -245,4 +242,42 @@ pipeline {
       notifyBuildResult()
     }
   }
+}
+
+def generateStep(version){
+  return {
+    node('docker && linux && immutable'){
+      try {
+        deleteDir()
+        unstash 'source'
+        echo "${version}"
+        dir("${BASE_DIR}"){
+          withEnv([
+            "GO_VERSION=${version}",
+            "HOME=${WORKSPACE}"]) {
+            sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
+            sh script: './scripts/jenkins/build-test.sh', label: 'Build and test'
+          }
+        }
+      } catch(e){
+        error(e.toString())
+      } finally {
+        junit(allowEmptyResults: true,
+          keepLongStdio: true,
+          testResults: "${BASE_DIR}/build/junit-*.xml")
+      }
+    }
+  }
+}
+
+def generateStepAndCatchError(version){
+  return {
+    catchError(buildResult: 'SUCCESS', message: 'Cutting Edge Tests', stageResult: 'UNSTABLE') {
+      generateStep(version)
+    }
+  }
+}
+
+def cleanDir(path){
+  powershell label: "Clean ${path}", script: "Remove-Item -Recurse -Force ${path}"
 }
