@@ -44,6 +44,9 @@ func TestTracerRequestTimeEnv(t *testing.T) {
 
 	requestHandled := make(chan struct{}, 1)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.URL.Path != "/intake/v2/events" {
+			return
+		}
 		io.Copy(ioutil.Discard, req.Body)
 		requestHandled <- struct{}{}
 	}))
@@ -52,12 +55,14 @@ func TestTracerRequestTimeEnv(t *testing.T) {
 	os.Setenv("ELASTIC_APM_SERVER_URLS", server.URL)
 	defer os.Unsetenv("ELASTIC_APM_SERVER_URLS")
 
-	tracer, err := apm.NewTracer("tracer_testing", "")
-	require.NoError(t, err)
-	defer tracer.Close()
 	httpTransport, err := transport.NewHTTPTransport()
 	require.NoError(t, err)
-	tracer.Transport = httpTransport
+	tracer, err := apm.NewTracerOptions(apm.TracerOptions{
+		ServiceName: "tracer_testing",
+		Transport:   httpTransport,
+	})
+	require.NoError(t, err)
+	defer tracer.Close()
 
 	clientStart := time.Now()
 	tracer.StartTransaction("name", "type").End()
@@ -151,10 +156,8 @@ func testTracerTransactionRateEnv(t *testing.T, envValue string, ratio float64) 
 	os.Setenv("ELASTIC_APM_TRANSACTION_SAMPLE_RATE", envValue)
 	defer os.Unsetenv("ELASTIC_APM_TRANSACTION_SAMPLE_RATE")
 
-	tracer, err := apm.NewTracer("tracer_testing", "")
-	require.NoError(t, err)
+	tracer := apmtest.NewDiscardTracer()
 	defer tracer.Close()
-	tracer.Transport = transporttest.Discard
 
 	const N = 10000
 	var sampled int

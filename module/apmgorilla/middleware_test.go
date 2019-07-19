@@ -27,17 +27,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/module/apmgorilla"
-	"go.elastic.co/apm/transport/transporttest"
 )
 
 func TestMuxMiddleware(t *testing.T) {
-	tracer, transport := transporttest.NewRecorderTracer()
+	tracer := apmtest.NewRecordingTracer()
 	defer tracer.Close()
 
 	r := mux.NewRouter()
-	r.Use(apmgorilla.Middleware(apmgorilla.WithTracer(tracer)))
+	r.Use(apmgorilla.Middleware(apmgorilla.WithTracer(tracer.Tracer)))
 	sub := r.PathPrefix("/prefix").Subrouter()
 	sub.Path("/articles/{category}/{id:[0-9]+}").Handler(http.HandlerFunc(articleHandler))
 
@@ -45,7 +45,7 @@ func TestMuxMiddleware(t *testing.T) {
 	assert.Equal(t, "fiction:123", w.Body.String())
 	tracer.Flush(nil)
 
-	payloads := transport.Payloads()
+	payloads := tracer.Payloads()
 	transaction := payloads.Transactions[0]
 
 	assert.Equal(t, "GET /prefix/articles/{category}/{id}", transaction.Name)
@@ -82,11 +82,11 @@ func TestMuxMiddleware(t *testing.T) {
 }
 
 func TestInstrumentUnknownRoute(t *testing.T) {
-	tracer, transport := transporttest.NewRecorderTracer()
+	tracer := apmtest.NewRecordingTracer()
 	defer tracer.Close()
 
 	r := mux.NewRouter()
-	apmgorilla.Instrument(r, apmgorilla.WithTracer(tracer))
+	apmgorilla.Instrument(r, apmgorilla.WithTracer(tracer.Tracer))
 	r.HandleFunc("/foo", articleHandler).Methods("GET")
 
 	w := doRequest(r, "GET", "http://server.testing/bar")
@@ -95,7 +95,7 @@ func TestInstrumentUnknownRoute(t *testing.T) {
 	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
 	tracer.Flush(nil)
 
-	transactions := transport.Payloads().Transactions
+	transactions := tracer.Payloads().Transactions
 	require.Len(t, transactions, 2)
 
 	assert.Equal(t, "GET unknown route", transactions[0].Name)

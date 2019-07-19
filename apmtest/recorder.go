@@ -18,35 +18,26 @@
 package apmtest
 
 import (
-	"log"
-
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/transport/transporttest"
 )
 
-// DiscardTracer is an apm.Tracer that discards all events.
-//
-// This tracer may be used by multiple tests, and so should
-// not be modified or closed.
-//
-// Importing apmttest will close apm.DefaultTracer, and update
-// it to this value.
-var DiscardTracer *apm.Tracer
-
-// NewDiscardTracer returns a new apm.Tracer that discards all events.
-func NewDiscardTracer() *apm.Tracer {
+// NewRecordingTracer returns a new RecordingTracer, containing a new
+// Tracer using the RecorderTransport stored inside.
+func NewRecordingTracer() *RecordingTracer {
+	var result RecordingTracer
 	tracer, err := apm.NewTracerOptions(apm.TracerOptions{
-		Transport: transporttest.Discard,
+		Transport: &result.RecorderTransport,
 	})
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
-	return tracer
+	result.Tracer = tracer
+	return &result
 }
 
-func init() {
-	apm.DefaultTracer.Close()
-	tracer := NewDiscardTracer()
-	DiscardTracer = tracer
-	apm.DefaultTracer = DiscardTracer
+// RecordingTracer holds an apm.Tracer and transporttest.RecorderTransport.
+type RecordingTracer struct {
+	*apm.Tracer
+	transporttest.RecorderTransport
 }

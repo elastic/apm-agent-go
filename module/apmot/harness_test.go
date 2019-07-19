@@ -27,8 +27,8 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"go.elastic.co/apm"
+	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/module/apmhttp"
-	"go.elastic.co/apm/transport/transporttest"
 )
 
 func TestHarness(t *testing.T) {
@@ -51,13 +51,8 @@ func TestHarness(t *testing.T) {
 	}()
 
 	newTracer := func() (opentracing.Tracer, func()) {
-		apmtracer, err := apm.NewTracer("transporttest", "")
-		if err != nil {
-			panic(err)
-		}
-		apmtracer.Transport = transporttest.Discard
-		tracer := New(WithTracer(apmtracer))
-		return tracer, apmtracer.Close
+		tracer := New(WithTracer(apmtest.DiscardTracer))
+		return tracer, func() {}
 	}
 
 	var done bool
