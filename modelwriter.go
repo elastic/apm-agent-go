@@ -105,7 +105,8 @@ func (w *modelWriter) writeMetrics(m *Metrics) {
 func (w *modelWriter) buildModelTransaction(out *model.Transaction, tx *Transaction, td *TransactionData) {
 	out.ID = model.SpanID(tx.traceContext.Span)
 	out.TraceID = model.TraceID(tx.traceContext.Trace)
-	if !tx.traceContext.Options.Recorded() {
+	sampled := tx.traceContext.Options.Recorded()
+	if !sampled {
 		out.Sampled = &notSampled
 	}
 
@@ -117,8 +118,10 @@ func (w *modelWriter) buildModelTransaction(out *model.Transaction, tx *Transact
 	out.Duration = td.Duration.Seconds() * 1000
 	out.SpanCount.Started = td.spansCreated
 	out.SpanCount.Dropped = td.spansDropped
+	if sampled {
+		out.Context = td.Context.build()
+	}
 
-	out.Context = td.Context.build()
 	if len(w.cfg.sanitizedFieldNames) != 0 && out.Context != nil {
 		if out.Context.Request != nil {
 			sanitizeRequest(out.Context.Request, w.cfg.sanitizedFieldNames)

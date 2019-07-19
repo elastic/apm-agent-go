@@ -6,6 +6,7 @@
  - Add support for extracting UUID-like container IDs (#577)
  - Introduce transaction/span breakdown metrics (#564)
  - Optimised HTTP request body capture (#592)
+ - Fixed transaction encoding to drop tags (and other context) for non-sampled transactions (#593)
 
 ## [v1.4.0](https://github.com/elastic/apm-agent-go/releases/tag/v1.4.0)
 
