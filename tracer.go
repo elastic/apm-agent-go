@@ -28,8 +28,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"go.elastic.co/apm/internal/apmconfig"
 	"go.elastic.co/apm/internal/apmlog"
+	"go.elastic.co/apm/internal/configutil"
 	"go.elastic.co/apm/internal/iochan"
 	"go.elastic.co/apm/internal/ringbuffer"
 	"go.elastic.co/apm/internal/wildcard"
@@ -467,7 +467,7 @@ func (t *Tracer) SetSanitizedFieldNames(patterns ...string) error {
 	if len(patterns) != 0 {
 		matchers = make(wildcard.Matchers, len(patterns))
 		for i, p := range patterns {
-			matchers[i] = apmconfig.ParseWildcardPattern(p)
+			matchers[i] = configutil.ParseWildcardPattern(p)
 		}
 	}
 	t.sendConfigCommand(func(cfg *tracerConfig) {

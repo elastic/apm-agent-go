@@ -36,8 +36,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"go.elastic.co/apm/internal/apmconfig"
 	"go.elastic.co/apm/internal/apmversion"
+	"go.elastic.co/apm/internal/configutil"
 )
 
 const (
@@ -99,12 +99,12 @@ type HTTPTransport struct {
 //   certificates.
 //
 func NewHTTPTransport() (*HTTPTransport, error) {
-	verifyServerCert, err := apmconfig.ParseBoolEnv(envVerifyServerCert, true)
+	verifyServerCert, err := configutil.ParseBoolEnv(envVerifyServerCert, true)
 	if err != nil {
 		return nil, err
 	}
 
-	serverTimeout, err := apmconfig.ParseDurationEnv(envServerTimeout, defaultServerTimeout)
+	serverTimeout, err := configutil.ParseDurationEnv(envServerTimeout, defaultServerTimeout)
 	if err != nil {
 		return nil, err
 	}
