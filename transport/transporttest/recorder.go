@@ -33,13 +33,17 @@ import (
 
 // NewRecorderTracer returns a new apm.Tracer and
 // RecorderTransport, which is set as the tracer's transport.
+//
+// DEPRECATED. Use apmtest.NewRecordingTracer instead.
 func NewRecorderTracer() (*apm.Tracer, *RecorderTransport) {
 	var transport RecorderTransport
-	tracer, err := apm.NewTracer("transporttest", "")
+	tracer, err := apm.NewTracerOptions(apm.TracerOptions{
+		ServiceName: "transporttest",
+		Transport:   &transport,
+	})
 	if err != nil {
 		panic(err)
 	}
-	tracer.Transport = &transport
 	return tracer, &transport
 }
 

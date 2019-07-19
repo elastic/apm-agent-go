@@ -198,7 +198,8 @@ func TestWriterTracerClosed(t *testing.T) {
 
 func TestWriterFatal(t *testing.T) {
 	if os.Getenv("_INSIDE_TEST") == "1" {
-		logger := zerolog.New(&apmzerolog.Writer{})
+		tracer, _ := apm.NewTracer("", "")
+		logger := zerolog.New(&apmzerolog.Writer{Tracer: tracer})
 		logger.Fatal().Msg("fatality!")
 	}
 

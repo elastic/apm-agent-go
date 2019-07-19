@@ -28,9 +28,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"go.elastic.co/apm"
+	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/model"
-	"go.elastic.co/apm/transport/transporttest"
 	"go.elastic.co/fastjson"
 )
 
@@ -77,14 +76,12 @@ func getSubprocessMetadata(t *testing.T, env ...string) (*model.System, *model.P
 }
 
 func dumpMetadata() {
-	var transport transporttest.RecorderTransport
-	tracer, _ := apm.NewTracer("", "")
+	tracer := apmtest.NewRecordingTracer()
 	defer tracer.Close()
-	tracer.Transport = &transport
 
 	tracer.StartTransaction("name", "type").End()
 	tracer.Flush(nil)
-	system, process, service, labels := transport.Metadata()
+	system, process, service, labels := tracer.Metadata()
 
 	var w fastjson.Writer
 	for _, m := range []fastjson.Marshaler{&system, &process, &service, labels} {

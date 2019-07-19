@@ -58,12 +58,37 @@ var (
 )
 
 func init() {
-	var opts options
-	opts.init(true)
+	var opts TracerOptions
+	opts.initDefaults(true)
 	DefaultTracer = newTracer(opts)
 }
 
-type options struct {
+// TracerOptions holds initial tracer options, for passing to NewTracerOptions.
+type TracerOptions struct {
+	// ServiceName holds the service name.
+	//
+	// If ServiceName is empty, the service name will be defined using the
+	// ELASTIC_APM_SERVICE_NAME environment variable, or if that is not set,
+	// the executable name.
+	ServiceName string
+
+	// ServiceVersion holds the service version.
+	//
+	// If ServiceVersion is empty, the service version will be defined using
+	// the ELASTIC_APM_SERVICE_VERSION environment variable.
+	ServiceVersion string
+
+	// ServiceEnvironment holds the service environment.
+	//
+	// If ServiceEnvironment is empty, the service environment will be defined
+	// using the ELASTIC_APM_ENVIRONMENT environment variable.
+	ServiceEnvironment string
+
+	// Transport holds the transport to use for sending events.
+	//
+	// If Transport is nil, transport.Default will be used.
+	Transport transport.Transport
+
 	requestDuration       time.Duration
 	metricsInterval       time.Duration
 	maxSpans              int
@@ -77,13 +102,11 @@ type options struct {
 	captureBody           CaptureBodyMode
 	spanFramesMinDuration time.Duration
 	stackTraceLimit       int
-	serviceName           string
-	serviceVersion        string
-	serviceEnvironment    string
 	active                bool
 }
 
-func (opts *options) init(continueOnError bool) error {
+// initDefaults updates opts with default values.
+func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 	var errs []error
 	failed := func(err error) bool {
 		if err == nil {
@@ -157,6 +180,13 @@ func (opts *options) init(continueOnError bool) error {
 		active = true
 	}
 
+	if opts.ServiceName != "" {
+		err := validateServiceName(opts.ServiceName)
+		if failed(err) {
+			opts.ServiceName = ""
+		}
+	}
+
 	if len(errs) != 0 && !continueOnError {
 		return errs[0]
 	}
@@ -177,8 +207,21 @@ func (opts *options) init(continueOnError bool) error {
 	opts.captureBody = captureBody
 	opts.spanFramesMinDuration = spanFramesMinDuration
 	opts.stackTraceLimit = stackTraceLimit
-	opts.serviceName, opts.serviceVersion, opts.serviceEnvironment = initialService()
 	opts.active = active
+	if opts.Transport == nil {
+		opts.Transport = transport.Default
+	}
+
+	serviceName, serviceVersion, serviceEnvironment := initialService()
+	if opts.ServiceName == "" {
+		opts.ServiceName = serviceName
+	}
+	if opts.ServiceVersion == "" {
+		opts.ServiceVersion = serviceVersion
+	}
+	if opts.ServiceEnvironment == "" {
+		opts.ServiceEnvironment = serviceEnvironment
+	}
 	return nil
 }
 
@@ -250,30 +293,30 @@ type Tracer struct {
 }
 
 // NewTracer returns a new Tracer, using the default transport,
-// initializing a Service with the specified name and version,
-// or taking the service name and version from the environment
-// if unspecified.
-//
-// If serviceName is empty, then the service name will be defined
-// using the ELASTIC_APM_SERVER_NAME environment variable.
+// and with the specified service name and version if specified.
+// This is equivalent to calling NewTracerOptions with a
+// TracerOptions having ServiceName and ServiceVersion set to
+// the provided arguments.
 func NewTracer(serviceName, serviceVersion string) (*Tracer, error) {
-	var opts options
-	if err := opts.init(false); err != nil {
+	return NewTracerOptions(TracerOptions{
+		ServiceName:    serviceName,
+		ServiceVersion: serviceVersion,
+	})
+}
+
+// NewTracerOptions returns a new Tracer using the provided options.
+// See TracerOptions for details on the options, and their default
+// values.
+func NewTracerOptions(opts TracerOptions) (*Tracer, error) {
+	if err := opts.initDefaults(false); err != nil {
 		return nil, err
-	}
-	if serviceName != "" {
-		if err := validateServiceName(serviceName); err != nil {
-			return nil, err
-		}
-		opts.serviceName = serviceName
-		opts.serviceVersion = serviceVersion
 	}
 	return newTracer(opts), nil
 }
 
-func newTracer(opts options) *Tracer {
+func newTracer(opts TracerOptions) *Tracer {
 	t := &Tracer{
-		Transport:             transport.Default,
+		Transport:             opts.Transport,
 		process:               &currentProcess,
 		system:                &localSystem,
 		closing:               make(chan struct{}),
@@ -293,9 +336,9 @@ func newTracer(opts options) *Tracer {
 		bufferSize:            opts.bufferSize,
 		metricsBufferSize:     opts.metricsBufferSize,
 	}
-	t.Service.Name = opts.serviceName
-	t.Service.Version = opts.serviceVersion
-	t.Service.Environment = opts.serviceEnvironment
+	t.Service.Name = opts.ServiceName
+	t.Service.Version = opts.ServiceVersion
+	t.Service.Environment = opts.ServiceEnvironment
 
 	// NOTE(axw) if/when disabledMetrics becomes dynamically modifiable,
 	// we'll need to change how we update and check these flags.

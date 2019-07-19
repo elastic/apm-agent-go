@@ -37,6 +37,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"go.elastic.co/apm"
+	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/internal/apmhostutil"
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/transport"
@@ -44,10 +45,8 @@ import (
 )
 
 func TestTracerStats(t *testing.T) {
-	tracer, err := apm.NewTracer("tracer_testing", "")
-	assert.NoError(t, err)
+	tracer := apmtest.NewDiscardTracer()
 	defer tracer.Close()
-	tracer.Transport = transporttest.Discard
 
 	for i := 0; i < 500; i++ {
 		tracer.StartTransaction("name", "type").End()
@@ -272,12 +271,14 @@ func TestTracerRequestSize(t *testing.T) {
 	os.Setenv("ELASTIC_APM_SERVER_URLS", server.URL)
 	defer os.Unsetenv("ELASTIC_APM_SERVER_URLS")
 
-	tracer, err := apm.NewTracer("tracer_testing", "")
-	require.NoError(t, err)
-	defer tracer.Close()
 	httpTransport, err := transport.NewHTTPTransport()
 	require.NoError(t, err)
-	tracer.Transport = httpTransport
+	tracer, err := apm.NewTracerOptions(apm.TracerOptions{
+		ServiceName: "tracer_testing",
+		Transport:   httpTransport,
+	})
+	require.NoError(t, err)
+	defer tracer.Close()
 
 	// Send through a bunch of transactions, filling up the API request
 	// size, causing the request to be immediately completed.
@@ -365,12 +366,14 @@ func TestTracerBodyUnread(t *testing.T) {
 	os.Setenv("ELASTIC_APM_SERVER_URLS", server.URL)
 	defer os.Unsetenv("ELASTIC_APM_SERVER_URLS")
 
-	tracer, err := apm.NewTracer("tracer_testing", "")
-	require.NoError(t, err)
-	defer tracer.Close()
 	httpTransport, err := transport.NewHTTPTransport()
 	require.NoError(t, err)
-	tracer.Transport = httpTransport
+	tracer, err := apm.NewTracerOptions(apm.TracerOptions{
+		ServiceName: "tracer_testing",
+		Transport:   httpTransport,
+	})
+	require.NoError(t, err)
+	defer tracer.Close()
 
 	for atomic.LoadInt64(&requests) <= 1 {
 		tracer.StartTransaction("name", "type").End()

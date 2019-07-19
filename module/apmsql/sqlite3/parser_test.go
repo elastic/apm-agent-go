@@ -22,6 +22,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	_ "go.elastic.co/apm/apmtest" // disable default tracer
 	"go.elastic.co/apm/module/apmsql"
 	apmsqlite3 "go.elastic.co/apm/module/apmsql/sqlite3"
 )

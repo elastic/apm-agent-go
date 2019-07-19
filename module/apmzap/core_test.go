@@ -125,7 +125,8 @@ func TestCoreTracerClosed(t *testing.T) {
 
 func TestCoreFatal(t *testing.T) {
 	if os.Getenv("_INSIDE_TEST") == "1" {
-		logger := zap.New(&apmzap.Core{})
+		tracer, _ := apm.NewTracer("", "")
+		logger := zap.New(&apmzap.Core{Tracer: tracer})
 		logger.Fatal("fatality!")
 	}
 

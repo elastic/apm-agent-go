@@ -324,14 +324,14 @@ func validatePayloadMetadata(t *testing.T, f func(tracer *apm.Tracer)) {
 }
 
 func validatePayloads(t *testing.T, f func(tracer *apm.Tracer)) {
-	tracer, _ := apm.NewTracer("tracer_testing", "")
+	tracer, _ := apm.NewTracerOptions(apm.TracerOptions{
+		ServiceName:        "x",
+		ServiceVersion:     "y",
+		ServiceEnvironment: "z",
+		Transport:          &validatingTransport{t: t},
+	})
 	defer tracer.Close()
-	tracer.Service.Name = "x"
-	tracer.Service.Version = "x"
-	tracer.Service.Environment = "x"
-	tracer.Transport = &validatingTransport{
-		t: t,
-	}
+
 	f(tracer)
 	tracer.Flush(nil)
 }

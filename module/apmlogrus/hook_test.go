@@ -123,8 +123,9 @@ func makeError() error {
 
 func TestHookFatal(t *testing.T) {
 	if os.Getenv("_INSIDE_TEST") == "1" {
+		tracer, _ := apm.NewTracer("", "")
 		logger := logrus.New()
-		logger.AddHook(&apmlogrus.Hook{})
+		logger.AddHook(&apmlogrus.Hook{Tracer: tracer})
 		logger.Fatal("fatality!")
 	}
 

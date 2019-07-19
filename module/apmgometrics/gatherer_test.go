@@ -25,9 +25,9 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"go.elastic.co/apm"
+	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/module/apmgometrics"
-	"go.elastic.co/apm/transport/transporttest"
 )
 
 func TestGatherer(t *testing.T) {
@@ -88,11 +88,11 @@ func TestHistogram(t *testing.T) {
 }
 
 func gatherMetrics(g apm.MetricsGatherer) []model.Metrics {
-	tracer, transport := transporttest.NewRecorderTracer()
+	tracer := apmtest.NewRecordingTracer()
 	defer tracer.Close()
 	tracer.RegisterMetricsGatherer(g)
 	tracer.SendMetrics(nil)
-	metrics := transport.Payloads().Metrics
+	metrics := tracer.Payloads().Metrics
 	for i := range metrics {
 		metrics[i].Timestamp = model.Time{}
 	}

@@ -30,15 +30,10 @@ import (
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/model"
-	"go.elastic.co/apm/transport/transporttest"
 )
 
 func TestContextStartSpanTransactionEnded(t *testing.T) {
-	tracer, err := apm.NewTracer("tracer_testing", "")
-	assert.NoError(t, err)
-	defer tracer.Close()
-	tracer.Transport = transporttest.Discard
-
+	tracer := apmtest.DiscardTracer
 	var wg sync.WaitGroup
 	for i := 0; i < 100; i++ {
 		wg.Add(1)
@@ -60,11 +55,7 @@ func TestContextStartSpanTransactionEnded(t *testing.T) {
 }
 
 func TestContextStartSpanSpanEnded(t *testing.T) {
-	tracer, err := apm.NewTracer("tracer_testing", "")
-	assert.NoError(t, err)
-	defer tracer.Close()
-	tracer.Transport = transporttest.Discard
-
+	tracer := apmtest.DiscardTracer
 	var wg sync.WaitGroup
 	for i := 0; i < 100; i++ {
 		wg.Add(1)

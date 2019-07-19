@@ -23,24 +23,21 @@ import (
 	"context"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/event"
 
 	"go.elastic.co/apm"
+	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/module/apmmongo"
-	"go.elastic.co/apm/transport/transporttest"
 )
 
 func BenchmarkCommandMonitor(b *testing.B) {
 	cm := apmmongo.CommandMonitor()
 	command := mustRawBSON(bson.D{{Key: "find", Value: "collection"}})
 
-	tracer, err := apm.NewTracer("", "")
-	require.NoError(b, err)
+	tracer := apmtest.NewDiscardTracer()
 	tracer.SetMaxSpans(b.N)
 	defer tracer.Close()
-	tracer.Transport = transporttest.Discard
 
 	tx := tracer.StartTransaction("name", "type")
 	defer tx.End()

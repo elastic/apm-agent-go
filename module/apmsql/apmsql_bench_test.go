@@ -54,9 +54,13 @@ func BenchmarkStmtQueryContext(b *testing.B) {
 		httpTransport, err := transport.NewHTTPTransport()
 		require.NoError(b, err)
 		httpTransport.SetServerURL(invalidServerURL)
-		tracer, err := apm.NewTracer("apmhttp_test", "0.1")
+
+		tracer, err := apm.NewTracerOptions(apm.TracerOptions{
+			ServiceName:    "apmhttp_test",
+			ServiceVersion: "0.1",
+			Transport:      httpTransport,
+		})
 		require.NoError(b, err)
-		tracer.Transport = httpTransport
 		defer tracer.Close()
 
 		tracer.SetMaxSpans(b.N)

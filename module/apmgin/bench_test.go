@@ -65,11 +65,6 @@ func benchmarkEngine(b *testing.B, path string, addMiddleware func(*gin.Engine))
 }
 
 func newTracer() *apm.Tracer {
-	tracer, err := apm.NewTracer("apmgin_test", "0.1")
-	if err != nil {
-		panic(err)
-	}
-
 	invalidServerURL, err := url.Parse("http://testing.invalid:8200")
 	if err != nil {
 		panic(err)
@@ -79,7 +74,14 @@ func newTracer() *apm.Tracer {
 		panic(err)
 	}
 	httpTransport.SetServerURL(invalidServerURL)
-	tracer.Transport = httpTransport
+	tracer, err := apm.NewTracerOptions(apm.TracerOptions{
+		ServiceName:    "apmgin_test",
+		ServiceVersion: "0.1",
+		Transport:      httpTransport,
+	})
+	if err != nil {
+		panic(err)
+	}
 	return tracer
 }
 
