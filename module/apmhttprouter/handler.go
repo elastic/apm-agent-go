@@ -55,6 +55,7 @@ func Wrap(h httprouter.Handle, route string, o ...Option) httprouter.Handle {
 				opts.recovery(w, req, resp, body, tx, v)
 			}
 			apmhttp.SetTransactionContext(tx, req, resp, body)
+			body.Discard()
 		}()
 		h(w, req, p)
 		if resp.StatusCode == 0 {

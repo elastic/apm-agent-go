@@ -99,6 +99,7 @@ func (m *middleware) handle(c echo.Context) error {
 		if tx.Sampled() {
 			setContext(&tx.Context, req, resp, body)
 		}
+		body.Discard()
 	}()
 
 	handlerErr = m.handler(c)
