@@ -28,6 +28,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"go.elastic.co/apm"
+	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/transport"
 	"go.elastic.co/apm/transport/transporttest"
@@ -138,6 +139,21 @@ func TestTransactionEnsureParent(t *testing.T) {
 	payloads := transport.Payloads()
 	require.Len(t, payloads.Transactions, 1)
 	assert.Equal(t, model.SpanID(parentSpan), payloads.Transactions[0].ParentID)
+}
+
+func TestTransactionContextNotSampled(t *testing.T) {
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+	tracer.SetSampler(samplerFunc(func(apm.TraceContext) bool { return false }))
+
+	tx := tracer.StartTransaction("name", "type")
+	tx.Context.SetTag("foo", "bar")
+	tx.End()
+	tracer.Flush(nil)
+
+	payloads := tracer.Payloads()
+	require.Len(t, payloads.Transactions, 1)
+	assert.Nil(t, payloads.Transactions[0].Context)
 }
 
 func BenchmarkTransaction(b *testing.B) {
