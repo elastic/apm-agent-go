@@ -34,7 +34,6 @@ pipeline {
     booleanParam(name: 'test_ci', defaultValue: true, description: 'Enable test')
     booleanParam(name: 'docker_test_ci', defaultValue: true, description: 'Enable run docker tests')
     booleanParam(name: 'bench_ci', defaultValue: true, description: 'Enable benchmarks')
-    booleanParam(name: 'doc_ci', defaultValue: true, description: 'Enable build documentation')
   }
   stages {
     stage('Initializing'){
