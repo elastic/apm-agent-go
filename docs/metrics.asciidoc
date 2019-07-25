@@ -2,7 +2,8 @@
 == Metrics
 
 The Go agent periodically gathers and reports metrics. You can control how
-often metrics are reported with the <<config-metrics-interval>> configuration.
+often metrics are reported with the <<config-metrics-interval>> configuration,
+and disable metrics with <<config-disable-metrics>>.
 
 [float]
 [[metrics-system]]
