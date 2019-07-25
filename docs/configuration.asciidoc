@@ -378,6 +378,23 @@ transactions, but no context information, tags, or spans.
 The interval at which APM agent gathers and reports metrics. Set to `0s` to disable.
 
 [float]
+[[config-disable-metrics]]
+=== `ELASTIC_APM_DISABLE_METRICS`
+
+[options="header"]
+|============
+| Environment                   | Default | Example
+| `ELASTIC_APM_DISABLE_METRICS` |         | `system.*, *cpu*`
+|============
+
+Disables the collection of certain metrics. If the name of a metric matches any of
+the wildcard expressions, it will not be collected.
+
+This option supports the wildcard `*`, which matches zero or more characters.
+Examples: `/foo/*/bar/*/baz*`, `*foo*`. Matching is case insensitive by default.
+Prefixing a pattern with `(?-i)` makes the matching case sensitive.
+
+[float]
 [[config-server-cert]]
 === `ELASTIC_APM_SERVER_CERT`
 
