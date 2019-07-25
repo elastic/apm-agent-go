@@ -24,10 +24,12 @@ import (
 	"io"
 	"log"
 	"math/rand"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"go.elastic.co/apm/apmconfig"
 	"go.elastic.co/apm/internal/apmlog"
 	"go.elastic.co/apm/internal/configutil"
 	"go.elastic.co/apm/internal/iochan"
@@ -87,6 +89,10 @@ type TracerOptions struct {
 	// Transport holds the transport to use for sending events.
 	//
 	// If Transport is nil, transport.Default will be used.
+	//
+	// If Transport implements apmconfig.Watcher, the tracer will begin watching
+	// for remote changes immediately. This behaviour can be disabled by setting
+	// the environment variable ELASTIC_APM_CENTRAL_CONFIG=false.
 	Transport transport.Transport
 
 	requestDuration       time.Duration
@@ -103,6 +109,7 @@ type TracerOptions struct {
 	spanFramesMinDuration time.Duration
 	stackTraceLimit       int
 	active                bool
+	configWatcher         apmconfig.Watcher
 }
 
 // initDefaults updates opts with default values.
@@ -180,6 +187,11 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 		active = true
 	}
 
+	centralConfigEnabled, err := initialCentralConfigEnabled()
+	if failed(err) {
+		centralConfigEnabled = true
+	}
+
 	if opts.ServiceName != "" {
 		err := validateServiceName(opts.ServiceName)
 		if failed(err) {
@@ -210,6 +222,11 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 	opts.active = active
 	if opts.Transport == nil {
 		opts.Transport = transport.Default
+	}
+	if centralConfigEnabled {
+		if cw, ok := opts.Transport.(apmconfig.Watcher); ok {
+			opts.configWatcher = cw
+		}
 	}
 
 	serviceName, serviceVersion, serviceEnvironment := initialService()
@@ -263,6 +280,7 @@ type Tracer struct {
 	forceFlush        chan chan<- struct{}
 	forceSendMetrics  chan chan<- struct{}
 	configCommands    chan tracerConfigCommand
+	configWatcher     chan apmconfig.Watcher
 	events            chan tracerEvent
 	breakdownMetrics  *breakdownMetrics
 
@@ -280,6 +298,13 @@ type Tracer struct {
 
 	samplerMu sync.RWMutex
 	sampler   Sampler
+	// localSampler holds the most recently locally-configured Sampler,
+	// which is what sampler will be set to when a centrally defined
+	// sampler is removed.
+	localSampler Sampler
+	// remoteSampler records whether sampler is defined by the remote
+	// config watcher.
+	remoteSampler bool
 
 	captureHeadersMu sync.RWMutex
 	captureHeaders   bool
@@ -324,11 +349,13 @@ func newTracer(opts TracerOptions) *Tracer {
 		forceFlush:            make(chan chan<- struct{}),
 		forceSendMetrics:      make(chan chan<- struct{}),
 		configCommands:        make(chan tracerConfigCommand),
+		configWatcher:         make(chan apmconfig.Watcher),
 		events:                make(chan tracerEvent, tracerEventChannelCap),
 		active:                1,
 		breakdownMetrics:      newBreakdownMetrics(),
 		maxSpans:              opts.maxSpans,
 		sampler:               opts.sampler,
+		localSampler:          opts.sampler,
 		captureHeaders:        opts.captureHeaders,
 		captureBody:           opts.captureBody,
 		spanFramesMinDuration: opts.spanFramesMinDuration,
@@ -363,6 +390,9 @@ func newTracer(opts TracerOptions) *Tracer {
 		if apmlog.DefaultLogger != nil {
 			cfg.logger = apmlog.DefaultLogger
 		}
+	}
+	if opts.configWatcher != nil {
+		t.configWatcher <- opts.configWatcher
 	}
 	return t
 }
@@ -503,6 +533,25 @@ func (t *Tracer) RegisterMetricsGatherer(g MetricsGatherer) func() {
 	}
 }
 
+// SetConfigWatcher sets w as the config watcher.
+//
+// By default, the tracer will be configured to use the transport for
+// watching config, if the transport implements apmconfig.Watcher. This
+// can be overridden by calling SetConfigWatcher.
+//
+// If w is nil, config watching will be stopped.
+//
+// Calling SetConfigWatcher will discard any previously observed remote
+// config, reverting to local config until a config change from w is
+// observed.
+func (t *Tracer) SetConfigWatcher(w apmconfig.Watcher) {
+	select {
+	case t.configWatcher <- w:
+	case <-t.closing:
+	case <-t.closed:
+	}
+}
+
 func (t *Tracer) sendConfigCommand(cmd tracerConfigCommand) {
 	select {
 	case t.configCommands <- cmd:
@@ -511,11 +560,19 @@ func (t *Tracer) sendConfigCommand(cmd tracerConfigCommand) {
 	}
 }
 
-// SetSampler sets the sampler the tracer. It is valid to pass nil,
-// in which case all transactions will be sampled.
+// SetSampler sets the sampler the tracer.
+//
+// It is valid to pass nil, in which case all transactions will be sampled.
+//
+// Configuration via Kibana takes precedence over local configuration, so
+// if sampling has been configured via Kibana, this call will not have any
+// effect until/unless that configuration has been removed.
 func (t *Tracer) SetSampler(s Sampler) {
 	t.samplerMu.Lock()
-	t.sampler = s
+	t.localSampler = s
+	if !t.remoteSampler {
+		t.sampler = s
+	}
 	t.samplerMu.Unlock()
 }
 
@@ -640,6 +697,15 @@ func (t *Tracer) loop() {
 		<-metricsTimer.C
 	}
 
+	var lastConfigChange map[string]string
+	var configChanges <-chan apmconfig.Change
+	var stopConfigWatcher func()
+	defer func() {
+		if stopConfigWatcher != nil {
+			stopConfigWatcher()
+		}
+	}()
+
 	var cfg tracerConfig
 	buffer := ringbuffer.New(t.bufferSize)
 	buffer.Evicted = func(h ringbuffer.BlockHeader) {
@@ -690,6 +756,43 @@ func (t *Tracer) loop() {
 						}
 					}
 				}
+			}
+			continue
+		case cw := <-t.configWatcher:
+			if configChanges != nil {
+				stopConfigWatcher()
+				t.updateConfig(&cfg, lastConfigChange, nil)
+				lastConfigChange = nil
+				configChanges = nil
+			}
+			if cw == nil {
+				continue
+			}
+			var configWatcherContext context.Context
+			var watchParams apmconfig.WatchParams
+			watchParams.Service.Name = t.Service.Name
+			watchParams.Service.Environment = t.Service.Environment
+			configWatcherContext, stopConfigWatcher = context.WithCancel(ctx)
+			configChanges = cw.WatchConfig(configWatcherContext, watchParams)
+			// Silence go vet's "possible context leak" false positive.
+			// We call a previous stopConfigWatcher before reassigning
+			// the variable, and we have a defer at the top level of the
+			// loop method that will call the final stopConfigWatcher
+			// value on method exit.
+			_ = stopConfigWatcher
+			continue
+		case change, ok := <-configChanges:
+			if !ok {
+				configChanges = nil
+				continue
+			}
+			if change.Err != nil {
+				if cfg.logger != nil {
+					cfg.logger.Errorf("config request failed: %s", change.Err)
+				}
+			} else {
+				t.updateConfig(&cfg, lastConfigChange, change.Attrs)
+				lastConfigChange = change.Attrs
 			}
 			continue
 		case event := <-t.events:
@@ -969,6 +1072,66 @@ func (t *Tracer) gatherMetrics(ctx context.Context, gatherers []MetricsGatherer,
 		}
 		gathered <- struct{}{}
 	}()
+}
+
+// updateConfig updates t and cfg with changes held in "attrs", and reverts
+// to local config for config attributes that have been removed (exist in old
+// but not in attrs).
+//
+// On return from updateConfig, unapplied config will have been removed from attrs.
+func (t *Tracer) updateConfig(cfg *tracerConfig, old, attrs map[string]string) {
+	warningf := func(string, ...interface{}) {}
+	debugf := func(string, ...interface{}) {}
+	errorf := func(string, ...interface{}) {}
+	if cfg.logger != nil {
+		warningf = cfg.logger.Warningf
+		debugf = cfg.logger.Debugf
+		errorf = cfg.logger.Errorf
+	}
+	envName := func(k string) string {
+		return "ELASTIC_APM_" + strings.ToUpper(k)
+	}
+
+	for k, v := range attrs {
+		if oldv, ok := old[k]; ok && oldv == v {
+			continue
+		}
+		switch envName(k) {
+		case envTransactionSampleRate:
+			sampler, err := parseSampleRate(k, v)
+			if err != nil {
+				errorf("central config failure: %s", err)
+				delete(attrs, k)
+				continue
+			} else {
+				t.samplerMu.Lock()
+				t.sampler = sampler
+				t.remoteSampler = true
+				t.samplerMu.Unlock()
+			}
+		default:
+			warningf("central config failure: unsupported config: %s", k)
+			delete(attrs, k)
+			continue
+		}
+		debugf("central config update: updated %s to %s", k, v)
+	}
+
+	for k := range old {
+		if _, ok := attrs[k]; ok {
+			continue
+		}
+		switch envName(k) {
+		case envTransactionSampleRate:
+			t.samplerMu.Lock()
+			t.sampler = t.localSampler
+			t.remoteSampler = false
+			t.samplerMu.Unlock()
+		default:
+			continue
+		}
+		debugf("central config update: reverted %s to local config", k)
+	}
 }
 
 type tracerEventType int

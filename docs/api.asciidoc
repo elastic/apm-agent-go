@@ -555,3 +555,12 @@ e := apm.DefaultTracer.NewError(err)
 e.SetTransaction(tx)
 e.Send()
 ----
+
+[float]
+[[tracer-config-api]]
+==== Tracer Config
+
+Many configuration attributes can be be updated dynamically via `apm.Tracer` method calls.
+Please refer to the documentation at https://godoc.org/go.elastic.co/apm#Tracer[godoc.org/go.elastic.co/apm#Tracer]
+for details. The configuration methods are primarily prefixed with `Set`, such as
+https://godoc.org/go.elastic.co/apm#Tracer.SetLogger[apm#Tracer.SetLogger].

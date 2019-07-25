@@ -38,6 +38,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"go.elastic.co/apm/apmconfig"
 	"go.elastic.co/apm/transport"
 )
 
@@ -343,6 +344,113 @@ garbage
 
 	_, err = transport.NewHTTPTransport()
 	assert.EqualError(t, err, fmt.Sprintf("failed to load certificate from %s: missing or invalid certificate", f.Name()))
+}
+
+func TestHTTPTransportWatchConfig(t *testing.T) {
+	type response struct {
+		code         int
+		cacheControl string
+		etag         string
+		body         string
+	}
+	responses := []response{
+		// Initial empty response is suppressed.
+		{code: 200, cacheControl: "max-age=0", etag: `"empty"`},
+		{code: 200, cacheControl: "max-age=0", etag: `"foobar"`, body: `{"foo": "bar"}`},
+		{code: 200, cacheControl: "max-age=0", etag: `"empty"`},
+		{code: 304, cacheControl: "max-age=0"},
+		{code: 200, cacheControl: "max-age=0", etag: `"foobaz"`, body: `{"foo": "baz"}`},
+		{code: 200, cacheControl: "max-age=0", etag: `"foobar"`, body: `{"foo": "bar"}`},
+		{code: 403, cacheControl: "max-age=0"},
+	}
+	var requestIndex int
+	var responseEtag string
+	transport, server := newHTTPTransport(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if requestIndex >= len(responses) {
+			w.WriteHeader(http.StatusTeapot)
+			return
+		}
+		ifNoneMatch := req.Header.Get("If-None-Match")
+		if ifNoneMatch == "" {
+			assert.Equal(t, "", responseEtag)
+		} else {
+			assert.Equal(t, responseEtag, ifNoneMatch)
+		}
+		response := responses[requestIndex]
+		requestIndex++
+		if response.cacheControl != "" {
+			w.Header().Set("Cache-Control", response.cacheControl)
+		}
+		if response.etag != "" {
+			w.Header().Set("Etag", response.etag)
+			responseEtag = response.etag
+		}
+		w.WriteHeader(response.code)
+		w.Write([]byte(response.body))
+	}))
+	defer server.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	var watchParams apmconfig.WatchParams
+	watchParams.Service.Name = "name"
+	watchParams.Service.Environment = "env"
+	changes := transport.WatchConfig(ctx, watchParams)
+	require.NotNil(t, changes)
+
+	assert.Equal(t, apmconfig.Change{Attrs: map[string]string{}}, <-changes)
+	assert.Equal(t, apmconfig.Change{Attrs: map[string]string{"foo": "bar"}}, <-changes)
+	assert.Equal(t, apmconfig.Change{Attrs: map[string]string{}}, <-changes)
+	assert.Equal(t, apmconfig.Change{Attrs: map[string]string{"foo": "baz"}}, <-changes)
+	assert.Equal(t, apmconfig.Change{Attrs: map[string]string{"foo": "bar"}}, <-changes)
+
+	if change := <-changes; assert.Error(t, change.Err) {
+		assert.Equal(t, "request failed with 418 I'm a teapot", change.Err.Error())
+	}
+}
+
+func TestHTTPTransportWatchConfigQueryParams(t *testing.T) {
+	test := func(t *testing.T, serviceName, serviceEnvironment, expectedQuery string) {
+		query, err := url.ParseQuery(expectedQuery)
+		require.NoError(t, err)
+		transport, server := newHTTPTransport(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			assert.Equal(t, query, req.URL.Query())
+			w.WriteHeader(500)
+		}))
+		defer server.Close()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		var watchParams apmconfig.WatchParams
+		watchParams.Service.Name = serviceName
+		watchParams.Service.Environment = serviceEnvironment
+		<-transport.WatchConfig(ctx, watchParams)
+	}
+	t.Run("name_only", func(t *testing.T) { test(t, "opbeans", "", "service.name=opbeans") })
+	t.Run("name_and_env", func(t *testing.T) { test(t, "opbeans", "dev", "service.name=opbeans&service.environment=dev") })
+	t.Run("name_empty", func(t *testing.T) { test(t, "", "dev", "service.name=&service.environment=dev") })
+	t.Run("both_empty", func(t *testing.T) { test(t, "", "", "service.name=") })
+}
+
+func TestHTTPTransportWatchConfigContextCancelled(t *testing.T) {
+	transport, server := newHTTPTransport(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		<-req.Context().Done()
+	}))
+	defer server.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+	defer cancel()
+
+	var watchParams apmconfig.WatchParams
+	watchParams.Service.Name = "name"
+	watchParams.Service.Environment = "env"
+	changes := transport.WatchConfig(ctx, watchParams)
+	require.NotNil(t, changes)
+
+	_, ok := <-changes
+	require.False(t, ok)
 }
 
 func newHTTPTransport(t *testing.T, handler http.Handler) (*transport.HTTPTransport, *httptest.Server) {

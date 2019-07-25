@@ -37,6 +37,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"go.elastic.co/apm"
+	"go.elastic.co/apm/apmconfig"
 	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/internal/apmhostutil"
 	"go.elastic.co/apm/model"
@@ -479,6 +480,191 @@ func TestTracerCaptureHeaders(t *testing.T) {
 		} else {
 			assert.Nil(t, tx.Context.Request.Headers)
 			assert.Nil(t, tx.Context.Response.Headers)
+		}
+	}
+}
+
+func TestTracerCentralConfigUpdate(t *testing.T) {
+	// This test server will respond initially with config that
+	// disables sampling, and subsequently responses will indicate
+	// lack of agent config, causing the agent to revert to local
+	// config.
+	responded := make(chan struct{})
+	var responses int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		assert.Equal(t, "/config/v1/agents", req.URL.Path)
+		w.Header().Set("Cache-Control", "max-age=1")
+		if responses == 0 {
+			w.Header().Set("Etag", `"foo"`)
+			w.Write([]byte(`{"transaction_sample_rate": "0"}`))
+		} else {
+			w.Header().Set("Etag", `"bar"`)
+			w.Write([]byte(`{}`))
+		}
+		responses++
+		select {
+		case responded <- struct{}{}:
+		case <-req.Context().Done():
+		}
+	}))
+	defer server.Close()
+
+	os.Setenv("ELASTIC_APM_SERVER_URLS", server.URL)
+	defer os.Unsetenv("ELASTIC_APM_SERVER_URLS")
+
+	httpTransport, err := transport.NewHTTPTransport()
+	require.NoError(t, err)
+	tracer, err := apm.NewTracerOptions(apm.TracerOptions{Transport: httpTransport})
+	require.NoError(t, err)
+	defer tracer.Close()
+
+	tracer.SetLogger(apmtest.NewTestLogger(t))
+	assert.True(t, tracer.StartTransaction("name", "type").Sampled())
+
+	timeout := time.After(10 * time.Second)
+	select {
+	case <-responded:
+	case <-timeout:
+		t.Fatal("timed out waiting for config update")
+	}
+	for {
+		// There's a time window between the server responding
+		// and the agent updating the sampler, so we spin until
+		// it's updated.
+		sampled := tracer.StartTransaction("name", "type").Sampled()
+		if !sampled {
+			break
+		}
+		select {
+		case <-time.After(10 * time.Millisecond):
+		case <-timeout:
+			t.Fatal("timed out waiting for config update")
+		}
+	}
+	select {
+	case <-responded:
+	case <-timeout:
+		t.Fatal("timed out waiting for config update")
+	}
+	for {
+		sampled := tracer.StartTransaction("name", "type").Sampled()
+		if sampled {
+			break
+		}
+		select {
+		case <-time.After(10 * time.Millisecond):
+		case <-timeout:
+			t.Fatal("timed out waiting for config update")
+		}
+	}
+}
+
+func TestTracerCentralConfigUpdateDisabled(t *testing.T) {
+	responded := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		select {
+		case responded <- struct{}{}:
+		case <-req.Context().Done():
+		}
+	}))
+	defer server.Close()
+
+	os.Setenv("ELASTIC_APM_SERVER_URLS", server.URL)
+	defer os.Unsetenv("ELASTIC_APM_SERVER_URLS")
+
+	os.Setenv("ELASTIC_APM_CENTRAL_CONFIG", "false")
+	defer os.Unsetenv("ELASTIC_APM_CENTRAL_CONFIG")
+
+	httpTransport, err := transport.NewHTTPTransport()
+	require.NoError(t, err)
+	tracer, err := apm.NewTracerOptions(apm.TracerOptions{Transport: httpTransport})
+	require.NoError(t, err)
+	defer tracer.Close()
+	tracer.SetLogger(apmtest.NewTestLogger(t))
+
+	select {
+	case <-responded:
+		t.Fatal("unexpected config watcher response")
+	case <-time.After(2 * time.Second):
+	}
+}
+
+func TestTracerSetConfigWatcher(t *testing.T) {
+	watcherClosed := make(chan struct{})
+	watcherFunc := apmtest.WatchConfigFunc(func(ctx context.Context, params apmconfig.WatchParams) <-chan apmconfig.Change {
+		changes := make(chan apmconfig.Change)
+		go func() {
+			<-ctx.Done()
+			close(watcherClosed)
+		}()
+		return changes
+	})
+
+	tracer, err := apm.NewTracer("", "")
+	require.NoError(t, err)
+	defer tracer.Close()
+
+	tracer.SetLogger(apmtest.NewTestLogger(t))
+	tracer.SetConfigWatcher(watcherFunc)
+	tracer.SetConfigWatcher(nil)
+	select {
+	case <-watcherClosed:
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out waiting for watcher context to be cancelled")
+	}
+}
+
+func TestTracerConfigWatcherPrecedence(t *testing.T) {
+	watcherFunc := apmtest.WatchConfigFunc(func(ctx context.Context, params apmconfig.WatchParams) <-chan apmconfig.Change {
+		changes := make(chan apmconfig.Change)
+		go func() {
+			select {
+			case changes <- apmconfig.Change{
+				Attrs: map[string]string{"transaction_sample_rate": "0"},
+			}:
+			case <-ctx.Done():
+			}
+		}()
+		return changes
+	})
+	tracer, err := apm.NewTracer("", "")
+	require.NoError(t, err)
+	defer tracer.Close()
+
+	tracer.SetLogger(apmtest.NewTestLogger(t))
+	tracer.SetConfigWatcher(watcherFunc)
+	timeout := time.After(10 * time.Second)
+	for {
+		sampled := tracer.StartTransaction("name", "type").Sampled()
+		if !sampled {
+			// Updated
+			break
+		}
+		select {
+		case <-time.After(10 * time.Millisecond):
+		case <-timeout:
+			t.Fatal("timed out waiting for config update")
+		}
+	}
+
+	// Setting a sampler locally will have no effect while there is remote
+	// configuration in place.
+	tracer.SetSampler(apm.NewRatioSampler(1))
+	sampled := tracer.StartTransaction("name", "type").Sampled()
+	assert.False(t, sampled)
+
+	// Disable remote config, which also reverts to local config.
+	tracer.SetConfigWatcher(nil)
+	for {
+		sampled := tracer.StartTransaction("name", "type").Sampled()
+		if sampled {
+			// Reverted
+			break
+		}
+		select {
+		case <-time.After(10 * time.Millisecond):
+		case <-timeout:
+			t.Fatal("timed out waiting for config to revert to local")
 		}
 	}
 }

@@ -51,6 +51,7 @@ const (
 	envDisableMetrics        = "ELASTIC_APM_DISABLE_METRICS"
 	envGlobalLabels          = "ELASTIC_APM_GLOBAL_LABELS"
 	envStackTraceLimit       = "ELASTIC_APM_STACK_TRACE_LIMIT"
+	envCentralConfig         = "ELASTIC_APM_CENTRAL_CONFIG"
 
 	defaultAPIRequestSize        = 750 * configutil.KByte
 	defaultAPIRequestTime        = 10 * time.Second
@@ -167,17 +168,22 @@ func initialMaxSpans() (int, error) {
 // initialSampler returns a nil Sampler if all transactions should be sampled.
 func initialSampler() (Sampler, error) {
 	value := os.Getenv(envTransactionSampleRate)
-	if value == "" || value == "1.0" {
-		return nil, nil
+	return parseSampleRate(envTransactionSampleRate, value)
+}
+
+// parseSampleRate parses a numeric sampling rate in the range [0,1.0], returning a Sampler.
+func parseSampleRate(name, value string) (Sampler, error) {
+	if value == "" {
+		value = "1"
 	}
 	ratio, err := strconv.ParseFloat(value, 64)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to parse %s", envTransactionSampleRate)
+		return nil, errors.Wrapf(err, "failed to parse %s", name)
 	}
 	if ratio < 0.0 || ratio > 1.0 {
 		return nil, errors.Errorf(
-			"invalid %s value %s: out of range [0,1.0]",
-			envTransactionSampleRate, value,
+			"invalid value for %s: %s (out of range [0,1.0])",
+			name, value,
 		)
 	}
 	return NewRatioSampler(ratio), nil
@@ -245,4 +251,8 @@ func initialStackTraceLimit() (int, error) {
 		return 0, errors.Wrapf(err, "failed to parse %s", envStackTraceLimit)
 	}
 	return limit, nil
+}
+
+func initialCentralConfigEnabled() (bool, error) {
+	return configutil.ParseBoolEnv(envCentralConfig, true)
 }
