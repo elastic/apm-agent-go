@@ -110,6 +110,7 @@ type TracerOptions struct {
 	stackTraceLimit       int
 	active                bool
 	configWatcher         apmconfig.Watcher
+	breakdownMetrics      bool
 }
 
 // initDefaults updates opts with default values.
@@ -192,6 +193,11 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 		centralConfigEnabled = true
 	}
 
+	breakdownMetricsEnabled, err := initialBreakdownMetricsEnabled()
+	if failed(err) {
+		breakdownMetricsEnabled = true
+	}
+
 	if opts.ServiceName != "" {
 		err := validateServiceName(opts.ServiceName)
 		if failed(err) {
@@ -215,6 +221,7 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 	opts.sampler = sampler
 	opts.sanitizedFieldNames = initialSanitizedFieldNames()
 	opts.disabledMetrics = initialDisabledMetrics()
+	opts.breakdownMetrics = breakdownMetricsEnabled
 	opts.captureHeaders = captureHeaders
 	opts.captureBody = captureBody
 	opts.spanFramesMinDuration = spanFramesMinDuration
@@ -366,10 +373,7 @@ func newTracer(opts TracerOptions) *Tracer {
 	t.Service.Name = opts.ServiceName
 	t.Service.Version = opts.ServiceVersion
 	t.Service.Environment = opts.ServiceEnvironment
-
-	// NOTE(axw) if/when disabledMetrics becomes dynamically modifiable,
-	// we'll need to change how we update and check these flags.
-	t.breakdownMetrics.flags.set(opts.disabledMetrics)
+	t.breakdownMetrics.enabled = opts.breakdownMetrics
 
 	if !opts.active {
 		t.active = 0
