@@ -23,7 +23,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"go.elastic.co/apm/internal/wildcard"
 	"go.elastic.co/apm/model"
 )
 
@@ -44,8 +43,6 @@ const (
 	transactionBreakdownCountMetricName = "transaction.breakdown.count"
 	spanSelfTimeCountMetricName         = "span.self_time.count"
 	spanSelfTimeSumMetricName           = "span.self_time.sum.us"
-
-	transactionBreakdownMetricFlag breakdownMetricsFlags = 1 << iota
 )
 
 var (
@@ -98,7 +95,7 @@ func (m spanTimingsMap) reset() {
 // breakdownMetrics may be written to concurrently by the tracer, and any
 // number of other goroutines when a transaction cannot be enqueued.
 type breakdownMetrics struct {
-	flags breakdownMetricsFlags
+	enabled bool
 
 	mu               sync.RWMutex
 	active, inactive *breakdownMetricsMap
@@ -353,17 +350,4 @@ func (t *childrenTimer) finalDuration(end time.Time) time.Duration {
 		t.totalDuration += end.Sub(t.start)
 	}
 	return t.totalDuration
-}
-
-type breakdownMetricsFlags int
-
-func (f *breakdownMetricsFlags) set(disabledMetrics wildcard.Matchers) {
-	*f = 0
-	if !disabledMetrics.MatchAny("span.self_time") {
-		*f |= transactionBreakdownMetricFlag
-	}
-}
-
-func (f breakdownMetricsFlags) transactionBreakdown() bool {
-	return f&transactionBreakdownMetricFlag != 0
 }

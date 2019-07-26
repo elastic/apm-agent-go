@@ -100,7 +100,7 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 	tx.Context.captureHeaders = t.captureHeaders
 	t.captureHeadersMu.RUnlock()
 
-	tx.breakdownMetricsEnabled = t.breakdownMetrics.flags.transactionBreakdown()
+	tx.breakdownMetricsEnabled = t.breakdownMetrics.enabled
 
 	if root {
 		t.samplerMu.RLock()

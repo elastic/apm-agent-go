@@ -146,9 +146,9 @@ func TestBreakdownMetrics_TransactionDropped(t *testing.T) {
 	}, payloadsBreakdownMetrics(transport))
 }
 
-func TestBreakdownMetrics_SelfTimeDisabled(t *testing.T) {
-	os.Setenv("ELASTIC_APM_DISABLE_METRICS", "span.self_time")
-	defer os.Unsetenv("ELASTIC_APM_DISABLE_METRICS")
+func TestBreakdownMetrics_Disabled(t *testing.T) {
+	os.Setenv("ELASTIC_APM_BREAKDOWN_METRICS", "false")
+	defer os.Unsetenv("ELASTIC_APM_BREAKDOWN_METRICS")
 
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()

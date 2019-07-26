@@ -52,6 +52,7 @@ const (
 	envGlobalLabels          = "ELASTIC_APM_GLOBAL_LABELS"
 	envStackTraceLimit       = "ELASTIC_APM_STACK_TRACE_LIMIT"
 	envCentralConfig         = "ELASTIC_APM_CENTRAL_CONFIG"
+	envBreakdownMetrics      = "ELASTIC_APM_BREAKDOWN_METRICS"
 
 	defaultAPIRequestSize        = 750 * configutil.KByte
 	defaultAPIRequestTime        = 10 * time.Second
@@ -255,4 +256,8 @@ func initialStackTraceLimit() (int, error) {
 
 func initialCentralConfigEnabled() (bool, error) {
 	return configutil.ParseBoolEnv(envCentralConfig, true)
+}
+
+func initialBreakdownMetricsEnabled() (bool, error) {
+	return configutil.ParseBoolEnv(envBreakdownMetrics, true)
 }

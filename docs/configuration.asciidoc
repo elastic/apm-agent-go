@@ -395,6 +395,18 @@ Examples: `/foo/*/bar/*/baz*`, `*foo*`. Matching is case insensitive by default.
 Prefixing a pattern with `(?-i)` makes the matching case sensitive.
 
 [float]
+[[config-breakdown-metrics]]
+=== `ELASTIC_APM_BREAKDOWN_METRICS`
+
+[options="header"]
+|============
+| Environment                     | Default
+| `ELASTIC_APM_BREAKDOWN_METRICS` | `true`
+|============
+
+Capture breakdown metrics. Set to `false` to disable.
+
+[float]
 [[config-server-cert]]
 === `ELASTIC_APM_SERVER_CERT`
 
