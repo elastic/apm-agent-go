@@ -9,8 +9,9 @@ require (
 	github.com/xdg/stringprep v1.0.0 // indirect
 	go.elastic.co/apm v1.4.0
 	go.mongodb.org/mongo-driver v1.0.0
-	golang.org/x/crypto v0.0.0-20190211182817-74369b46fc67 // indirect
-	golang.org/x/text v0.3.0 // indirect
+	golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4 // indirect
+	golang.org/x/sync v0.0.0-20190423024810-112230192c58 // indirect
+	golang.org/x/text v0.3.2 // indirect
 )
 
 replace go.elastic.co/apm => ../..
