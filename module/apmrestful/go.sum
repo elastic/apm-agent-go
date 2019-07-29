@@ -7,8 +7,8 @@ github.com/elastic/go-sysinfo v1.0.1 h1:lzGPX2sIXaETeMXitXL2XZU8K4B7k7JBhIKWxdOd
 github.com/elastic/go-sysinfo v1.0.1/go.mod h1:O/D5m1VpYLwGjCYzEt63g3Z1uO3jXfwyzzjiW90t8cY=
 github.com/elastic/go-windows v1.0.0 h1:qLURgZFkkrYyTTkvYpsZIgf83AUsdIHfvlJaqaZ7aSY=
 github.com/elastic/go-windows v1.0.0/go.mod h1:TsU0Nrp7/y3+VwE82FoZF8gC/XFg/Elz6CcloAxnPgU=
-github.com/emicklei/go-restful v2.8.0+incompatible h1:wN8GCRDPGHguIynsnBartv5GUgGUg1LAU7+xnSn1j7Q=
-github.com/emicklei/go-restful v2.8.0+incompatible/go.mod h1:otzb+WCGbkyDHkqmQmT5YD2WR4BBwUdeQoFo8l/7tVs=
+github.com/emicklei/go-restful v2.9.6+incompatible h1:tfrHha8zJ01ywiOEC1miGY8st1/igzWB8OmvPgoYX7w=
+github.com/emicklei/go-restful v2.9.6+incompatible/go.mod h1:otzb+WCGbkyDHkqmQmT5YD2WR4BBwUdeQoFo8l/7tVs=
 github.com/google/go-cmp v0.3.0 h1:crn/baboCvb5fXaQ0IJ1SGTsTVrWpDsCWC8EGETZijY=
 github.com/google/go-cmp v0.3.0/go.mod h1:8QqcDgzrUqlUb/G2PQTWiueGozuR1884gddMywk6iLU=
 github.com/jessevdk/go-flags v1.4.0/go.mod h1:4FA24M0QyGHXBuZZK/XkWh8h0e1EYbRYJSGM75WSRxI=
