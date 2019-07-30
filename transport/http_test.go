@@ -353,21 +353,19 @@ func TestHTTPTransportWatchConfig(t *testing.T) {
 		etag         string
 		body         string
 	}
-	responses := []response{
-		// Initial empty response is suppressed.
-		{code: 200, cacheControl: "max-age=0", etag: `"empty"`},
-		{code: 200, cacheControl: "max-age=0", etag: `"foobar"`, body: `{"foo": "bar"}`},
-		{code: 200, cacheControl: "max-age=0", etag: `"empty"`},
-		{code: 304, cacheControl: "max-age=0"},
-		{code: 200, cacheControl: "max-age=0", etag: `"foobaz"`, body: `{"foo": "baz"}`},
-		{code: 200, cacheControl: "max-age=0", etag: `"foobar"`, body: `{"foo": "bar"}`},
-		{code: 403, cacheControl: "max-age=0"},
-	}
-	var requestIndex int
+	responses := make(chan response, 1)
+
 	var responseEtag string
 	transport, server := newHTTPTransport(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		if requestIndex >= len(responses) {
-			w.WriteHeader(http.StatusTeapot)
+		var response response
+		var ok bool
+		select {
+		case response, ok = <-responses:
+			if !ok {
+				w.WriteHeader(http.StatusTeapot)
+				return
+			}
+		case <-req.Context().Done():
 			return
 		}
 		ifNoneMatch := req.Header.Get("If-None-Match")
@@ -376,8 +374,6 @@ func TestHTTPTransportWatchConfig(t *testing.T) {
 		} else {
 			assert.Equal(t, responseEtag, ifNoneMatch)
 		}
-		response := responses[requestIndex]
-		requestIndex++
 		if response.cacheControl != "" {
 			w.Header().Set("Cache-Control", response.cacheControl)
 		}
@@ -399,12 +395,28 @@ func TestHTTPTransportWatchConfig(t *testing.T) {
 	changes := transport.WatchConfig(ctx, watchParams)
 	require.NotNil(t, changes)
 
+	responses <- response{code: 200, cacheControl: "max-age=0", etag: `"empty"`}
 	assert.Equal(t, apmconfig.Change{Attrs: map[string]string{}}, <-changes)
-	assert.Equal(t, apmconfig.Change{Attrs: map[string]string{"foo": "bar"}}, <-changes)
-	assert.Equal(t, apmconfig.Change{Attrs: map[string]string{}}, <-changes)
-	assert.Equal(t, apmconfig.Change{Attrs: map[string]string{"foo": "baz"}}, <-changes)
+
+	responses <- response{code: 200, cacheControl: "max-age=0", etag: `"foobar"`, body: `{"foo": "bar"}`}
 	assert.Equal(t, apmconfig.Change{Attrs: map[string]string{"foo": "bar"}}, <-changes)
 
+	responses <- response{code: 200, cacheControl: "max-age=0", etag: `"empty"`}
+	assert.Equal(t, apmconfig.Change{Attrs: map[string]string{}}, <-changes)
+
+	responses <- response{code: 304, cacheControl: "max-age=0"}
+	// No change.
+
+	responses <- response{code: 200, cacheControl: "max-age=0", etag: `"foobaz"`, body: `{"foo": "baz"}`}
+	assert.Equal(t, apmconfig.Change{Attrs: map[string]string{"foo": "baz"}}, <-changes)
+
+	responses <- response{code: 200, cacheControl: "max-age=0", etag: `"foobar"`, body: `{"foo": "bar"}`}
+	assert.Equal(t, apmconfig.Change{Attrs: map[string]string{"foo": "bar"}}, <-changes)
+
+	responses <- response{code: 403, cacheControl: "max-age=0"}
+	// 403s are not reported.
+
+	close(responses)
 	if change := <-changes; assert.Error(t, change.Err) {
 		assert.Equal(t, "request failed with 418 I'm a teapot", change.Err.Error())
 	}
