@@ -18,7 +18,11 @@
 package apmtest
 
 import (
+	"context"
+	"fmt"
+
 	"go.elastic.co/apm"
+	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/transport/transporttest"
 )
 
@@ -40,4 +44,26 @@ func NewRecordingTracer() *RecordingTracer {
 type RecordingTracer struct {
 	*apm.Tracer
 	transporttest.RecorderTransport
+}
+
+// WithTransaction calls rt.WithTransactionOptions with a zero apm.TransactionOptions.
+func (rt *RecordingTracer) WithTransaction(f func(ctx context.Context)) (model.Transaction, []model.Span, []model.Error) {
+	return rt.WithTransactionOptions(apm.TransactionOptions{}, f)
+}
+
+// WithTransactionOptions starts a transaction with the given options,
+// calls f with the transaction in the provided context, ends the transaction
+// and flushes the tracer, and then returns the resulting events.
+func (rt *RecordingTracer) WithTransactionOptions(opts apm.TransactionOptions, f func(ctx context.Context)) (model.Transaction, []model.Span, []model.Error) {
+	tx := rt.StartTransactionOptions("name", "type", opts)
+	ctx := apm.ContextWithTransaction(context.Background(), tx)
+	f(ctx)
+
+	tx.End()
+	rt.Flush(nil)
+	payloads := rt.Payloads()
+	if n := len(payloads.Transactions); n != 1 {
+		panic(fmt.Errorf("expected 1 transaction, got %d", n))
+	}
+	return payloads.Transactions[0], payloads.Spans, payloads.Errors
 }

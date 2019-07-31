@@ -8,6 +8,7 @@
  - Optimised HTTP request body capture (#592)
  - Fixed transaction encoding to drop tags (and other context) for non-sampled transactions (#593)
  - Introduce central config polling (#591)
+ - Fixed apmgrpc client interceptor, propagating trace context for non-sampled transactions (#602)
 
 ## [v1.4.0](https://github.com/elastic/apm-agent-go/releases/tag/v1.4.0)
 

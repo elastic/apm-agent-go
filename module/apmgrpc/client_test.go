@@ -27,6 +27,7 @@ import (
 	"golang.org/x/net/context"
 	pb "google.golang.org/grpc/examples/helloworld/helloworld"
 
+	"go.elastic.co/apm"
 	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/transport/transporttest"
 )
@@ -69,4 +70,61 @@ func TestClientSpan(t *testing.T) {
 	}
 	assert.Equal(t, clientSpans[0].TraceID, serverTransactions[1].TraceID)
 	assert.Equal(t, clientSpans[0].ID, serverTransactions[1].ParentID)
+}
+
+func TestClientSpanDropped(t *testing.T) {
+	serverTracer := apmtest.NewRecordingTracer()
+	defer serverTracer.Close()
+	s, _, addr := newServer(t, serverTracer.Tracer)
+	defer s.GracefulStop()
+
+	conn, client := newClient(t, addr)
+	defer conn.Close()
+
+	clientTracer := apmtest.NewRecordingTracer()
+	defer clientTracer.Close()
+	clientTracer.SetMaxSpans(1)
+
+	clientTransaction, clientSpans, _ := clientTracer.WithTransaction(func(ctx context.Context) {
+		for i := 0; i < 2; i++ {
+			_, err := client.SayHello(ctx, &pb.HelloRequest{Name: "birita"})
+			require.NoError(t, err)
+		}
+	})
+	require.Len(t, clientSpans, 1)
+
+	serverTracer.Flush(nil)
+	serverTransactions := serverTracer.Payloads().Transactions
+	require.Len(t, serverTransactions, 2)
+	for _, serverTransaction := range serverTransactions {
+		assert.Equal(t, clientTransaction.TraceID, serverTransaction.TraceID)
+	}
+	assert.Equal(t, clientSpans[0].ID, serverTransactions[0].ParentID)
+	assert.Equal(t, clientTransaction.ID, serverTransactions[1].ParentID)
+}
+
+func TestClientTransactionUnsampled(t *testing.T) {
+	serverTracer := apmtest.NewRecordingTracer()
+	defer serverTracer.Close()
+	s, _, addr := newServer(t, serverTracer.Tracer)
+	defer s.GracefulStop()
+
+	conn, client := newClient(t, addr)
+	defer conn.Close()
+
+	clientTracer := apmtest.NewRecordingTracer()
+	defer clientTracer.Close()
+	clientTracer.SetSampler(apm.NewRatioSampler(0)) // sample nothing
+
+	clientTransaction, clientSpans, _ := clientTracer.WithTransaction(func(ctx context.Context) {
+		_, err := client.SayHello(ctx, &pb.HelloRequest{Name: "birita"})
+		require.NoError(t, err)
+	})
+	require.Len(t, clientSpans, 0)
+
+	serverTracer.Flush(nil)
+	serverTransactions := serverTracer.Payloads().Transactions
+	require.Len(t, serverTransactions, 1)
+	assert.Equal(t, clientTransaction.TraceID, serverTransactions[0].TraceID)
+	assert.Equal(t, clientTransaction.ID, serverTransactions[0].ParentID)
 }

@@ -48,17 +48,32 @@ func NewUnaryClientInterceptor(o ...ClientOption) grpc.UnaryClientInterceptor {
 		opts ...grpc.CallOption,
 	) error {
 		span, ctx := startSpan(ctx, method)
-		defer span.End()
+		if span != nil {
+			defer span.End()
+		}
 		return invoker(ctx, method, req, resp, cc, opts...)
 	}
 }
 
 func startSpan(ctx context.Context, name string) (*apm.Span, context.Context) {
-	span, ctx := apm.StartSpan(ctx, name, "external.grpc")
-	if span.Dropped() {
-		return span, ctx
+	tx := apm.TransactionFromContext(ctx)
+	if tx == nil {
+		return nil, ctx
 	}
-	traceparentValue := apmhttp.FormatTraceparentHeader(span.TraceContext())
+	traceContext := tx.TraceContext()
+	if !traceContext.Options.Recorded() {
+		return nil, outgoingContextWithTraceContext(ctx, traceContext)
+	}
+	span := tx.StartSpan(name, "external.grpc", apm.SpanFromContext(ctx))
+	if !span.Dropped() {
+		traceContext = span.TraceContext()
+		ctx = apm.ContextWithSpan(ctx, span)
+	}
+	return span, outgoingContextWithTraceContext(ctx, traceContext)
+}
+
+func outgoingContextWithTraceContext(ctx context.Context, traceContext apm.TraceContext) context.Context {
+	traceparentValue := apmhttp.FormatTraceparentHeader(traceContext)
 	md, ok := metadata.FromOutgoingContext(ctx)
 	if !ok {
 		md = metadata.Pairs(traceparentHeader, traceparentValue)
@@ -66,7 +81,7 @@ func startSpan(ctx context.Context, name string) (*apm.Span, context.Context) {
 		md = md.Copy()
 		md.Set(traceparentHeader, traceparentValue)
 	}
-	return span, metadata.NewOutgoingContext(ctx, md)
+	return metadata.NewOutgoingContext(ctx, md)
 }
 
 type clientOptions struct {
