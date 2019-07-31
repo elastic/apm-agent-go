@@ -2,7 +2,17 @@
 == Configuration
 
 To adapt the Elastic APM Go agent to your needs, you can configure it using
-environment variables.
+one of the following three methods, in descending order of precedence:
+
+ 1. {kibana-ref}/agent-configuration.html[APM Agent Configuration via Kibana]
+ 2. In code, using the <<tracer-config-api, Tracer Config API>>
+ 3. Environment variables
+
+Configuration defined via Kibana will take precedence over the same
+configuration defined in code, which takes precedence over environment
+variables. If configuration is defined via Kibana, and then that is
+later removed, the agent will revert to configuration defined locally
+via either the Tracer Config API or environment variables.
 
 By default, the agent will attempt to send data to the Elastic APM Server
 at `http://localhost:8200`, to simplify development and testing. To send
@@ -469,3 +479,18 @@ logger. The only two levels used by the logger are "error" and "debug". By defau
 logging is disabled. You must specify `ELASTIC_APM_LOG_FILE` to enable it.
 
 This environment variable will be ignored if a logger is configured programatically.
+
+[float]
+[[config-central-config]]
+==== `ELASTIC_APM_CENTRAL_CONFIG`
+
+[options="header"]
+|============
+| Environment                  | Default
+| `ELASTIC_APM_CENTRAL_CONFIG` | `true`
+|============
+
+Activate APM Agent Configuration via Kibana. By default the agent will poll the server
+for agent configuration changes. This can be disabled by changing the setting to `false`.
+
+NOTE: This feature requires APM Server v7.3 or later and that the APM Server is configured with `kibana.enabled: true`.
