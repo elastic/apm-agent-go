@@ -9,8 +9,8 @@ require (
 	github.com/stretchr/testify v1.3.0
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v0.0.0-20170224212429-dcecefd839c4 // indirect
-	go.elastic.co/apm v1.4.0
-	go.elastic.co/apm/module/apmhttp v1.4.0
+	go.elastic.co/apm v1.5.0
+	go.elastic.co/apm/module/apmhttp v1.5.0
 	golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4 // indirect
 )
 
