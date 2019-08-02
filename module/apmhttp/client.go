@@ -176,3 +176,11 @@ func (b *responseBody) endSpan() {
 
 // ClientOption sets options for tracing client requests.
 type ClientOption func(*roundTripper)
+
+// WithClientRequestName returns a ClientOption which sets r as the function
+// to use to obtain the transaction name for the given http request.
+func WithClientRequestName(r RequestNameFunc) ClientOption {
+	return ClientOption(func(rt *roundTripper) {
+		rt.requestName = r
+	})
+}
