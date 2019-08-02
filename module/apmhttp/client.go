@@ -178,7 +178,7 @@ func (b *responseBody) endSpan() {
 type ClientOption func(*roundTripper)
 
 // WithClientRequestName returns a ClientOption which sets r as the function
-// to use to obtain the transaction name for the given http request.
+// to use to obtain the span name for the given http request.
 func WithClientRequestName(r RequestNameFunc) ClientOption {
 	if r == nil {
 		panic("r == nil")
