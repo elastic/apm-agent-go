@@ -147,7 +147,7 @@ pipeline {
       }
     }
     stage('Windows') {
-      agent { label 'windows' }
+      agent { label 'windows-2019-immutable' }
       options { skipDefaultCheckout() }
       environment {
         GOROOT = "c:\\Go"
