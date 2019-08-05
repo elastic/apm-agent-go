@@ -365,6 +365,13 @@ func TestHTTPTransportWatchConfig(t *testing.T) {
 				w.WriteHeader(http.StatusTeapot)
 				return
 			}
+		case <-time.After(10 * time.Millisecond):
+			// This is necessary in case the previous config change
+			// wasn't consumed before a new request was made. This
+			// will return to the request loop.
+			w.Header().Set("Cache-Control", "max-age=0")
+			w.WriteHeader(http.StatusNotModified)
+			return
 		case <-req.Context().Done():
 			return
 		}
