@@ -217,8 +217,27 @@ func TestClientCancelRequest(t *testing.T) {
 	}
 }
 
-func mustGET(ctx context.Context, url string) (statusCode int, responseBody string) {
-	client := apmhttp.WrapClient(http.DefaultClient)
+func TestWithClientRequestName(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusTeapot)
+	}))
+	defer server.Close()
+
+	option := apmhttp.WithClientRequestName(func(_ *http.Request) string {
+		return "http://test"
+	})
+
+	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+		mustGET(ctx, server.URL, option)
+	})
+
+	require.Len(t, spans, 1)
+	span := spans[0]
+	assert.Equal(t, "http://test", span.Name)
+}
+
+func mustGET(ctx context.Context, url string, o ...apmhttp.ClientOption) (statusCode int, responseBody string) {
+	client := apmhttp.WrapClient(http.DefaultClient, o...)
 	resp, err := ctxhttp.Get(ctx, client, url)
 	if err != nil {
 		panic(err)
