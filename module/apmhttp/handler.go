@@ -56,11 +56,12 @@ func Wrap(h http.Handler, o ...ServerOption) http.Handler {
 //
 // The http.Request's context will be updated with the transaction.
 type handler struct {
-	handler        http.Handler
-	tracer         *apm.Tracer
-	recovery       RecoveryFunc
-	requestName    RequestNameFunc
-	requestIgnorer RequestIgnorerFunc
+	handler          http.Handler
+	tracer           *apm.Tracer
+	recovery         RecoveryFunc
+	panicPropagation bool
+	requestName      RequestNameFunc
+	requestIgnorer   RequestIgnorerFunc
 }
 
 // ServeHTTP delegates to h.Handler, tracing the transaction with
@@ -77,7 +78,14 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	w, resp := WrapResponseWriter(w)
 	defer func() {
 		if v := recover(); v != nil {
-			if resp.StatusCode == 0 {
+			if h.panicPropagation {
+				defer panic(v)
+				// 500 status code will be set only for APM transaction
+				// to allow other middleware to choose a different response code
+				if resp.StatusCode == 0 {
+					resp.StatusCode = http.StatusInternalServerError
+				}
+			} else if resp.StatusCode == 0 {
 				w.WriteHeader(http.StatusInternalServerError)
 			}
 			h.recovery(w, req, resp, body, tx, v)
@@ -257,6 +265,15 @@ func WithRecovery(r RecoveryFunc) ServerOption {
 	}
 	return func(h *handler) {
 		h.recovery = r
+	}
+}
+
+// WithPanicPropagation returns a ServerOption which enable panic propagation.
+// Any panic will be recovered and recorded as an error in a transaction, then
+// panic will be caused again.
+func WithPanicPropagation() ServerOption {
+	return func(h *handler) {
+		h.panicPropagation = true
 	}
 }
 
