@@ -320,6 +320,70 @@ func TestHandlerRecoveryNoHeaders(t *testing.T) {
 	assert.Equal(t, &model.Response{StatusCode: resp.StatusCode}, error0.Context.Response)
 }
 
+func TestHandlerWithPanicPropagation(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	h := apmhttp.Wrap(
+		http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			panic("foo")
+		}),
+		apmhttp.WithTracer(tracer),
+		apmhttp.WithPanicPropagation(),
+	)
+
+	recovery := recoveryMiddleware(http.StatusBadGateway)
+	h = recovery(h)
+
+	server := httptest.NewServer(h)
+	defer server.Close()
+
+	resp, err := http.Get(server.URL)
+	require.NoError(t, err)
+	resp.Body.Close()
+
+	assert.Equal(t, http.StatusBadGateway, resp.StatusCode)
+	tracer.Flush(nil)
+
+	payloads := transport.Payloads()
+	error0 := payloads.Errors[0]
+	transaction := payloads.Transactions[0]
+
+	assert.Equal(t, &model.Response{StatusCode: http.StatusInternalServerError}, transaction.Context.Response)
+	assert.Equal(t, &model.Response{StatusCode: http.StatusInternalServerError}, error0.Context.Response)
+}
+
+func TestHandlerWithPanicPropagationResponseCodeForwarding(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	h := apmhttp.Wrap(
+		http.HandlerFunc(panicHandler),
+		apmhttp.WithTracer(tracer),
+		apmhttp.WithPanicPropagation(),
+	)
+
+	recovery := recoveryMiddleware(0)
+	h = recovery(h)
+
+	server := httptest.NewServer(h)
+	defer server.Close()
+
+	resp, err := http.Get(server.URL)
+	require.NoError(t, err)
+	resp.Body.Close()
+
+	assert.Equal(t, http.StatusTeapot, resp.StatusCode)
+	tracer.Flush(nil)
+
+	payloads := transport.Payloads()
+	error0 := payloads.Errors[0]
+	transaction := payloads.Transactions[0]
+
+	assert.Equal(t, &model.Response{StatusCode: resp.StatusCode}, transaction.Context.Response)
+	assert.Equal(t, &model.Response{StatusCode: resp.StatusCode}, error0.Context.Response)
+}
+
 func TestHandlerRequestIgnorer(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
@@ -371,4 +435,20 @@ func TestHandlerTraceparentHeader(t *testing.T) {
 func panicHandler(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusTeapot)
 	panic("foo")
+}
+
+func recoveryMiddleware(code int) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			defer func() {
+				if v := recover(); v != nil {
+					if code == 0 {
+						return
+					}
+					w.WriteHeader(code)
+				}
+			}()
+			next.ServeHTTP(w, req)
+		})
+	}
 }
