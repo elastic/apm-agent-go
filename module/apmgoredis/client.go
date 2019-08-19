@@ -34,6 +34,10 @@ import (
 type Client interface {
 	redis.UniversalClient
 
+	// Client() returns the wrapped *redis.Client,
+	// or nil if a non-normal client is wrapped
+	RedisClient() *redis.Client
+
 	// ClusterClient returns the wrapped *redis.ClusterClient,
 	// or nil if a non-cluster client is wrapped.
 	Cluster() *redis.ClusterClient
@@ -80,6 +84,10 @@ func (c contextClient) WithContext(ctx context.Context) Client {
 	return c
 }
 
+func (c contextClient) RedisClient() *redis.Client {
+	return c.Client
+}
+
 func (c contextClient) Cluster() *redis.ClusterClient {
 	return nil
 }
@@ -90,6 +98,10 @@ func (c contextClient) RingClient() *redis.Ring {
 
 type contextClusterClient struct {
 	*redis.ClusterClient
+}
+
+func (c contextClusterClient) RedisClient() *redis.Client {
+	return nil
 }
 
 func (c contextClusterClient) Cluster() *redis.ClusterClient {
@@ -111,6 +123,10 @@ func (c contextClusterClient) WithContext(ctx context.Context) Client {
 
 type contextRingClient struct {
 	*redis.Ring
+}
+
+func (c contextRingClient) RedisClient() *redis.Client {
+	return nil
 }
 
 func (c contextRingClient) Cluster() *redis.ClusterClient {
