@@ -3,7 +3,7 @@
 @Library('apm@current') _
 
 pipeline {
-  agent any
+  agent { label 'linux && immutable' }
   environment {
     REPO = 'apm-agent-go'
     BASE_DIR = "src/go.elastic.co/apm"
