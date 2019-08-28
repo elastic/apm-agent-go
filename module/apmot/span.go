@@ -205,7 +205,9 @@ func (s *otSpan) setTransactionContext() {
 	tags := clone(s.tags)
 	component := getAndDelete(tags, "component")
 	httpMethod := getAndDelete(tags, "http.method")
-	httpStatusCode, _ = strconv.Atoi(getAndDelete(tags, "http.status_code"))
+	if code, err := strconv.Atoi(getAndDelete(tags, "http.status_code")); err == nil {
+		httpStatusCode = code
+	}
 	httpURL := getAndDelete(tags, "http.url")
 	isError, _ := strconv.ParseBool(getAndDelete(tags, "error"))
 

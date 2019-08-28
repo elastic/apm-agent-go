@@ -75,6 +75,7 @@ func TestTransactionTypeWithHttpStatusCode(t *testing.T) {
 	errorTag := opentracing.Tag{Key: "error", Value: true}
 	tests := []test{
 		{Tag: opentracing.Tag{Key: "http.status_code", Value: -1}, Result: "error"},
+		{Tag: opentracing.Tag{Key: "http.status_code", Value: "not_an_int"}, Result: "error"},
 		{Tag: opentracing.Tag{Key: "http.status_code", Value: 200}, Result: "HTTP 2xx"},
 	}
 	for _, test := range tests {
