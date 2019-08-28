@@ -64,6 +64,33 @@ func TestTransactionType(t *testing.T) {
 	}
 }
 
+func TestTransactionTypeWithHttpStatusCode(t *testing.T) {
+	tracer, apmtracer, recorder := newTestTracer()
+	defer apmtracer.Close()
+
+	type test struct {
+		Tag    opentracing.Tag
+		Result string
+	}
+	errorTag := opentracing.Tag{Key: "error", Value: true}
+	tests := []test{
+		{Tag: opentracing.Tag{Key: "http.status_code", Value: -1}, Result: "error"},
+		{Tag: opentracing.Tag{Key: "http.status_code", Value: 200}, Result: "HTTP 2xx"},
+	}
+	for _, test := range tests {
+		span := tracer.StartSpan("name", test.Tag, errorTag)
+		span.Finish()
+	}
+
+	apmtracer.Flush(nil)
+	payloads := recorder.Payloads()
+	transactions := payloads.Transactions
+	require.Len(t, transactions, len(tests))
+	for i, test := range tests {
+		assert.Equal(t, test.Result, transactions[i].Result)
+	}
+}
+
 func TestHTTPTransaction(t *testing.T) {
 	tracer, apmtracer, recorder := newTestTracer()
 	defer apmtracer.Close()

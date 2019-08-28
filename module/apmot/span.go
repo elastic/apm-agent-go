@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"sync"
 	"time"
 
@@ -135,48 +136,44 @@ func (s *otSpan) SetBaggageItem(key, val string) opentracing.Span {
 	return s
 }
 
+// getAndDelete returns value of the key and deletes the entry, or "" if key not found
+func getAndDelete(tags *map[string]string, key string) string {
+	if value, ok := (*tags)[key]; ok {
+		delete(*tags, key)
+		return value
+	}
+	return ""
+}
+
+// clone returns a copy of tag map with all values stringified
+func clone(tags map[string]interface{}) *map[string]string {
+	cloned := make(map[string]string, len(tags))
+	for k, v := range tags {
+		cloned[k] = fmt.Sprint(v)
+	}
+	return &cloned
+}
+
 func (s *otSpan) setSpanContext() {
-	var (
-		dbContext       apm.DatabaseSpanContext
-		component       string
-		httpURL         string
-		httpMethod      string
-		haveDBContext   bool
-		haveHTTPContext bool
-	)
-	for k, v := range s.tags {
-		switch k {
-		case "component":
-			component = fmt.Sprint(v)
-		case "db.instance":
-			dbContext.Instance = fmt.Sprint(v)
-			haveDBContext = true
-		case "db.statement":
-			dbContext.Statement = fmt.Sprint(v)
-			haveDBContext = true
-		case "db.type":
-			dbContext.Type = fmt.Sprint(v)
-			haveDBContext = true
-		case "db.user":
-			dbContext.User = fmt.Sprint(v)
-			haveDBContext = true
-		case "http.url":
-			haveHTTPContext = true
-			httpURL = fmt.Sprint(v)
-		case "http.method":
-			haveHTTPContext = true
-			httpMethod = fmt.Sprint(v)
+	tags := clone(s.tags)
+	component := getAndDelete(tags, "component")
+	dbContext := apm.DatabaseSpanContext{
+		Instance:  getAndDelete(tags, "db.instance"),
+		Statement: getAndDelete(tags, "db.statement"),
+		Type:      getAndDelete(tags, "db.type"),
+		User:      getAndDelete(tags, "db.user"),
+	}
+	httpURL := getAndDelete(tags, "http.url")
+	httpMethod := getAndDelete(tags, "http.method")
 
-		// Elastic APM-specific tags:
-		case "type":
-			s.span.Type = fmt.Sprint(v)
+	// Elastic APM-specific tags:
+	s.span.Type = getAndDelete(tags, "type")
 
-		default:
-			s.span.Context.SetTag(k, fmt.Sprint(v))
-		}
+	for k, v := range *tags {
+		s.span.Context.SetTag(k, v)
 	}
 	switch {
-	case haveHTTPContext:
+	case httpURL != "":
 		if s.span.Type == "" {
 			s.span.Type = "external"
 			s.span.Subtype = "http"
@@ -190,7 +187,7 @@ func (s *otSpan) setSpanContext() {
 			req.URL = url
 			s.span.Context.SetHTTPRequest(&req)
 		}
-	case haveDBContext:
+	case dbContext.Type != "":
 		if s.span.Type == "" {
 			s.span.Type = "db"
 			s.span.Subtype = dbContext.Type
@@ -204,43 +201,23 @@ func (s *otSpan) setSpanContext() {
 }
 
 func (s *otSpan) setTransactionContext() {
-	var (
-		component      string
-		httpMethod     string
-		httpStatusCode = -1
-		httpURL        string
-		isError        bool
-	)
-	for k, v := range s.tags {
-		switch k {
-		case "component":
-			component = fmt.Sprint(v)
-		case "http.method":
-			httpMethod = fmt.Sprint(v)
-		case "http.status_code":
-			if code, ok := v.(uint16); ok {
-				httpStatusCode = int(code)
-			}
-		case "http.url":
-			httpURL = fmt.Sprint(v)
-		case "error":
-			isError, _ = v.(bool)
+	var httpStatusCode = -1
+	tags := clone(s.tags)
+	component := getAndDelete(tags, "component")
+	httpMethod := getAndDelete(tags, "http.method")
+	httpStatusCode, _ = strconv.Atoi(getAndDelete(tags, "http.status_code"))
+	httpURL := getAndDelete(tags, "http.url")
+	isError, _ := strconv.ParseBool(getAndDelete(tags, "error"))
 
-		// Elastic APM-specific tags:
-		case "type":
-			s.ctx.tx.Type = fmt.Sprint(v)
-		case "result":
-			s.ctx.tx.Result = fmt.Sprint(v)
-		case "user.id":
-			s.ctx.tx.Context.SetUserID(fmt.Sprint(v))
-		case "user.email":
-			s.ctx.tx.Context.SetUserEmail(fmt.Sprint(v))
-		case "user.username":
-			s.ctx.tx.Context.SetUsername(fmt.Sprint(v))
+	// Elastic APM-specific tags:
+	s.ctx.tx.Type = getAndDelete(tags, "type")
+	s.ctx.tx.Result = getAndDelete(tags, "result")
+	s.ctx.tx.Context.SetUserID(getAndDelete(tags, "user.id"))
+	s.ctx.tx.Context.SetUserEmail(getAndDelete(tags, "user.email"))
+	s.ctx.tx.Context.SetUsername(getAndDelete(tags, "user.username"))
 
-		default:
-			s.ctx.tx.Context.SetTag(k, fmt.Sprint(v))
-		}
+	for k, v := range *tags {
+		s.ctx.tx.Context.SetTag(k, v)
 	}
 	if s.ctx.tx.Type == "" {
 		if httpURL != "" {
