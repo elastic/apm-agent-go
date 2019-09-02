@@ -176,14 +176,29 @@ pipeline {
       }
     }
     stage('OSX') {
-      agent none
-      /** TODO: As soon as MacOSX are available we will provide the stage implementation */
-      when {
-        beforeAgent true
-        expression { return false }
+      agent { label 'macosx' }
+      options { skipDefaultCheckout() }
+      environment {
+        HOME = "${env.WORKSPACE}"
+        GOPATH = "${env.WORKSPACE}"
+        GO_VERSION = "${params.GO_VERSION}"
+        PATH = "${env.PATH}:${env.WORKSPACE}/bin"
       }
       steps {
-        echo 'TBD'
+        withGithubNotify(context: 'Build-Test - OSX') {
+          deleteDir()
+          unstash 'source'
+          dir("${BASE_DIR}"){
+            sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
+            sh script: './scripts/jenkins/build-test.sh', label: 'Build and test'
+          }
+        }
+      }
+      post {
+        always {
+          junit(allowEmptyResults: true, keepLongStdio: true, testResults: "${BASE_DIR}/build/junit-*.xml")
+          deleteDir()
+        }
       }
     }
     stage('Integration Tests') {
