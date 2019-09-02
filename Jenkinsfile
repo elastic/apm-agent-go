@@ -146,58 +146,62 @@ pipeline {
         }
       }
     }
-    stage('Windows') {
-      agent { label 'windows-2019-immutable' }
-      options { skipDefaultCheckout() }
-      environment {
-        GOROOT = "c:\\Go"
-        GOPATH = "${env.WORKSPACE}"
-        PATH = "${env.PATH};${env.GOROOT}\\bin;${env.GOPATH}\\bin"
-        GO_VERSION = "${params.GO_VERSION}"
-      }
-      steps {
-        withGithubNotify(context: 'Build-Test - Windows') {
-          cleanDir("${WORKSPACE}/${BASE_DIR}")
-          unstash 'source'
-          dir("${BASE_DIR}"){
-            bat script: 'scripts/jenkins/windows/install-tools.bat', label: 'Install tools'
-            bat script: 'scripts/jenkins/windows/build-test.bat', label: 'Build and test'
+    stage('More OS') {
+      parallel {
+        stage('Windows') {
+          agent { label 'windows-2019-immutable' }
+          options { skipDefaultCheckout() }
+          environment {
+            GOROOT = "c:\\Go"
+            GOPATH = "${env.WORKSPACE}"
+            PATH = "${env.PATH};${env.GOROOT}\\bin;${env.GOPATH}\\bin"
+            GO_VERSION = "${params.GO_VERSION}"
+          }
+          steps {
+            withGithubNotify(context: 'Build-Test - Windows') {
+              cleanDir("${WORKSPACE}/${BASE_DIR}")
+              unstash 'source'
+              dir("${BASE_DIR}"){
+                bat script: 'scripts/jenkins/windows/install-tools.bat', label: 'Install tools'
+                bat script: 'scripts/jenkins/windows/build-test.bat', label: 'Build and test'
+              }
+            }
+          }
+          post {
+            always {
+              junit(allowEmptyResults: true, keepLongStdio: true, testResults: "${BASE_DIR}/build/junit-*.xml")
+              dir("${BASE_DIR}"){
+                bat script: 'scripts/jenkins/windows/uninstall-tools.bat', label: 'Uninstall tools'
+              }
+              cleanWs(disableDeferredWipeout: true, notFailBuild: true)
+            }
           }
         }
-      }
-      post {
-        always {
-          junit(allowEmptyResults: true, keepLongStdio: true, testResults: "${BASE_DIR}/build/junit-*.xml")
-          dir("${BASE_DIR}"){
-            bat script: 'scripts/jenkins/windows/uninstall-tools.bat', label: 'Uninstall tools'
+        stage('OSX') {
+          agent { label 'macosx' }
+          options { skipDefaultCheckout() }
+          environment {
+            HOME = "${env.WORKSPACE}"
+            GOPATH = "${env.WORKSPACE}"
+            GO_VERSION = "${params.GO_VERSION}"
+            PATH = "${env.PATH}:${env.WORKSPACE}/bin"
           }
-          cleanWs(disableDeferredWipeout: true, notFailBuild: true)
-        }
-      }
-    }
-    stage('OSX') {
-      agent { label 'macosx' }
-      options { skipDefaultCheckout() }
-      environment {
-        HOME = "${env.WORKSPACE}"
-        GOPATH = "${env.WORKSPACE}"
-        GO_VERSION = "${params.GO_VERSION}"
-        PATH = "${env.PATH}:${env.WORKSPACE}/bin"
-      }
-      steps {
-        withGithubNotify(context: 'Build-Test - OSX') {
-          deleteDir()
-          unstash 'source'
-          dir("${BASE_DIR}"){
-            sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
-            sh script: './scripts/jenkins/build-test.sh', label: 'Build and test'
+          steps {
+            withGithubNotify(context: 'Build-Test - OSX') {
+              deleteDir()
+              unstash 'source'
+              dir("${BASE_DIR}"){
+                sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
+                sh script: './scripts/jenkins/build-test.sh', label: 'Build and test'
+              }
+            }
           }
-        }
-      }
-      post {
-        always {
-          junit(allowEmptyResults: true, keepLongStdio: true, testResults: "${BASE_DIR}/build/junit-*.xml")
-          deleteDir()
+          post {
+            always {
+              junit(allowEmptyResults: true, keepLongStdio: true, testResults: "${BASE_DIR}/build/junit-*.xml")
+              deleteDir()
+            }
+          }
         }
       }
     }
