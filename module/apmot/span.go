@@ -135,6 +135,13 @@ func (s *otSpan) SetBaggageItem(key, val string) opentracing.Span {
 	return s
 }
 
+func stringify(v interface{}) string {
+	if v, ok := v.(string); ok {
+		return v
+	}
+	return fmt.Sprint(v)
+}
+
 func (s *otSpan) setSpanContext() {
 	var (
 		dbContext       apm.DatabaseSpanContext
@@ -147,32 +154,32 @@ func (s *otSpan) setSpanContext() {
 	for k, v := range s.tags {
 		switch k {
 		case "component":
-			component = fmt.Sprint(v)
+			component = stringify(v)
 		case "db.instance":
-			dbContext.Instance = fmt.Sprint(v)
+			dbContext.Instance = stringify(v)
 			haveDBContext = true
 		case "db.statement":
-			dbContext.Statement = fmt.Sprint(v)
+			dbContext.Statement = stringify(v)
 			haveDBContext = true
 		case "db.type":
-			dbContext.Type = fmt.Sprint(v)
+			dbContext.Type = stringify(v)
 			haveDBContext = true
 		case "db.user":
-			dbContext.User = fmt.Sprint(v)
+			dbContext.User = stringify(v)
 			haveDBContext = true
 		case "http.url":
 			haveHTTPContext = true
-			httpURL = fmt.Sprint(v)
+			httpURL = stringify(v)
 		case "http.method":
 			haveHTTPContext = true
-			httpMethod = fmt.Sprint(v)
+			httpMethod = stringify(v)
 
 		// Elastic APM-specific tags:
 		case "type":
-			s.span.Type = fmt.Sprint(v)
+			s.span.Type = stringify(v)
 
 		default:
-			s.span.Context.SetTag(k, fmt.Sprint(v))
+			s.span.Context.SetTag(k, stringify(v))
 		}
 	}
 	switch {
@@ -214,32 +221,32 @@ func (s *otSpan) setTransactionContext() {
 	for k, v := range s.tags {
 		switch k {
 		case "component":
-			component = fmt.Sprint(v)
+			component = stringify(v)
 		case "http.method":
-			httpMethod = fmt.Sprint(v)
+			httpMethod = stringify(v)
 		case "http.status_code":
 			if code, ok := v.(uint16); ok {
 				httpStatusCode = int(code)
 			}
 		case "http.url":
-			httpURL = fmt.Sprint(v)
+			httpURL = stringify(v)
 		case "error":
 			isError, _ = v.(bool)
 
 		// Elastic APM-specific tags:
 		case "type":
-			s.ctx.tx.Type = fmt.Sprint(v)
+			s.ctx.tx.Type = stringify(v)
 		case "result":
-			s.ctx.tx.Result = fmt.Sprint(v)
+			s.ctx.tx.Result = stringify(v)
 		case "user.id":
-			s.ctx.tx.Context.SetUserID(fmt.Sprint(v))
+			s.ctx.tx.Context.SetUserID(stringify(v))
 		case "user.email":
-			s.ctx.tx.Context.SetUserEmail(fmt.Sprint(v))
+			s.ctx.tx.Context.SetUserEmail(stringify(v))
 		case "user.username":
-			s.ctx.tx.Context.SetUsername(fmt.Sprint(v))
+			s.ctx.tx.Context.SetUsername(stringify(v))
 
 		default:
-			s.ctx.tx.Context.SetTag(k, fmt.Sprint(v))
+			s.ctx.tx.Context.SetTag(k, stringify(v))
 		}
 	}
 	if s.ctx.tx.Type == "" {

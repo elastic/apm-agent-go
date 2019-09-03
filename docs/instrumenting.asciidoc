@@ -334,7 +334,7 @@ import (
 )
 
 func main() {
-	db, err := apmsql.Open("pq", "postgres://...")
+	db, err := apmsql.Open("postgres", "postgres://...")
 	db, err := apmsql.Open("sqlite3", ":memory:")
 }
 ----
