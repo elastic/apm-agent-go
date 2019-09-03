@@ -24,6 +24,8 @@ import (
 	"testing"
 	"time"
 
+	"go.elastic.co/apm/apmtest"
+
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
@@ -350,6 +352,52 @@ func TestSpanFinishWithOptionsLogs(t *testing.T) {
 	assert.Equal(t, model.Time(err0Time), errors[0].Timestamp)
 	assert.Equal(t, "C5H8NO4Na", errors[1].Log.Message)
 	assert.Equal(t, model.Time(spanFinish), errors[1].Timestamp)
+}
+
+func BenchmarkSpanSetSpanContext(b *testing.B) {
+	tags := opentracing.Tags{
+		"component":    "myComponent",
+		"db.instance":  "myDbInstance",
+		"db.statement": "myStatement",
+		"db.type":      "myDbType",
+		"db.user":      "myUser",
+		"http.url":     "myHttpUrl",
+		"http.method":  "myHttpMethod",
+		"type":         "myType",
+		"custom1":      "myCustom1",
+		"custom2":      "myCustom2",
+	}
+
+	tracer := apmot.New(apmot.WithTracer(apmtest.DiscardTracer))
+	parentSpan := tracer.StartSpan("parent")
+	for i := 0; i < b.N; i++ {
+		span := tracer.StartSpan("child", opentracing.ChildOf(parentSpan.Context()), tags)
+		span.Finish()
+	}
+	parentSpan.Finish()
+}
+
+func BenchmarkSpanSetTxContext(b *testing.B) {
+	tags := opentracing.Tags{
+		"component":        "myComponent",
+		"http.method":      "myHttpMethod",
+		"http.status_code": 200,
+		"http.url":         "myHttpUrl",
+		"error":            false,
+		"type":             "myType",
+		"result":           "myResult",
+		"user.id":          "myUserId",
+		"user.email":       "myUserEmail",
+		"user.username":    "myUserUserName",
+		"custom1":          "myCustom1",
+		"custom2":          "myCustom2",
+	}
+
+	tracer := apmot.New(apmot.WithTracer(apmtest.DiscardTracer))
+	for i := 0; i < b.N; i++ {
+		span := tracer.StartSpan("span", tags)
+		span.Finish()
+	}
 }
 
 func newTestTracer() (opentracing.Tracer, *apm.Tracer, *transporttest.RecorderTransport) {
