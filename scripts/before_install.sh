@@ -33,4 +33,11 @@ if (! go run scripts/mingoversion.go 1.9 &>/dev/null); then
     git clone https://github.com/olivere/elastic &&
     cd elastic && git checkout release-branch.v6
   );
+  # Pin golang.org/x/sys to the last commit that supports Go 1.8.
+  mkdir -p "${GOPATH}/src/golang.org/x/sys";
+  (
+    cd "${GOPATH}/src/golang.org/x" &&
+    git clone https://go.googlesource.com/sys &&
+    cd sys && git checkout fc99dfbffb4e
+  );
 fi
