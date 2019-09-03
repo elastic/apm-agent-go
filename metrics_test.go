@@ -231,31 +231,50 @@ func TestTracerMetricsBusyTracer(t *testing.T) {
 }
 
 func TestTracerMetricsBuffered(t *testing.T) {
-	tracer, transport := transporttest.NewRecorderTracer()
+	var recorder transporttest.RecorderTransport
+	unblock := make(chan struct{})
+	tracer, _ := apm.NewTracerOptions(apm.TracerOptions{
+		Transport: sendStreamFunc(func(ctx context.Context, r io.Reader) error {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-unblock:
+				return recorder.SendStream(ctx, r)
+			}
+		}),
+	})
 	defer tracer.Close()
 
-	unblock := make(chan struct{})
-	tracer.Transport = sendStreamFunc(func(ctx context.Context, r io.Reader) error {
+	gathered := make(chan struct{})
+	tracer.RegisterMetricsGatherer(apm.GatherMetricsFunc(
+		func(ctx context.Context, m *apm.Metrics) error {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case gathered <- struct{}{}:
+			}
+			return nil
+		},
+	))
+	tracer.SetMetricsInterval(10 * time.Millisecond)
+
+	// Wait for metrics to be gathered several times, and then unblock
+	// the transport and check that the metrics were buffered while
+	// the transport was blocked.
+	timeout := time.After(5 * time.Second)
+	const N = 5
+	for i := 0; i < N+1; i++ {
 		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-unblock:
-			return transport.SendStream(ctx, r)
+		case <-timeout:
+			t.Fatal("timed out waiting for metrics gatherer to be called")
+		case <-gathered:
 		}
-	})
-
-	const interval = 50 * time.Millisecond
-	tracer.SetMetricsInterval(interval)
-
-	// Sleep for a while, allowing metrics to be gathered several times.
-	// The transport is unblocked after we wake up, at which point all
-	// of the metrics should be sent.
-	time.Sleep(interval * 10)
+	}
 	unblock <- struct{}{}
 	tracer.Flush(nil) // wait for buffered metrics to be flushed
 
-	metrics := transport.Payloads().Metrics
-	if assert.Conditionf(t, func() bool { return len(metrics) >= 5 }, "len(metrics): %d", len(metrics)) {
+	metrics := recorder.Payloads().Metrics
+	if assert.Conditionf(t, func() bool { return len(metrics) >= N }, "len(metrics): %d", len(metrics)) {
 		for i, m := range metrics[1:] {
 			assert.NotEqual(t, metrics[i].Timestamp, m.Timestamp)
 		}
