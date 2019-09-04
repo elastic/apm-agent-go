@@ -12,6 +12,7 @@ pipeline {
     CODECOV_SECRET = 'secret/apm-team/ci/apm-agent-go-codecov'
     GO111MODULE = 'on'
     GOPROXY = 'https://proxy.golang.org'
+    GOSUMDB = 'off'
     GITHUB_CHECK_ITS_NAME = 'Integration Tests'
     ITS_PIPELINE = 'apm-integration-tests-selector-mbp/master'
   }
