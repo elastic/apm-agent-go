@@ -12,3 +12,5 @@ require (
 	go.elastic.co/fastjson v1.0.0
 	golang.org/x/sys v0.0.0-20190726091711-fc99dfbffb4e
 )
+
+go 1.13
