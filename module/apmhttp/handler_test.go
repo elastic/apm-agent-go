@@ -27,6 +27,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -145,12 +146,18 @@ func TestHandlerCaptureBodyConcurrency(t *testing.T) {
 		go func(i int) {
 			defer wg.Done()
 			sentBodies[i] = fmt.Sprint(i)
-			req, _ := http.NewRequest("POST", server.URL+"/foo", strings.NewReader(sentBodies[i]))
-			resp, err := http.DefaultClient.Do(req)
-			if !assert.NoError(t, err) {
-				return
+			for {
+				req, _ := http.NewRequest("POST", server.URL+"/foo", strings.NewReader(sentBodies[i]))
+				resp, err := http.DefaultClient.Do(req)
+				if err != nil {
+					// Guard against macOS test flakiness, where creating many concurrent
+					// requests may lead to "connect: connection reset by peer".
+					time.Sleep(10 * time.Millisecond)
+					continue
+				}
+				resp.Body.Close()
+				break
 			}
-			resp.Body.Close()
 		}(i)
 	}
 	wg.Wait()
