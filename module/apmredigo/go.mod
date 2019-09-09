@@ -7,3 +7,5 @@ require (
 )
 
 replace go.elastic.co/apm => ../..
+
+go 1.13
