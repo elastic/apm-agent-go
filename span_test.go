@@ -88,21 +88,32 @@ func TestTracerStartSpan(t *testing.T) {
 }
 
 func TestSpanTiming(t *testing.T) {
-	tx, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
-		time.Sleep(200 * time.Millisecond)
-		span, _ := apm.StartSpan(ctx, "name", "type")
-		time.Sleep(200 * time.Millisecond)
-		span.End()
-	})
+	var spanStart, spanEnd time.Time
+	txStart := time.Now()
+	tx, spans, _ := apmtest.WithTransactionOptions(
+		apm.TransactionOptions{Start: txStart},
+		func(ctx context.Context) {
+			time.Sleep(500 * time.Millisecond)
+			span, _ := apm.StartSpan(ctx, "name", "type")
+			spanStart = time.Now()
+			time.Sleep(500 * time.Millisecond)
+			spanEnd = time.Now()
+			span.End()
+		},
+	)
 	require.Len(t, spans, 1)
 	span := spans[0]
 
-	assert.InDelta(t,
+	assert.InEpsilon(t,
+		spanStart.Sub(txStart),
 		time.Time(span.Timestamp).Sub(time.Time(tx.Timestamp)),
-		float64(200*time.Millisecond),
-		float64(100*time.Millisecond),
+		0.1, // 10% error
 	)
-	assert.InDelta(t, span.Duration, 200, 100)
+	assert.InEpsilon(t,
+		spanEnd.Sub(spanStart)/time.Millisecond,
+		span.Duration,
+		0.1, // 10% error
+	)
 }
 
 func TestSpanType(t *testing.T) {
