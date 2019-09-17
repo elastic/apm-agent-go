@@ -181,6 +181,26 @@ DetachedContext can be used to maintain trace context required to correlate even
 but where the operation is "fire-and-forget" and should not be affected by the
 deadline or cancellation of the surrounding context.
 
+[float]
+[[apm-traceformatter]]
+==== `func TraceFormatter(context.Context) fmt.Formatter`
+
+TraceFormatter returns an implementation of https://golang.org/pkg/fmt/#Formatter[fmt.Formatter]
+that can be used to format the IDs of the transaction and span stored in the provided context.
+
+The formatter understands the following formats:
+
+ - %v: trace ID, transaction ID, and (if in the context of a span) span ID, space separated
+ - %t: trace ID only
+ - %x: transaction ID only
+ - %s: span ID only
+
+The "+" option can be used to format the values in "key=value" style, with the field
+names `trace.id`, `transaction.id`, and `span.id`. For example, using "%+v" as the format
+would yield "trace.id=... transaction.id=... span.id=...".
+
+For a more in-depth example, see <<log-correlation-manual-unstructured>>.
+
 // -------------------------------------------------------------------------------------------------
 
 [float]
