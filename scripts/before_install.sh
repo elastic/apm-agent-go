@@ -15,6 +15,13 @@ if (! go run scripts/mingoversion.go 1.10 &>/dev/null); then
     git clone https://github.com/gin-gonic/gin &&
     cd gin && git checkout v1.3.0
   );
+  # Ping gocql to the latest commit that supports Go 1.9.
+  mkdir -p "${GOPATH}/src/github.com/gocql";
+  (
+    cd "${GOPATH}/src/github.com/gocql" &&
+    git clone https://github.com/gocql/gocql &&
+    cd gocql && git checkout 16cf9ea1b3e2
+  );
 fi
 
 if (! go run scripts/mingoversion.go 1.9 &>/dev/null); then
