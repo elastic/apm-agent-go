@@ -29,6 +29,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"unicode"
 
 	"go.elastic.co/apm/module/apmhttp"
 )
@@ -44,6 +45,16 @@ const (
 
 var (
 	tracestateKeyRegexp = regexp.MustCompile(`^[a-z](([a-z0-9_*/-]{0,255})|([a-z0-9_*/-]{0,240}@[a-z][a-z0-9_*/-]{0,13}))$`)
+
+	// nblkchr is used for defining valid runes for tracestate values.
+	nblkchr = &unicode.RangeTable{
+		R16: []unicode.Range16{
+			{0x21, 0x2B, 1},
+			{0x2D, 0x3C, 1},
+			{0x3E, 0x7E, 1},
+		},
+		LatinOffset: 3,
+	}
 )
 
 func main() {
@@ -157,7 +168,7 @@ func (s *traceState) init(vs ...string) bool {
 			if !tracestateKeyRegexp.MatchString(item.key) {
 				return false
 			}
-			if len(item.value) > 256 {
+			if !isValidValue(item.value) {
 				return false
 			}
 			if recorded[item.key] {
@@ -168,6 +179,23 @@ func (s *traceState) init(vs ...string) bool {
 		}
 	}
 	return len(*s) <= 32
+}
+
+func isValidValue(s string) bool {
+	runes := []rune(s)
+	n := len(runes)
+	if n == 0 || n > 256 {
+		return false
+	}
+	if !unicode.In(runes[n-1], nblkchr) {
+		return false
+	}
+	for _, r := range runes[:n-1] {
+		if r != 0x20 && !unicode.In(r, nblkchr) {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *traceState) String() string {
