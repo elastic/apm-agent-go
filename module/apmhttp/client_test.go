@@ -164,25 +164,28 @@ func TestClientError(t *testing.T) {
 }
 
 func TestClientDuration(t *testing.T) {
-	const delay = 500 * time.Millisecond
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		w.Write([]byte("hello"))
 		w.(http.Flusher).Flush()
-		time.Sleep(delay)
+		time.Sleep(500 * time.Millisecond)
 		w.Write([]byte("world"))
 	}))
 	defer server.Close()
 
+	var elapsed time.Duration
 	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+		before := time.Now()
 		// mustGET reads the body, so it should not return until the handler completes.
 		mustGET(ctx, server.URL)
+		elapsed = time.Since(before)
 	})
 
 	require.Len(t, spans, 1)
-	span := spans[0]
-
-	assert.Equal(t, "GET "+server.Listener.Addr().String(), span.Name)
-	assert.InDelta(t, delay/time.Millisecond, span.Duration, 100)
+	assert.InEpsilon(t,
+		elapsed,
+		spans[0].Duration*float64(time.Millisecond),
+		0.1, // 10% error
+	)
 }
 
 func TestClientCancelRequest(t *testing.T) {
