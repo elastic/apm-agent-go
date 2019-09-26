@@ -31,6 +31,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
+	"github.com/pkg/errors"
 	"github.com/santhosh-tekuri/jsonschema"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -252,6 +253,17 @@ func TestValidateErrorException(t *testing.T) {
 			}).Send()
 		})
 	})
+	t.Run("chained", func(t *testing.T) {
+		validatePayloads(t, func(tracer *apm.Tracer) {
+			tracer.NewError(&testError{
+				message: "e1",
+				cause: &testError{
+					message: "e2",
+					cause:   errors.New("hullo"),
+				},
+			}).Send()
+		})
+	})
 }
 
 func TestValidateErrorLog(t *testing.T) {
@@ -430,6 +442,7 @@ type testError struct {
 	message string
 	code    string
 	type_   string
+	cause   error
 }
 
 func (e *testError) Error() string {
@@ -442,4 +455,8 @@ func (e *testError) Code() string {
 
 func (e *testError) Type() string {
 	return e.type_
+}
+
+func (e *testError) Cause() error {
+	return e.cause
 }

@@ -6,6 +6,7 @@
  - module/apmhttp: add WithPanicPropagation function (#611)
  - module/apmgoredis: add Client.RedisClient (#613)
  - Introduce apm.TraceFormatter, for formatting trace IDs (#635)
+ - Report error cause(s), add support for errors.Unwrap (#638)
 
 ## [v1.5.0](https://github.com/elastic/apm-agent-go/releases/tag/v1.5.0)
 
