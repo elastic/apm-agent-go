@@ -8,6 +8,7 @@
  - Introduce apm.TraceFormatter, for formatting trace IDs (#635)
  - Report error cause(s), add support for errors.Unwrap (#638)
  - Setting `ELASTIC_APM_TRANSACTION_MAX_SPANS` to 0 now disables all spans (#640)
+ - module/apmzerolog: add Writer.MinLevel (#641)
 
 ## [v1.5.0](https://github.com/elastic/apm-agent-go/releases/tag/v1.5.0)
 

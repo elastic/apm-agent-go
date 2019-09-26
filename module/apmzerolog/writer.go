@@ -71,6 +71,14 @@ type Writer struct {
 	// DefaultFatalFlushTimeout will be used. If the timeout
 	// is a negative value, then no flushing will be performed.
 	FatalFlushTimeout time.Duration
+
+	// MinLevel holds the minimum level of logs to send to
+	// Elastic APM as errors.
+	//
+	// MinLevel must be greater than or equal to zerolog.ErrorLevel.
+	// If it is less than this, zerolog.ErrorLevel will be used as
+	// the minimum instead.
+	MinLevel zerolog.Level
 }
 
 func (w *Writer) tracer() *apm.Tracer {
@@ -81,6 +89,14 @@ func (w *Writer) tracer() *apm.Tracer {
 	return tracer
 }
 
+func (w *Writer) minLevel() zerolog.Level {
+	minLevel := w.MinLevel
+	if minLevel < zerolog.ErrorLevel {
+		minLevel = zerolog.ErrorLevel
+	}
+	return minLevel
+}
+
 // Write is a no-op.
 func (*Writer) Write(p []byte) (int, error) {
 	return len(p), nil
@@ -88,7 +104,7 @@ func (*Writer) Write(p []byte) (int, error) {
 
 // WriteLevel decodes the JSON-encoded log record in p, and reports it as an error using w.Tracer.
 func (w *Writer) WriteLevel(level zerolog.Level, p []byte) (int, error) {
-	if level < zerolog.ErrorLevel || level >= zerolog.NoLevel {
+	if level < w.minLevel() || level >= zerolog.NoLevel {
 		return len(p), nil
 	}
 	tracer := w.tracer()
