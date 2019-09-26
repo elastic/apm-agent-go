@@ -581,8 +581,10 @@ func (t *Tracer) SetSampler(s Sampler) {
 }
 
 // SetMaxSpans sets the maximum number of spans that will be added
-// to a transaction before dropping spans. If set to a non-positive
-// value, the number of spans is unlimited.
+// to a transaction before dropping spans.
+//
+// Passing in zero will disable all spans, while negative values will
+// permit an unlimited number of spans.
 func (t *Tracer) SetMaxSpans(n int) {
 	t.maxSpansMu.Lock()
 	t.maxSpans = n
