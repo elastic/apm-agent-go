@@ -262,7 +262,7 @@ type SpanContext struct {
 	HTTP *HTTPSpanContext `json:"http,omitempty"`
 
 	// Tags holds user-defined key/value pairs.
-	Tags StringMap `json:"tags,omitempty"`
+	Tags IfaceMap `json:"tags,omitempty"`
 }
 
 // DatabaseSpanContext holds contextual information for database
@@ -310,7 +310,7 @@ type Context struct {
 	User *User `json:"user,omitempty"`
 
 	// Tags holds user-defined key/value pairs.
-	Tags StringMap `json:"tags,omitempty"`
+	Tags IfaceMap `json:"tags,omitempty"`
 
 	// Service holds values to overrides service-level metadata.
 	Service *Service `json:"service,omitempty"`

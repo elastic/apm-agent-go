@@ -63,7 +63,7 @@ further describe the transaction.
 [source,go]
 ----
 transaction.Result = "Success"
-transaction.Context.SetTag("region", "us-east-1")
+transaction.Context.SetLabel("region", "us-east-1")
 ----
 
 See <<context-api>> for more details on setting transaction context.
@@ -328,15 +328,31 @@ custom context and tags.
 [[context-set-tag]]
 ==== `func (*Context) SetTag(key, value string)`
 
-SetTag tags the transaction or error with the given key and value. If the
-key contains any special characters (`.`, `*`, `"`), they will be replaced
-with underscores. Values longer than 1024 characters will be truncated.
-Tags will be indexed in Elasticsearch as keyword fields.
+SetTag is equivalent to calling SetLabel with a string value.
 
-TIP: Before using custom tags, ensure you understand the different types of
+NOTE: This function is deprecated, and will be removed in a future major
+version of the agent.
+
+[float]
+[[context-set-label]]
+==== `func (*Context) SetLabel(key string, value interface{})`
+
+SetLabel labels the transaction or error with the given key and value.
+If the key contains any special characters (`.`, `*`, `"`), they will be
+replaced with underscores.
+
+If the value is numerical or boolean, then it will be sent to the server
+as a JSON number or boolean; otherwise it will converted to a string, using
+`fmt.Sprint` if necessary. Numerical and boolean values are supported by
+the server from version 6.7 onwards.
+
+String values longer than 1024 characters will be truncated. Labels are
+indexed in Elasticsearch as keyword fields.
+
+TIP: Before using labels, ensure you understand the different types of
 {apm-overview-ref-v}/metadata.html[metadata] that are available.
 
-WARNING: Avoid defining too many user-specified tags.
+WARNING: Avoid defining too many user-specified labels.
 Defining too many unique fields in an index is a condition that can lead to a
 {ref}/mapping.html#mapping-limit-settings[mapping explosion].
 

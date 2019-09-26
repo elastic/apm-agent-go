@@ -144,7 +144,7 @@ func (api *api) handleOrder(ctx context.Context, product string) {
 	defer tx.End()
 	ctx = apm.ContextWithTransaction(ctx, tx)
 
-	tx.Context.SetTag("product", product)
+	tx.Context.SetLabel("product", product)
 
 	time.Sleep(10 * time.Millisecond)
 	storeOrder(ctx, product)

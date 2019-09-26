@@ -18,9 +18,11 @@
 package apm
 
 import (
+	"fmt"
 	"math/rand"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"runtime"
 	"strings"
@@ -41,7 +43,10 @@ var (
 	localSystem    model.System
 
 	serviceNameInvalidRegexp = regexp.MustCompile("[^" + serviceNameValidClass + "]")
-	tagKeyReplacer           = strings.NewReplacer(`.`, `_`, `*`, `_`, `"`, `_`)
+	labelKeyReplacer         = strings.NewReplacer(`.`, `_`, `*`, `_`, `"`, `_`)
+
+	rtypeBool    = reflect.TypeOf(false)
+	rtypeFloat64 = reflect.TypeOf(float64(0))
 )
 
 const (
@@ -147,8 +152,33 @@ func getKubernetesMetadata() *model.Kubernetes {
 	return kubernetes
 }
 
-func cleanTagKey(k string) string {
-	return tagKeyReplacer.Replace(k)
+func cleanLabelKey(k string) string {
+	return labelKeyReplacer.Replace(k)
+}
+
+// makeLabelValue returns v as a value suitable for including
+// in a label value. If v is numerical or boolean, then it will
+// be returned as-is; otherwise the value will be returned as a
+// string, using fmt.Sprint if necessary, and possibly truncated
+// using truncateString.
+func makeLabelValue(v interface{}) interface{} {
+	switch v.(type) {
+	case nil, bool, float32, float64,
+		uint, uint8, uint16, uint32, uint64,
+		int, int8, int16, int32, int64:
+		return v
+	case string:
+		return truncateString(v.(string))
+	}
+	// Slow path. If v has a non-basic type whose underlying
+	// type is convertible to bool or float64, return v as-is.
+	// Otherwise, stringify.
+	rtype := reflect.TypeOf(v)
+	if rtype.ConvertibleTo(rtypeBool) || rtype.ConvertibleTo(rtypeFloat64) {
+		// Custom type
+		return v
+	}
+	return truncateString(fmt.Sprint(v))
 }
 
 func validateServiceName(name string) error {

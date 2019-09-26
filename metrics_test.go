@@ -219,7 +219,7 @@ func TestTracerMetricsBusyTracer(t *testing.T) {
 			strings.Repeat("x", 1024),
 			strings.Repeat("y", 1024),
 		)
-		tx.Context.SetTag(strings.Repeat("a", 7000), "v")
+		tx.Context.SetLabel(strings.Repeat("a", 7000), "v")
 		tx.End()
 	}
 

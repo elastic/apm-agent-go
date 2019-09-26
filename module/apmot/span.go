@@ -179,7 +179,7 @@ func (s *otSpan) setSpanContext() {
 			s.span.Type = stringify(v)
 
 		default:
-			s.span.Context.SetTag(k, stringify(v))
+			s.span.Context.SetLabel(k, stringify(v))
 		}
 	}
 	switch {
@@ -246,7 +246,7 @@ func (s *otSpan) setTransactionContext() {
 			s.ctx.tx.Context.SetUsername(stringify(v))
 
 		default:
-			s.ctx.tx.Context.SetTag(k, stringify(v))
+			s.ctx.tx.Context.SetLabel(k, stringify(v))
 		}
 	}
 	if s.ctx.tx.Type == "" {

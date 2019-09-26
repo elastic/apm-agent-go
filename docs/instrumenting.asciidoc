@@ -754,7 +754,7 @@ tx := apm.DefaultTracer.StartTransaction("GET /api/v1", "request")
 defer tx.End()
 ...
 tx.Result = "HTTP 2xx"
-tx.Context.SetTag("region", "us-east-1")
+tx.Context.SetLabel("region", "us-east-1")
 ----
 
 The agent supports sampling transactions: non-sampled transactions will be still be
