@@ -116,6 +116,22 @@ func TestWriterNonError(t *testing.T) {
 	assert.Empty(t, payloads.Errors)
 }
 
+func TestWriterMinLevel(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	writer := &apmzerolog.Writer{
+		Tracer:   tracer,
+		MinLevel: zerolog.FatalLevel,
+	}
+	logger := zerolog.New(writer)
+	logger.Error().Msg("oy vey!")
+
+	tracer.Flush(nil)
+	payloads := transport.Payloads()
+	assert.Empty(t, payloads.Errors)
+}
+
 func TestWriterWithError(t *testing.T) {
 	// Use our own ErrorStackMarshaler implementation,
 	// which records a fully qualified function name.
