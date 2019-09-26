@@ -83,29 +83,34 @@ func TestTracerFlushEmpty(t *testing.T) {
 }
 
 func TestTracerMaxSpans(t *testing.T) {
-	tracer, r := transporttest.NewRecorderTracer()
-	defer tracer.Close()
+	test := func(n int) {
+		t.Run(fmt.Sprint(n), func(t *testing.T) {
+			tracer, r := transporttest.NewRecorderTracer()
+			defer tracer.Close()
 
-	tracer.SetMaxSpans(2)
-	tx := tracer.StartTransaction("name", "type")
-	// SetMaxSpans only affects transactions started
-	// after the call.
-	tracer.SetMaxSpans(99)
+			tracer.SetMaxSpans(n)
+			tx := tracer.StartTransaction("name", "type")
+			defer tx.End()
 
-	s0 := tx.StartSpan("name", "type", nil)
-	s1 := tx.StartSpan("name", "type", nil)
-	s2 := tx.StartSpan("name", "type", nil)
-	tx.End()
+			// SetMaxSpans only affects transactions started
+			// after the call.
+			tracer.SetMaxSpans(99)
 
-	assert.False(t, s0.Dropped())
-	assert.False(t, s1.Dropped())
-	assert.True(t, s2.Dropped())
-	s0.End()
-	s1.End()
-	s2.End()
+			for i := 0; i < n; i++ {
+				span := tx.StartSpan("name", "type", nil)
+				assert.False(t, span.Dropped())
+				span.End()
+			}
+			span := tx.StartSpan("name", "type", nil)
+			assert.True(t, span.Dropped())
+			span.End()
 
-	tracer.Flush(nil)
-	assert.Len(t, r.Payloads().Spans, 2)
+			tracer.Flush(nil)
+			assert.Len(t, r.Payloads().Spans, n)
+		})
+	}
+	test(0)
+	test(23)
 }
 
 func TestTracerErrors(t *testing.T) {

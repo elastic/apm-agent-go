@@ -101,7 +101,7 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 	defer tx.TransactionData.mu.Unlock()
 	if !span.traceContext.Options.Recorded() {
 		span.tracer = nil // span is dropped
-	} else if tx.maxSpans > 0 && tx.spansCreated >= tx.maxSpans {
+	} else if tx.maxSpans >= 0 && tx.spansCreated >= tx.maxSpans {
 		span.tracer = nil // span is dropped
 		tx.spansDropped++
 	} else {
