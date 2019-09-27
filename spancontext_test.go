@@ -29,17 +29,21 @@ import (
 	"go.elastic.co/apm/model"
 )
 
-func TestSpanContextSetTag(t *testing.T) {
+func TestSpanContextSetLabel(t *testing.T) {
 	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
 		span, _ := apm.StartSpan(ctx, "name", "type")
-		span.Context.SetTag("foo", "bar")
-		span.Context.SetTag("foo", "bar!") // Last instance wins
-		span.Context.SetTag("bar", "baz")
+		span.Context.SetTag("foo", "bar")    // deprecated
+		span.Context.SetLabel("foo", "bar!") // Last instance wins
+		span.Context.SetLabel("bar", "baz")
+		span.Context.SetLabel("baz", 123.456)
+		span.Context.SetLabel("qux", true)
 		span.End()
 	})
 	require.Len(t, spans, 1)
-	assert.Equal(t, model.StringMap{
+	assert.Equal(t, model.IfaceMap{
 		{Key: "bar", Value: "baz"},
+		{Key: "baz", Value: 123.456},
 		{Key: "foo", Value: "bar!"},
+		{Key: "qux", Value: true},
 	}, spans[0].Context.Tags)
 }

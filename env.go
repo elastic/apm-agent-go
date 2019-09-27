@@ -95,7 +95,7 @@ var (
 			if i > 0 {
 				k, v := strings.TrimSpace(kv[:i]), strings.TrimSpace(kv[i+1:])
 				labels = append(labels, model.StringMapItem{
-					Key:   cleanTagKey(k),
+					Key:   cleanLabelKey(k),
 					Value: truncateString(v),
 				})
 			}

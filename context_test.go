@@ -29,15 +29,22 @@ import (
 	"go.elastic.co/apm/model"
 )
 
-func TestContextTags(t *testing.T) {
+func TestContextLabels(t *testing.T) {
+	type customInt int
 	tx := testSendTransaction(t, func(tx *apm.Transaction) {
-		tx.Context.SetTag("foo", "bar")
-		tx.Context.SetTag("foo", "bar!") // Last instance wins
-		tx.Context.SetTag("bar", "baz")
+		tx.Context.SetTag("foo", "bar")    // deprecated
+		tx.Context.SetLabel("foo", "bar!") // Last instance wins
+		tx.Context.SetLabel("bar", "baz")
+		tx.Context.SetLabel("baz", 123.456)
+		tx.Context.SetLabel("qux", true)
+		tx.Context.SetLabel("quux", customInt(123))
 	})
-	assert.Equal(t, model.StringMap{
+	assert.Equal(t, model.IfaceMap{
 		{Key: "bar", Value: "baz"},
+		{Key: "baz", Value: 123.456},
 		{Key: "foo", Value: "bar!"},
+		{Key: "quux", Value: 123.0},
+		{Key: "qux", Value: true},
 	}, tx.Context.Tags)
 }
 

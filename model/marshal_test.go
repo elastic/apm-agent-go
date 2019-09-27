@@ -509,7 +509,7 @@ func fakeTransaction() model.Transaction {
 			User: &model.User{
 				Username: "wanda",
 			},
-			Tags: model.StringMap{{
+			Tags: model.IfaceMap{{
 				Key: "tag", Value: "urit",
 			}},
 			Service: &model.Service{

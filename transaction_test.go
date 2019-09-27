@@ -147,7 +147,7 @@ func TestTransactionContextNotSampled(t *testing.T) {
 	tracer.SetSampler(samplerFunc(func(apm.TraceContext) bool { return false }))
 
 	tx := tracer.StartTransaction("name", "type")
-	tx.Context.SetTag("foo", "bar")
+	tx.Context.SetLabel("foo", "bar")
 	tx.End()
 	tracer.Flush(nil)
 
