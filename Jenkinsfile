@@ -3,7 +3,7 @@
 @Library('apm@current') _
 
 pipeline {
-  agent any
+  agent { label 'linux && immutable' }
   environment {
     REPO = 'apm-agent-go'
     BASE_DIR = "src/go.elastic.co/apm"
@@ -37,11 +37,9 @@ pipeline {
   }
   stages {
     stage('Initializing'){
-      agent { label 'linux && immutable' }
       options { skipDefaultCheckout() }
       environment {
         HOME = "${env.WORKSPACE}"
-        GOPATH = "${env.WORKSPACE}"
         GO_VERSION = "${params.GO_VERSION}"
         PATH = "${env.PATH}:${env.WORKSPACE}/bin"
       }
@@ -59,7 +57,6 @@ pipeline {
         Execute unit tests.
         */
         stage('Tests') {
-          agent { label 'linux && immutable' }
           options { skipDefaultCheckout() }
           when {
             beforeAgent true
@@ -88,7 +85,6 @@ pipeline {
           }
         }
         stage('Coverage') {
-          agent { label 'linux && immutable' }
           options { skipDefaultCheckout() }
           when {
             beforeAgent true
@@ -237,7 +233,7 @@ pipeline {
 
 def generateStep(version){
   return {
-    node('docker && linux && immutable'){
+    node('linux && immutable'){
       try {
         deleteDir()
         unstash 'source'
