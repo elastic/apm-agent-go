@@ -21,6 +21,7 @@ package apmgorm
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	"github.com/jinzhu/gorm"
@@ -141,7 +142,7 @@ func newAfterCallback(dsnInfo apmsql.DSNInfo) func(*gorm.Scope) {
 
 		// Capture errors, except for "record not found", which may be expected.
 		for _, err := range scope.DB().GetErrors() {
-			if gorm.IsRecordNotFoundError(err) {
+			if gorm.IsRecordNotFoundError(err) || err == sql.ErrNoRows {
 				continue
 			}
 			if e := apm.CaptureError(ctx, err); e != nil {
