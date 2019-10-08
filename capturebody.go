@@ -69,9 +69,7 @@ func (t *Tracer) CaptureHTTPRequestBody(req *http.Request) *BodyCapturer {
 	if req.Body == nil {
 		return nil
 	}
-	t.captureBodyMu.RLock()
-	captureBody := t.captureBody
-	t.captureBodyMu.RUnlock()
+	captureBody := t.instrumentationConfig().captureBody
 	if captureBody == CaptureBodyOff {
 		return nil
 	}
