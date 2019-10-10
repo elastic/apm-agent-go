@@ -159,13 +159,9 @@ func (t *Tracer) StartSpan(name, spanType string, transactionID SpanID, opts Spa
 	span := t.startSpan(name, spanType, transactionID, opts)
 	span.traceContext.Span = spanID
 
-	t.spanFramesMinDurationMu.RLock()
-	span.stackFramesMinDuration = t.spanFramesMinDuration
-	t.spanFramesMinDurationMu.RUnlock()
-
-	t.stackTraceLimitMu.RLock()
-	span.stackTraceLimit = t.stackTraceLimit
-	t.stackTraceLimitMu.RUnlock()
+	instrumentationConfig := t.instrumentationConfig()
+	span.stackFramesMinDuration = instrumentationConfig.spanFramesMinDuration
+	span.stackTraceLimit = instrumentationConfig.stackTraceLimit
 
 	return span
 }

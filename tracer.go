@@ -24,7 +24,6 @@ import (
 	"io"
 	"log"
 	"math/rand"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -294,30 +293,9 @@ type Tracer struct {
 	statsMu sync.Mutex
 	stats   TracerStats
 
-	maxSpansMu sync.RWMutex
-	maxSpans   int
-
-	spanFramesMinDurationMu sync.RWMutex
-	spanFramesMinDuration   time.Duration
-
-	stackTraceLimitMu sync.RWMutex
-	stackTraceLimit   int
-
-	samplerMu sync.RWMutex
-	sampler   Sampler
-	// localSampler holds the most recently locally-configured Sampler,
-	// which is what sampler will be set to when a centrally defined
-	// sampler is removed.
-	localSampler Sampler
-	// remoteSampler records whether sampler is defined by the remote
-	// config watcher.
-	remoteSampler bool
-
-	captureHeadersMu sync.RWMutex
-	captureHeaders   bool
-
-	captureBodyMu sync.RWMutex
-	captureBody   CaptureBodyMode
+	// instrumentationConfig_ must only be accessed and mutated
+	// using Tracer.instrumentationConfig() and Tracer.setInstrumentationConfig().
+	instrumentationConfigInternal *instrumentationConfig
 
 	errorDataPool       sync.Pool
 	spanDataPool        sync.Pool
@@ -348,32 +326,48 @@ func NewTracerOptions(opts TracerOptions) (*Tracer, error) {
 
 func newTracer(opts TracerOptions) *Tracer {
 	t := &Tracer{
-		Transport:             opts.Transport,
-		process:               &currentProcess,
-		system:                &localSystem,
-		closing:               make(chan struct{}),
-		closed:                make(chan struct{}),
-		forceFlush:            make(chan chan<- struct{}),
-		forceSendMetrics:      make(chan chan<- struct{}),
-		configCommands:        make(chan tracerConfigCommand),
-		configWatcher:         make(chan apmconfig.Watcher),
-		events:                make(chan tracerEvent, tracerEventChannelCap),
-		active:                1,
-		breakdownMetrics:      newBreakdownMetrics(),
-		maxSpans:              opts.maxSpans,
-		sampler:               opts.sampler,
-		localSampler:          opts.sampler,
-		captureHeaders:        opts.captureHeaders,
-		captureBody:           opts.captureBody,
-		spanFramesMinDuration: opts.spanFramesMinDuration,
-		stackTraceLimit:       opts.stackTraceLimit,
-		bufferSize:            opts.bufferSize,
-		metricsBufferSize:     opts.metricsBufferSize,
+		Transport:         opts.Transport,
+		process:           &currentProcess,
+		system:            &localSystem,
+		closing:           make(chan struct{}),
+		closed:            make(chan struct{}),
+		forceFlush:        make(chan chan<- struct{}),
+		forceSendMetrics:  make(chan chan<- struct{}),
+		configCommands:    make(chan tracerConfigCommand),
+		configWatcher:     make(chan apmconfig.Watcher),
+		events:            make(chan tracerEvent, tracerEventChannelCap),
+		active:            1,
+		breakdownMetrics:  newBreakdownMetrics(),
+		bufferSize:        opts.bufferSize,
+		metricsBufferSize: opts.metricsBufferSize,
+		instrumentationConfigInternal: &instrumentationConfig{
+			local: make(map[string]func(*instrumentationConfigValues)),
+		},
 	}
 	t.Service.Name = opts.ServiceName
 	t.Service.Version = opts.ServiceVersion
 	t.Service.Environment = opts.ServiceEnvironment
 	t.breakdownMetrics.enabled = opts.breakdownMetrics
+
+	// Initialise local transaction config.
+	t.setLocalInstrumentationConfig(envCaptureBody, func(cfg *instrumentationConfigValues) {
+		cfg.captureBody = opts.captureBody
+	})
+	t.setLocalInstrumentationConfig(envCaptureHeaders, func(cfg *instrumentationConfigValues) {
+		cfg.captureHeaders = opts.captureHeaders
+	})
+	t.setLocalInstrumentationConfig(envMaxSpans, func(cfg *instrumentationConfigValues) {
+		cfg.maxSpans = opts.maxSpans
+	})
+	t.setLocalInstrumentationConfig(envTransactionSampleRate, func(cfg *instrumentationConfigValues) {
+		cfg.sampler = opts.sampler
+	})
+	t.setLocalInstrumentationConfig(envSpanFramesMinDuration, func(cfg *instrumentationConfigValues) {
+		cfg.spanFramesMinDuration = opts.spanFramesMinDuration
+	})
+	t.setLocalInstrumentationConfig(envStackTraceLimit, func(cfg *instrumentationConfigValues) {
+		cfg.stackTraceLimit = opts.stackTraceLimit
+	})
 
 	if !opts.active {
 		t.active = 0
@@ -572,12 +566,9 @@ func (t *Tracer) sendConfigCommand(cmd tracerConfigCommand) {
 // if sampling has been configured via Kibana, this call will not have any
 // effect until/unless that configuration has been removed.
 func (t *Tracer) SetSampler(s Sampler) {
-	t.samplerMu.Lock()
-	t.localSampler = s
-	if !t.remoteSampler {
-		t.sampler = s
-	}
-	t.samplerMu.Unlock()
+	t.setLocalInstrumentationConfig(envTransactionSampleRate, func(cfg *instrumentationConfigValues) {
+		cfg.sampler = s
+	})
 }
 
 // SetMaxSpans sets the maximum number of spans that will be added
@@ -586,39 +577,39 @@ func (t *Tracer) SetSampler(s Sampler) {
 // Passing in zero will disable all spans, while negative values will
 // permit an unlimited number of spans.
 func (t *Tracer) SetMaxSpans(n int) {
-	t.maxSpansMu.Lock()
-	t.maxSpans = n
-	t.maxSpansMu.Unlock()
+	t.setLocalInstrumentationConfig(envMaxSpans, func(cfg *instrumentationConfigValues) {
+		cfg.maxSpans = n
+	})
 }
 
 // SetSpanFramesMinDuration sets the minimum duration for a span after which
 // we will capture its stack frames.
 func (t *Tracer) SetSpanFramesMinDuration(d time.Duration) {
-	t.spanFramesMinDurationMu.Lock()
-	t.spanFramesMinDuration = d
-	t.spanFramesMinDurationMu.Unlock()
+	t.setLocalInstrumentationConfig(envMaxSpans, func(cfg *instrumentationConfigValues) {
+		cfg.spanFramesMinDuration = d
+	})
 }
 
 // SetStackTraceLimit sets the the maximum number of stack frames to collect
 // for each stack trace. If limit is negative, then all frames will be collected.
 func (t *Tracer) SetStackTraceLimit(limit int) {
-	t.stackTraceLimitMu.Lock()
-	t.stackTraceLimit = limit
-	t.stackTraceLimitMu.Unlock()
+	t.setLocalInstrumentationConfig(envMaxSpans, func(cfg *instrumentationConfigValues) {
+		cfg.stackTraceLimit = limit
+	})
 }
 
 // SetCaptureHeaders enables or disables capturing of HTTP headers.
 func (t *Tracer) SetCaptureHeaders(capture bool) {
-	t.captureHeadersMu.Lock()
-	t.captureHeaders = capture
-	t.captureHeadersMu.Unlock()
+	t.setLocalInstrumentationConfig(envMaxSpans, func(cfg *instrumentationConfigValues) {
+		cfg.captureHeaders = capture
+	})
 }
 
 // SetCaptureBody sets the HTTP request body capture mode.
 func (t *Tracer) SetCaptureBody(mode CaptureBodyMode) {
-	t.captureBodyMu.Lock()
-	t.captureBody = mode
-	t.captureBodyMu.Unlock()
+	t.setLocalInstrumentationConfig(envMaxSpans, func(cfg *instrumentationConfigValues) {
+		cfg.captureBody = mode
+	})
 }
 
 // SendMetrics forces the tracer to gather and send metrics immediately,
@@ -767,7 +758,7 @@ func (t *Tracer) loop() {
 		case cw := <-t.configWatcher:
 			if configChanges != nil {
 				stopConfigWatcher()
-				t.updateConfig(&cfg, lastConfigChange, nil)
+				t.updateRemoteConfig(cfg.logger, lastConfigChange, nil)
 				lastConfigChange = nil
 				configChanges = nil
 			}
@@ -797,7 +788,7 @@ func (t *Tracer) loop() {
 					cfg.logger.Errorf("config request failed: %s", change.Err)
 				}
 			} else {
-				t.updateConfig(&cfg, lastConfigChange, change.Attrs)
+				t.updateRemoteConfig(cfg.logger, lastConfigChange, change.Attrs)
 				lastConfigChange = change.Attrs
 			}
 			continue
@@ -1078,66 +1069,6 @@ func (t *Tracer) gatherMetrics(ctx context.Context, gatherers []MetricsGatherer,
 		}
 		gathered <- struct{}{}
 	}()
-}
-
-// updateConfig updates t and cfg with changes held in "attrs", and reverts
-// to local config for config attributes that have been removed (exist in old
-// but not in attrs).
-//
-// On return from updateConfig, unapplied config will have been removed from attrs.
-func (t *Tracer) updateConfig(cfg *tracerConfig, old, attrs map[string]string) {
-	warningf := func(string, ...interface{}) {}
-	debugf := func(string, ...interface{}) {}
-	errorf := func(string, ...interface{}) {}
-	if cfg.logger != nil {
-		warningf = cfg.logger.Warningf
-		debugf = cfg.logger.Debugf
-		errorf = cfg.logger.Errorf
-	}
-	envName := func(k string) string {
-		return "ELASTIC_APM_" + strings.ToUpper(k)
-	}
-
-	for k, v := range attrs {
-		if oldv, ok := old[k]; ok && oldv == v {
-			continue
-		}
-		switch envName(k) {
-		case envTransactionSampleRate:
-			sampler, err := parseSampleRate(k, v)
-			if err != nil {
-				errorf("central config failure: %s", err)
-				delete(attrs, k)
-				continue
-			} else {
-				t.samplerMu.Lock()
-				t.sampler = sampler
-				t.remoteSampler = true
-				t.samplerMu.Unlock()
-			}
-		default:
-			warningf("central config failure: unsupported config: %s", k)
-			delete(attrs, k)
-			continue
-		}
-		debugf("central config update: updated %s to %s", k, v)
-	}
-
-	for k := range old {
-		if _, ok := attrs[k]; ok {
-			continue
-		}
-		switch envName(k) {
-		case envTransactionSampleRate:
-			t.samplerMu.Lock()
-			t.sampler = t.localSampler
-			t.remoteSampler = false
-			t.samplerMu.Unlock()
-		default:
-			continue
-		}
-		debugf("central config update: reverted %s to local config", k)
-	}
 }
 
 type tracerEventType int
