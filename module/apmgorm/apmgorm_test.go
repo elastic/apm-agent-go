@@ -148,24 +148,39 @@ func TestWithContextNonSampled(t *testing.T) {
 }
 
 func TestCaptureErrors(t *testing.T) {
-	db, err := apmgorm.Open("sqlite3", ":memory:")
+	if os.Getenv("PGHOST") == "" {
+		t.Skip("PGHOST not specified, skipping")
+	}
+	db, err := apmgorm.Open("postgres", "user=postgres password=hunter2 dbname=test_db sslmode=disable")
 	require.NoError(t, err)
 	defer db.Close()
 	db.SetLogger(nopLogger{})
 	db.AutoMigrate(&Product{})
+	require.NoError(t, db.Unscoped().Delete(&Product{}).Error)
 
 	_, spans, errors := apmtest.WithTransaction(func(ctx context.Context) {
 		db = apmgorm.WithContext(ctx, db)
 
-		// record not found should not cause an error
+		// gorm.ErrRecordNotFound should not cause an error
 		db.Where("code=?", "L1212").First(&Product{})
+
+		// sql.ErrNoRows should not cause an error
+		product := Product{
+			Model: gorm.Model{
+				ID: 1001,
+			},
+			Code:  "1001",
+			Price: 1001,
+		}
+		require.NoError(t, db.Create(&product).Error)
+		db.Set("gorm:insert_option", "ON CONFLICT (id) DO NOTHING").Create(&product)
 
 		// invalid SQL should
 		db.Where("bananas").First(&Product{})
 	})
-	assert.Len(t, spans, 2)
+	assert.Len(t, spans, 4)
 	require.Len(t, errors, 1)
-	assert.Regexp(t, "no such column: bananas", errors[0].Exception.Message)
+	assert.Regexp(t, `pq: column "bananas" does not exist`, errors[0].Exception.Message)
 }
 
 func TestOpenWithDriver(t *testing.T) {
