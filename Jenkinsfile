@@ -11,7 +11,9 @@ pipeline {
     JOB_GCS_BUCKET = credentials('gcs-bucket')
     CODECOV_SECRET = 'secret/apm-team/ci/apm-agent-go-codecov'
     GO111MODULE = 'on'
+    GOPATH = "${env.WORKSPACE}"
     GOPROXY = 'https://proxy.golang.org'
+    HOME = "${env.WORKSPACE}"
     GITHUB_CHECK_ITS_NAME = 'Integration Tests'
     ITS_PIPELINE = 'apm-integration-tests-selector-mbp/master'
   }
@@ -39,8 +41,6 @@ pipeline {
     stage('Initializing'){
       options { skipDefaultCheckout() }
       environment {
-        HOME = "${env.WORKSPACE}"
-        GOPATH = "${env.WORKSPACE}"
         GO_VERSION = "${params.GO_VERSION}"
         PATH = "${env.PATH}:${env.WORKSPACE}/bin"
       }
@@ -151,7 +151,6 @@ pipeline {
           options { skipDefaultCheckout() }
           environment {
             GOROOT = "c:\\Go"
-            GOPATH = "${env.WORKSPACE}"
             PATH = "${env.PATH};${env.GOROOT}\\bin;${env.GOPATH}\\bin"
             GO_VERSION = "${params.GO_VERSION}"
           }
@@ -179,8 +178,6 @@ pipeline {
           agent { label 'macosx' }
           options { skipDefaultCheckout() }
           environment {
-            HOME = "${env.WORKSPACE}"
-            GOPATH = "${env.WORKSPACE}"
             GO_VERSION = "${params.GO_VERSION}"
             PATH = "${env.PATH}:${env.WORKSPACE}/bin"
           }
