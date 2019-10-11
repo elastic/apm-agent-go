@@ -58,7 +58,6 @@ pipeline {
         Execute unit tests.
         */
         stage('Tests') {
-          agent { label 'linux && immutable' }
           options { skipDefaultCheckout() }
           when {
             beforeAgent true
@@ -238,8 +237,7 @@ def generateStep(version){
         unstash 'source'
         echo "${version}"
         dir("${BASE_DIR}"){
-          withEnv(["GO_VERSION=${version}", "HOME=${WORKSPACE}"]) {
-            sh script: 'rm $GOPATH/go.mod || true', label: 'remove the file'
+          withEnv(["GO_VERSION=${version}", "HOME=${WORKSPACE}", "GOPATH=${WORKSPACE}"]) {
             sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
             sh script: './scripts/jenkins/build-test.sh', label: 'Build and test'
           }
