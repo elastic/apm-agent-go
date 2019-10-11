@@ -40,6 +40,7 @@ pipeline {
       options { skipDefaultCheckout() }
       environment {
         HOME = "${env.WORKSPACE}"
+        GOPATH = "${env.WORKSPACE}"
         GO_VERSION = "${params.GO_VERSION}"
         PATH = "${env.PATH}:${env.WORKSPACE}/bin"
       }
