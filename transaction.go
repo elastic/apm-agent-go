@@ -81,31 +81,17 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 		}
 	}
 
-	// Take a snapshot of the max spans config to ensure
-	// that once the maximum is reached, all future span
-	// creations are dropped.
-	t.maxSpansMu.RLock()
-	tx.maxSpans = t.maxSpans
-	t.maxSpansMu.RUnlock()
-
-	t.spanFramesMinDurationMu.RLock()
-	tx.spanFramesMinDuration = t.spanFramesMinDuration
-	t.spanFramesMinDurationMu.RUnlock()
-
-	t.stackTraceLimitMu.RLock()
-	tx.stackTraceLimit = t.stackTraceLimit
-	t.stackTraceLimitMu.RUnlock()
-
-	t.captureHeadersMu.RLock()
-	tx.Context.captureHeaders = t.captureHeaders
-	t.captureHeadersMu.RUnlock()
-
+	// Take a snapshot of config that should apply to all spans within the
+	// transaction.
+	instrumentationConfig := t.instrumentationConfig()
+	tx.maxSpans = instrumentationConfig.maxSpans
+	tx.spanFramesMinDuration = instrumentationConfig.spanFramesMinDuration
+	tx.stackTraceLimit = instrumentationConfig.stackTraceLimit
+	tx.Context.captureHeaders = instrumentationConfig.captureHeaders
 	tx.breakdownMetricsEnabled = t.breakdownMetrics.enabled
 
 	if root {
-		t.samplerMu.RLock()
-		sampler := t.sampler
-		t.samplerMu.RUnlock()
+		sampler := instrumentationConfig.sampler
 		if sampler == nil || sampler.Sample(tx.traceContext) {
 			o := tx.traceContext.Options.WithRecorded(true)
 			tx.traceContext.Options = o

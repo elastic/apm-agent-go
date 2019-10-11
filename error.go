@@ -139,13 +139,9 @@ func (t *Tracer) newError() *Error {
 	}
 	e.Timestamp = time.Now()
 
-	t.captureHeadersMu.RLock()
-	e.Context.captureHeaders = t.captureHeaders
-	t.captureHeadersMu.RUnlock()
-
-	t.stackTraceLimitMu.RLock()
-	e.stackTraceLimit = t.stackTraceLimit
-	t.stackTraceLimitMu.RUnlock()
+	instrumentationConfig := t.instrumentationConfig()
+	e.Context.captureHeaders = instrumentationConfig.captureHeaders
+	e.stackTraceLimit = instrumentationConfig.stackTraceLimit
 
 	return &Error{ErrorData: e}
 }

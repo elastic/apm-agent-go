@@ -19,6 +19,7 @@ package apmhttp_test
 
 import (
 	"context"
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -189,17 +190,19 @@ func TestClientDuration(t *testing.T) {
 }
 
 func TestClientCancelRequest(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		<-req.Context().Done()
-	}))
-	defer server.Close()
-
+	done := make(chan struct{})
 	canceled := make(chan struct{}, 1)
 	transport := &cancelRequester{
-		RoundTripper: http.DefaultTransport,
+		RoundTripper: RoundTripFunc(func(req *http.Request) (*http.Response, error) {
+			// We don't wait on req.Context().Done(), because there's no
+			// guarantee that CancelRequest is called after RoundTrip returns.
+			<-done
+			return nil, errors.New("nope")
+		}),
 		cancelRequest: func(*http.Request) {
 			select {
 			case canceled <- struct{}{}:
+				close(done)
 			default:
 			}
 		},
@@ -209,7 +212,7 @@ func TestClientCancelRequest(t *testing.T) {
 			Transport: apmhttp.WrapRoundTripper(transport),
 			Timeout:   time.Nanosecond,
 		}
-		_, err := ctxhttp.Get(ctx, client, server.URL)
+		_, err := ctxhttp.Get(ctx, client, "http://testing.invalid")
 		require.Error(t, err)
 	})
 
@@ -261,4 +264,10 @@ type cancelRequester struct {
 
 func (r *cancelRequester) CancelRequest(req *http.Request) {
 	r.cancelRequest(req)
+}
+
+type RoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f RoundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
 }
