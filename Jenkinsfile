@@ -58,6 +58,7 @@ pipeline {
         Execute unit tests.
         */
         stage('Tests') {
+          agent { label 'linux && immutable' }
           options { skipDefaultCheckout() }
           when {
             beforeAgent true
