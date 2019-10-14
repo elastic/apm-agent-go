@@ -386,3 +386,8 @@ func TestTracerCaptureHeadersEnv(t *testing.T) {
 	assert.Nil(t, tx.Context.Request.Headers)
 	assert.Nil(t, tx.Context.Response.Headers)
 }
+
+func TestServiceNodeNameEnvSpecified(t *testing.T) {
+	_, _, service, _ := getSubprocessMetadata(t, "ELASTIC_APM_SERVICE_NODE_NAME=foo_bar")
+	assert.Equal(t, "foo_bar", service.ServiceNode.ConfiguredName)
+}
