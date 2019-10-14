@@ -81,6 +81,7 @@ func testWithContext(t *testing.T, dsnInfo apmsql.DSNInfo, dialect string, args 
 		defer db.Close()
 		db = apmgorm.WithContext(ctx, db)
 
+		db.DropTableIfExists(&Product{})
 		db.AutoMigrate(&Product{})
 		db.Create(&Product{Code: "L1212", Price: 1000})
 
@@ -124,6 +125,7 @@ func TestWithContextNoTransaction(t *testing.T) {
 	defer db.Close()
 	db = apmgorm.WithContext(context.Background(), db)
 
+	db.DropTableIfExists(&Product{})
 	db.AutoMigrate(&Product{})
 	db.Create(&Product{Code: "L1212", Price: 1000})
 
@@ -138,6 +140,7 @@ func TestWithContextNonSampled(t *testing.T) {
 	db, err := apmgorm.Open("sqlite3", ":memory:")
 	require.NoError(t, err)
 	defer db.Close()
+	db.DropTableIfExists(&Product{})
 	db.AutoMigrate(&Product{})
 
 	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
@@ -148,15 +151,29 @@ func TestWithContextNonSampled(t *testing.T) {
 }
 
 func TestCaptureErrors(t *testing.T) {
+	t.Run("sqlite3", func(t *testing.T) {
+		db, err := apmgorm.Open("sqlite3", ":memory:")
+		require.NoError(t, err)
+		testCaptureErrors(t, db)
+		defer db.Close()
+	})
+
 	if os.Getenv("PGHOST") == "" {
-		t.Skip("PGHOST not specified, skipping")
+		t.Logf("PGHOST not specified, skipping")
+	} else {
+		t.Run("postgres", func(t *testing.T) {
+			db, err := apmgorm.Open("postgres", "user=postgres password=hunter2 dbname=test_db sslmode=disable")
+			require.NoError(t, err)
+			testCaptureErrors(t, db)
+			defer db.Close()
+		})
 	}
-	db, err := apmgorm.Open("postgres", "user=postgres password=hunter2 dbname=test_db sslmode=disable")
-	require.NoError(t, err)
-	defer db.Close()
+}
+
+func testCaptureErrors(t *testing.T, db *gorm.DB) {
 	db.SetLogger(nopLogger{})
+	db.DropTableIfExists(&Product{})
 	db.AutoMigrate(&Product{})
-	require.NoError(t, db.Unscoped().Delete(&Product{}).Error)
 
 	_, spans, errors := apmtest.WithTransaction(func(ctx context.Context) {
 		db = apmgorm.WithContext(ctx, db)
@@ -164,7 +181,10 @@ func TestCaptureErrors(t *testing.T) {
 		// gorm.ErrRecordNotFound should not cause an error
 		db.Where("code=?", "L1212").First(&Product{})
 
-		// sql.ErrNoRows should not cause an error
+		// The postgres dialect will use QueryRow when inserting, in order to fetch
+		// the inserted row ID. By using "ON CONFLICT (id) DO NOTHING", no row will
+		// be inserted, and QueryRow will return sql.ErrNoRows. This should not be
+		// reported as an error.
 		product := Product{
 			Model: gorm.Model{
 				ID: 1001,
@@ -180,13 +200,14 @@ func TestCaptureErrors(t *testing.T) {
 	})
 	assert.Len(t, spans, 4)
 	require.Len(t, errors, 1)
-	assert.Regexp(t, `pq: column "bananas" does not exist`, errors[0].Exception.Message)
+	assert.Regexp(t, `.*bananas.*`, errors[0].Exception.Message)
 }
 
 func TestOpenWithDriver(t *testing.T) {
 	db, err := apmgorm.Open("sqlite3", "sqlite3", ":memory:")
 	require.NoError(t, err)
 	defer db.Close()
+	db.DropTableIfExists(&Product{})
 	db.AutoMigrate(&Product{})
 
 	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
@@ -205,6 +226,7 @@ func TestOpenWithDB(t *testing.T) {
 	db, err := apmgorm.Open("sqlite3", sqldb)
 	require.NoError(t, err)
 	defer db.Close()
+	db.DropTableIfExists(&Product{})
 	db.AutoMigrate(&Product{})
 
 	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
