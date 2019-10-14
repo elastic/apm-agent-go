@@ -235,8 +235,7 @@ def generateStep(version){
         unstash 'source'
         echo "${version}"
         dir("${BASE_DIR}"){
-          withEnv(["GO_VERSION=${version}", "HOME=${WORKSPACE}", "GOPATH=${WORKSPACE}"]) {
-            sh script: 'env | sort ; pwd ; ls -ltrah ; ls -l ${GOPATH}/go.mod || true ', label: 'Debugging purposes'
+          withEnv(["GO_VERSION=${version}"]) {
             sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
             sh script: './scripts/jenkins/build-test.sh', label: 'Build and test'
           }
