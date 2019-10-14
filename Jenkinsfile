@@ -62,7 +62,6 @@ pipeline {
         stage('Tests') {
           options { skipDefaultCheckout() }
           when {
-            beforeAgent true
             expression { return params.test_ci }
           }
           steps {
@@ -90,7 +89,6 @@ pipeline {
         stage('Coverage') {
           options { skipDefaultCheckout() }
           when {
-            beforeAgent true
             expression { return params.docker_test_ci }
           }
           steps {
