@@ -154,8 +154,8 @@ func TestCaptureErrors(t *testing.T) {
 	t.Run("sqlite3", func(t *testing.T) {
 		db, err := apmgorm.Open("sqlite3", ":memory:")
 		require.NoError(t, err)
-		testCaptureErrors(t, db)
 		defer db.Close()
+		testCaptureErrors(t, db)
 	})
 
 	if os.Getenv("PGHOST") == "" {
@@ -164,8 +164,8 @@ func TestCaptureErrors(t *testing.T) {
 		t.Run("postgres", func(t *testing.T) {
 			db, err := apmgorm.Open("postgres", "user=postgres password=hunter2 dbname=test_db sslmode=disable")
 			require.NoError(t, err)
-			testCaptureErrors(t, db)
 			defer db.Close()
+			testCaptureErrors(t, db)
 		})
 	}
 }
