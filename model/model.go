@@ -50,8 +50,8 @@ type Service struct {
 	// running this service.
 	Runtime *Runtime `json:"runtime,omitempty"`
 
-	// ServiceNode holds unique information about each service node
-	ServiceNode *ServiceNode `json:"node,omitempty"`
+	// Node holds unique information about each service node
+	Node *ServiceNode `json:"node,omitempty"`
 }
 
 // Agent holds information about the Elastic APM agent.

@@ -95,7 +95,7 @@ func (v *Service) MarshalFastJSON(w *fastjson.Writer) error {
 			firstErr = err
 		}
 	}
-	if v.ServiceNode != nil {
+	if v.Node != nil {
 		const prefix = ",\"node\":"
 		if first {
 			first = false
@@ -103,7 +103,7 @@ func (v *Service) MarshalFastJSON(w *fastjson.Writer) error {
 		} else {
 			w.RawString(prefix)
 		}
-		if err := v.ServiceNode.MarshalFastJSON(w); err != nil && firstErr == nil {
+		if err := v.Node.MarshalFastJSON(w); err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}

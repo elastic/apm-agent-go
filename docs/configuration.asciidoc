@@ -153,7 +153,7 @@ of the deployed revision, e.g. the output of `git rev-parse HEAD`.
 Optional name used to differentiate between nodes in a service. 
 Must be unique, otherwise data from multiple nodes will be aggregated together.
 
-If you do not specify `ELASTIC_APM_SERVICE_NODE_NAME`, services will be identified using the container ID if available, 
+If you do not specify `ELASTIC_APM_SERVICE_NODE_NAME`, service nodes will be identified using the container ID if available, 
 otherwise the host name.
 
 NOTE: This feature is fully supported in the APM Server versions >= 7.5.

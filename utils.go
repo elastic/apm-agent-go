@@ -97,7 +97,7 @@ func makeService(name, version, environment string) model.Service {
 
 	serviceNodeName := os.Getenv(envServiceNodeName)
 	if serviceNodeName != "" {
-		service.ServiceNode = &model.ServiceNode{ConfiguredName: truncateString(serviceNodeName)}
+		service.Node = &model.ServiceNode{ConfiguredName: truncateString(serviceNodeName)}
 	}
 
 	return service
