@@ -3,7 +3,7 @@
 @Library('apm@current') _
 
 pipeline {
-  agent any
+  agent { label 'linux && immutable' }
   environment {
     REPO = 'apm-agent-go'
     BASE_DIR = "src/go.elastic.co/apm"
@@ -11,7 +11,9 @@ pipeline {
     JOB_GCS_BUCKET = credentials('gcs-bucket')
     CODECOV_SECRET = 'secret/apm-team/ci/apm-agent-go-codecov'
     GO111MODULE = 'on'
+    GOPATH = "${env.WORKSPACE}"
     GOPROXY = 'https://proxy.golang.org'
+    HOME = "${env.WORKSPACE}"
     GITHUB_CHECK_ITS_NAME = 'Integration Tests'
     ITS_PIPELINE = 'apm-integration-tests-selector-mbp/master'
   }
@@ -37,11 +39,8 @@ pipeline {
   }
   stages {
     stage('Initializing'){
-      agent { label 'linux && immutable' }
       options { skipDefaultCheckout() }
       environment {
-        HOME = "${env.WORKSPACE}"
-        GOPATH = "${env.WORKSPACE}"
         GO_VERSION = "${params.GO_VERSION}"
         PATH = "${env.PATH}:${env.WORKSPACE}/bin"
       }
@@ -50,7 +49,9 @@ pipeline {
          Checkout the code and stash it, to use it on other stages.
         */
         stage('Checkout') {
+          options { skipDefaultCheckout() }
           steps {
+            deleteDir()
             gitCheckout(basedir: "${BASE_DIR}", githubNotifyFirstTimeContributor: true)
             stash allowEmpty: true, name: 'source', useDefaultExcludes: false
           }
@@ -59,10 +60,8 @@ pipeline {
         Execute unit tests.
         */
         stage('Tests') {
-          agent { label 'linux && immutable' }
           options { skipDefaultCheckout() }
           when {
-            beforeAgent true
             expression { return params.test_ci }
           }
           steps {
@@ -88,10 +87,8 @@ pipeline {
           }
         }
         stage('Coverage') {
-          agent { label 'linux && immutable' }
           options { skipDefaultCheckout() }
           when {
-            beforeAgent true
             expression { return params.docker_test_ci }
           }
           steps {
@@ -124,9 +121,7 @@ pipeline {
             allOf {
               anyOf {
                 branch 'master'
-                branch "\\d+\\.\\d+"
-                branch "v\\d?"
-                tag "v\\d+\\.\\d+\\.\\d+*"
+                tag pattern: 'v\\d+\\.\\d+\\.\\d+.*', comparator: 'REGEXP'
                 expression { return params.Run_As_Master_Branch }
               }
               expression { return params.bench_ci }
@@ -181,8 +176,6 @@ pipeline {
           agent { label 'macosx' }
           options { skipDefaultCheckout() }
           environment {
-            HOME = "${env.WORKSPACE}"
-            GOPATH = "${env.WORKSPACE}"
             GO_VERSION = "${params.GO_VERSION}"
             PATH = "${env.PATH}:${env.WORKSPACE}/bin"
           }
@@ -237,15 +230,13 @@ pipeline {
 
 def generateStep(version){
   return {
-    node('docker && linux && immutable'){
+    node('linux && immutable'){
       try {
         deleteDir()
         unstash 'source'
         echo "${version}"
         dir("${BASE_DIR}"){
-          withEnv([
-            "GO_VERSION=${version}",
-            "HOME=${WORKSPACE}"]) {
+          withEnv(["GO_VERSION=${version}"]) {
             sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
             sh script: './scripts/jenkins/build-test.sh', label: 'Build and test'
           }
