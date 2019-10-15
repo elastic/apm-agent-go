@@ -100,11 +100,6 @@ func testTracerCentralConfigUpdate(t *testing.T, serverResponse string, isRemote
 	assert.False(t, isRemote(tracer))
 
 	timeout := time.After(10 * time.Second)
-	select {
-	case <-responded:
-	case <-timeout:
-		t.Fatal("timed out waiting for config update")
-	}
 	for {
 		// There's a time window between the server responding
 		// and the agent updating the config, so we spin until
