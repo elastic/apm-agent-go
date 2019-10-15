@@ -114,10 +114,14 @@ func testTracerCentralConfigUpdate(t *testing.T, serverResponse string, isRemote
 			t.Fatal("timed out waiting for config update")
 		}
 	}
-	select {
-	case <-responded:
-	case <-timeout:
-		t.Fatal("timed out waiting for config update")
+	// We wait for 2 responses so that we know we've unblocked the
+	// 2nd response, and that the 2nd response has been fully consumed.
+	for i := 0; i < 2; i++ {
+		select {
+		case <-responded:
+		case <-timeout:
+			t.Fatal("timed out waiting for config update")
+		}
 	}
 	for {
 		remote := isRemote(tracer)
