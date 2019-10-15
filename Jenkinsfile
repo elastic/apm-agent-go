@@ -148,6 +148,7 @@ pipeline {
           options { skipDefaultCheckout() }
           environment {
             GOROOT = "c:\\Go"
+            GOPATH = "${env.WORKSPACE}"
             PATH = "${env.PATH};${env.GOROOT}\\bin;${env.GOPATH}\\bin"
             GO_VERSION = "${params.GO_VERSION}"
           }
