@@ -47,4 +47,12 @@ if (! go run scripts/mingoversion.go 1.9 &>/dev/null); then
     git clone https://go.googlesource.com/sys &&
     cd sys && git checkout fc99dfbffb4e
   );
+  # Pin github.com/prometheus/client_golang to v1.1.0,
+  # the last release that supports Go 1.8.
+  mkdir -p "${GOPATH}/src/github.com/prometheus";
+  (
+    cd "${GOPATH}/src/github.com/prometheus" &&
+    git clone https://github.com/prometheus/client_golang &&
+    cd client_golang && git checkout v1.1.0
+  );
 fi
