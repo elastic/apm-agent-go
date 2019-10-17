@@ -472,6 +472,22 @@ func TestHTTPTransportWatchConfigContextCancelled(t *testing.T) {
 	require.False(t, ok)
 }
 
+func TestNewHTTPTransportTrailingSlash(t *testing.T) {
+	var h recordingHandler
+	mux := http.NewServeMux()
+	mux.Handle("/intake/v2/events", &h)
+	transport, server := newHTTPTransport(t, mux)
+	defer server.Close()
+
+	transport.SetServerURL(mustParseURL(server.URL + "/"))
+
+	err := transport.SendStream(context.Background(), strings.NewReader(""))
+	assert.NoError(t, err)
+	require.Len(t, h.requests, 1)
+	assert.Equal(t, "POST", h.requests[0].Method)
+	assert.Equal(t, "/intake/v2/events", h.requests[0].URL.Path)
+}
+
 func newHTTPTransport(t *testing.T, handler http.Handler) (*transport.HTTPTransport, *httptest.Server) {
 	server := httptest.NewServer(handler)
 	transport, err := transport.NewHTTPTransport()
