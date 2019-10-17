@@ -31,6 +31,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"runtime"
 	"strconv"
 	"strings"
@@ -390,9 +391,9 @@ func (t *HTTPTransport) newRequest(method string, url *url.URL) *http.Request {
 
 func urlWithPath(url *url.URL, p string) *url.URL {
 	urlCopy := *url
-	urlCopy.Path += p
+	urlCopy.Path = path.Clean(urlCopy.Path + p)
 	if urlCopy.RawPath != "" {
-		urlCopy.RawPath += p
+		urlCopy.RawPath = path.Clean(urlCopy.RawPath + p)
 	}
 	return &urlCopy
 }
