@@ -61,7 +61,6 @@ func TestHandlerHTTP2(t *testing.T) {
 	require.NoError(t, err)
 
 	req, _ := http.NewRequest("GET", srv.URL+"/foo", nil)
-	req.Header.Set("X-Real-IP", "client.testing")
 	resp, err := client.Do(req)
 	require.NoError(t, err)
 	resp.Body.Close()
@@ -73,8 +72,9 @@ func TestHandlerHTTP2(t *testing.T) {
 	assert.Equal(t, &model.Context{
 		Request: &model.Request{
 			Socket: &model.RequestSocket{
-				Encrypted:     true,
-				RemoteAddress: "client.testing",
+				Encrypted: true,
+				// 127.0.0.1 or ::1.
+				RemoteAddress: srvAddr.IP.String(),
 			},
 			URL: model.URL{
 				Full:     srv.URL + "/foo",
@@ -90,9 +90,6 @@ func TestHandlerHTTP2(t *testing.T) {
 			}, {
 				Key:    "User-Agent",
 				Values: []string{"Go-http-client/2.0"},
-			}, {
-				Key:    "X-Real-Ip",
-				Values: []string{"client.testing"},
 			}},
 			HTTPVersion: "2.0",
 		},
