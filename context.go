@@ -160,14 +160,9 @@ func (c *Context) SetHTTPRequest(req *http.Request) {
 		httpVersion = fmt.Sprintf("%d.%d", req.ProtoMajor, req.ProtoMinor)
 	}
 
-	var forwarded *apmhttputil.ForwardedHeader
-	if fwd := req.Header.Get("Forwarded"); fwd != "" {
-		parsed := apmhttputil.ParseForwarded(fwd)
-		forwarded = &parsed
-	}
 	c.request = model.Request{
 		Body:        c.request.Body,
-		URL:         apmhttputil.RequestURL(req, forwarded),
+		URL:         apmhttputil.RequestURL(req),
 		Method:      truncateString(req.Method),
 		HTTPVersion: httpVersion,
 		Cookies:     req.Cookies(),
@@ -188,7 +183,7 @@ func (c *Context) SetHTTPRequest(req *http.Request) {
 
 	c.requestSocket = model.RequestSocket{
 		Encrypted:     req.TLS != nil,
-		RemoteAddress: apmhttputil.RemoteAddr(req, forwarded),
+		RemoteAddress: apmhttputil.RemoteAddr(req),
 	}
 	if c.requestSocket != (model.RequestSocket{}) {
 		c.request.Socket = &c.requestSocket

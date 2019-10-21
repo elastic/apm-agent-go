@@ -66,11 +66,7 @@ func TestMiddleware(t *testing.T) {
 				Path:     "/prefix/articles/fiction/123",
 				Search:   "foo=123",
 			},
-			Method: "GET",
-			Headers: model.Headers{{
-				Key:    "X-Real-Ip",
-				Values: []string{"client.testing"},
-			}},
+			Method:      "GET",
 			HTTPVersion: "1.1",
 		},
 		Response: &model.Response{
@@ -208,7 +204,7 @@ func articleHandler(w http.ResponseWriter, req *http.Request) {
 func doRequest(h http.Handler, method, url string) *httptest.ResponseRecorder {
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(method, url, nil)
-	req.Header.Set("X-Real-IP", "client.testing")
+	req.RemoteAddr = "client.testing:1234"
 	h.ServeHTTP(w, req)
 	return w
 }

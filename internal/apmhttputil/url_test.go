@@ -39,7 +39,7 @@ func TestRequestURLClient(t *testing.T) {
 		Path:     "/path",
 		Search:   "query&querier=foo",
 		Hash:     "fragment",
-	}, apmhttputil.RequestURL(req, nil))
+	}, apmhttputil.RequestURL(req))
 }
 
 func TestRequestURLServer(t *testing.T) {
@@ -52,32 +52,31 @@ func TestRequestURLServer(t *testing.T) {
 		Port:     "8080",
 		Path:     "/path",
 		Search:   "query&querier=foo",
-	}, apmhttputil.RequestURL(req, nil))
+	}, apmhttputil.RequestURL(req))
 }
 
 func TestRequestURLServerTLS(t *testing.T) {
 	req := mustNewRequest("/path?query&querier=foo")
 	req.Host = "host.invalid:8080"
 	req.TLS = &tls.ConnectionState{}
-	assert.Equal(t, "https", apmhttputil.RequestURL(req, nil).Protocol)
+	assert.Equal(t, "https", apmhttputil.RequestURL(req).Protocol)
 }
 
 func TestRequestURLHeaders(t *testing.T) {
 	type test struct {
-		name      string
-		full      string
-		header    http.Header
-		forwarded *apmhttputil.ForwardedHeader
+		name   string
+		full   string
+		header http.Header
 	}
 
 	tests := []test{{
-		name:      "Forwarded",
-		full:      "https://forwarded.invalid:443/",
-		forwarded: &apmhttputil.ForwardedHeader{Host: "forwarded.invalid:443", Proto: "HTTPS"},
+		name:   "Forwarded",
+		full:   "https://forwarded.invalid:443/",
+		header: http.Header{"Forwarded": []string{"Host=\"forwarded.invalid:443\"; proto=HTTPS"}},
 	}, {
-		name:      "Forwarded-Empty-Host",
-		full:      "http://host.invalid/", // falls back to the next option
-		forwarded: &apmhttputil.ForwardedHeader{Host: ""},
+		name:   "Forwarded-Empty-Host",
+		full:   "http://host.invalid/", // falls back to the next option
+		header: http.Header{"Forwarded": []string{""}},
 	}, {
 		name:   "X-Forwarded-Host",
 		full:   "http://x-forwarded-host.invalid/",
@@ -110,7 +109,7 @@ func TestRequestURLHeaders(t *testing.T) {
 			req.Host = "host.invalid"
 			req.Header = test.header
 
-			out := apmhttputil.RequestURL(req, test.forwarded)
+			out := apmhttputil.RequestURL(req)
 
 			// Marshal the URL to gets its "full" representation.
 			var w fastjson.Writer
