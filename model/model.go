@@ -49,6 +49,9 @@ type Service struct {
 	// Runtime holds information about the programming language runtime
 	// running this service.
 	Runtime *Runtime `json:"runtime,omitempty"`
+
+	// Node holds unique information about each service node
+	Node *ServiceNode `json:"node,omitempty"`
 }
 
 // Agent holds information about the Elastic APM agent.
@@ -86,6 +89,12 @@ type Runtime struct {
 
 	// Version is the version of the programming language runtime.
 	Version string `json:"version"`
+}
+
+// ServiceNode holds unique information about each service node
+type ServiceNode struct {
+	// ConfiguredName holds the name of the service node
+	ConfiguredName string `json:"configured_name,omitempty"`
 }
 
 // System represents the system (operating system and machine) running the

@@ -140,6 +140,24 @@ A version string for the currently deployed version of the service.
 If you don't version your deployments, the recommended value for this field is the commit identifier
 of the deployed revision, e.g. the output of `git rev-parse HEAD`.
 
+[[float]
+[[config-service-node-name]]
+=== `ELASTIC_APM_SERVICE_NODE_NAME`
+
+[options="header"]
+|============
+| Environment                     | Default | Example
+| `ELASTIC_APM_SERVICE_NODE_NAME` |         | `my-node-name`
+|============
+
+Optional name used to differentiate between nodes in a service. 
+Must be unique, otherwise data from multiple nodes will be aggregated together.
+
+If you do not specify `ELASTIC_APM_SERVICE_NODE_NAME`, service nodes will be identified using the container ID if available, 
+otherwise the host name.
+
+NOTE: This feature is fully supported in the APM Server versions >= 7.5.
+
 [float]
 [[config-environment]]
 === `ELASTIC_APM_ENVIRONMENT`

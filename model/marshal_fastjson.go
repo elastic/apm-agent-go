@@ -83,6 +83,18 @@ func (v *Service) MarshalFastJSON(w *fastjson.Writer) error {
 		}
 		w.String(v.Name)
 	}
+	if v.Node != nil {
+		const prefix = ",\"node\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		if err := v.Node.MarshalFastJSON(w); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
 	if v.Runtime != nil {
 		const prefix = ",\"runtime\":"
 		if first {
@@ -147,6 +159,16 @@ func (v *Runtime) MarshalFastJSON(w *fastjson.Writer) error {
 	w.String(v.Name)
 	w.RawString(",\"version\":")
 	w.String(v.Version)
+	w.RawByte('}')
+	return nil
+}
+
+func (v *ServiceNode) MarshalFastJSON(w *fastjson.Writer) error {
+	w.RawByte('{')
+	if v.ConfiguredName != "" {
+		w.RawString("\"configured_name\":")
+		w.String(v.ConfiguredName)
+	}
 	w.RawByte('}')
 	return nil
 }

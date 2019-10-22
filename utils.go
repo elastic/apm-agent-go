@@ -50,7 +50,8 @@ var (
 )
 
 const (
-	envHostname = "ELASTIC_APM_HOSTNAME"
+	envHostname        = "ELASTIC_APM_HOSTNAME"
+	envServiceNodeName = "ELASTIC_APM_SERVICE_NODE_NAME"
 
 	serviceNameValidClass = "a-zA-Z0-9 _-"
 
@@ -85,7 +86,7 @@ func getCurrentProcess() model.Process {
 }
 
 func makeService(name, version, environment string) model.Service {
-	return model.Service{
+	service := model.Service{
 		Name:        truncateString(name),
 		Version:     truncateString(version),
 		Environment: truncateString(environment),
@@ -93,6 +94,13 @@ func makeService(name, version, environment string) model.Service {
 		Language:    &goLanguage,
 		Runtime:     &goRuntime,
 	}
+
+	serviceNodeName := os.Getenv(envServiceNodeName)
+	if serviceNodeName != "" {
+		service.Node = &model.ServiceNode{ConfiguredName: truncateString(serviceNodeName)}
+	}
+
+	return service
 }
 
 func getLocalSystem() model.System {
