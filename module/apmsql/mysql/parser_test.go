@@ -28,8 +28,24 @@ import (
 
 func TestParseDSN(t *testing.T) {
 	info := apmmysql.ParseDSN("user:pass@/dbname")
-	assert.Equal(t, "dbname", info.Database)
-	assert.Equal(t, "user", info.User)
+	assert.Equal(t, apmsql.DSNInfo{
+		Address:  "127.0.0.1",
+		Port:     3306,
+		Database: "dbname",
+		User:     "user",
+	}, info)
+}
+
+func TestParseDSNAddr(t *testing.T) {
+	test := func(dsn, addr string, port int) {
+		parsed := apmmysql.ParseDSN(dsn)
+		assert.Equal(t, addr, parsed.Address)
+		assert.Equal(t, port, parsed.Port)
+	}
+	test("user:pass@tcp(1.2.3.4)/dbname", "1.2.3.4", 3306)
+	test("user:pass@tcp(1.2.3.4:1234)/dbname", "1.2.3.4", 1234)
+	test("user:pass@tcp(::1)/dbname", "::1", 3306)
+	test("user:pass@tcp([::1]:3306)/dbname", "::1", 3306)
 }
 
 func TestParseDSNError(t *testing.T) {

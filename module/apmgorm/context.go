@@ -132,6 +132,7 @@ func newAfterCallback(dsnInfo apmsql.DSNInfo) func(*gorm.Scope) {
 			return
 		}
 		span.Name = apmsql.QuerySignature(scope.SQL)
+		span.Context.SetDestinationAddress(dsnInfo.Address, dsnInfo.Port)
 		span.Context.SetDatabase(apm.DatabaseSpanContext{
 			Instance:  dsnInfo.Database,
 			Statement: scope.SQL,

@@ -56,6 +56,15 @@ func TestQueryContext(t *testing.T) {
 	assert.Equal(t, "SELECT FROM foo", spans[0].Name)
 	assert.Equal(t, "mysql", spans[0].Subtype)
 	assert.Equal(t, &model.SpanContext{
+		Destination: &model.DestinationSpanContext{
+			Address: mysqlHost,
+			Port:    3306,
+			Service: &model.DestinationServiceSpanContext{
+				Type:     "db",
+				Name:     "mysql",
+				Resource: "mysql",
+			},
+		},
 		Database: &model.DatabaseSpanContext{
 			Instance:  "test_db",
 			Statement: "SELECT * FROM foo",

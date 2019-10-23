@@ -90,13 +90,23 @@ func TestValidateSpanType(t *testing.T) {
 	})
 }
 
-func TestValidateDatabaseSpanContextInstance(t *testing.T) {
+func TestValidateDatabaseSpanContext(t *testing.T) {
 	validateSpan(t, func(s *apm.Span) {
 		s.Context.SetDatabase(apm.DatabaseSpanContext{
 			Instance:  strings.Repeat("x", 1025),
 			Statement: strings.Repeat("x", 1025),
 			Type:      strings.Repeat("x", 1025),
 			User:      strings.Repeat("x", 1025),
+		})
+	})
+}
+
+func TestValidateDestinationSpanContext(t *testing.T) {
+	validateSpan(t, func(s *apm.Span) {
+		s.Context.SetDestinationAddress(strings.Repeat("x", 1025), 0)
+		s.Context.SetDestinationService(apm.DestinationServiceSpanContext{
+			Name:     strings.Repeat("x", 1025),
+			Resource: strings.Repeat("x", 1025),
 		})
 	})
 }

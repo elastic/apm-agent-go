@@ -180,6 +180,15 @@ func TestHTTPSpan(t *testing.T) {
 	assert.Equal(t, "http", modelSpan.Subtype)
 	assert.Equal(t, &model.SpanContext{
 		HTTP: &model.HTTPSpanContext{URL: url},
+		Destination: &model.DestinationSpanContext{
+			Address: "testing.invalid",
+			Port:    8443,
+			Service: &model.DestinationServiceSpanContext{
+				Type:     "external",
+				Name:     "https://testing.invalid:8443",
+				Resource: "testing.invalid:8443",
+			},
+		},
 	}, modelSpan.Context)
 }
 

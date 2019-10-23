@@ -19,9 +19,11 @@ package apmhttputil_test
 
 import (
 	"net/http"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"go.elastic.co/apm/internal/apmhttputil"
 )
@@ -34,4 +36,25 @@ func TestRemoteAddr(t *testing.T) {
 	req.Header.Set("X-Forwarded-For", "client.invalid, proxy.invalid")
 	req.Header.Set("X-Real-IP", "127.1.2.3")
 	assert.Equal(t, "::1", apmhttputil.RemoteAddr(req))
+}
+
+func TestDestinationAddr(t *testing.T) {
+	test := func(u, expectAddr string, expectPort int) {
+		t.Run(u, func(t *testing.T) {
+			url, err := url.Parse(u)
+			require.NoError(t, err)
+
+			addr, port := apmhttputil.DestinationAddr(&http.Request{URL: url})
+			assert.Equal(t, expectAddr, addr)
+			assert.Equal(t, expectPort, port)
+		})
+	}
+	test("http://127.0.0.1:80", "127.0.0.1", 80)
+	test("http://127.0.0.1", "127.0.0.1", 80)
+	test("https://127.0.0.1:443", "127.0.0.1", 443)
+	test("https://127.0.0.1", "127.0.0.1", 443)
+	test("https://[::1]", "::1", 443)
+	test("https://[::1]:1234", "::1", 1234)
+	test("gopher://gopher.invalid:70", "gopher.invalid", 70)
+	test("gopher://gopher.invalid", "gopher.invalid", 0) // default unknown
 }

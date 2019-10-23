@@ -1,6 +1,7 @@
 module go.elastic.co/apm/module/apmelasticsearch/internal/integration
 
 require (
+	github.com/elastic/go-elasticsearch/v7 v7.5.0
 	github.com/fortytw2/leaktest v1.3.0 // indirect
 	github.com/mailru/easyjson v0.0.0-20180823135443-60711f1a8329 // indirect
 	github.com/olivere/elastic v6.2.16+incompatible

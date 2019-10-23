@@ -56,7 +56,12 @@ func TestWithContext(t *testing.T) {
 	} else {
 		t.Run("postgres", func(t *testing.T) {
 			testWithContext(t,
-				apmsql.DSNInfo{Database: "test_db", User: "postgres"},
+				apmsql.DSNInfo{
+					Address:  os.Getenv("PGHOST"),
+					Port:     5432,
+					Database: "test_db",
+					User:     "postgres",
+				},
 				"postgres", "user=postgres password=hunter2 dbname=test_db sslmode=disable",
 			)
 		})
@@ -67,7 +72,12 @@ func TestWithContext(t *testing.T) {
 	} else {
 		t.Run("mysql", func(t *testing.T) {
 			testWithContext(t,
-				apmsql.DSNInfo{Database: "test_db", User: "root"},
+				apmsql.DSNInfo{
+					Address:  mysqlHost,
+					Port:     3306,
+					Database: "test_db",
+					User:     "root",
+				},
 				"mysql", "root:hunter2@tcp("+mysqlHost+")/test_db?parseTime=true",
 			)
 		})
@@ -106,6 +116,12 @@ func testWithContext(t *testing.T, dsnInfo apmsql.DSNInfo, dialect string, args 
 		assert.NotEmpty(t, span.Context.Database.Statement)
 		assert.Equal(t, "sql", span.Context.Database.Type)
 		assert.Equal(t, dsnInfo.User, span.Context.Database.User)
+		if dsnInfo.Address == "" {
+			assert.Nil(t, span.Context.Destination)
+		} else {
+			assert.Equal(t, dsnInfo.Address, span.Context.Destination.Address)
+			assert.Equal(t, dsnInfo.Port, span.Context.Destination.Port)
+		}
 	}
 	assert.Equal(t, []string{
 		"INSERT INTO products",

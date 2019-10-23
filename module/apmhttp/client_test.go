@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -73,11 +74,22 @@ func TestClient(t *testing.T) {
 	transaction := payloads.Transactions[0]
 	span := payloads.Spans[0]
 
+	serverAddr := server.Listener.Addr().(*net.TCPAddr)
+
 	assert.Equal(t, transaction.ID, span.ParentID)
-	assert.Equal(t, "GET "+server.Listener.Addr().String(), span.Name)
+	assert.Equal(t, "GET "+serverAddr.String(), span.Name)
 	assert.Equal(t, "external", span.Type)
 	assert.Equal(t, "http", span.Subtype)
 	assert.Equal(t, &model.SpanContext{
+		Destination: &model.DestinationSpanContext{
+			Address: serverAddr.IP.String(),
+			Port:    serverAddr.Port,
+			Service: &model.DestinationServiceSpanContext{
+				Type:     "external",
+				Name:     "http://" + serverAddr.String(),
+				Resource: serverAddr.String(),
+			},
+		},
 		HTTP: &model.HTTPSpanContext{
 			// Note no user info included in server.URL.
 			URL:        serverURL,

@@ -79,6 +79,10 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	ctx = apm.ContextWithSpan(ctx, span)
 	req = apmhttp.RequestWithContext(ctx, req)
 	span.Context.SetHTTPRequest(req)
+	span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
+		Name:     "elasticsearch",
+		Resource: "elasticsearch",
+	})
 	span.Context.SetDatabase(apm.DatabaseSpanContext{
 		Type:      "elasticsearch",
 		Statement: statement,
