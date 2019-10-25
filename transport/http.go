@@ -28,7 +28,9 @@ import (
 	"io"
 	"io/ioutil"
 	"math/rand"
+	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"net/url"
 	"os"
 	"path"
@@ -46,8 +48,9 @@ import (
 )
 
 const (
-	intakePath = "/intake/v2/events"
-	configPath = "/config/v1/agents"
+	intakePath  = "/intake/v2/events"
+	profilePath = "/intake/v2/profile"
+	configPath  = "/config/v1/agents"
 
 	envSecretToken      = "ELASTIC_APM_SECRET_TOKEN"
 	envServerURLs       = "ELASTIC_APM_SERVER_URLS"
@@ -71,14 +74,16 @@ var (
 type HTTPTransport struct {
 	// Client exposes the http.Client used by the HTTPTransport for
 	// sending requests to the APM Server.
-	Client        *http.Client
-	intakeHeaders http.Header
-	configHeaders http.Header
-	shuffleRand   *rand.Rand
+	Client         *http.Client
+	intakeHeaders  http.Header
+	configHeaders  http.Header
+	profileHeaders http.Header
+	shuffleRand    *rand.Rand
 
-	urlIndex   int32
-	intakeURLs []*url.URL
-	configURLs []*url.URL
+	urlIndex    int32
+	intakeURLs  []*url.URL
+	configURLs  []*url.URL
+	profileURLs []*url.URL
 }
 
 // NewHTTPTransport returns a new HTTPTransport which can be used for
@@ -161,10 +166,13 @@ func NewHTTPTransport() (*HTTPTransport, error) {
 	intakeHeaders.Set("Content-Encoding", "deflate")
 	intakeHeaders.Set("Transfer-Encoding", "chunked")
 
+	profileHeaders := copyHeaders(commonHeaders)
+
 	t := &HTTPTransport{
-		Client:        client,
-		configHeaders: commonHeaders,
-		intakeHeaders: intakeHeaders,
+		Client:         client,
+		configHeaders:  commonHeaders,
+		intakeHeaders:  intakeHeaders,
+		profileHeaders: profileHeaders,
 	}
 	t.SetSecretToken(os.Getenv(envSecretToken))
 	t.SetServerURL(serverURLs...)
@@ -180,9 +188,11 @@ func (t *HTTPTransport) SetServerURL(u ...*url.URL) {
 	}
 	intakeURLs := make([]*url.URL, len(u))
 	configURLs := make([]*url.URL, len(u))
+	profileURLs := make([]*url.URL, len(u))
 	for i, u := range u {
 		intakeURLs[i] = urlWithPath(u, intakePath)
 		configURLs[i] = urlWithPath(u, configPath)
+		profileURLs[i] = urlWithPath(u, profilePath)
 	}
 	if n := len(intakeURLs); n > 0 {
 		if t.shuffleRand == nil {
@@ -192,10 +202,12 @@ func (t *HTTPTransport) SetServerURL(u ...*url.URL) {
 			j := t.shuffleRand.Intn(i + 1)
 			intakeURLs[i], intakeURLs[j] = intakeURLs[j], intakeURLs[i]
 			configURLs[i], configURLs[j] = configURLs[j], configURLs[i]
+			profileURLs[i], profileURLs[j] = profileURLs[j], profileURLs[i]
 		}
 	}
 	t.intakeURLs = intakeURLs
 	t.configURLs = configURLs
+	t.profileURLs = profileURLs
 	t.urlIndex = 0
 }
 
@@ -218,11 +230,13 @@ func (t *HTTPTransport) SetSecretToken(secretToken string) {
 func (t *HTTPTransport) setCommonHeader(key, value string) {
 	t.configHeaders.Set(key, value)
 	t.intakeHeaders.Set(key, value)
+	t.profileHeaders.Set(key, value)
 }
 
 func (t *HTTPTransport) deleteCommonHeader(key string) {
 	t.configHeaders.Del(key)
 	t.intakeHeaders.Del(key)
+	t.profileHeaders.Del(key)
 }
 
 // SendStream sends the stream over HTTP. If SendStream returns an error and
@@ -259,6 +273,78 @@ func (t *HTTPTransport) sendStreamRequest(req *http.Request) error {
 		// This may be an old (pre-6.5) APM server
 		// that does not support the v2 intake API.
 		result.Message = fmt.Sprintf("%s not found (requires APM Server 6.5.0 or newer)", req.URL)
+	}
+	return result
+}
+
+// SendProfile sends a symbolised pprof profile, encoded as protobuf, and gzip-compressed.
+//
+// NOTE this is an experimental API, and may be removed in a future minor version, without
+// being considered a breaking change.
+func (t *HTTPTransport) SendProfile(
+	ctx context.Context,
+	metadataReader io.Reader,
+	profileReaders ...io.Reader,
+) error {
+	urlIndex := atomic.LoadInt32(&t.urlIndex)
+	profileURL := t.profileURLs[urlIndex]
+	req := t.newRequest("POST", profileURL)
+	req = requestWithContext(ctx, req)
+	req.Header = t.profileHeaders
+
+	writeBody := func(w *multipart.Writer) error {
+		h := make(textproto.MIMEHeader)
+		h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="metadata"`))
+		h.Set("Content-Type", "application/json")
+		part, err := w.CreatePart(h)
+		if err != nil {
+			return err
+		}
+		if _, err := io.Copy(part, metadataReader); err != nil {
+			return err
+		}
+
+		for _, profileReader := range profileReaders {
+			h = make(textproto.MIMEHeader)
+			h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="profile"`))
+			h.Set("Content-Type", "application/x-protobuf; messageType=”perftools.profiles.Profile")
+			part, err = w.CreatePart(h)
+			if err != nil {
+				return err
+			}
+			if _, err := io.Copy(part, profileReader); err != nil {
+				return err
+			}
+		}
+		return w.Close()
+	}
+	pipeR, pipeW := io.Pipe()
+	mpw := multipart.NewWriter(pipeW)
+	req.Header.Set("Content-Type", mpw.FormDataContentType())
+	req.Body = pipeR
+	go func() {
+		err := writeBody(mpw)
+		pipeW.CloseWithError(err)
+	}()
+	return t.sendProfileRequest(req)
+}
+
+func (t *HTTPTransport) sendProfileRequest(req *http.Request) error {
+	resp, err := t.Client.Do(req)
+	if err != nil {
+		return errors.Wrap(err, "sending profile request failed")
+	}
+	switch resp.StatusCode {
+	case http.StatusOK, http.StatusAccepted:
+		resp.Body.Close()
+		return nil
+	}
+	defer resp.Body.Close()
+
+	result := newHTTPError(resp)
+	if resp.StatusCode == http.StatusNotFound && result.Message == "404 page not found" {
+		// TODO(axw) correct minimum server version.
+		result.Message = fmt.Sprintf("%s not found (requires APM Server 7.5.0 or newer)", req.URL)
 	}
 	return result
 }

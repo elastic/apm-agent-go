@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"sync"
 
 	"github.com/google/go-cmp/cmp"
@@ -66,6 +67,11 @@ func (r *RecorderTransport) ResetPayloads() {
 // SendStream records the stream such that it can later be obtained via Payloads.
 func (r *RecorderTransport) SendStream(ctx context.Context, stream io.Reader) error {
 	return r.record(ctx, stream)
+}
+
+// SendProfile records the stream such that it can later be obtained via Payloads.
+func (r *RecorderTransport) SendProfile(ctx context.Context, metadata io.Reader, profiles ...io.Reader) error {
+	return r.recordProto(ctx, metadata, profiles)
 }
 
 // Metadata returns the metadata recorded by the transport. If metadata is yet to
@@ -134,6 +140,25 @@ func (r *RecorderTransport) record(ctx context.Context, stream io.Reader) error 
 	return nil
 }
 
+func (r *RecorderTransport) recordProto(ctx context.Context, metadataReader io.Reader, profileReaders []io.Reader) error {
+	var metadata metadata
+	if err := json.NewDecoder(metadataReader).Decode(&metadata); err != nil {
+		panic(err)
+	}
+	r.recordMetadata(&metadata)
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, profileReader := range profileReaders {
+		data, err := ioutil.ReadAll(profileReader)
+		if err != nil {
+			panic(err)
+		}
+		r.payloads.Profiles = append(r.payloads.Profiles, data)
+	}
+	return nil
+}
+
 func (r *RecorderTransport) recordMetadata(m *metadata) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -162,6 +187,7 @@ type Payloads struct {
 	Metrics      []model.Metrics
 	Spans        []model.Span
 	Transactions []model.Transaction
+	Profiles     [][]byte
 }
 
 // Len returns the number of recorded payloads.

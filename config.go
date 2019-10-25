@@ -56,6 +56,13 @@ const (
 	envCentralConfig         = "ELASTIC_APM_CENTRAL_CONFIG"
 	envBreakdownMetrics      = "ELASTIC_APM_BREAKDOWN_METRICS"
 
+	// NOTE(axw) profiling environment variables are experimental.
+	// They may be removed in a future minor version without being
+	// considered a breaking change.
+	envCPUProfileInterval  = "ELASTIC_APM_CPU_PROFILE_INTERVAL"
+	envCPUProfileDuration  = "ELASTIC_APM_CPU_PROFILE_DURATION"
+	envHeapProfileInterval = "ELASTIC_APM_HEAP_PROFILE_INTERVAL"
+
 	defaultAPIRequestSize        = 750 * configutil.KByte
 	defaultAPIRequestTime        = 10 * time.Second
 	defaultAPIBufferSize         = 1 * configutil.MByte
@@ -266,6 +273,22 @@ func initialCentralConfigEnabled() (bool, error) {
 
 func initialBreakdownMetricsEnabled() (bool, error) {
 	return configutil.ParseBoolEnv(envBreakdownMetrics, true)
+}
+
+func initialCPUProfileIntervalDuration() (time.Duration, time.Duration, error) {
+	interval, err := configutil.ParseDurationEnv(envCPUProfileInterval, 0)
+	if err != nil || interval <= 0 {
+		return 0, 0, err
+	}
+	duration, err := configutil.ParseDurationEnv(envCPUProfileDuration, 0)
+	if err != nil || duration <= 0 {
+		return 0, 0, err
+	}
+	return interval, duration, nil
+}
+
+func initialHeapProfileInterval() (time.Duration, error) {
+	return configutil.ParseDurationEnv(envHeapProfileInterval, 0)
 }
 
 // updateRemoteConfig updates t and cfg with changes held in "attrs", and reverts to local
