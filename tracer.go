@@ -110,6 +110,10 @@ type TracerOptions struct {
 	active                bool
 	configWatcher         apmconfig.Watcher
 	breakdownMetrics      bool
+	profileSender         profileSender
+	cpuProfileInterval    time.Duration
+	cpuProfileDuration    time.Duration
+	heapProfileInterval   time.Duration
 }
 
 // initDefaults updates opts with default values.
@@ -197,6 +201,16 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 		breakdownMetricsEnabled = true
 	}
 
+	cpuProfileInterval, cpuProfileDuration, err := initialCPUProfileIntervalDuration()
+	if failed(err) {
+		cpuProfileInterval = 0
+		cpuProfileDuration = 0
+	}
+	heapProfileInterval, err := initialHeapProfileInterval()
+	if failed(err) {
+		heapProfileInterval = 0
+	}
+
 	if opts.ServiceName != "" {
 		err := validateServiceName(opts.ServiceName)
 		if failed(err) {
@@ -233,6 +247,12 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 		if cw, ok := opts.Transport.(apmconfig.Watcher); ok {
 			opts.configWatcher = cw
 		}
+	}
+	if ps, ok := opts.Transport.(profileSender); ok {
+		opts.profileSender = ps
+		opts.cpuProfileInterval = cpuProfileInterval
+		opts.cpuProfileDuration = cpuProfileDuration
+		opts.heapProfileInterval = heapProfileInterval
 	}
 
 	serviceName, serviceVersion, serviceEnvironment := initialService()
@@ -289,6 +309,7 @@ type Tracer struct {
 	configWatcher     chan apmconfig.Watcher
 	events            chan tracerEvent
 	breakdownMetrics  *breakdownMetrics
+	profileSender     profileSender
 
 	statsMu sync.Mutex
 	stats   TracerStats
@@ -340,6 +361,7 @@ func newTracer(opts TracerOptions) *Tracer {
 		breakdownMetrics:  newBreakdownMetrics(),
 		bufferSize:        opts.bufferSize,
 		metricsBufferSize: opts.metricsBufferSize,
+		profileSender:     opts.profileSender,
 		instrumentationConfigInternal: &instrumentationConfig{
 			local: make(map[string]func(*instrumentationConfigValues)),
 		},
@@ -377,6 +399,9 @@ func newTracer(opts TracerOptions) *Tracer {
 
 	go t.loop()
 	t.configCommands <- func(cfg *tracerConfig) {
+		cfg.cpuProfileInterval = opts.cpuProfileInterval
+		cfg.cpuProfileDuration = opts.cpuProfileDuration
+		cfg.heapProfileInterval = opts.heapProfileInterval
 		cfg.metricsInterval = opts.metricsInterval
 		cfg.requestDuration = opts.requestDuration
 		cfg.requestSize = opts.requestSize
@@ -407,6 +432,9 @@ type tracerConfig struct {
 	preContext, postContext int
 	sanitizedFieldNames     wildcard.Matchers
 	disabledMetrics         wildcard.Matchers
+	cpuProfileDuration      time.Duration
+	cpuProfileInterval      time.Duration
+	heapProfileInterval     time.Duration
 }
 
 type tracerConfigCommand func(*tracerConfig)
@@ -703,6 +731,9 @@ func (t *Tracer) loop() {
 		}
 	}()
 
+	cpuProfilingState := newCPUProfilingState(t.profileSender)
+	heapProfilingState := newHeapProfilingState(t.profileSender)
+
 	var cfg tracerConfig
 	buffer := ringbuffer.New(t.bufferSize)
 	buffer.Evicted = func(h ringbuffer.BlockHeader) {
@@ -732,6 +763,8 @@ func (t *Tracer) loop() {
 		case cmd := <-t.configCommands:
 			oldMetricsInterval := cfg.metricsInterval
 			cmd(&cfg)
+			cpuProfilingState.updateConfig(cfg.cpuProfileInterval, cfg.cpuProfileDuration)
+			heapProfilingState.updateConfig(cfg.heapProfileInterval, 0)
 			if !gatheringMetrics && cfg.metricsInterval != oldMetricsInterval {
 				if metricsTimerStart.IsZero() {
 					if cfg.metricsInterval > 0 {
@@ -831,6 +864,14 @@ func (t *Tracer) loop() {
 				metricsTimerStart = time.Now()
 				metricsTimer.Reset(cfg.metricsInterval)
 			}
+		case <-cpuProfilingState.timer.C:
+			cpuProfilingState.start(ctx, cfg.logger, t.metadataReader())
+		case <-cpuProfilingState.finished:
+			cpuProfilingState.resetTimer()
+		case <-heapProfilingState.timer.C:
+			heapProfilingState.start(ctx, cfg.logger, t.metadataReader())
+		case <-heapProfilingState.finished:
+			heapProfilingState.resetTimer()
 		case flushed = <-t.forceFlush:
 			// Drain any objects buffered in the channels.
 			for n := len(t.events); n > 0; n-- {
@@ -1030,20 +1071,33 @@ func (t *Tracer) loop() {
 // first request is made.
 func (t *Tracer) jsonRequestMetadata() []byte {
 	var json fastjson.Writer
+	json.RawString(`{"metadata":`)
+	t.encodeRequestMetadata(&json)
+	json.RawString("}\n")
+	return json.Bytes()
+}
+
+// metadataReader returns an io.Reader that holds the JSON-encoded metadata,
+// suitable for including in a profile request.
+func (t *Tracer) metadataReader() io.Reader {
+	var metadata fastjson.Writer
+	t.encodeRequestMetadata(&metadata)
+	return bytes.NewReader(metadata.Bytes())
+}
+
+func (t *Tracer) encodeRequestMetadata(json *fastjson.Writer) {
 	service := makeService(t.Service.Name, t.Service.Version, t.Service.Environment)
-	json.RawString(`{"metadata":{`)
-	json.RawString(`"system":`)
-	t.system.MarshalFastJSON(&json)
+	json.RawString(`{"system":`)
+	t.system.MarshalFastJSON(json)
 	json.RawString(`,"process":`)
-	t.process.MarshalFastJSON(&json)
+	t.process.MarshalFastJSON(json)
 	json.RawString(`,"service":`)
-	service.MarshalFastJSON(&json)
+	service.MarshalFastJSON(json)
 	if len(globalLabels) > 0 {
 		json.RawString(`,"labels":`)
-		globalLabels.MarshalFastJSON(&json)
+		globalLabels.MarshalFastJSON(json)
 	}
-	json.RawString("}}\n")
-	return json.Bytes()
+	json.RawByte('}')
 }
 
 // gatherMetrics gathers metrics from each of the registered

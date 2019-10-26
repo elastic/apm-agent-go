@@ -23,11 +23,13 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/textproto"
 	"net/url"
 	"os"
 	"strings"
@@ -486,6 +488,86 @@ func TestNewHTTPTransportTrailingSlash(t *testing.T) {
 	require.Len(t, h.requests, 1)
 	assert.Equal(t, "POST", h.requests[0].Method)
 	assert.Equal(t, "/intake/v2/events", h.requests[0].URL.Path)
+}
+
+func TestHTTPTransportSendProfile(t *testing.T) {
+	metadata := "metadata"
+	profile1 := "profile1"
+	profile2 := "profile2"
+
+	type part struct {
+		formName string
+		fileName string
+		header   textproto.MIMEHeader
+		content  string
+	}
+
+	var parts []part
+	transport, server := newHTTPTransport(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		r, err := req.MultipartReader()
+		if err != nil {
+			panic(err)
+		}
+		for {
+			p, err := r.NextPart()
+			if err == io.EOF {
+				break
+			}
+			content, err := ioutil.ReadAll(p)
+			if err == io.EOF {
+				panic(err)
+			}
+			parts = append(parts, part{
+				formName: p.FormName(),
+				fileName: p.FileName(),
+				header:   p.Header,
+				content:  string(content),
+			})
+		}
+	}))
+	defer server.Close()
+
+	err := transport.SendProfile(
+		context.Background(),
+		strings.NewReader(metadata),
+		strings.NewReader(profile1),
+		strings.NewReader(profile2),
+	)
+	require.NoError(t, err)
+
+	makeHeader := func(kv ...string) textproto.MIMEHeader {
+		h := make(textproto.MIMEHeader)
+		for i := 0; i < len(kv); i += 2 {
+			h.Set(kv[i], kv[i+1])
+		}
+		return h
+	}
+
+	assert.Equal(t,
+		[]part{{
+			formName: "metadata",
+			header: makeHeader(
+				"Content-Disposition", `form-data; name="metadata"`,
+				"Content-Type", "application/json",
+			),
+			content: "metadata",
+		}, {
+			formName: "profile",
+			header: makeHeader(
+				"Content-Disposition", `form-data; name="profile"`,
+				"Content-Type", "application/x-protobuf; messageType=”perftools.profiles.Profile",
+			),
+			content: "profile1",
+		}, {
+			formName: "profile",
+			header: makeHeader(
+				"Content-Disposition", `form-data; name="profile"`,
+				"Content-Type", "application/x-protobuf; messageType=”perftools.profiles.Profile",
+			),
+			content: "profile2",
+		}},
+		parts,
+	)
 }
 
 func newHTTPTransport(t *testing.T, handler http.Handler) (*transport.HTTPTransport, *httptest.Server) {

@@ -14,6 +14,7 @@
  - module/apmgorm: sql.ErrNoRows is no longer reported as an error (#645)
  - Server URL path is cleaned/canonicalizsed in order to avoid 301 redirects (#658)
  - `context.request.socket.remote_address` now reports the peer address (#662)
+ - Experimental support for periodic CPU/heap profiling (#666)
 
 ## [v1.5.0](https://github.com/elastic/apm-agent-go/releases/tag/v1.5.0)
 
