@@ -330,15 +330,16 @@ func (s *Span) reportSelfTime() {
 		return
 	}
 
-	s.tx.TransactionData.mu.Lock()
-	defer s.tx.TransactionData.mu.Unlock()
 	if s.parent != nil {
 		s.parent.mu.Lock()
 		if !s.parent.ended() {
 			s.parent.childrenTimer.childEnded(endTime)
 		}
 		s.parent.mu.Unlock()
-	} else {
+	}
+	s.tx.TransactionData.mu.Lock()
+	defer s.tx.TransactionData.mu.Unlock()
+	if s.parent == nil {
 		s.tx.childrenTimer.childEnded(endTime)
 	}
 	s.tx.spanTimings.add(s.Type, s.Subtype, s.Duration-s.childrenTimer.finalDuration(endTime))
