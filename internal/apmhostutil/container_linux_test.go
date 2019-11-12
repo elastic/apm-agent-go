@@ -139,7 +139,7 @@ func TestCgroupContainerInfoKubernetesSystemd(t *testing.T) {
 	assert.Equal(t, &model.Container{ID: "2227daf62df6694645fee5df53c1f91271546a9560e8600a525690ae252b7f63"}, container)
 	assert.Equal(t, &model.Kubernetes{
 		Pod: &model.KubernetesPod{
-			UID:  "90d81341_92de_11e7_8cf2_507b9d4141fa",
+			UID:  "90d81341-92de-11e7-8cf2-507b9d4141fa",
 			Name: hostname,
 		},
 	}, kubernetes)
