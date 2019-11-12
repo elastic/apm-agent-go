@@ -131,7 +131,9 @@ func readCgroupContainerInfo(r io.Reader) (*model.Container, *model.Kubernetes, 
 			hostname, _ := os.Hostname()
 			uid := match[1]
 			if uid == "" {
-				uid = match[2]
+				// Systemd cgroup driver is being used,
+				// so we need to unescape '_' back to '-'.
+				uid = strings.Replace(match[2], "_", "-", -1)
 			}
 			kubernetes = &model.Kubernetes{
 				Pod: &model.KubernetesPod{
