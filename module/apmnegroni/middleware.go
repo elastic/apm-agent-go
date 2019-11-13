@@ -53,7 +53,7 @@ type middleware struct {
 	handler http.Handler
 }
 
-func (m middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+func (m *middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
 	r = r.WithContext(context.WithValue(r.Context(), nextKey{}, next))
 	m.handler.ServeHTTP(w, r)
 }
@@ -64,8 +64,6 @@ func nextHandler(w http.ResponseWriter, r *http.Request) {
 	next := r.Context().Value(nextKey{}).(http.HandlerFunc)
 	next(w, r)
 }
-
-var _ negroni.Handler = middleware{}
 
 // Option sets options for tracing.
 type Option apmhttp.ServerOption
