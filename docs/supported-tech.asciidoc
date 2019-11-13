@@ -100,6 +100,15 @@ See <<builtin-modules-apmchi, module/apmchi>> for more information
 about chi instrumentation.
 
 [float]
+==== negroni
+
+We support https://github.com/urfave/negroni[negroni],
+https://github.com/urfave/negroni/releases/tag/v1.0.0[v1.0.0] and greater.
+
+See <<builtin-modules-apmnegroni, module/apmnegroni>> for more information
+about negroni instrumentation.
+
+[float]
 [[supported-tech-databases]]
 === Databases
 

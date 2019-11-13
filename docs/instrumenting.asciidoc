@@ -291,6 +291,36 @@ func main() {
 }
 ----
 
+[[builtin-modules-apmnegroni]]
+===== module/apmnegroni
+
+Package apmnegroni provides middleware for the https://github.com/urfave/negroni/[negroni] library.
+
+For each request, a transaction is stored in the request context, which can be obtained via
+https://golang.org/pkg/net/http/#Request.Context[http.Request.Context] in your handler.
+
+[source,go]
+----
+import (
+	"net/http"
+
+	"go.elastic.co/apm/module/apmnegroni"
+)
+
+func serverHandler(w http.ResponseWriter, req *http.Request) {
+	...
+}
+
+func main() {
+	n := negroni.New()
+	n.Use(apmnegroni.Middleware())
+	n.UseHandler(serverHandler)
+	http.ListenAndServe(":8080", n)
+}
+----
+
+The apmnegroni handler will recover panics and send them to Elastic APM.
+
 ===== module/apmlambda
 Package apmlambda intercepts requests to your AWS Lambda function invocations.
 
