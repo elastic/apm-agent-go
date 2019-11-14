@@ -15,6 +15,9 @@
  - Server URL path is cleaned/canonicalizsed in order to avoid 301 redirects (#658)
  - `context.request.socket.remote_address` now reports the peer address (#662)
  - Experimental support for periodic CPU/heap profiling (#666)
+ - module/apmnegroni: introduce tracing Negroni middleware (#671)
+ - Unescape hyphens in k8s pod UIDs when the systemd cgroup driver is used (#672)
+ - Read and propagate the standard W3C "traceparent" header (#674)
 
 ## [v1.5.0](https://github.com/elastic/apm-agent-go/releases/tag/v1.5.0)
 
