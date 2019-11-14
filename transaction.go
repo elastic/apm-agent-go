@@ -89,6 +89,7 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 	tx.stackTraceLimit = instrumentationConfig.stackTraceLimit
 	tx.Context.captureHeaders = instrumentationConfig.captureHeaders
 	tx.breakdownMetricsEnabled = t.breakdownMetrics.enabled
+	tx.propagateLegacyHeader = instrumentationConfig.propagateLegacyHeader
 
 	if root {
 		sampler := instrumentationConfig.sampler
@@ -155,6 +156,21 @@ func (tx *Transaction) TraceContext() TraceContext {
 		return TraceContext{}
 	}
 	return tx.traceContext
+}
+
+// ShouldPropagateLegacyHeader reports whether instrumentation should
+// propagate the legacy "Elastic-Apm-Traceparent" header in addition to
+// the standard W3C "traceparent" header.
+//
+// This method will be removed in a future major version when we remove
+// support for propagating the legacy header.
+func (tx *Transaction) ShouldPropagateLegacyHeader() bool {
+	tx.mu.Lock()
+	defer tx.mu.Unlock()
+	if tx.ended() {
+		return false
+	}
+	return tx.propagateLegacyHeader
 }
 
 // EnsureParent returns the span ID for for tx's parent, generating a
@@ -276,6 +292,7 @@ type TransactionData struct {
 	spanFramesMinDuration   time.Duration
 	stackTraceLimit         int
 	breakdownMetricsEnabled bool
+	propagateLegacyHeader   bool
 	timestamp               time.Time
 
 	mu            sync.Mutex
