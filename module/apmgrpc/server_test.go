@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"net"
 	"reflect"
+	"strings"
 	"testing"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -91,30 +92,38 @@ func testServerTransactionHappy(t *testing.T, p testParams) {
 	traceID := apm.TraceID{0x0a, 0xf7, 0x65, 0x19, 0x16, 0xcd, 0x43, 0xdd, 0x84, 0x48, 0xeb, 0x21, 0x1c, 0x80, 0x31, 0x9c}
 	clientSpanID := apm.SpanID{0xb7, 0xad, 0x6b, 0x71, 0x69, 0x20, 0x33, 0x31}
 
-	ctx := metadata.AppendToOutgoingContext(
-		context.Background(),
-		apmhttp.TraceparentHeader, fmt.Sprintf("00-%s-%s-01", traceID, clientSpanID),
-	)
-	resp, err := p.client.SayHello(ctx, &pb.HelloRequest{Name: "birita"})
-	require.NoError(t, err)
-	assert.Equal(t, resp, &pb.HelloReply{Message: "hello, birita"})
+	traceparentValue := fmt.Sprintf("00-%s-%s-01", traceID, clientSpanID)
 
+	headers := []string{apmhttp.ElasticTraceparentHeader, apmhttp.W3CTraceparentHeader}
+	for _, header := range headers {
+		ctx := metadata.AppendToOutgoingContext(context.Background(), header, traceparentValue)
+		resp, err := p.client.SayHello(ctx, &pb.HelloRequest{Name: "birita"})
+		require.NoError(t, err)
+		assert.Equal(t, resp, &pb.HelloReply{Message: "hello, birita"})
+	}
 	p.tracer.Flush(nil)
-	tx := p.transport.Payloads().Transactions[0]
-	assert.Equal(t, "/helloworld.Greeter/SayHello", tx.Name)
-	assert.Equal(t, "request", tx.Type)
-	assert.Equal(t, "OK", tx.Result)
-	assert.Equal(t, model.TraceID(traceID), tx.TraceID)
-	assert.Equal(t, model.SpanID(clientSpanID), tx.ParentID)
+	payloads := p.transport.Payloads()
+	require.Len(t, payloads.Transactions, len(headers))
 
-	assert.Equal(t, &model.Context{
-		Service: &model.Service{
-			Framework: &model.Framework{
-				Name:    "grpc",
-				Version: grpc.Version,
+	for i, tx := range payloads.Transactions {
+		assert.Equal(t, "/helloworld.Greeter/SayHello", tx.Name)
+		assert.Equal(t, "request", tx.Type)
+		assert.Equal(t, "OK", tx.Result)
+		assert.Equal(t, model.TraceID(traceID), tx.TraceID)
+		assert.Equal(t, model.SpanID(clientSpanID), tx.ParentID)
+		assert.Equal(t, &model.Context{
+			Service: &model.Service{
+				Framework: &model.Framework{
+					Name:    "grpc",
+					Version: grpc.Version,
+				},
 			},
-		},
-	}, tx.Context)
+			Custom: model.IfaceMap{{
+				Key:   strings.ToLower(headers[i]),
+				Value: traceparentValue,
+			}},
+		}, tx.Context)
+	}
 }
 
 func testServerTransactionUnknownError(t *testing.T, p testParams) {
@@ -242,8 +251,15 @@ type helloworldServer struct {
 }
 
 func (s *helloworldServer) SayHello(ctx context.Context, req *pb.HelloRequest) (*pb.HelloReply, error) {
-	// The context passed to the server should contain a Transaction
-	// for the gRPC request.
+	// The context passed to the server should contain a Transaction for the gRPC request.
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		tx := apm.TransactionFromContext(ctx)
+		for _, header := range []string{"elastic-apm-traceparent", "traceparent"} {
+			if values := md.Get(header); len(values) > 0 {
+				tx.Context.SetCustom(header, strings.Join(values, " "))
+			}
+		}
+	}
 	span, ctx := apm.StartSpan(ctx, "server_span", "type")
 	span.End()
 	if s.panic {
