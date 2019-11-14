@@ -19,11 +19,14 @@ package apmhttp_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -45,7 +48,6 @@ func TestClient(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.Handle("/foo", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusTeapot)
-		w.Write([]byte(req.Header.Get("Elastic-Apm-Traceparent")))
 	}))
 	server := httptest.NewServer(mux)
 	defer server.Close()
@@ -60,7 +62,7 @@ func TestClient(t *testing.T) {
 
 	tx := tracer.StartTransaction("name", "type")
 	ctx := apm.ContextWithTransaction(context.Background(), tx)
-	statusCode, responseBody := mustGET(ctx, requestURL.String())
+	statusCode, _ := mustGET(ctx, requestURL.String())
 	assert.Equal(t, http.StatusTeapot, statusCode)
 	tx.End()
 	tracer.Flush(nil)
@@ -71,6 +73,7 @@ func TestClient(t *testing.T) {
 	transaction := payloads.Transactions[0]
 	span := payloads.Spans[0]
 
+	assert.Equal(t, transaction.ID, span.ParentID)
 	assert.Equal(t, "GET "+server.Listener.Addr().String(), span.Name)
 	assert.Equal(t, "external", span.Type)
 	assert.Equal(t, "http", span.Subtype)
@@ -81,12 +84,56 @@ func TestClient(t *testing.T) {
 			StatusCode: statusCode,
 		},
 	}, span.Context)
+}
 
-	clientTraceContext, err := apmhttp.ParseTraceparentHeader(responseBody)
-	assert.NoError(t, err)
-	assert.Equal(t, span.TraceID, model.TraceID(clientTraceContext.Trace))
-	assert.Equal(t, span.ID, model.SpanID(clientTraceContext.Span))
-	assert.Equal(t, transaction.ID, span.ParentID)
+func TestClientTraceparentHeaders(t *testing.T) {
+	t.Run("with-elastic-apm-traceparent", func(t *testing.T) {
+		testClientTraceparentHeaders(t, "Elastic-Apm-Traceparent", "Traceparent")
+	})
+	t.Run("without-elastic-apm-traceparent", func(t *testing.T) {
+		os.Setenv("ELASTIC_APM_USE_ELASTIC_TRACEPARENT_HEADER", "true")
+		defer os.Unsetenv("ELASTIC_APM_USE_ELASTIC_TRACEPARENT_HEADER")
+		testClientTraceparentHeaders(t, "Traceparent")
+	})
+}
+
+func testClientTraceparentHeaders(t *testing.T, traceparentHeaders ...string) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		headers := make(map[string]string)
+		for k, vs := range req.Header {
+			headers[k] = strings.Join(vs, " ")
+		}
+		json.NewEncoder(w).Encode(headers)
+	}))
+	defer server.Close()
+
+	tx := tracer.StartTransaction("name", "type")
+	ctx := apm.ContextWithTransaction(context.Background(), tx)
+	_, responseBody := mustGET(ctx, server.URL)
+	tx.End()
+	tracer.Flush(nil)
+
+	payloads := transport.Payloads()
+	require.Len(t, payloads.Transactions, 1)
+	require.Len(t, payloads.Spans, 1)
+	span := payloads.Spans[0]
+
+	headers := make(map[string]string)
+	err := json.Unmarshal([]byte(responseBody), &headers)
+	require.NoError(t, err)
+
+	traceparentValue := apmhttp.FormatTraceparentHeader(apm.TraceContext{
+		Trace:   apm.TraceID(span.TraceID),
+		Span:    apm.SpanID(span.ID),
+		Options: apm.TraceOptions(0).WithRecorded(true),
+	})
+	for _, header := range traceparentHeaders {
+		require.Contains(t, headers, header)
+		assert.Equal(t, traceparentValue, headers[header])
+	}
 }
 
 func TestClientSpanDropped(t *testing.T) {

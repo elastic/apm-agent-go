@@ -107,8 +107,12 @@ func (t *otTracer) Inject(sc opentracing.SpanContext, format interface{}, carrie
 		if !ok {
 			return opentracing.ErrInvalidCarrier
 		}
+		tx := spanContext.Transaction()
 		headerValue := apmhttp.FormatTraceparentHeader(spanContext.traceContext)
-		writer.Set(apmhttp.TraceparentHeader, headerValue)
+		writer.Set(apmhttp.W3CTraceparentHeader, headerValue)
+		if tx.ShouldPropagateLegacyHeader() {
+			writer.Set(apmhttp.ElasticTraceparentHeader, headerValue)
+		}
 		return nil
 	case opentracing.Binary:
 		writer, ok := carrier.(io.Writer)
@@ -127,12 +131,21 @@ func (t *otTracer) Extract(format interface{}, carrier interface{}) (opentracing
 		var headerValue string
 		switch carrier := carrier.(type) {
 		case opentracing.HTTPHeadersCarrier:
-			headerValue = http.Header(carrier).Get(apmhttp.TraceparentHeader)
+			headerValue = http.Header(carrier).Get(apmhttp.ElasticTraceparentHeader)
+			if headerValue == "" {
+				headerValue = http.Header(carrier).Get(apmhttp.W3CTraceparentHeader)
+			}
 		case opentracing.TextMapReader:
 			carrier.ForeachKey(func(key, val string) error {
-				if textproto.CanonicalMIMEHeaderKey(key) == apmhttp.TraceparentHeader {
+				switch textproto.CanonicalMIMEHeaderKey(key) {
+				case apmhttp.ElasticTraceparentHeader:
 					headerValue = val
-					return io.EOF // arbitrary error to break loop
+					// The Elastic header value always trumps the W3C one,
+					// to ensure backwards compatibility, so we return an
+					// arbitrary error to break the loop.
+					return io.EOF
+				case apmhttp.W3CTraceparentHeader:
+					headerValue = val
 				}
 				return nil
 			})

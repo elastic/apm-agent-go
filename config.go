@@ -35,26 +35,27 @@ import (
 )
 
 const (
-	envMetricsInterval       = "ELASTIC_APM_METRICS_INTERVAL"
-	envMaxSpans              = "ELASTIC_APM_TRANSACTION_MAX_SPANS"
-	envTransactionSampleRate = "ELASTIC_APM_TRANSACTION_SAMPLE_RATE"
-	envSanitizeFieldNames    = "ELASTIC_APM_SANITIZE_FIELD_NAMES"
-	envCaptureHeaders        = "ELASTIC_APM_CAPTURE_HEADERS"
-	envCaptureBody           = "ELASTIC_APM_CAPTURE_BODY"
-	envServiceName           = "ELASTIC_APM_SERVICE_NAME"
-	envServiceVersion        = "ELASTIC_APM_SERVICE_VERSION"
-	envEnvironment           = "ELASTIC_APM_ENVIRONMENT"
-	envSpanFramesMinDuration = "ELASTIC_APM_SPAN_FRAMES_MIN_DURATION"
-	envActive                = "ELASTIC_APM_ACTIVE"
-	envAPIRequestSize        = "ELASTIC_APM_API_REQUEST_SIZE"
-	envAPIRequestTime        = "ELASTIC_APM_API_REQUEST_TIME"
-	envAPIBufferSize         = "ELASTIC_APM_API_BUFFER_SIZE"
-	envMetricsBufferSize     = "ELASTIC_APM_METRICS_BUFFER_SIZE"
-	envDisableMetrics        = "ELASTIC_APM_DISABLE_METRICS"
-	envGlobalLabels          = "ELASTIC_APM_GLOBAL_LABELS"
-	envStackTraceLimit       = "ELASTIC_APM_STACK_TRACE_LIMIT"
-	envCentralConfig         = "ELASTIC_APM_CENTRAL_CONFIG"
-	envBreakdownMetrics      = "ELASTIC_APM_BREAKDOWN_METRICS"
+	envMetricsInterval             = "ELASTIC_APM_METRICS_INTERVAL"
+	envMaxSpans                    = "ELASTIC_APM_TRANSACTION_MAX_SPANS"
+	envTransactionSampleRate       = "ELASTIC_APM_TRANSACTION_SAMPLE_RATE"
+	envSanitizeFieldNames          = "ELASTIC_APM_SANITIZE_FIELD_NAMES"
+	envCaptureHeaders              = "ELASTIC_APM_CAPTURE_HEADERS"
+	envCaptureBody                 = "ELASTIC_APM_CAPTURE_BODY"
+	envServiceName                 = "ELASTIC_APM_SERVICE_NAME"
+	envServiceVersion              = "ELASTIC_APM_SERVICE_VERSION"
+	envEnvironment                 = "ELASTIC_APM_ENVIRONMENT"
+	envSpanFramesMinDuration       = "ELASTIC_APM_SPAN_FRAMES_MIN_DURATION"
+	envActive                      = "ELASTIC_APM_ACTIVE"
+	envAPIRequestSize              = "ELASTIC_APM_API_REQUEST_SIZE"
+	envAPIRequestTime              = "ELASTIC_APM_API_REQUEST_TIME"
+	envAPIBufferSize               = "ELASTIC_APM_API_BUFFER_SIZE"
+	envMetricsBufferSize           = "ELASTIC_APM_METRICS_BUFFER_SIZE"
+	envDisableMetrics              = "ELASTIC_APM_DISABLE_METRICS"
+	envGlobalLabels                = "ELASTIC_APM_GLOBAL_LABELS"
+	envStackTraceLimit             = "ELASTIC_APM_STACK_TRACE_LIMIT"
+	envCentralConfig               = "ELASTIC_APM_CENTRAL_CONFIG"
+	envBreakdownMetrics            = "ELASTIC_APM_BREAKDOWN_METRICS"
+	envUseElasticTraceparentHeader = "ELASTIC_APM_USE_ELASTIC_TRACEPARENT_HEADER"
 
 	// NOTE(axw) profiling environment variables are experimental.
 	// They may be removed in a future minor version without being
@@ -275,6 +276,10 @@ func initialBreakdownMetricsEnabled() (bool, error) {
 	return configutil.ParseBoolEnv(envBreakdownMetrics, true)
 }
 
+func initialUseElasticTraceparentHeader() (bool, error) {
+	return configutil.ParseBoolEnv(envUseElasticTraceparentHeader, true)
+}
+
 func initialCPUProfileIntervalDuration() (time.Duration, time.Duration, error) {
 	interval, err := configutil.ParseDurationEnv(envCPUProfileInterval, 0)
 	if err != nil || interval <= 0 {
@@ -439,4 +444,5 @@ type instrumentationConfigValues struct {
 	sampler               Sampler
 	spanFramesMinDuration time.Duration
 	stackTraceLimit       int
+	propagateLegacyHeader bool
 }

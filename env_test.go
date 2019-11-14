@@ -391,3 +391,22 @@ func TestServiceNodeNameEnvSpecified(t *testing.T) {
 	_, _, service, _ := getSubprocessMetadata(t, "ELASTIC_APM_SERVICE_NODE_NAME=foo_bar")
 	assert.Equal(t, "foo_bar", service.Node.ConfiguredName)
 }
+
+func TestUseElasticTraceparentHeader(t *testing.T) {
+	t.Run("default", func(t *testing.T) { testUseElasticTraceparentHeader(t, "", true) })
+	t.Run("false", func(t *testing.T) { testUseElasticTraceparentHeader(t, "false", false) })
+	t.Run("true", func(t *testing.T) { testUseElasticTraceparentHeader(t, "true", true) })
+}
+
+func testUseElasticTraceparentHeader(t *testing.T, envValue string, expectPropagate bool) {
+	os.Setenv("ELASTIC_APM_USE_ELASTIC_TRACEPARENT_HEADER", envValue)
+	defer os.Unsetenv("ELASTIC_APM_USE_ELASTIC_TRACEPARENT_HEADER")
+
+	tracer := apmtest.NewDiscardTracer()
+	defer tracer.Close()
+
+	tx := tracer.StartTransaction("name", "type")
+	propagate := tx.ShouldPropagateLegacyHeader()
+	tx.Discard()
+	assert.Equal(t, expectPropagate, propagate)
+}

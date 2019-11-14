@@ -20,6 +20,7 @@
 package apmgrpc_test
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -29,10 +30,23 @@ import (
 
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/apmtest"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/module/apmhttp"
 	"go.elastic.co/apm/transport/transporttest"
 )
 
 func TestClientSpan(t *testing.T) {
+	t.Run("with-elastic-apm-traceparent", func(t *testing.T) {
+		testClientSpan(t, "elastic-apm-traceparent", "traceparent")
+	})
+	t.Run("without-elastic-apm-traceparent", func(t *testing.T) {
+		os.Setenv("ELASTIC_APM_USE_ELASTIC_TRACEPARENT_HEADER", "false")
+		defer os.Unsetenv("ELASTIC_APM_USE_ELASTIC_TRACEPARENT_HEADER")
+		testClientSpan(t, "traceparent")
+	})
+}
+
+func testClientSpan(t *testing.T, traceparentHeaders ...string) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
@@ -70,6 +84,20 @@ func TestClientSpan(t *testing.T) {
 	}
 	assert.Equal(t, clientSpans[0].TraceID, serverTransactions[1].TraceID)
 	assert.Equal(t, clientSpans[0].ID, serverTransactions[1].ParentID)
+
+	traceparentValue := apmhttp.FormatTraceparentHeader(apm.TraceContext{
+		Trace:   apm.TraceID(clientSpans[0].TraceID),
+		Span:    apm.SpanID(clientSpans[0].ID),
+		Options: apm.TraceOptions(0).WithRecorded(true),
+	})
+	expectedCustom := model.IfaceMap{}
+	for _, header := range traceparentHeaders {
+		expectedCustom = append(expectedCustom, model.IfaceMapItem{
+			Key:   header,
+			Value: traceparentValue,
+		})
+	}
+	assert.Equal(t, expectedCustom, serverTransactions[1].Context.Custom)
 }
 
 func TestClientSpanDropped(t *testing.T) {

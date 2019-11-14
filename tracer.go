@@ -110,6 +110,7 @@ type TracerOptions struct {
 	active                bool
 	configWatcher         apmconfig.Watcher
 	breakdownMetrics      bool
+	propagateLegacyHeader bool
 	profileSender         profileSender
 	cpuProfileInterval    time.Duration
 	cpuProfileDuration    time.Duration
@@ -201,6 +202,11 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 		breakdownMetricsEnabled = true
 	}
 
+	propagateLegacyHeader, err := initialUseElasticTraceparentHeader()
+	if failed(err) {
+		propagateLegacyHeader = true
+	}
+
 	cpuProfileInterval, cpuProfileDuration, err := initialCPUProfileIntervalDuration()
 	if failed(err) {
 		cpuProfileInterval = 0
@@ -240,6 +246,7 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 	opts.spanFramesMinDuration = spanFramesMinDuration
 	opts.stackTraceLimit = stackTraceLimit
 	opts.active = active
+	opts.propagateLegacyHeader = propagateLegacyHeader
 	if opts.Transport == nil {
 		opts.Transport = transport.Default
 	}
@@ -389,6 +396,9 @@ func newTracer(opts TracerOptions) *Tracer {
 	})
 	t.setLocalInstrumentationConfig(envStackTraceLimit, func(cfg *instrumentationConfigValues) {
 		cfg.stackTraceLimit = opts.stackTraceLimit
+	})
+	t.setLocalInstrumentationConfig(envUseElasticTraceparentHeader, func(cfg *instrumentationConfigValues) {
+		cfg.propagateLegacyHeader = opts.propagateLegacyHeader
 	})
 
 	if !opts.active {

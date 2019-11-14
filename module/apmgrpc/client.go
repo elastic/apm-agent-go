@@ -61,25 +61,33 @@ func startSpan(ctx context.Context, name string) (*apm.Span, context.Context) {
 		return nil, ctx
 	}
 	traceContext := tx.TraceContext()
+	propagateLegacyHeader := tx.ShouldPropagateLegacyHeader()
 	if !traceContext.Options.Recorded() {
-		return nil, outgoingContextWithTraceContext(ctx, traceContext)
+		return nil, outgoingContextWithTraceContext(ctx, traceContext, propagateLegacyHeader)
 	}
 	span := tx.StartSpan(name, "external.grpc", apm.SpanFromContext(ctx))
 	if !span.Dropped() {
 		traceContext = span.TraceContext()
 		ctx = apm.ContextWithSpan(ctx, span)
 	}
-	return span, outgoingContextWithTraceContext(ctx, traceContext)
+	return span, outgoingContextWithTraceContext(ctx, traceContext, propagateLegacyHeader)
 }
 
-func outgoingContextWithTraceContext(ctx context.Context, traceContext apm.TraceContext) context.Context {
+func outgoingContextWithTraceContext(
+	ctx context.Context,
+	traceContext apm.TraceContext,
+	propagateLegacyHeader bool,
+) context.Context {
 	traceparentValue := apmhttp.FormatTraceparentHeader(traceContext)
 	md, ok := metadata.FromOutgoingContext(ctx)
 	if !ok {
-		md = metadata.Pairs(traceparentHeader, traceparentValue)
+		md = metadata.Pairs(w3cTraceparentHeader, traceparentValue)
 	} else {
 		md = md.Copy()
-		md.Set(traceparentHeader, traceparentValue)
+		md.Set(w3cTraceparentHeader, traceparentValue)
+	}
+	if propagateLegacyHeader {
+		md.Set(elasticTraceparentHeader, traceparentValue)
 	}
 	return metadata.NewOutgoingContext(ctx, md)
 }
