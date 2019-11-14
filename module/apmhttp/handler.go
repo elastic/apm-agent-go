@@ -105,16 +105,23 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 // If the transaction is not ignored, the request will be
 // returned with the transaction added to its context.
 func StartTransaction(tracer *apm.Tracer, name string, req *http.Request) (*apm.Transaction, *http.Request) {
-	var opts apm.TransactionOptions
-	if values := req.Header[TraceparentHeader]; len(values) == 1 && values[0] != "" {
-		if c, err := ParseTraceparentHeader(values[0]); err == nil {
-			opts.TraceContext = c
-		}
+	traceContext, ok := getRequestTraceparent(req, ElasticTraceparentHeader)
+	if !ok {
+		traceContext, _ = getRequestTraceparent(req, W3CTraceparentHeader)
 	}
-	tx := tracer.StartTransactionOptions(name, "request", opts)
+	tx := tracer.StartTransactionOptions(name, "request", apm.TransactionOptions{TraceContext: traceContext})
 	ctx := apm.ContextWithTransaction(req.Context(), tx)
 	req = RequestWithContext(ctx, req)
 	return tx, req
+}
+
+func getRequestTraceparent(req *http.Request, header string) (apm.TraceContext, bool) {
+	if values := req.Header[header]; len(values) == 1 && values[0] != "" {
+		if c, err := ParseTraceparentHeader(values[0]); err == nil {
+			return c, true
+		}
+	}
+	return apm.TraceContext{}, false
 }
 
 // SetTransactionContext sets tx.Result and, if the transaction is being

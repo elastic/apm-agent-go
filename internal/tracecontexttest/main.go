@@ -66,7 +66,6 @@ func main() {
 	}
 
 	client := http.DefaultClient
-	client.Transport = compatRoundTripper{roundTripper: http.DefaultTransport}
 	client = apmhttp.WrapClient(client)
 
 	var handler http.HandlerFunc = func(w http.ResponseWriter, req *http.Request) {
@@ -75,7 +74,7 @@ func main() {
 		// the test suite.
 		var traceState traceState
 		var traceStateOK bool
-		if _, ok := req.Header[apmhttp.TraceparentHeader]; ok {
+		if _, ok := req.Header[apmhttp.W3CTraceparentHeader]; ok {
 			if values, ok := req.Header[standardTracestateHeader]; ok {
 				traceStateOK = traceState.init(values...)
 			}
@@ -120,33 +119,7 @@ func main() {
 		}
 	}
 	log.Printf("Starting Trace-Context test service, listening on %s", *listenAddr)
-	log.Fatal(http.ListenAndServe(*listenAddr, compatHandler(apmhttp.Wrap(handler))))
-}
-
-// compatRoundTripper renames Elastic-Apm-Traceparent headers to Traceparent.
-type compatRoundTripper struct {
-	roundTripper http.RoundTripper
-}
-
-func (t compatRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	headerValues, ok := req.Header[apmhttp.TraceparentHeader]
-	if ok {
-		req.Header[standardTraceparentHeader] = headerValues
-		req.Header.Del(apmhttp.TraceparentHeader)
-	}
-	return t.roundTripper.RoundTrip(req)
-}
-
-// compatHandler renames Traceparent headers to Elastic-Apm-Traceparent.
-func compatHandler(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		headerValues, ok := req.Header[standardTraceparentHeader]
-		if ok {
-			req.Header[apmhttp.TraceparentHeader] = headerValues
-			req.Header.Del(standardTraceparentHeader)
-		}
-		h.ServeHTTP(w, req)
-	})
+	log.Fatal(http.ListenAndServe(*listenAddr, apmhttp.Wrap(handler)))
 }
 
 type traceState []traceStateItem
