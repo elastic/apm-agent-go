@@ -1,6 +1,8 @@
 # Changelog
 
-## [Unreleased](https://github.com/elastic/apm-agent-go/compare/v1.5.0...master)
+## [Unreleased](https://github.com/elastic/apm-agent-go/compare/v1.6.0...master)
+
+## [v1.6.0](https://github.com/elastic/apm-agent-go/releases/tag/v1.6.0)
 
  - module/apmhttp: add WithClientRequestName option (#609)
  - module/apmhttp: add WithPanicPropagation function (#611)
