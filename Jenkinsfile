@@ -232,13 +232,15 @@ pipeline {
       }
       stages {
         stage('Opbeans') {
+          environment {
+            REPO_NAME = "${OPBEANS_REPO}"
+          }
           steps {
             deleteDir()
             dir("${OPBEANS_REPO}"){
               git credentialsId: 'f6c7695a-671e-4f4f-a331-acdce44ff9ba',
                   url: "git@github.com:elastic/${OPBEANS_REPO}.git"
               // TODO: Upgrade dependencies for the given version.
-              // gitCreateTag(tag: "${env.BRANCH_NAME}", pushArgs: '--force')
               gitCreateTag(tag: "${env.BRANCH_NAME}")
             }
           }
