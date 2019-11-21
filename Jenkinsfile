@@ -63,12 +63,7 @@ pipeline {
         stage('Tests') {
           options { skipDefaultCheckout() }
           when {
-            allOf {
-              expression { return params.test_ci }
-              not {
-                branch 'PR-678'
-              }
-            }
+            expression { return params.test_ci }
           }
           steps {
             withGithubNotify(context: 'Tests', tab: 'tests') {
@@ -95,12 +90,7 @@ pipeline {
         stage('Coverage') {
           options { skipDefaultCheckout() }
           when {
-            allOf {
-              expression { return params.docker_test_ci }
-              not {
-                branch 'PR-678'
-              }
-            }
+            expression { return params.docker_test_ci }
           }
           steps {
             withGithubNotify(context: 'Coverage') {
@@ -136,9 +126,6 @@ pipeline {
                 expression { return params.Run_As_Master_Branch }
               }
               expression { return params.bench_ci }
-              not {
-                branch 'PR-678'
-              }
             }
           }
           steps {
@@ -160,12 +147,6 @@ pipeline {
         stage('Windows') {
           agent { label 'windows-2019-immutable' }
           options { skipDefaultCheckout() }
-          when {
-            beforeAgent true
-            not {
-              branch 'PR-678'
-            }
-          }
           environment {
             GOROOT = "c:\\Go"
             GOPATH = "${env.WORKSPACE}"
@@ -194,12 +175,6 @@ pipeline {
         }
         stage('OSX') {
           agent { label 'macosx' }
-          when {
-            beforeAgent true
-            not {
-              branch 'PR-678'
-            }
-          }
           options { skipDefaultCheckout() }
           environment {
             GO_VERSION = "${params.GO_VERSION}"
@@ -233,9 +208,6 @@ pipeline {
             environment name: 'GIT_BUILD_CAUSE', value: 'pr'
             expression { return !params.Run_As_Master_Branch }
           }
-          not {
-            branch 'PR-678'
-          }
         }
       }
       steps {
@@ -267,8 +239,7 @@ pipeline {
             deleteDir()
             dir("${OPBEANS_REPO}"){
               git credentialsId: 'f6c7695a-671e-4f4f-a331-acdce44ff9ba',
-                  url: "git@github.com:elastic/${OPBEANS_REPO}.git",
-                  branch: 'feature/release'
+                  url: "git@github.com:elastic/${OPBEANS_REPO}.git"
               sh script: ".ci/bump-version.sh ${env.BRANCH_NAME}", label: 'Bump version'
               // The opbeans-go pipeline will trigger a release for the master branch
               gitPush()
