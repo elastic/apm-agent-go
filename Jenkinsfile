@@ -262,6 +262,7 @@ pipeline {
         stage('Opbeans') {
           environment {
             REPO_NAME = "${OPBEANS_REPO}"
+            BRANCH_NAME = 'v1.6.0'
           }
           steps {
             deleteDir()
