@@ -225,10 +225,7 @@ pipeline {
       options { skipDefaultCheckout() }
       when {
         beforeAgent true
-        anyOf {
-          tag pattern: 'v\\d+\\.\\d+\\d+', comparator: 'REGEXP'
-          branch 'PR-678'
-        }
+        tag pattern: 'v\\d+\\.\\d+\\d+', comparator: 'REGEXP'
       }
       stages {
         stage('Opbeans') {
