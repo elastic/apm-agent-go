@@ -1148,6 +1148,16 @@ func (v *MetricsTransaction) MarshalFastJSON(w *fastjson.Writer) error {
 		}
 		w.String(v.Name)
 	}
+	if v.Result != "" {
+		const prefix = ",\"result\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.String(v.Result)
+	}
 	if v.Type != "" {
 		const prefix = ",\"type\":"
 		if first {

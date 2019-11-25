@@ -27,10 +27,9 @@ import (
 )
 
 const (
-	// breakdownMetricsLimit is the maximum number of breakdown metric
-	// buckets to accumulate per reporting period. Metrics are broken
-	// down by {transactionType, transactionName, spanType, spanSubtype}
-	// tuples.
+	// breakdownMetricsLimit is the maximum number of breakdown metric buckets
+	// to accumulate per reporting period. Metrics are broken down by tuples:
+	// {transactionType, transactionName, transactionResult, spanType, spanSubtype}
 	breakdownMetricsLimit = 1000
 
 	// appSpanType is the special span type associated with transactions,
@@ -130,8 +129,9 @@ type breakdownMetricsMapEntry struct {
 // breakdownMetricsKey identifies a transaction group, and optionally a
 // spanTimingsKey, for recording transaction and span breakdown metrics.
 type breakdownMetricsKey struct {
-	transactionType string
-	transactionName string
+	transactionType   string
+	transactionName   string
+	transactionResult string
 	spanTimingsKey
 }
 
@@ -139,6 +139,7 @@ func (k breakdownMetricsKey) hash() uint64 {
 	h := newFnv1a()
 	h.add(k.transactionType)
 	h.add(k.transactionName)
+	h.add(k.transactionResult)
 	if k.spanType != "" {
 		h.add(k.spanType)
 	}
@@ -180,8 +181,9 @@ func (m *breakdownMetrics) recordTransaction(td *TransactionData) bool {
 	defer m.mu.RUnlock()
 
 	k := breakdownMetricsKey{
-		transactionType: td.Type,
-		transactionName: td.Name,
+		transactionType:   td.Type,
+		transactionName:   td.Name,
+		transactionResult: td.Result,
 	}
 	k.spanType = appSpanType
 
@@ -272,8 +274,9 @@ func (m *breakdownMetrics) gather(out *Metrics) {
 			if entry.transaction.count > 0 {
 				out.transactionGroupMetrics = append(out.transactionGroupMetrics, &model.Metrics{
 					Transaction: model.MetricsTransaction{
-						Type: entry.transactionType,
-						Name: entry.transactionName,
+						Type:   entry.transactionType,
+						Name:   entry.transactionName,
+						Result: entry.transactionResult,
 					},
 					Samples: map[string]model.Metric{
 						transactionDurationCountMetricName: {
@@ -291,8 +294,9 @@ func (m *breakdownMetrics) gather(out *Metrics) {
 			if entry.span.count > 0 {
 				out.transactionGroupMetrics = append(out.transactionGroupMetrics, &model.Metrics{
 					Transaction: model.MetricsTransaction{
-						Type: entry.transactionType,
-						Name: entry.transactionName,
+						Type:   entry.transactionType,
+						Name:   entry.transactionName,
+						Result: entry.transactionResult,
 					},
 					Span: model.MetricsSpan{
 						Type:    entry.spanType,

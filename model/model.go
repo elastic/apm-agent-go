@@ -619,8 +619,9 @@ type Metrics struct {
 
 // MetricsTransaction holds transaction identifiers for metrics.
 type MetricsTransaction struct {
-	Type string `json:"type,omitempty"`
-	Name string `json:"name,omitempty"`
+	Type   string `json:"type,omitempty"`
+	Name   string `json:"name,omitempty"`
+	Result string `json:"result,omitempty"`
 }
 
 // MetricsSpan holds span identifiers for metrics.

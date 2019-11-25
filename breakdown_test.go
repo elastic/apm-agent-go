@@ -45,6 +45,7 @@ func TestBreakdownMetrics_NonSampled(t *testing.T) {
 	span := tx.StartSpanOptions("whatever", "db.mysql", apm.SpanOptions{Start: t0.Add(10 * time.Millisecond)})
 	span.Duration = 10 * time.Millisecond // t0 + 20ms
 	span.End()
+	tx.Result = "HTTP 2xx"
 	tx.Duration = 30 * time.Millisecond
 	tx.End()
 
@@ -52,9 +53,9 @@ func TestBreakdownMetrics_NonSampled(t *testing.T) {
 	tracer.SendMetrics(nil)
 
 	assertBreakdownMetrics(t, []model.Metrics{
-		transactionDurationMetrics("test", "request", 1, 30*time.Millisecond),
-		spanSelfTimeMetrics("test", "request", "app", "", 1, 20*time.Millisecond),
-		spanSelfTimeMetrics("test", "request", "db", "mysql", 1, 10*time.Millisecond),
+		transactionDurationMetrics("test", "request", "HTTP 2xx", 1, 30*time.Millisecond),
+		spanSelfTimeMetrics("test", "request", "HTTP 2xx", "app", "", 1, 20*time.Millisecond),
+		spanSelfTimeMetrics("test", "request", "HTTP 2xx", "db", "mysql", 1, 10*time.Millisecond),
 	}, payloadsBreakdownMetrics(transport))
 }
 
@@ -83,9 +84,9 @@ func TestBreakdownMetrics_SpanDropped(t *testing.T) {
 	tracer.SendMetrics(nil)
 
 	assertBreakdownMetrics(t, []model.Metrics{
-		transactionDurationMetrics("test", "request", 1, 30*time.Millisecond),
-		spanSelfTimeMetrics("test", "request", "app", "", 1, 20*time.Millisecond),
-		spanSelfTimeMetrics("test", "request", "db", "mysql", 2, 20*time.Millisecond),
+		transactionDurationMetrics("test", "request", "", 1, 30*time.Millisecond),
+		spanSelfTimeMetrics("test", "request", "", "app", "", 1, 20*time.Millisecond),
+		spanSelfTimeMetrics("test", "request", "", "db", "mysql", 2, 20*time.Millisecond),
 	}, payloadsBreakdownMetrics(transport))
 }
 
@@ -141,8 +142,8 @@ func TestBreakdownMetrics_TransactionDropped(t *testing.T) {
 	tracer.SendMetrics(nil)
 
 	assertBreakdownMetrics(t, []model.Metrics{
-		transactionDurationMetrics("test", "request", count, time.Duration(count)*10*time.Millisecond),
-		spanSelfTimeMetrics("test", "request", "app", "", count, time.Duration(count)*10*time.Millisecond),
+		transactionDurationMetrics("test", "request", "", count, time.Duration(count)*10*time.Millisecond),
+		spanSelfTimeMetrics("test", "request", "", "app", "", count, time.Duration(count)*10*time.Millisecond),
 	}, payloadsBreakdownMetrics(transport))
 }
 
@@ -164,7 +165,7 @@ func TestBreakdownMetrics_Disabled(t *testing.T) {
 	tracer.Flush(nil)
 	tracer.SendMetrics(nil)
 
-	expect := transactionDurationMetrics("test", "request", 1, 30*time.Millisecond)
+	expect := transactionDurationMetrics("test", "request", "", 1, 30*time.Millisecond)
 	expect.Samples["transaction.breakdown.count"] = model.Metric{}
 	assertBreakdownMetrics(t, []model.Metrics{expect}, payloadsBreakdownMetrics(transport))
 }
@@ -184,8 +185,8 @@ func TestBreakdownMetrics_AcceptanceTest1(t *testing.T) {
 	tracer.SendMetrics(nil)
 
 	assertBreakdownMetrics(t, []model.Metrics{
-		transactionDurationMetrics("test", "request", 1, 30*time.Millisecond),
-		spanSelfTimeMetrics("test", "request", "app", "", 1, 30*time.Millisecond),
+		transactionDurationMetrics("test", "request", "", 1, 30*time.Millisecond),
+		spanSelfTimeMetrics("test", "request", "", "app", "", 1, 30*time.Millisecond),
 	}, payloadsBreakdownMetrics(transport))
 }
 
@@ -209,9 +210,9 @@ func TestBreakdownMetrics_AcceptanceTest2(t *testing.T) {
 	tracer.SendMetrics(nil)
 
 	assertBreakdownMetrics(t, []model.Metrics{
-		transactionDurationMetrics("test", "request", 1, 30*time.Millisecond),
-		spanSelfTimeMetrics("test", "request", "app", "", 1, 20*time.Millisecond),
-		spanSelfTimeMetrics("test", "request", "db", "mysql", 1, 10*time.Millisecond),
+		transactionDurationMetrics("test", "request", "", 1, 30*time.Millisecond),
+		spanSelfTimeMetrics("test", "request", "", "app", "", 1, 20*time.Millisecond),
+		spanSelfTimeMetrics("test", "request", "", "db", "mysql", 1, 10*time.Millisecond),
 	}, payloadsBreakdownMetrics(transport))
 }
 
@@ -237,8 +238,8 @@ func TestBreakdownMetrics_AcceptanceTest3(t *testing.T) {
 	tracer.SendMetrics(nil)
 
 	assertBreakdownMetrics(t, []model.Metrics{
-		transactionDurationMetrics("test", "request", 1, 30*time.Millisecond),
-		spanSelfTimeMetrics("test", "request", "app", "", 2, 30*time.Millisecond),
+		transactionDurationMetrics("test", "request", "", 1, 30*time.Millisecond),
+		spanSelfTimeMetrics("test", "request", "", "app", "", 2, 30*time.Millisecond),
 	}, payloadsBreakdownMetrics(transport))
 }
 
@@ -266,9 +267,9 @@ func TestBreakdownMetrics_AcceptanceTest4(t *testing.T) {
 	tracer.SendMetrics(nil)
 
 	assertBreakdownMetrics(t, []model.Metrics{
-		transactionDurationMetrics("test", "request", 1, 30*time.Millisecond),
-		spanSelfTimeMetrics("test", "request", "app", "", 1, 20*time.Millisecond),
-		spanSelfTimeMetrics("test", "request", "db", "mysql", 2, 20*time.Millisecond),
+		transactionDurationMetrics("test", "request", "", 1, 30*time.Millisecond),
+		spanSelfTimeMetrics("test", "request", "", "app", "", 1, 20*time.Millisecond),
+		spanSelfTimeMetrics("test", "request", "", "db", "mysql", 2, 20*time.Millisecond),
 	}, payloadsBreakdownMetrics(transport))
 }
 
@@ -296,9 +297,9 @@ func TestBreakdownMetrics_AcceptanceTest5(t *testing.T) {
 	tracer.SendMetrics(nil)
 
 	assertBreakdownMetrics(t, []model.Metrics{
-		transactionDurationMetrics("test", "request", 1, 30*time.Millisecond),
-		spanSelfTimeMetrics("test", "request", "app", "", 1, 15*time.Millisecond),
-		spanSelfTimeMetrics("test", "request", "db", "mysql", 2, 20*time.Millisecond),
+		transactionDurationMetrics("test", "request", "", 1, 30*time.Millisecond),
+		spanSelfTimeMetrics("test", "request", "", "app", "", 1, 15*time.Millisecond),
+		spanSelfTimeMetrics("test", "request", "", "db", "mysql", 2, 20*time.Millisecond),
 	}, payloadsBreakdownMetrics(transport))
 }
 
@@ -326,9 +327,9 @@ func TestBreakdownMetrics_AcceptanceTest6(t *testing.T) {
 	tracer.SendMetrics(nil)
 
 	assertBreakdownMetrics(t, []model.Metrics{
-		transactionDurationMetrics("test", "request", 1, 30*time.Millisecond),
-		spanSelfTimeMetrics("test", "request", "app", "", 1, 10*time.Millisecond),
-		spanSelfTimeMetrics("test", "request", "db", "mysql", 2, 20*time.Millisecond),
+		transactionDurationMetrics("test", "request", "", 1, 30*time.Millisecond),
+		spanSelfTimeMetrics("test", "request", "", "app", "", 1, 10*time.Millisecond),
+		spanSelfTimeMetrics("test", "request", "", "db", "mysql", 2, 20*time.Millisecond),
 	}, payloadsBreakdownMetrics(transport))
 }
 
@@ -356,9 +357,9 @@ func TestBreakdownMetrics_AcceptanceTest7(t *testing.T) {
 	tracer.SendMetrics(nil)
 
 	assertBreakdownMetrics(t, []model.Metrics{
-		transactionDurationMetrics("test", "request", 1, 30*time.Millisecond),
-		spanSelfTimeMetrics("test", "request", "app", "", 1, 20*time.Millisecond),
-		spanSelfTimeMetrics("test", "request", "db", "mysql", 2, 10*time.Millisecond),
+		transactionDurationMetrics("test", "request", "", 1, 30*time.Millisecond),
+		spanSelfTimeMetrics("test", "request", "", "app", "", 1, 20*time.Millisecond),
+		spanSelfTimeMetrics("test", "request", "", "db", "mysql", 2, 10*time.Millisecond),
 	}, payloadsBreakdownMetrics(transport))
 }
 
@@ -388,9 +389,9 @@ func TestBreakdownMetrics_AcceptanceTest8(t *testing.T) {
 	tracer.SendMetrics(nil)
 
 	assertBreakdownMetrics(t, []model.Metrics{
-		transactionDurationMetrics("test", "request", 1, 30*time.Millisecond),
-		spanSelfTimeMetrics("test", "request", "app", "", 2, 25*time.Millisecond),
-		spanSelfTimeMetrics("test", "request", "db", "mysql", 1, 10*time.Millisecond),
+		transactionDurationMetrics("test", "request", "", 1, 30*time.Millisecond),
+		spanSelfTimeMetrics("test", "request", "", "app", "", 2, 25*time.Millisecond),
+		spanSelfTimeMetrics("test", "request", "", "db", "mysql", 1, 10*time.Millisecond),
 	}, payloadsBreakdownMetrics(transport))
 }
 
@@ -425,8 +426,8 @@ func TestBreakdownMetrics_AcceptanceTest9(t *testing.T) {
 		// "app" span should not be included in the self_time value,
 		// it should only have been used for subtracting from the
 		// transaction's duration.
-		transactionDurationMetrics("test", "request", 1, 20*time.Millisecond),
-		spanSelfTimeMetrics("test", "request", "app", "", 1, 10*time.Millisecond),
+		transactionDurationMetrics("test", "request", "", 1, 20*time.Millisecond),
+		spanSelfTimeMetrics("test", "request", "", "app", "", 1, 10*time.Millisecond),
 	}, payloadsBreakdownMetrics(transport))
 }
 
@@ -452,8 +453,8 @@ func TestBreakdownMetrics_AcceptanceTest10(t *testing.T) {
 	assertBreakdownMetrics(t, []model.Metrics{
 		// The db.mysql span should not be included in breakdown,
 		// as it ended after the transaction ended.
-		transactionDurationMetrics("test", "request", 1, 20*time.Millisecond),
-		spanSelfTimeMetrics("test", "request", "app", "", 1, 10*time.Millisecond),
+		transactionDurationMetrics("test", "request", "", 1, 20*time.Millisecond),
+		spanSelfTimeMetrics("test", "request", "", "app", "", 1, 10*time.Millisecond),
 	}, payloadsBreakdownMetrics(transport))
 }
 
@@ -479,16 +480,17 @@ func TestBreakdownMetrics_AcceptanceTest11(t *testing.T) {
 	assertBreakdownMetrics(t, []model.Metrics{
 		// The db.mysql span should not be included in breakdown,
 		// as it started and ended after the transaction ended.
-		transactionDurationMetrics("test", "request", 1, 10*time.Millisecond),
-		spanSelfTimeMetrics("test", "request", "app", "", 1, 10*time.Millisecond),
+		transactionDurationMetrics("test", "request", "", 1, 10*time.Millisecond),
+		spanSelfTimeMetrics("test", "request", "", "app", "", 1, 10*time.Millisecond),
 	}, payloadsBreakdownMetrics(transport))
 }
 
-func transactionDurationMetrics(txName, txType string, count int, sum time.Duration) model.Metrics {
+func transactionDurationMetrics(txName, txType, txResult string, count int, sum time.Duration) model.Metrics {
 	return model.Metrics{
 		Transaction: model.MetricsTransaction{
-			Type: txType,
-			Name: txName,
+			Type:   txType,
+			Name:   txName,
+			Result: txResult,
 		},
 		Samples: map[string]model.Metric{
 			"transaction.breakdown.count": {Value: float64(count)},
@@ -498,11 +500,12 @@ func transactionDurationMetrics(txName, txType string, count int, sum time.Durat
 	}
 }
 
-func spanSelfTimeMetrics(txName, txType, spanType, spanSubtype string, count int, sum time.Duration) model.Metrics {
+func spanSelfTimeMetrics(txName, txType, txResult, spanType, spanSubtype string, count int, sum time.Duration) model.Metrics {
 	return model.Metrics{
 		Transaction: model.MetricsTransaction{
-			Type: txType,
-			Name: txName,
+			Type:   txType,
+			Name:   txName,
+			Result: txResult,
 		},
 		Span: model.MetricsSpan{
 			Type:    spanType,
