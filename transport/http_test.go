@@ -555,14 +555,14 @@ func TestHTTPTransportSendProfile(t *testing.T) {
 			formName: "profile",
 			header: makeHeader(
 				"Content-Disposition", `form-data; name="profile"`,
-				"Content-Type", "application/x-protobuf; messageType=”perftools.profiles.Profile",
+				"Content-Type", `application/x-protobuf; messageType="perftools.profiles.Profile"`,
 			),
 			content: "profile1",
 		}, {
 			formName: "profile",
 			header: makeHeader(
 				"Content-Disposition", `form-data; name="profile"`,
-				"Content-Type", "application/x-protobuf; messageType=”perftools.profiles.Profile",
+				"Content-Type", `application/x-protobuf; messageType="perftools.profiles.Profile"`,
 			),
 			content: "profile2",
 		}},

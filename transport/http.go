@@ -307,7 +307,7 @@ func (t *HTTPTransport) SendProfile(
 		for _, profileReader := range profileReaders {
 			h = make(textproto.MIMEHeader)
 			h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="profile"`))
-			h.Set("Content-Type", "application/x-protobuf; messageType=”perftools.profiles.Profile")
+			h.Set("Content-Type", `application/x-protobuf; messageType="perftools.profiles.Profile"`)
 			part, err = w.CreatePart(h)
 			if err != nil {
 				return err
