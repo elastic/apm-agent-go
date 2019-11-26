@@ -90,6 +90,7 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 	tx.Context.captureHeaders = instrumentationConfig.captureHeaders
 	tx.breakdownMetricsEnabled = t.breakdownMetrics.enabled
 	tx.propagateLegacyHeader = instrumentationConfig.propagateLegacyHeader
+	tx.rollupUnsampled = instrumentationConfig.rollupUnsampledTransactions
 
 	if root {
 		sampler := instrumentationConfig.sampler
@@ -293,6 +294,7 @@ type TransactionData struct {
 	stackTraceLimit         int
 	breakdownMetricsEnabled bool
 	propagateLegacyHeader   bool
+	rollupUnsampled         bool
 	timestamp               time.Time
 
 	mu            sync.Mutex

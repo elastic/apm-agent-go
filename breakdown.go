@@ -173,10 +173,11 @@ func (lhs *breakdownTiming) accumulate(rhs breakdownTiming) {
 
 // recordTransaction records breakdown metrics for td into m.
 //
-// recordTransaction returns true if breakdown metrics were
-// completely recorded, and false if any metrics were not
-// recorded due to the limit being reached.
-func (m *breakdownMetrics) recordTransaction(td *TransactionData) bool {
+// recordTransaction returns the number of breakdown metrics
+// buckets that were recorded, and a boolean indicating whether
+// or not all metrics were completetely recorded (false if any
+// were not recorded due to the limit being reached.
+func (m *breakdownMetrics) recordTransaction(td *TransactionData) (int, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -204,15 +205,20 @@ func (m *breakdownMetrics) recordTransaction(td *TransactionData) bool {
 	}) {
 		// We couldn't record the transaction's metricset, so we won't
 		// be able to record spans for that transaction either.
-		return false
+		return 0, false
 	}
 
+	recorded := 1
 	ok := true
 	for sk, timing := range td.spanTimings {
 		k.spanTimingsKey = sk
-		ok = ok && m.active.record(k, breakdownTiming{span: timing})
+		if m.active.record(k, breakdownTiming{span: timing}) {
+			recorded++
+		} else {
+			ok = false
+		}
 	}
-	return ok
+	return recorded, ok
 }
 
 // record records a single breakdown metric, identified by k.

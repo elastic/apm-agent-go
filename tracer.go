@@ -94,27 +94,28 @@ type TracerOptions struct {
 	// the environment variable ELASTIC_APM_CENTRAL_CONFIG=false.
 	Transport transport.Transport
 
-	requestDuration       time.Duration
-	metricsInterval       time.Duration
-	maxSpans              int
-	requestSize           int
-	bufferSize            int
-	metricsBufferSize     int
-	sampler               Sampler
-	sanitizedFieldNames   wildcard.Matchers
-	disabledMetrics       wildcard.Matchers
-	captureHeaders        bool
-	captureBody           CaptureBodyMode
-	spanFramesMinDuration time.Duration
-	stackTraceLimit       int
-	active                bool
-	configWatcher         apmconfig.Watcher
-	breakdownMetrics      bool
-	propagateLegacyHeader bool
-	profileSender         profileSender
-	cpuProfileInterval    time.Duration
-	cpuProfileDuration    time.Duration
-	heapProfileInterval   time.Duration
+	requestDuration             time.Duration
+	metricsInterval             time.Duration
+	maxSpans                    int
+	requestSize                 int
+	bufferSize                  int
+	metricsBufferSize           int
+	sampler                     Sampler
+	sanitizedFieldNames         wildcard.Matchers
+	disabledMetrics             wildcard.Matchers
+	captureHeaders              bool
+	captureBody                 CaptureBodyMode
+	spanFramesMinDuration       time.Duration
+	stackTraceLimit             int
+	active                      bool
+	configWatcher               apmconfig.Watcher
+	breakdownMetrics            bool
+	propagateLegacyHeader       bool
+	rollupUnsampledTransactions bool
+	profileSender               profileSender
+	cpuProfileInterval          time.Duration
+	cpuProfileDuration          time.Duration
+	heapProfileInterval         time.Duration
 }
 
 // initDefaults updates opts with default values.
@@ -207,6 +208,11 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 		propagateLegacyHeader = true
 	}
 
+	rollupUnsampledTransactions, err := initialRollupUnsampledTransactions()
+	if failed(err) {
+		rollupUnsampledTransactions = false
+	}
+
 	cpuProfileInterval, cpuProfileDuration, err := initialCPUProfileIntervalDuration()
 	if failed(err) {
 		cpuProfileInterval = 0
@@ -247,6 +253,7 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 	opts.stackTraceLimit = stackTraceLimit
 	opts.active = active
 	opts.propagateLegacyHeader = propagateLegacyHeader
+	opts.rollupUnsampledTransactions = rollupUnsampledTransactions
 	if opts.Transport == nil {
 		opts.Transport = transport.Default
 	}
@@ -399,6 +406,9 @@ func newTracer(opts TracerOptions) *Tracer {
 	})
 	t.setLocalInstrumentationConfig(envUseElasticTraceparentHeader, func(cfg *instrumentationConfigValues) {
 		cfg.propagateLegacyHeader = opts.propagateLegacyHeader
+	})
+	t.setLocalInstrumentationConfig(envRollupUnsampledTransactions, func(cfg *instrumentationConfigValues) {
+		cfg.rollupUnsampledTransactions = opts.rollupUnsampledTransactions
 	})
 
 	if !opts.active {
@@ -838,13 +848,16 @@ func (t *Tracer) loop() {
 		case event := <-t.events:
 			switch event.eventType {
 			case transactionEvent:
-				if !t.breakdownMetrics.recordTransaction(event.tx.TransactionData) {
+				recorded, ok := t.breakdownMetrics.recordTransaction(event.tx.TransactionData)
+				if !ok {
 					if !breakdownMetricsLimitWarningLogged && cfg.logger != nil {
 						cfg.logger.Warningf("%s", breakdownMetricsLimitWarning)
 						breakdownMetricsLimitWarningLogged = true
 					}
 				}
-				modelWriter.writeTransaction(event.tx.Transaction, event.tx.TransactionData)
+				if !event.tx.rollupUnsampled || event.tx.Sampled() || recorded == 0 {
+					modelWriter.writeTransaction(event.tx.Transaction, event.tx.TransactionData)
+				}
 			case spanEvent:
 				modelWriter.writeSpan(event.span.Span, event.span.SpanData)
 			case errorEvent:
@@ -888,13 +901,16 @@ func (t *Tracer) loop() {
 				event := <-t.events
 				switch event.eventType {
 				case transactionEvent:
-					if !t.breakdownMetrics.recordTransaction(event.tx.TransactionData) {
+					recorded, ok := t.breakdownMetrics.recordTransaction(event.tx.TransactionData)
+					if !ok {
 						if !breakdownMetricsLimitWarningLogged && cfg.logger != nil {
 							cfg.logger.Warningf("%s", breakdownMetricsLimitWarning)
 							breakdownMetricsLimitWarningLogged = true
 						}
 					}
-					modelWriter.writeTransaction(event.tx.Transaction, event.tx.TransactionData)
+					if !event.tx.rollupUnsampled || event.tx.Sampled() || recorded == 0 {
+						modelWriter.writeTransaction(event.tx.Transaction, event.tx.TransactionData)
+					}
 				case spanEvent:
 					modelWriter.writeSpan(event.span.Span, event.span.SpanData)
 				case errorEvent:

@@ -57,6 +57,9 @@ const (
 	envBreakdownMetrics            = "ELASTIC_APM_BREAKDOWN_METRICS"
 	envUseElasticTraceparentHeader = "ELASTIC_APM_USE_ELASTIC_TRACEPARENT_HEADER"
 
+	// XXX(axw) DO NOT MERGE
+	envRollupUnsampledTransactions = "ELASTIC_APM_ROLLUP_UNSAMPLED_TRANSACTIONS"
+
 	// NOTE(axw) profiling environment variables are experimental.
 	// They may be removed in a future minor version without being
 	// considered a breaking change.
@@ -280,6 +283,10 @@ func initialUseElasticTraceparentHeader() (bool, error) {
 	return configutil.ParseBoolEnv(envUseElasticTraceparentHeader, true)
 }
 
+func initialRollupUnsampledTransactions() (bool, error) {
+	return configutil.ParseBoolEnv(envRollupUnsampledTransactions, false)
+}
+
 func initialCPUProfileIntervalDuration() (time.Duration, time.Duration, error) {
 	interval, err := configutil.ParseDurationEnv(envCPUProfileInterval, 0)
 	if err != nil || interval <= 0 {
@@ -438,11 +445,12 @@ type instrumentationConfig struct {
 // set the initial entry in instrumentationConfig.local, in order to properly reset
 // to the local value, even if the default is the zero value.
 type instrumentationConfigValues struct {
-	captureBody           CaptureBodyMode
-	captureHeaders        bool
-	maxSpans              int
-	sampler               Sampler
-	spanFramesMinDuration time.Duration
-	stackTraceLimit       int
-	propagateLegacyHeader bool
+	captureBody                 CaptureBodyMode
+	captureHeaders              bool
+	maxSpans                    int
+	sampler                     Sampler
+	spanFramesMinDuration       time.Duration
+	stackTraceLimit             int
+	propagateLegacyHeader       bool
+	rollupUnsampledTransactions bool
 }
