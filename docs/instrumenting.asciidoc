@@ -1,17 +1,15 @@
 [[getting-started]]
-== Getting started
+== Set up the Agent
 
-To start reporting your Go application's performance to Elastic APM, we need to do a few things:
+To start reporting your Go application's performance to Elastic APM, you need to do a few things:
 
-1. Install the Go agent package.
-2. Instrument your application's source code.
-3. Configure the application to send data to your Elastic APM server.
+1. <<installation>>.
+2. <<instrumenting-source>>.
+3. <<configure-setup>>.
 
-Below we'll look at installing the Go agent and instrumenting your application
-code. For the final step, see the <<configuration>> section.
-
+[float]
 [[installation]]
-=== Installation
+== Install the Agent
 
 Install the Elastic APM Go agent package using `go get`:
 
@@ -20,29 +18,65 @@ Install the Elastic APM Go agent package using `go get`:
 go get -u go.elastic.co/apm
 ----
 
-==== Requirements
+[float]
+=== Requirements
 
-The Go agent is tested with Go 1.8+ on Linux, Windows and MacOS.
+The Go agent is tested with Go 1.8+ on Linux, Windows, and MacOS.
 
+[float]
 [[instrumenting-source]]
-=== Instrumenting Go Source Code
+== Instrument Go Source Code
 
-At present, Go applications must be instrumented manually at the source code level.
-Where possible, you should use the <<builtin-modules, built-in instrumentation modules>>
-to report transactions served by web and RPC frameworks in your application. If the
-built-in modules are not suitable, please refer to <<custom-instrumentation, Custom Instrumentation>>.
+Instrumentation is the process of extending your application's code to report trace data to Elastic APM.
+Go applications must be instrumented manually at the source code level.
+There are two ways to instrument your applications:
+
+* Using <<builtin-modules>>.
+* <<custom-instrumentation>> with the Go Agent API.
+
+Where possible, use the built-in modules to report transactions served by web and RPC frameworks in your application.
+
+[float]
+[[configure-setup]]
+== Configure the Agent
+
+include::./configuration.asciidoc[tag=setup-config]
+
+See <<configuration>> to learn about all available options.
 
 [[builtin-modules]]
-==== Built-in Modules
+=== Built-in instrumentation modules
 
-Below we describe the built-in instrumentation modules.
-
-For each of the server instrumentation modules, a transaction is reported for each handled
+For each server instrumentation module, a transaction is reported for each handled
 request. The transaction will be stored in the request context, which can be obtained through
 that framework's API. The request context can be used for reporting <<custom-instrumentation-spans, custom spans>>.
 
+* <<builtin-modules>>
+* <<builtin-modules-apmecho>>
+* <<builtin-modules-apmgin>>
+* <<builtin-modules-apmbeego>>
+* <<builtin-modules-apmgorilla>>
+* <<builtin-modules-apmgrpc>>
+* <<builtin-modules-apmhttp>>
+* <<builtin-modules-apmhttprouter>>
+* <<builtin-modules-apmnegroni>>
+* <<builtin-modules-apmlambda>>
+* <<builtin-modules-apmsql>>
+* <<builtin-modules-apmgopg>>
+* <<builtin-modules-apmgorm>>
+* <<builtin-modules-apmgocql>>
+* <<builtin-modules-apmredigo>>
+* <<builtin-modules-apmgoredis>>
+* <<builtin-modules-apmrestful>>
+* <<builtin-modules-apmchi>>
+* <<builtin-modules-apmlogrus>>
+* <<builtin-modules-apmzap>>
+* <<builtin-modules-apmzerolog>>
+* <<builtin-modules-apmelasticsearch>>
+* <<builtin-modules-apmmongo>>
+
 [[builtin-modules-apmecho]]
-===== module/apmecho
+==== module/apmecho
 Packages apmecho and apmechov4 provide middleware for the https://github.com/labstack/echo[Echo]
 web framework, versions 3.x and 4.x respectively.
 
@@ -71,7 +105,7 @@ The middleware will recover panics and send them to Elastic APM, so you do not n
 the echo/middleware.Recover middleware.
 
 [[builtin-modules-apmgin]]
-===== module/apmgin
+==== module/apmgin
 Package apmgin provides middleware for the https://gin-gonic.github.io/gin/[Gin] web framework.
 
 For each request, a transaction is stored in the request context, which can be obtained via
@@ -93,7 +127,7 @@ func main() {
 The apmgin middleware will recover panics and send them to Elastic APM, so you do not need to install the gin.Recovery middleware.
 
 [[builtin-modules-apmbeego]]
-===== module/apmbeego
+==== module/apmbeego
 Package apmbeego provides middleware for the https://beego.me/[Beego] web framework.
 
 For each request, a transaction is stored in the request context, which can be obtained via
@@ -124,7 +158,7 @@ func main() {
 ----
 
 [[builtin-modules-apmgorilla]]
-===== module/apmgorilla
+==== module/apmgorilla
 Package apmgorilla provides middleware for the http://www.gorillatoolkit.org/pkg/mux[Gorilla Mux] router.
 
 For each request, a transaction is stored in the request context, which can be obtained via
@@ -148,7 +182,7 @@ func main() {
 The apmgorilla middleware will recover panics and send them to Elastic APM, so you do not need to install any other recovery middleware.
 
 [[builtin-modules-apmgrpc]]
-===== module/apmgrpc
+==== module/apmgrpc
 Package apmgrpc provides server and client interceptors for https://github.com/grpc/grpc-go[gRPC-Go].
 Server interceptors report transactions for each incoming request, while client interceptors
 report spans for each outgoing request. For each RPC served, a transaction is stored in the
@@ -187,7 +221,7 @@ There is currently no support for intercepting at the stream level. Please file 
 send a pull request if this is something you need.
 
 [[builtin-modules-apmhttp]]
-===== module/apmhttp
+==== module/apmhttp
 Package apmhttp provides a low-level `net/http` middleware handler. Other web middleware should
 typically be based off this.
 
@@ -249,7 +283,7 @@ func main() {
 ----
 
 [[builtin-modules-apmhttprouter]]
-===== module/apmhttprouter
+==== module/apmhttprouter
 Package apmhttprouter provides a low-level middleware handler for https://github.com/julienschmidt/httprouter[httprouter].
 
 For each request, a transaction is stored in the request context, which can be obtained via
@@ -292,7 +326,7 @@ func main() {
 ----
 
 [[builtin-modules-apmnegroni]]
-===== module/apmnegroni
+==== module/apmnegroni
 
 Package apmnegroni provides middleware for the https://github.com/urfave/negroni/[negroni] library.
 
@@ -321,7 +355,8 @@ func main() {
 
 The apmnegroni handler will recover panics and send them to Elastic APM.
 
-===== module/apmlambda
+[[builtin-modules-apmlambda]]
+==== module/apmlambda
 Package apmlambda intercepts requests to your AWS Lambda function invocations.
 
 experimental[]
@@ -340,7 +375,7 @@ necessary to make a small change to your code to call apmlambda.Start instead of
 lambda.Start.
 
 [[builtin-modules-apmsql]]
-===== module/apmsql
+==== module/apmsql
 Package apmsql provides a means of wrapping `database/sql` drivers so that queries and other
 executions are reported as spans within the current transaction.
 
@@ -373,7 +408,7 @@ Spans will be created for queries and other statement executions if the context 
 used, and the context includes a transaction.
 
 [[builtin-modules-apmgopg]]
-===== module/apmgopg
+==== module/apmgopg
 Package apmgopg provides a means of instrumenting http://github.com/go-pg/pg[go-pg] database operations.
 
 To trace `go-pg` statements, call `apmgopg.Instrument` with the database instance you plan on using and provide
@@ -396,7 +431,7 @@ func main() {
 ----
 
 [[builtin-modules-apmgorm]]
-===== module/apmgorm
+==== module/apmgorm
 Package apmgorm provides a means of instrumenting http://gorm.io[GORM] database operations.
 
 To trace `GORM` operations, import the appropriate `apmgorm/dialects` package (instead of the
@@ -422,7 +457,7 @@ func main() {
 ----
 
 [[builtin-modules-apmgocql]]
-===== module/apmgocql
+==== module/apmgocql
 Package apmgocql provides a means of instrumenting https://github.com/gocql/gocql[gocql] so
 that queries are reported as spans within the current transaction.
 
@@ -455,7 +490,7 @@ func main() {
 ----
 
 [[builtin-modules-apmredigo]]
-===== module/apmredigo
+==== module/apmredigo
 Package apmredigo provides a means of instrumenting https://github.com/gomodule/redigo[Redigo]
 so that Redis commands are reported as spans within the current transaction.
 
@@ -495,7 +530,7 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
 ----
 
 [[builtin-modules-apmgoredis]]
-===== module/apmgoredis
+==== module/apmgoredis
 Package apmgoredis provides a means of instrumenting https://github.com/go-redis/redis[go-redis/redis]
 so that Redis commands are reported as spans within the current transaction.
 
@@ -529,7 +564,7 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
 ----
 
 [[builtin-modules-apmrestful]]
-===== module/apmrestful
+==== module/apmrestful
 Package apmrestful provides a https://github.com/emicklei/go-restful[go-restful] filter
 for tracing requests, and capturing panics.
 
@@ -560,7 +595,7 @@ func main() {
 ----
 
 [[builtin-modules-apmchi]]
-===== module/apmchi
+==== module/apmchi
 Package apmchi provides middleware for https://github.com/go-chi/chi[chi] routers,
 for tracing requests and capturing panics.
 
@@ -584,7 +619,7 @@ func main() {
 ----
 
 [[builtin-modules-apmlogrus]]
-===== module/apmlogrus
+==== module/apmlogrus
 Package apmlogrus provides a https://github.com/sirupsen/logrus[logrus] Hook
 implementation for sending error messages to Elastic APM, as well as a function
 for adding trace context fields to log records.
@@ -614,7 +649,7 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
 ----
 
 [[builtin-modules-apmzap]]
-===== module/apmzap
+==== module/apmzap
 Package apmzap provides a https://godoc.org/go.uber.org/zap/zapcore#Core[go.uber.org/zap/zapcore.Core]
 implementation for sending error messages to Elastic APM, as well as a function
 for adding trace context fields to log records.
@@ -647,7 +682,7 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
 ----
 
 [[builtin-modules-apmzerolog]]
-===== module/apmzerolog
+==== module/apmzerolog
 Package apmzerolog provides an implementation of https://github.com/rs/zerolog[Zerolog]'s
 `LevelWriter` interface for sending error records to Elastic APM, as well as functions
 for adding trace context and detailed error stack traces to log records.
@@ -686,7 +721,7 @@ func traceLoggingMiddleware(h http.Handler) http.Handler {
 ----
 
 [[builtin-modules-apmelasticsearch]]
-===== module/apmelasticsearch
+==== module/apmelasticsearch
 Package apmelasticsearch provides a means of instrumenting the HTTP transport
 of Elasticsearch clients, such as https://github.com/elastic/go-elasticsearch[go-elasticsearch]
 and https://github.com/olivere/elastic[olivere/elastic], so that Elasticsearch
@@ -717,7 +752,7 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
 ----
 
 [[builtin-modules-apmmongo]]
-===== module/apmmongo
+==== module/apmmongo
 Package apmmongo provides a means of instrumenting the
 https://github.com/mongodb/mongo-go-driver[MongoDB Go Driver], so that MongoDB
 commands are reported as spans within the current transaction.
@@ -752,25 +787,24 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
 ----
 
 [[custom-instrumentation]]
-==== Custom instrumentation
+=== Custom instrumentation
 
 To report on the performance of transactions served by your application, you can use the Go
-agent's <<api, API>>. Instrumentation refers to modifying your application code to report:
+agent's <<api,API>>. Instrumentation refers to modifying your application code to report a:
 
- - transactions
- - spans within transactions
- - errors
+ - <<custom-instrumentation-transactions,Transaction>> - a top-level operation in your application,
+such as an HTTP or RPC request.
+ - <<custom-instrumentation-spans,Span within a transaction>> - an operation within a transaction,
+such as a database query, or a request to another service.
+ - <<custom-instrumentation-errors,error>> - may refer to Go errors or panics.
 
-A transaction represents a top-level operation in your application, such as an HTTP or RPC
-request. A span represents an operation within a transaction, such as a database query, or
-a request to another service. Errors may refer to Go errors, or panics.
-
-To report these things, you will use a <<tracer-api, apm.Tracer>> -- typically
+To report these things, you will use a <<tracer-api,apm.Tracer>> -- typically
 `apm.DefaultTracer`, which is configured via environment variables. In the code
 examples below we will refer to `apm.DefaultTracer`. Please refer to the <<api, API documentation>>
 for a more thorough description of the types and methods.
 
-===== Transactions
+[[custom-instrumentation-transactions]]
+==== Transactions
 
 To report a transaction, you call <<tracer-api-start-transaction, apm.DefaultTracer.StartTransaction>>
 with the transaction name and type. This returns a `Transaction` object; the transaction
@@ -803,7 +837,7 @@ ctx = apm.ContextWithTransaction(ctx, tx)
 ----
 
 [[custom-instrumentation-spans]]
-===== Spans
+==== Spans
 
 To report an operation within a transaction, you should use <<transaction-start-span, Transaction.StartSpan>>
 or <<apm-start-span, apm.StartSpan>> to start a span given a transaction or a `context`
@@ -824,7 +858,7 @@ context would incur significant overhead, you may want to check if the span is d
 the `Span.Dropped` method.
 
 [[custom-instrumentation-propagation]]
-===== Context propagation
+==== Context propagation
 
 In Go, https://golang.org/pkg/context/[context] is used to propagate request-scoped values along a call
 chain, potentially crossing between goroutines and between processes. For servers based on `net/http`,
@@ -927,7 +961,8 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
 }
 ----
 
-===== Panic recovery and errors
+[[custom-instrumentation-errors]]
+==== Panic recovery and errors
 
 If you want to recover panics, and report them along with your transaction, you can use the
 <<tracer-recovered, Tracer.Recovered>> method in a recovery function. There are also methods for reporting

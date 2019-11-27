@@ -14,13 +14,15 @@ variables. If configuration is defined via Kibana, and then that is
 later removed, the agent will revert to configuration defined locally
 via either the Tracer Config API or environment variables.
 
-By default, the agent will attempt to send data to the Elastic APM Server
-at `http://localhost:8200`, to simplify development and testing. To send
-data to an alternative location, you must configure
+// tag::setup-config[]
+To simplify development and testing,
+the agent defaults to sending data to the Elastic APM Server at `http://localhost:8200`.
+To send data to an alternative location, you must configure
 <<config-server-url, ELASTIC_APM_SERVER_URL>>. Depending on the configuration
 of your server, you may also need to set <<config-secret-token, ELASTIC_APM_SECRET_TOKEN>>
 and <<config-verify-server-cert, ELASTIC_APM_VERIFY_SERVER_CERT>>. All other
 variables have usable defaults.
+// end::setup-config[]
 
 [float]
 === Configuration formats
