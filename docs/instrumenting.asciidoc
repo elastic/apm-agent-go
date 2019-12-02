@@ -857,8 +857,29 @@ transaction is nil. It is always safe to defer a call to the span's End method. 
 context would incur significant overhead, you may want to check if the span is dropped first, by calling
 the `Span.Dropped` method.
 
+[[custom-instrumentation-errors]]
+==== Panic recovery and errors
+
+If you want to recover panics, and report them along with your transaction, you can use the
+<<tracer-recovered, Tracer.Recovered>> method in a recovery function. There are also methods for reporting
+non-panic errors: <<tracer-new-error, Tracer.NewError>>, <<tracer-new-error-log, Tracer.NewErrorLog>>, and
+<<apm-captureerror, apm.CaptureError>>.
+
+[source,go]
+----
+defer func() {
+	if v := recover(); v != nil {
+		e := apm.DefaultTracer.Recovered()
+		e.SetTransaction(tx) // or e.SetSpan(span)
+		e.Send()
+	}
+}()
+----
+
+See the <<error-api, Error API>> for details and examples of the other methods.
+
 [[custom-instrumentation-propagation]]
-==== Context propagation
+=== Context propagation
 
 In Go, https://golang.org/pkg/context/[context] is used to propagate request-scoped values along a call
 chain, potentially crossing between goroutines and between processes. For servers based on `net/http`,
@@ -960,24 +981,3 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
 	// the handleRequest transaction.
 }
 ----
-
-[[custom-instrumentation-errors]]
-==== Panic recovery and errors
-
-If you want to recover panics, and report them along with your transaction, you can use the
-<<tracer-recovered, Tracer.Recovered>> method in a recovery function. There are also methods for reporting
-non-panic errors: <<tracer-new-error, Tracer.NewError>>, <<tracer-new-error-log, Tracer.NewErrorLog>>, and
-<<apm-captureerror, apm.CaptureError>>.
-
-[source,go]
-----
-defer func() {
-	if v := recover(); v != nil {
-		e := apm.DefaultTracer.Recovered()
-		e.SetTransaction(tx) // or e.SetSpan(span)
-		e.Send()
-	}
-}()
-----
-
-See the <<error-api, Error API>> for details and examples of the other methods.
