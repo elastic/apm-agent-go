@@ -810,7 +810,7 @@ To report a transaction, you call <<tracer-api-start-transaction, apm.DefaultTra
 with the transaction name and type. This returns a `Transaction` object; the transaction
 can be customized with additional context before you call its `End` method to indicate
 that the transaction has completed. Once the transaction's `End` method is called, it
-will be enqueued for sending to the Elastic APM server, and made available to the APM UI.
+will be enqueued for sending to the Elastic APM server, and made available to the APM app.
 
 [source,go]
 ----
