@@ -51,7 +51,6 @@ For each server instrumentation module, a transaction is reported for each handl
 request. The transaction will be stored in the request context, which can be obtained through
 that framework's API. The request context can be used for reporting <<custom-instrumentation-spans, custom spans>>.
 
-* <<builtin-modules>>
 * <<builtin-modules-apmecho>>
 * <<builtin-modules-apmgin>>
 * <<builtin-modules-apmbeego>>
@@ -792,11 +791,11 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
 To report on the performance of transactions served by your application, you can use the Go
 agent's <<api,API>>. Instrumentation refers to modifying your application code to report a:
 
- - <<custom-instrumentation-transactions,Transaction>> - a top-level operation in your application,
+ - <<custom-instrumentation-transactions,Transaction>> - A top-level operation in your application,
 such as an HTTP or RPC request.
- - <<custom-instrumentation-spans,Span within a transaction>> - an operation within a transaction,
+ - <<custom-instrumentation-spans,Span within a transaction>> - An operation within a transaction,
 such as a database query, or a request to another service.
- - <<custom-instrumentation-errors,error>> - may refer to Go errors or panics.
+ - <<custom-instrumentation-errors,Error>> - May refer to Go errors or panics.
 
 To report these things, you will use a <<tracer-api,apm.Tracer>> -- typically
 `apm.DefaultTracer`, which is configured via environment variables. In the code
