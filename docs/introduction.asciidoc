@@ -13,9 +13,28 @@ The Agent also offers an <<api>> for custom instrumentation.
 [[how-it-works]]
 === How does the Agent work?
 
-The Agent auto-instruments <<supported-tech>> and records interesting events,
-like spans for database queries and transactions for incoming HTTP requests.
-To do this, it [[NEED_CONTENT_HERE]]
+The Agent includes instrumentation modules for <<supported-tech>>,
+each providing middleware or wrappers for recording interesting events, such as incoming HTTP requests, outgoing HTTP requests, and database queries.
+
+To collect data about incoming HTTP requests,
+you can install router middleware for one of the supported <<supported-tech-web-frameworks>>.
+Incoming requests will be recorded as transactions, along with any related panics or errors.
+
+To collect data for outgoing HTTP requests,
+you can instrument an `http.Client` or `http.Transport` using <<builtin-modules-apmhttp>>.
+To collect data about database queries, you can use <<builtin-modules-apmsql>>,
+which provides instrumentation for well known database drivers.
+
+In order to connect transactions with related spans and errors, and propagate traces between services (distributed tracing),
+the agent relies on Go's built-in https://golang.org/pkg/context/[context] package:
+transactions and spans are stored in context objects.
+For example, for incoming HTTP requests, in-flight trace data will be recorded in the `context` object accessible through
+https://golang.org/pkg/net/http/#Request.Context[net/http.Context].
+You can read more about this in <<custom-instrumentation-propagation>>.
+
+In addition to capturing events like those mentioned above,
+the agent also also collects system and application metrics at regular intervals.
+This collection happens in a background goroutine that is automatically started when the agent is initialized.
 
 [float]
 [[additional-components]]
