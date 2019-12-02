@@ -32,7 +32,7 @@ Go applications must be instrumented manually at the source code level.
 There are two ways to instrument your applications:
 
 * Using <<builtin-modules>>.
-* <<custom-instrumentation>> with the Go Agent API.
+* <<custom-instrumentation>> and <<custom-instrumentation-propagation>> with the Go Agent API.
 
 Where possible, use the built-in modules to report transactions served by web and RPC frameworks in your application.
 
