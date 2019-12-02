@@ -12,7 +12,7 @@ If your favorite logging framework is not already supported, there are two other
 
 Regardless of how you integrate APM with logging, you can use {filebeat-ref}[Filebeat] to
 send your logs to Elasticsearch, in order to correlate your traces and logs and link from
-APM to the {kibana-ref}/xpack-logs.html[Logs app].
+APM to the {apm-app-ref}/xpack-logs.html[Logs app].
 
 [float]
 [[log-correlation-manual]]
