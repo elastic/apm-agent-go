@@ -31,7 +31,7 @@ https://github.com/elastic/apm-agent-go/compare/v1.6.0...master[View commits]
 
 https://github.com/elastic/apm-agent-go/releases/tag/v1.6.0[View release]
 
- - module/apmhttp: add WithClientRequestName option {pull}609[{pull}609[(#609)]]
+ - module/apmhttp: add WithClientRequestName option {pull}609[(#609)]
  - module/apmhttp: add WithPanicPropagation function {pull}611[(#611)]
  - module/apmgoredis: add Client.RedisClient {pull}613[(#613)]
  - Introduce apm.TraceFormatter, for formatting trace IDs {pull}635[(#635)]
