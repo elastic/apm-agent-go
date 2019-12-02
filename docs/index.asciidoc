@@ -11,7 +11,7 @@ endif::[]
 
 ifndef::env-github[]
 include::./introduction.asciidoc[Introduction]
-include::./instrumenting.asciidoc[Instrumenting]
+include::./set-up.asciidoc[Set up]
 include::./supported-tech.asciidoc[Supported Technologies]
 include::./configuration.asciidoc[Configuration]
 include::./api.asciidoc[API documentation]
