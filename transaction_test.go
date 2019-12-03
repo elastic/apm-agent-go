@@ -177,8 +177,7 @@ func BenchmarkTransaction(b *testing.B) {
 		rand := rand.New(rand.NewSource(globalRand.Int63()))
 		mu.Unlock()
 		for pb.Next() {
-			tx := tracer.StartTransaction(names[rand.Intn(len(names))], "type")
-			tx.End()
+			tracer.StartTransaction(names[rand.Intn(len(names))], "type")
 		}
 	})
 }
