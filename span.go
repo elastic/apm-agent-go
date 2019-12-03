@@ -108,7 +108,7 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 		if opts.SpanID.Validate() == nil {
 			span.traceContext.Span = opts.SpanID
 		} else {
-			binary.LittleEndian.PutUint64(span.traceContext.Span[:], tx.rand.Uint64())
+			binary.LittleEndian.PutUint64(span.traceContext.Span[:], globalRand.Uint64())
 		}
 		span.stackFramesMinDuration = tx.spanFramesMinDuration
 		span.stackTraceLimit = tx.stackTraceLimit

@@ -25,6 +25,27 @@ import (
 	"time"
 )
 
+type threadSafeRand struct {
+	me   sync.Mutex
+	rand *rand.Rand
+}
+
+func newThreadSafeRand() *threadSafeRand {
+	var seed int64
+	if err := binary.Read(cryptorand.Reader, binary.LittleEndian, &seed); err != nil {
+		seed = time.Now().UnixNano()
+	}
+	return &threadSafeRand{rand: rand.New(rand.NewSource(seed))}
+}
+
+func (tsr *threadSafeRand) Uint64() uint64 {
+	tsr.me.Lock()
+	defer tsr.me.Unlock()
+	return tsr.rand.Uint64()
+}
+
+var globalRand = newThreadSafeRand()
+
 // StartTransaction returns a new Transaction with the specified
 // name and type, and with the start time set to the current time.
 // This is equivalent to calling StartTransactionOptions with a
@@ -45,11 +66,6 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 			},
 			spanTimings: make(spanTimingsMap),
 		}
-		var seed int64
-		if err := binary.Read(cryptorand.Reader, binary.LittleEndian, &seed); err != nil {
-			seed = time.Now().UnixNano()
-		}
-		td.rand = rand.New(rand.NewSource(seed))
 	}
 	tx := &Transaction{tracer: t, TransactionData: td}
 
@@ -66,14 +82,14 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 		if opts.TransactionID.Validate() == nil {
 			tx.traceContext.Span = opts.TransactionID
 		} else {
-			binary.LittleEndian.PutUint64(tx.traceContext.Span[:], tx.rand.Uint64())
+			binary.LittleEndian.PutUint64(tx.traceContext.Span[:], globalRand.Uint64())
 		}
 	} else {
 		// Start a new trace. We reuse the trace ID for the root transaction's ID
 		// if one is not specified in the options.
 		root = true
-		binary.LittleEndian.PutUint64(tx.traceContext.Trace[:8], tx.rand.Uint64())
-		binary.LittleEndian.PutUint64(tx.traceContext.Trace[8:], tx.rand.Uint64())
+		binary.LittleEndian.PutUint64(tx.traceContext.Trace[:8], globalRand.Uint64())
+		binary.LittleEndian.PutUint64(tx.traceContext.Trace[8:], globalRand.Uint64())
 		if opts.TransactionID.Validate() == nil {
 			tx.traceContext.Span = opts.TransactionID
 		} else {
@@ -300,7 +316,6 @@ type TransactionData struct {
 	spansDropped  int
 	childrenTimer childrenTimer
 	spanTimings   spanTimingsMap
-	rand          *rand.Rand // for ID generation
 	// parentSpan holds the transaction's parent ID. It is protected by
 	// mu, since it can be updated by calling EnsureParent.
 	parentSpan SpanID
@@ -312,7 +327,6 @@ func (td *TransactionData) reset(tracer *Tracer) {
 	*td = TransactionData{
 		Context:     td.Context,
 		Duration:    -1,
-		rand:        td.rand,
 		spanTimings: td.spanTimings,
 	}
 	td.Context.reset()
