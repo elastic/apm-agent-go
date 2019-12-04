@@ -1,0 +1,49 @@
+[[getting-started]]
+== Set up the Agent
+
+To start reporting your Go application's performance to Elastic APM, you need to do a few things:
+
+1. <<installation>>.
+2. <<instrumenting-source>>.
+3. <<configure-setup>>.
+
+[float]
+[[installation]]
+== Install the Agent
+
+Install the Elastic APM Go agent package using `go get`:
+
+[source,bash]
+----
+go get -u go.elastic.co/apm
+----
+
+[float]
+=== Requirements
+
+The Go agent is tested with Go 1.8+ on Linux, Windows, and MacOS.
+
+[float]
+[[instrumenting-source]]
+== Instrument Go Source Code
+
+Instrumentation is the process of extending your application's code to report trace data to Elastic APM.
+Go applications must be instrumented manually at the source code level.
+There are two ways to instrument your applications:
+
+* Using <<builtin-modules>>.
+* <<custom-instrumentation>> and <<custom-instrumentation-propagation>> with the Go Agent API.
+
+Where possible, use the built-in modules to report transactions served by web and RPC frameworks in your application.
+
+[float]
+[[configure-setup]]
+== Configure the Agent
+
+include::./configuration.asciidoc[tag=setup-config]
+
+See <<configuration>> to learn about all available options.
+
+include::./instrumenting.asciidoc[]
+include::./custom-instrumentation.asciidoc[]
+include::./context-propagation.asciidoc[]

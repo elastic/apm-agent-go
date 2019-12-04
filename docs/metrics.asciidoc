@@ -13,7 +13,7 @@ The Go agent reports basic system-level and process-level CPU and memory metrics
 For more system metrics, consider installing {metricbeat-ref}/index.html[Metricbeat]
 on your hosts.
 
-As of Elastic Stack version 6.6, these metrics will be visualized in the APM UI.
+As of Elastic Stack version 6.6, these metrics will be visualized in the APM app.
 
 In some cases data from multiple nodes will be combined. As of Elastic Stack version 7.5, 
 you will be able to set a unique name for each node to avoid this problem. 

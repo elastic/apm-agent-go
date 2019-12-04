@@ -1,0 +1,91 @@
+[[custom-instrumentation]]
+=== Custom instrumentation
+
+To report on the performance of transactions served by your application, you can use the Go
+agent's <<api,API>>. Instrumentation refers to modifying your application code to report a:
+
+ - <<custom-instrumentation-transactions,Transaction>> - A top-level operation in your application,
+such as an HTTP or RPC request.
+ - <<custom-instrumentation-spans,Span within a transaction>> - An operation within a transaction,
+such as a database query, or a request to another service.
+ - <<custom-instrumentation-errors,Error>> - May refer to Go errors or panics.
+
+To report these things, you will use a <<tracer-api,apm.Tracer>> -- typically
+`apm.DefaultTracer`, which is configured via environment variables. In the code
+examples below we will refer to `apm.DefaultTracer`. Please refer to the <<api, API documentation>>
+for a more thorough description of the types and methods.
+
+[[custom-instrumentation-transactions]]
+==== Transactions
+
+To report a transaction, you call <<tracer-api-start-transaction, apm.DefaultTracer.StartTransaction>>
+with the transaction name and type. This returns a `Transaction` object; the transaction
+can be customized with additional context before you call its `End` method to indicate
+that the transaction has completed. Once the transaction's `End` method is called, it
+will be enqueued for sending to the Elastic APM server, and made available to the APM app.
+
+[source,go]
+----
+tx := apm.DefaultTracer.StartTransaction("GET /api/v1", "request")
+defer tx.End()
+...
+tx.Result = "HTTP 2xx"
+tx.Context.SetLabel("region", "us-east-1")
+----
+
+The agent supports sampling transactions: non-sampled transactions will be still be
+reported, but with limited context and without any spans. To determine whether a
+transaction is sampled, use the `Transaction.Sampled` method; if it returns false,
+you should avoid unnecessary storage or processing required for setting transaction
+context.
+
+Once you have started a transaction, you can include it in a `context` object for
+propagating throughout the application. See <<custom-instrumentation-propagation, context propagation>>
+for more details.
+
+[source,go]
+----
+ctx = apm.ContextWithTransaction(ctx, tx)
+----
+
+[[custom-instrumentation-spans]]
+==== Spans
+
+To report an operation within a transaction, you should use <<transaction-start-span, Transaction.StartSpan>>
+or <<apm-start-span, apm.StartSpan>> to start a span given a transaction or a `context`
+containing a transaction, respectively. Like a transaction, a span has a name and a type. In addition,
+a span can have a parent span within the same transaction. If the context provided to `apm.StartSpan`
+contains a span, then that will be considered the parent. See <<custom-instrumentation-propagation, context propagation>>
+for more details.
+
+[source,go]
+----
+span, ctx := apm.StartSpan(ctx, "SELECT FROM foo", "db.mysql.query")
+defer span.End()
+----
+
+`Transaction.StartSpan` and `apm.StartSpan` will always return a non-nil `Span`, even if the
+transaction is nil. It is always safe to defer a call to the span's End method. If setting the span's
+context would incur significant overhead, you may want to check if the span is dropped first, by calling
+the `Span.Dropped` method.
+
+[[custom-instrumentation-errors]]
+==== Panic recovery and errors
+
+If you want to recover panics, and report them along with your transaction, you can use the
+<<tracer-recovered, Tracer.Recovered>> method in a recovery function. There are also methods for reporting
+non-panic errors: <<tracer-new-error, Tracer.NewError>>, <<tracer-new-error-log, Tracer.NewErrorLog>>, and
+<<apm-captureerror, apm.CaptureError>>.
+
+[source,go]
+----
+defer func() {
+	if v := recover(); v != nil {
+		e := apm.DefaultTracer.Recovered()
+		e.SetTransaction(tx) // or e.SetSpan(span)
+		e.Send()
+	}
+}()
+----
+
+See the <<error-api, Error API>> for details and examples of the other methods.

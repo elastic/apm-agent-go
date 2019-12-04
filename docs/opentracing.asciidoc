@@ -101,9 +101,9 @@ to Elastic APM transactions.
 The following tags are relevant only to root or service-entry spans, which are
 translated to Elastic APM transactions:
 
-- `user.id` - sets the user ID, which appears in the "User" tab in the transaction details in the Elastic APM UI
-- `user.email` - sets the user email, appears in the "User" tab in the transaction details in the Elastic APM UI
-- `user.username` - sets the user name, appears in the "User" tab in the transaction details in the Elastic APM UI
+- `user.id` - sets the user ID, which appears in the "User" tab in the transaction details in the Elastic APM app
+- `user.email` - sets the user email, appears in the "User" tab in the transaction details in the Elastic APM app
+- `user.username` - sets the user name, appears in the "User" tab in the transaction details in the Elastic APM app
 - `result` - sets the result of the transaction. If `result` is _not_ specified, but `error` tag is set to `true`,
              then the transaction result will be set to "error"
 
