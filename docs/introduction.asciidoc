@@ -1,15 +1,40 @@
 [[introduction]]
 == Introduction
 
-Welcome to the Elastic APM Go Agent docs.
-
-The Go agent enables you to trace the execution of operations in your https://golang.org/[Go]
+The Elastic APM Go Agent enables you to trace the execution of operations in your https://golang.org/[Go]
 applications, sending performance metrics and errors to the Elastic APM server.
-
-The Go agent has built-in support for many popular Go web frameworks and toolkits
-such as http://www.gorillatoolkit.org/[Gorilla] and https://gin-gonic.github.io/gin/[Gin],
+It has built-in support for popular frameworks and toolkits,
+like http://www.gorillatoolkit.org/[Gorilla] and https://gin-gonic.github.io/gin/[Gin],
 as well as support for instrumenting Go's built-in https://golang.org/pkg/net/http/[net/http],
-https://golang.org/pkg/database/sql/[database/sql] drivers, and APIs for custom instrumentation.
+https://golang.org/pkg/database/sql/[database/sql] drivers.
+The Agent also offers an <<api>> for custom instrumentation.
+
+[float]
+[[how-it-works]]
+=== How does the Agent work?
+
+The Agent includes instrumentation modules for <<supported-tech>>,
+each providing middleware or wrappers for recording interesting events, such as incoming HTTP requests, outgoing HTTP requests, and database queries.
+
+To collect data about incoming HTTP requests,
+you can install router middleware for one of the supported <<supported-tech-web-frameworks>>.
+Incoming requests will be recorded as transactions, along with any related panics or errors.
+
+To collect data for outgoing HTTP requests,
+you can instrument an `http.Client` or `http.Transport` using <<builtin-modules-apmhttp>>.
+To collect data about database queries, you can use <<builtin-modules-apmsql>>,
+which provides instrumentation for well known database drivers.
+
+In order to connect transactions with related spans and errors, and propagate traces between services (distributed tracing),
+the agent relies on Go's built-in https://golang.org/pkg/context/[context] package:
+transactions and spans are stored in context objects.
+For example, for incoming HTTP requests, in-flight trace data will be recorded in the `context` object accessible through
+https://golang.org/pkg/net/http/#Request.Context[net/http.Context].
+You can read more about this in <<custom-instrumentation-propagation>>.
+
+In addition to capturing events like those mentioned above,
+the agent also also collects system and application metrics at regular intervals.
+This collection happens in a background goroutine that is automatically started when the agent is initialized.
 
 [float]
 [[additional-components]]
@@ -17,7 +42,3 @@ https://golang.org/pkg/database/sql/[database/sql] drivers, and APIs for custom 
 
 APM Agents work in conjunction with the {apm-server-ref-v}/index.html[APM Server], {ref}/index.html[Elasticsearch], and {kibana-ref}/index.html[Kibana].
 Please view the {apm-overview-ref-v}/index.html[APM Overview] for details on how these components work together. 
-
-ifdef::env-github[]
-NOTE: For the best reading experience, please head over to this document at https://www.elastic.co/guide/en/apm/agent/go/current/index.html[elastic.co]
-endif::[]

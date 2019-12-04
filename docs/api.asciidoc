@@ -55,7 +55,7 @@ or RPC request. e.g.:
 transaction := apm.DefaultTracer.StartTransaction("GET /", "request")
 ----
 
-Transactions will be grouped by type and name in the Elastic APM UI.
+Transactions will be grouped by type and name in the Elastic APM app.
 
 After starting a transaction, you can record a result and add context to
 further describe the transaction.
