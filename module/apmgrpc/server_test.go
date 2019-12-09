@@ -254,13 +254,16 @@ func (s *helloworldServer) SayHello(ctx context.Context, req *pb.HelloRequest) (
 	// The context passed to the server should contain a Transaction for the gRPC request.
 	if md, ok := metadata.FromIncomingContext(ctx); ok {
 		tx := apm.TransactionFromContext(ctx)
-		for _, header := range []string{"elastic-apm-traceparent", "traceparent"} {
+		for _, header := range []string{"elastic-apm-traceparent", "traceparent", "tracestate"} {
 			if values := md.Get(header); len(values) > 0 {
 				tx.Context.SetCustom(header, strings.Join(values, " "))
 			}
 		}
 	}
 	span, ctx := apm.StartSpan(ctx, "server_span", "type")
+	if tracestate := span.TraceContext().State.String(); tracestate != "" {
+		span.Name = tracestate
+	}
 	span.End()
 	if s.panic {
 		panic(s.err)

@@ -65,7 +65,14 @@ func testClientSpan(t *testing.T, traceparentHeaders ...string) {
 	tracer.Flush(nil)
 	require.Zero(t, transport.Payloads())
 
-	_, clientSpans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+	_, clientSpans, _ := apmtest.WithTransactionOptions(apm.TransactionOptions{
+		TraceContext: apm.TraceContext{
+			Trace:   apm.TraceID{1},
+			Span:    apm.SpanID{1},
+			Options: apm.TraceOptions(0).WithRecorded(true),
+			State:   apm.NewTraceState(apm.TraceStateEntry{Key: "vendor", Value: "tracestate"}),
+		},
+	}, func(ctx context.Context) {
 		resp, err = client.SayHello(ctx, &pb.HelloRequest{Name: "birita"})
 		require.NoError(t, err)
 		assert.Equal(t, resp, &pb.HelloReply{Message: "hello, birita"})
@@ -78,12 +85,16 @@ func testClientSpan(t *testing.T, traceparentHeaders ...string) {
 
 	serverTracer.Flush(nil)
 	serverTransactions := serverTransport.Payloads().Transactions
+	serverSpans := serverTransport.Payloads().Spans
 	require.Len(t, serverTransactions, 2)
+	require.Len(t, serverSpans, 2)
 	for _, tx := range serverTransactions {
 		assert.Equal(t, "/helloworld.Greeter/SayHello", tx.Name)
 	}
 	assert.Equal(t, clientSpans[0].TraceID, serverTransactions[1].TraceID)
 	assert.Equal(t, clientSpans[0].ID, serverTransactions[1].ParentID)
+	assert.Equal(t, "server_span", serverSpans[0].Name) // no tracestate
+	assert.Equal(t, "vendor=tracestate", serverSpans[1].Name)
 
 	traceparentValue := apmhttp.FormatTraceparentHeader(apm.TraceContext{
 		Trace:   apm.TraceID(clientSpans[0].TraceID),
@@ -97,6 +108,10 @@ func testClientSpan(t *testing.T, traceparentHeaders ...string) {
 			Value: traceparentValue,
 		})
 	}
+	expectedCustom = append(expectedCustom, model.IfaceMapItem{
+		Key:   "tracestate",
+		Value: "vendor=tracestate",
+	})
 	assert.Equal(t, expectedCustom, serverTransactions[1].Context.Custom)
 }
 

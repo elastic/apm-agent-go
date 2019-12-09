@@ -66,3 +66,26 @@ func TestParseTraceparentHeader(t *testing.T) {
 	assertParse("fe-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01-foo")
 	assertParseError("fe-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01.foo", `invalid version 254 traceparent header`)
 }
+
+func TestParseTracestateHeader(t *testing.T) {
+	assertParseError := func(h, expect string) {
+		_, err := apmhttp.ParseTracestateHeader(h)
+		if assert.Error(t, err) {
+			assert.Regexp(t, expect, err.Error())
+		}
+	}
+
+	assertParseError("a", `missing '=' in tracestate entry`)
+	assertParseError("a=b, c ", `missing '=' in tracestate entry`)
+
+	assertParse := func(h ...string) (apm.TraceState, bool) {
+		out, err := apmhttp.ParseTracestateHeader(h...)
+		return out, assert.NoError(t, err)
+	}
+
+	tracestate, _ := assertParse("vendorname1=opaqueValue1,vendorname2=opaqueValue2")
+	assert.Equal(t, "vendorname1=opaqueValue1,vendorname2=opaqueValue2", tracestate.String())
+
+	tracestate, _ = assertParse("vendorname1=opaqueValue1", "vendorname2=opaqueValue2")
+	assert.Equal(t, "vendorname1=opaqueValue1,vendorname2=opaqueValue2", tracestate.String())
+}

@@ -514,3 +514,19 @@ Activate APM Agent Configuration via Kibana. By default the agent will poll the 
 for agent configuration changes. This can be disabled by changing the setting to `false`.
 
 NOTE: This feature requires APM Server v7.3 or later and that the APM Server is configured with `kibana.enabled: true`.
+
+[float]
+[[config-use-elastic-traceparent-header]]
+==== `ELASTIC_APM_USE_ELASTIC_TRACEPARENT_HEADER`
+|============
+| Environment                                  | Default
+| `ELASTIC_APM_USE_ELASTIC_TRACEPARENT_HEADER` | `true`
+|============
+
+To enable {apm-overview-ref-v}/distributed-tracing.html[distributed tracing], the agent
+adds trace context headers to outgoing HTTP requests made with <<builtin-modules-apmhttp>>.
+These headers (`traceparent` and `tracestate`) are defined in the
+https://www.w3.org/TR/trace-context-1/[W3C Trace Context] specification.
+
+When this setting is `true`, the agent will also add the header `elasticapm-traceparent`
+for backwards compatibility with older versions of Elastic APM agents.

@@ -86,18 +86,18 @@ func TestClient(t *testing.T) {
 	}, span.Context)
 }
 
-func TestClientTraceparentHeaders(t *testing.T) {
+func TestClientTraceContextHeaders(t *testing.T) {
 	t.Run("with-elastic-apm-traceparent", func(t *testing.T) {
-		testClientTraceparentHeaders(t, "Elastic-Apm-Traceparent", "Traceparent")
+		testClientTraceContextHeaders(t, "Elastic-Apm-Traceparent", "Traceparent")
 	})
 	t.Run("without-elastic-apm-traceparent", func(t *testing.T) {
 		os.Setenv("ELASTIC_APM_USE_ELASTIC_TRACEPARENT_HEADER", "true")
 		defer os.Unsetenv("ELASTIC_APM_USE_ELASTIC_TRACEPARENT_HEADER")
-		testClientTraceparentHeaders(t, "Traceparent")
+		testClientTraceContextHeaders(t, "Traceparent")
 	})
 }
 
-func testClientTraceparentHeaders(t *testing.T, traceparentHeaders ...string) {
+func testClientTraceContextHeaders(t *testing.T, traceparentHeaders ...string) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
@@ -110,7 +110,14 @@ func testClientTraceparentHeaders(t *testing.T, traceparentHeaders ...string) {
 	}))
 	defer server.Close()
 
-	tx := tracer.StartTransaction("name", "type")
+	tx := tracer.StartTransactionOptions("name", "type", apm.TransactionOptions{
+		TraceContext: apm.TraceContext{
+			Trace:   apm.TraceID{1},
+			Span:    apm.SpanID{1},
+			Options: apm.TraceOptions(0).WithRecorded(true),
+			State:   apm.NewTraceState(apm.TraceStateEntry{Key: "vendor", Value: "tracestate"}),
+		},
+	})
 	ctx := apm.ContextWithTransaction(context.Background(), tx)
 	_, responseBody := mustGET(ctx, server.URL)
 	tx.End()
@@ -134,6 +141,9 @@ func testClientTraceparentHeaders(t *testing.T, traceparentHeaders ...string) {
 		require.Contains(t, headers, header)
 		assert.Equal(t, traceparentValue, headers[header])
 	}
+
+	require.Contains(t, headers, "Tracestate")
+	assert.Equal(t, "vendor=tracestate", headers["Tracestate"])
 }
 
 func TestClientSpanDropped(t *testing.T) {
