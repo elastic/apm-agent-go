@@ -22,17 +22,16 @@ if (! go run scripts/mingoversion.go 1.10 &>/dev/null); then
     git clone https://github.com/gocql/gocql &&
     cd gocql && git checkout 16cf9ea1b3e2
   );
-fi
-
-if (! go run scripts/mingoversion.go 1.9 &>/dev/null); then
-  # For Go 1.8.x, pin go-sql-driver to v1.4.1,
-  # the last release that supports Go 1.8.
+  # Before Go 1.10.0, pin go-sql-driver to v1.4.1.
   mkdir -p "${GOPATH}/src/github.com/go-sql-driver";
   (
     cd "${GOPATH}/src/github.com/go-sql-driver" &&
     git clone https://github.com/go-sql-driver/mysql &&
     cd mysql && git checkout v1.4.1
   );
+fi
+
+if (! go run scripts/mingoversion.go 1.9 &>/dev/null); then
   # Pin olivere/elastic to release-branch.v6 for Go 1.8.
   mkdir -p "${GOPATH}/src/github.com/olivere/elastic";
   (
