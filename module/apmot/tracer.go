@@ -113,6 +113,9 @@ func (t *otTracer) Inject(sc opentracing.SpanContext, format interface{}, carrie
 		if tx.ShouldPropagateLegacyHeader() {
 			writer.Set(apmhttp.ElasticTraceparentHeader, headerValue)
 		}
+		if tracestate := spanContext.traceContext.State.String(); tracestate != "" {
+			writer.Set(apmhttp.TracestateHeader, tracestate)
+		}
 		return nil
 	case opentracing.Binary:
 		writer, ok := carrier.(io.Writer)
@@ -128,37 +131,43 @@ func (t *otTracer) Inject(sc opentracing.SpanContext, format interface{}, carrie
 func (t *otTracer) Extract(format interface{}, carrier interface{}) (opentracing.SpanContext, error) {
 	switch format {
 	case opentracing.TextMap, opentracing.HTTPHeaders:
-		var headerValue string
+		var traceparentHeaderValue string
+		var tracestateHeaderValues []string
 		switch carrier := carrier.(type) {
 		case opentracing.HTTPHeadersCarrier:
-			headerValue = http.Header(carrier).Get(apmhttp.ElasticTraceparentHeader)
-			if headerValue == "" {
-				headerValue = http.Header(carrier).Get(apmhttp.W3CTraceparentHeader)
+			traceparentHeaderValue = http.Header(carrier).Get(apmhttp.ElasticTraceparentHeader)
+			if traceparentHeaderValue == "" {
+				traceparentHeaderValue = http.Header(carrier).Get(apmhttp.W3CTraceparentHeader)
 			}
+			tracestateHeaderValues = http.Header(carrier)[apmhttp.TracestateHeader]
 		case opentracing.TextMapReader:
 			carrier.ForeachKey(func(key, val string) error {
 				switch textproto.CanonicalMIMEHeaderKey(key) {
 				case apmhttp.ElasticTraceparentHeader:
-					headerValue = val
-					// The Elastic header value always trumps the W3C one,
-					// to ensure backwards compatibility, so we return an
-					// arbitrary error to break the loop.
-					return io.EOF
+					traceparentHeaderValue = val
 				case apmhttp.W3CTraceparentHeader:
-					headerValue = val
+					// The Elastic header value always trumps the W3C one,
+					// to ensure backwards compatibility, hence we only set
+					// the value if not set already.
+					if traceparentHeaderValue == "" {
+						traceparentHeaderValue = val
+					}
+				case apmhttp.TracestateHeader:
+					tracestateHeaderValues = append(tracestateHeaderValues, val)
 				}
 				return nil
 			})
 		default:
 			return nil, opentracing.ErrInvalidCarrier
 		}
-		if headerValue == "" {
+		if traceparentHeaderValue == "" {
 			return nil, opentracing.ErrSpanContextNotFound
 		}
-		traceContext, err := apmhttp.ParseTraceparentHeader(headerValue)
+		traceContext, err := apmhttp.ParseTraceparentHeader(traceparentHeaderValue)
 		if err != nil {
 			return nil, err
 		}
+		traceContext.State, _ = apmhttp.ParseTracestateHeader(tracestateHeaderValues...)
 		return &spanContext{tracer: t, traceContext: traceContext}, nil
 	case opentracing.Binary:
 		reader, ok := carrier.(io.Reader)

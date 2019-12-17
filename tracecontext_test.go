@@ -18,6 +18,8 @@
 package apm_test
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -52,4 +54,54 @@ func TestTraceOptions(t *testing.T) {
 	opts = opts.WithRecorded(false)
 	assert.False(t, opts.Recorded())
 	assert.Equal(t, apm.TraceOptions(0xFE), opts)
+}
+
+func TestTraceStateInvalidLength(t *testing.T) {
+	const maxEntries = 32
+
+	entries := make([]apm.TraceStateEntry, 0, maxEntries)
+	for i := 0; i < cap(entries); i++ {
+		entries = append(entries, apm.TraceStateEntry{Key: fmt.Sprintf("k%d", i), Value: "value"})
+		ts := apm.NewTraceState(entries...)
+		assert.NoError(t, ts.Validate())
+	}
+
+	entries = append(entries, apm.TraceStateEntry{Key: "straw", Value: "camel's back"})
+	ts := apm.NewTraceState(entries...)
+	assert.EqualError(t, ts.Validate(), "tracestate contains more than the maximum allowed number of entries, 32")
+}
+
+func TestTraceStateDuplicateKey(t *testing.T) {
+	ts := apm.NewTraceState(
+		apm.TraceStateEntry{Key: "x", Value: "b"},
+		apm.TraceStateEntry{Key: "a", Value: "b"},
+		apm.TraceStateEntry{Key: "y", Value: "b"},
+		apm.TraceStateEntry{Key: "a", Value: "b"},
+	)
+	assert.EqualError(t, ts.Validate(), `duplicate tracestate key "a" at positions 1 and 3`)
+}
+
+func TestTraceStateInvalidKey(t *testing.T) {
+	ts := apm.NewTraceState(apm.TraceStateEntry{Key: "~"})
+	assert.EqualError(t, ts.Validate(), `invalid tracestate entry at position 0: invalid key "~"`)
+}
+
+func TestTraceStateInvalidValueLength(t *testing.T) {
+	ts := apm.NewTraceState(apm.TraceStateEntry{Key: "oy"})
+	assert.EqualError(t, ts.Validate(), `invalid tracestate entry at position 0: invalid value for key "oy": value is empty`)
+
+	ts = apm.NewTraceState(apm.TraceStateEntry{Key: "oy", Value: strings.Repeat("*", 257)})
+	assert.EqualError(t, ts.Validate(),
+		`invalid tracestate entry at position 0: invalid value for key "oy": value contains 257 characters, maximum allowed is 256`)
+}
+
+func TestTraceStateInvalidValueCharacter(t *testing.T) {
+	for _, value := range []string{
+		string(0),
+		"header" + string(0) + "trailer",
+	} {
+		ts := apm.NewTraceState(apm.TraceStateEntry{Key: "oy", Value: value})
+		assert.EqualError(t, ts.Validate(),
+			`invalid tracestate entry at position 0: invalid value for key "oy": value contains invalid character '\x00'`)
+	}
 }

@@ -18,6 +18,7 @@
 package apmhttp_test
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -442,6 +443,38 @@ func TestHandlerTraceparentHeader(t *testing.T) {
 		assert.Equal(t, "b7ad6b7169203331", apm.SpanID(transaction.ParentID).String())
 		assert.NotZero(t, transaction.ID)
 	}
+}
+
+func TestHandlerTracestateHeader(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.Handle("/foo", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		tx := apm.TransactionFromContext(req.Context())
+		w.Write([]byte(tx.TraceContext().State.String()))
+	}))
+
+	makeReq := func(tracestate ...string) *http.Request {
+		req, _ := http.NewRequest("GET", "http://server.testing/foo", nil)
+		req.Header.Set("Traceparent", "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01")
+		if len(tracestate) > 0 {
+			req.Header["Tracestate"] = tracestate
+		}
+		return req
+	}
+
+	h := apmhttp.Wrap(mux, apmhttp.WithTracer(apmtest.DiscardTracer))
+	w := httptest.NewRecorder()
+
+	w.Body = new(bytes.Buffer)
+	h.ServeHTTP(w, makeReq("a=b, c=d"))
+	assert.Equal(t, "a=b,c=d", w.Body.String())
+
+	w.Body = new(bytes.Buffer)
+	h.ServeHTTP(w, makeReq("a=b", "c=d"))
+	assert.Equal(t, "a=b,c=d", w.Body.String())
+
+	w.Body = new(bytes.Buffer)
+	h.ServeHTTP(w, makeReq("a=")) // invalid tracestate
+	assert.Equal(t, "", w.Body.String())
 }
 
 func panicHandler(w http.ResponseWriter, req *http.Request) {
