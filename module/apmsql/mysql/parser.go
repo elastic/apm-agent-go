@@ -18,6 +18,9 @@
 package apmmysql
 
 import (
+	"net"
+	"strconv"
+
 	"github.com/go-sql-driver/mysql"
 
 	"go.elastic.co/apm/module/apmsql"
@@ -31,7 +34,16 @@ func ParseDSN(name string) apmsql.DSNInfo {
 		// so just return a zero value.
 		return apmsql.DSNInfo{}
 	}
+	var addr string
+	var port int
+	if cfg.Net == "tcp" {
+		host, portstr, _ := net.SplitHostPort(cfg.Addr)
+		port, _ = strconv.Atoi(portstr)
+		addr = host
+	}
 	return apmsql.DSNInfo{
+		Address:  addr,
+		Port:     port,
 		Database: cfg.DBName,
 		User:     cfg.User,
 	}

@@ -54,6 +54,15 @@ func TestQueryContext(t *testing.T) {
 	assert.Equal(t, "SELECT FROM foo", spans[0].Name)
 	assert.Equal(t, "postgresql", spans[0].Subtype)
 	assert.Equal(t, &model.SpanContext{
+		Destination: &model.DestinationSpanContext{
+			Address: os.Getenv("PGHOST"),
+			Port:    5432,
+			Service: &model.DestinationServiceSpanContext{
+				Type:     "db",
+				Name:     "postgresql",
+				Resource: "postgresql",
+			},
+		},
 		Database: &model.DatabaseSpanContext{
 			Instance:  "test_db",
 			Statement: "SELECT * FROM foo",

@@ -23,10 +23,15 @@ import (
 	nurl "net/url"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode"
 
 	"go.elastic.co/apm/module/apmsql"
+)
+
+const (
+	defaultPostgresPort = 5432
 )
 
 // ParseDSN parses the given lib/pq datasource name, which may
@@ -36,12 +41,17 @@ func ParseDSN(name string) apmsql.DSNInfo {
 		name = connStr
 	}
 	opts := make(values)
+	opts["host"] = os.Getenv("PGHOST")
+	opts["port"] = os.Getenv("PGPORT")
 	if err := parseOpts(name, opts); err != nil {
 		// pq.Open will fail with the same error,
 		// so just return a zero value.
 		return apmsql.DSNInfo{}
 	}
+	addr, port := getAddr(opts)
 	info := apmsql.DSNInfo{
+		Address:  addr,
+		Port:     port,
 		Database: opts["dbname"],
 		User:     opts["user"],
 	}
@@ -52,6 +62,25 @@ func ParseDSN(name string) apmsql.DSNInfo {
 		info.User = os.Getenv("PGUSER")
 	}
 	return info
+}
+
+func getAddr(opts values) (string, int) {
+	hostOpt := opts["host"]
+	if hostOpt == "" {
+		hostOpt = "localhost"
+	} else if strings.HasPrefix(hostOpt, "/") {
+		// We don't report Unix addresses.
+		return "", 0
+	} else if n := len(hostOpt); n > 1 && hostOpt[0] == '[' && hostOpt[n-1] == ']' {
+		hostOpt = hostOpt[1 : n-1]
+	}
+	port := defaultPostgresPort
+	if portOpt := opts["port"]; portOpt != "" {
+		if v, err := strconv.Atoi(portOpt); err == nil {
+			port = v
+		}
+	}
+	return hostOpt, port
 }
 
 // Code below is copied from github.com/lib/pq (see NOTICE).

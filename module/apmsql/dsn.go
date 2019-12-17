@@ -19,6 +19,12 @@ package apmsql
 
 // DSNInfo contains information from a database-specific data source name.
 type DSNInfo struct {
+	// Address is the database server address specified by the DSN.
+	Address string
+
+	// Port is the database server port specified by the DSN.
+	Port int
+
 	// Database is the name of the specific database identified by the DSN.
 	Database string
 

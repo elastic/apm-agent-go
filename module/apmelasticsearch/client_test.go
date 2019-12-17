@@ -260,6 +260,38 @@ func TestStatementBodyGzipContentEncoding(t *testing.T) {
 	}, spans[0].Context.Database)
 }
 
+func TestDestination(t *testing.T) {
+	var rt roundTripperFunc = func(req *http.Request) (*http.Response, error) {
+		return httptest.NewRecorder().Result(), nil
+	}
+	client := &http.Client{Transport: apmelasticsearch.WrapRoundTripper(rt)}
+
+	test := func(url, destinationAddr string, destinationPort int) {
+		req, err := http.NewRequest("GET", url, nil)
+		require.NoError(t, err)
+		_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+			resp, err := client.Do(req.WithContext(ctx))
+			assert.NoError(t, err)
+			resp.Body.Close()
+		})
+		require.Len(t, spans, 1)
+		assert.Equal(t, &model.DestinationSpanContext{
+			Address: destinationAddr,
+			Port:    destinationPort,
+			Service: &model.DestinationServiceSpanContext{
+				Type:     "db",
+				Name:     "elasticsearch",
+				Resource: "elasticsearch",
+			},
+		}, spans[0].Context.Destination)
+	}
+	test("http://host:9200/_search", "host", 9200)
+	test("http://host:80/_search", "host", 80)
+	test("http://127.0.0.1:9200/_search", "127.0.0.1", 9200)
+	test("http://[2001:db8::1]:9200/_search", "2001:db8::1", 9200)
+	test("http://[2001:db8::1]:80/_search", "2001:db8::1", 80)
+}
+
 type errorReadCloser struct {
 	readError error
 	closed    bool

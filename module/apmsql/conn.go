@@ -66,6 +66,13 @@ func (c *conn) startStmtSpan(ctx context.Context, stmt, spanType string) (*apm.S
 func (c *conn) startSpan(ctx context.Context, name, spanType, stmt string) (*apm.Span, context.Context) {
 	span, ctx := apm.StartSpan(ctx, name, spanType)
 	if !span.Dropped() {
+		if c.dsnInfo.Address != "" {
+			span.Context.SetDestinationAddress(c.dsnInfo.Address, c.dsnInfo.Port)
+			span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
+				Name:     c.driver.driverName,
+				Resource: c.driver.driverName,
+			})
+		}
 		span.Context.SetDatabase(apm.DatabaseSpanContext{
 			Instance:  c.dsnInfo.Database,
 			Statement: stmt,

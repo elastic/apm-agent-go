@@ -15,45 +15,46 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// +build go1.10
+// +build go1.11
 
 package integration_test
 
 import (
 	"context"
-	"net"
 	"net/http"
 	"net/url"
-	"os"
-	"strconv"
+	"strings"
 	"testing"
 
-	"github.com/olivere/elastic"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	elasticsearch "github.com/elastic/go-elasticsearch/v7"
 
 	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/module/apmelasticsearch"
 )
 
-var elasticsearchURL = os.Getenv("ELASTICSEARCH_URL")
-
-func TestOlivereElastic(t *testing.T) {
+func TestElastic(t *testing.T) {
 	if elasticsearchURL == "" {
 		t.Skipf("ELASTICSEARCH_URL not specified")
 	}
 
-	client, err := elastic.NewClient(
-		elastic.SetURL(elasticsearchURL),
-		elastic.SetHttpClient(&http.Client{
-			Transport: apmelasticsearch.WrapRoundTripper(http.DefaultTransport),
-		}),
-	)
+	es, err := elasticsearch.NewClient(elasticsearch.Config{
+		// Addresses set from ELASTICSEARCH_URL
+		Transport: apmelasticsearch.WrapRoundTripper(http.DefaultTransport),
+	})
 	require.NoError(t, err)
 
 	_, spans, errs := apmtest.WithTransaction(func(ctx context.Context) {
-		client.Search("no_index").Query(elastic.NewMatchAllQuery()).Do(ctx)
+		res, err := es.Search(
+			es.Search.WithIndex("no_index"),
+			es.Search.WithContext(ctx),
+			es.Search.WithBody(strings.NewReader(`{"query":{"match_all":{}}}`)),
+		)
+		require.NoError(t, err)
+		res.Body.Close()
 	})
 	assert.Empty(t, errs)
 	require.Len(t, spans, 1)
@@ -61,19 +62,12 @@ func TestOlivereElastic(t *testing.T) {
 	esurl, err := url.Parse(elasticsearchURL)
 	require.NoError(t, err)
 	esurl.Path = "/no_index/_search"
-	nodesInfo, err := client.NodesInfo().Do(context.Background())
-	require.NoError(t, err)
-	require.Len(t, nodesInfo.Nodes, 1)
-	for _, node := range nodesInfo.Nodes {
-		esurl.Host = node.HTTP.PublishAddress
-	}
 
-	addr, portstr, err := net.SplitHostPort(esurl.Host)
-	require.NoError(t, err)
-	port, err := strconv.Atoi(portstr)
-	require.NoError(t, err)
+	// We test the value of destination in unit tests.
+	require.NotNil(t, spans[0].Context.Destination)
+	spans[0].Context.Destination = nil
 
-	assert.Equal(t, "Elasticsearch: POST no_index/_search", spans[0].Name)
+	assert.Equal(t, "Elasticsearch: GET no_index/_search", spans[0].Name)
 	assert.Equal(t, "db", spans[0].Type)
 	assert.Equal(t, "elasticsearch", spans[0].Subtype)
 	assert.Equal(t, "", spans[0].Action)
@@ -81,15 +75,6 @@ func TestOlivereElastic(t *testing.T) {
 		Database: &model.DatabaseSpanContext{
 			Type:      "elasticsearch",
 			Statement: `{"query":{"match_all":{}}}`,
-		},
-		Destination: &model.DestinationSpanContext{
-			Address: addr,
-			Port:    port,
-			Service: &model.DestinationServiceSpanContext{
-				Type:     "db",
-				Name:     "elasticsearch",
-				Resource: "elasticsearch",
-			},
 		},
 		HTTP: &model.HTTPSpanContext{
 			URL:        esurl,
