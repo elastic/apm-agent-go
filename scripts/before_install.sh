@@ -7,51 +7,31 @@ if (go run scripts/mingoversion.go 1.10 &>/dev/null); then
   go get -v github.com/elastic/go-licenser;
 fi
 
+# Pin various dependencies for old Go versions.
+
+function pin() {
+  repo=$1
+  commit=$2
+  orgdir=$(dirname "${GOPATH}/src/$repo")
+  projname=$(basename "$repo")
+  if [ $# -eq 3 ]; then
+    url=$3
+  else
+    url="https://$repo"
+  fi
+  mkdir -p "$orgdir"
+  (cd "$orgdir" && git clone "$url" && cd $projname && git checkout $commit)
+}
+
 if (! go run scripts/mingoversion.go 1.10 &>/dev/null); then
-  # Before Go 1.10.0, pin gin-gonic to v1.3.0.
-  mkdir -p "${GOPATH}/src/github.com/gin-gonic";
-  (
-    cd "${GOPATH}/src/github.com/gin-gonic" &&
-    git clone https://github.com/gin-gonic/gin &&
-    cd gin && git checkout v1.3.0
-  );
-  # Ping gocql to the latest commit that supports Go 1.9.
-  mkdir -p "${GOPATH}/src/github.com/gocql";
-  (
-    cd "${GOPATH}/src/github.com/gocql" &&
-    git clone https://github.com/gocql/gocql &&
-    cd gocql && git checkout 16cf9ea1b3e2
-  );
-  # Before Go 1.10.0, pin go-sql-driver to v1.4.1.
-  mkdir -p "${GOPATH}/src/github.com/go-sql-driver";
-  (
-    cd "${GOPATH}/src/github.com/go-sql-driver" &&
-    git clone https://github.com/go-sql-driver/mysql &&
-    cd mysql && git checkout v1.4.1
-  );
+  pin github.com/gin-gonic/gin v1.3.0
+  pin github.com/gocql/gocql 16cf9ea1b3e2
+  pin github.com/go-sql-driver/mysql v1.4.1
+  pin github.com/labstack/echo v4.1.9
 fi
 
 if (! go run scripts/mingoversion.go 1.9 &>/dev/null); then
-  # Pin olivere/elastic to release-branch.v6 for Go 1.8.
-  mkdir -p "${GOPATH}/src/github.com/olivere/elastic";
-  (
-    cd "${GOPATH}/src/github.com/olivere" &&
-    git clone https://github.com/olivere/elastic &&
-    cd elastic && git checkout release-branch.v6
-  );
-  # Pin golang.org/x/sys to the last commit that supports Go 1.8.
-  mkdir -p "${GOPATH}/src/golang.org/x/sys";
-  (
-    cd "${GOPATH}/src/golang.org/x" &&
-    git clone https://go.googlesource.com/sys &&
-    cd sys && git checkout fc99dfbffb4e
-  );
-  # Pin github.com/prometheus/client_golang to v1.1.0,
-  # the last release that supports Go 1.8.
-  mkdir -p "${GOPATH}/src/github.com/prometheus";
-  (
-    cd "${GOPATH}/src/github.com/prometheus" &&
-    git clone https://github.com/prometheus/client_golang &&
-    cd client_golang && git checkout v1.1.0
-  );
+  pin github.com/olivere/elastic release-branch.v6
+  pin golang.org/x/sys fc99dfbffb4e https://go.googlesource.com/sys
+  pin github.com/prometheus/client_golang v1.1.0
 fi
