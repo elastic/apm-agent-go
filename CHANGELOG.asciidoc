@@ -23,6 +23,8 @@ endif::[]
 
 https://github.com/elastic/apm-agent-go/compare/v1.6.0...master[View commits]
 
+ - Add support for API Key auth {pull}698[(#698)]
+
 [[release-notes-1.x]]
 === Go Agent version 1.x
 

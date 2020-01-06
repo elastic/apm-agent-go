@@ -51,18 +51,15 @@ func (h *recordingHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	h.requests = append(h.requests, req)
 }
 
-func assertAuthorization(t *testing.T, req *http.Request, token string) {
+func assertAuthorization(t *testing.T, req *http.Request, expect ...string) {
 	values, ok := req.Header["Authorization"]
-	if !ok {
-		if token == "" {
-			return
-		}
-		t.Errorf("missing Authorization header")
+	if ok && len(expect) == 0 {
+		t.Errorf("unexpected Authorization header")
 		return
 	}
-	var expect []string
-	if token != "" {
-		expect = []string{"Bearer " + token}
+	if !ok && len(expect) != 0 {
+		t.Errorf("missing Authorization header")
+		return
 	}
 	assert.Equal(t, expect, values)
 }
