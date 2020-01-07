@@ -29,6 +29,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"go.elastic.co/apm/apmtest"
+	"go.elastic.co/apm/internal/apmgodog"
 	"go.elastic.co/apm/model"
 	"go.elastic.co/fastjson"
 )
@@ -45,6 +46,10 @@ func TestMain(m *testing.M) {
 		os.Exit(0)
 	}
 	os.Exit(m.Run())
+}
+
+func TestFeatures(t *testing.T) {
+	apmgodog.Run(t, []string{"."})
 }
 
 func getSubprocessMetadata(t *testing.T, env ...string) (*model.System, *model.Process, *model.Service, model.StringMap) {

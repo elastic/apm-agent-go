@@ -19,9 +19,10 @@ To simplify development and testing,
 the agent defaults to sending data to the Elastic APM Server at `http://localhost:8200`.
 To send data to an alternative location, you must configure
 <<config-server-url, ELASTIC_APM_SERVER_URL>>. Depending on the configuration
-of your server, you may also need to set <<config-secret-token, ELASTIC_APM_SECRET_TOKEN>>
-and <<config-verify-server-cert, ELASTIC_APM_VERIFY_SERVER_CERT>>. All other
-variables have usable defaults.
+of your server, you may also need to set <<config-api-key, ELASTIC_APM_API_KEY>>,
+<<config-secret-token, ELASTIC_APM_SECRET_TOKEN>>, and
+<<config-verify-server-cert, ELASTIC_APM_VERIFY_SERVER_CERT>>. All other variables
+have usable defaults.
 // end::setup-config[]
 
 [float]
@@ -105,6 +106,25 @@ Both the agents and the APM server have to be configured with the same secret to
 WARNING: the secret token is sent as plain-text in every request to the server, so you
 should also secure your communications using HTTPS. Unless you do so, your secret token
 could be observed by an attacker.
+
+[float]
+[[config-api-key]]
+==== `ELASTIC_APM_API_KEY`
+
+[options="header"]
+|============
+| Environment           | Default | Example
+| `ELASTIC_APM_API_KEY` |         | "A base64-encoded string"
+|============
+
+This base64-encoded string is used to ensure that only your agents can send data to your APM server.
+You must have created the API key using the APM server command line tool. Please see the APM server
+documentation for details on how to do that.
+
+NOTE: This feature is fully supported in the APM Server versions >= 7.6.
+
+WARNING: the API Key is sent as plain-text in every request to the server, so you should also secure
+your communications using HTTPS. Unless you do so, your API Key could be observed by an attacker.
 
 [float]
 [[config-service-name]]

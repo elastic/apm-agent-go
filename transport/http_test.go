@@ -107,7 +107,7 @@ func TestHTTPTransportSecretToken(t *testing.T) {
 	transport.SendStream(context.Background(), strings.NewReader(""))
 
 	assert.Len(t, h.requests, 1)
-	assertAuthorization(t, h.requests[0], "hunter2")
+	assertAuthorization(t, h.requests[0], "Bearer hunter2")
 }
 
 func TestHTTPTransportEnvSecretToken(t *testing.T) {
@@ -122,10 +122,41 @@ func TestHTTPTransportEnvSecretToken(t *testing.T) {
 	transport.SendStream(context.Background(), strings.NewReader(""))
 
 	assert.Len(t, h.requests, 1)
-	assertAuthorization(t, h.requests[0], "hunter2")
+	assertAuthorization(t, h.requests[0], "Bearer hunter2")
 }
 
-func TestHTTPTransportNoSecretToken(t *testing.T) {
+func TestHTTPTransportAPIKey(t *testing.T) {
+	var h recordingHandler
+	server := httptest.NewServer(&h)
+	defer server.Close()
+	defer patchEnv("ELASTIC_APM_SERVER_URLS", server.URL)()
+
+	transport, err := transport.NewHTTPTransport()
+	transport.SetAPIKey("hunter2")
+	assert.NoError(t, err)
+	transport.SendStream(context.Background(), strings.NewReader(""))
+
+	assert.Len(t, h.requests, 1)
+	assertAuthorization(t, h.requests[0], "ApiKey hunter2")
+}
+
+func TestHTTPTransportEnvAPIKey(t *testing.T) {
+	var h recordingHandler
+	server := httptest.NewServer(&h)
+	defer server.Close()
+	defer patchEnv("ELASTIC_APM_SERVER_URLS", server.URL)()
+	defer patchEnv("ELASTIC_APM_API_KEY", "api_key_wins")()
+	defer patchEnv("ELASTIC_APM_SECRET_TOKEN", "secret_token_loses")()
+
+	transport, err := transport.NewHTTPTransport()
+	assert.NoError(t, err)
+	transport.SendStream(context.Background(), strings.NewReader(""))
+
+	assert.Len(t, h.requests, 1)
+	assertAuthorization(t, h.requests[0], "ApiKey api_key_wins")
+}
+
+func TestHTTPTransportNoAuthorization(t *testing.T) {
 	var h recordingHandler
 	transport, server := newHTTPTransport(t, &h)
 	defer server.Close()
@@ -133,7 +164,7 @@ func TestHTTPTransportNoSecretToken(t *testing.T) {
 	transport.SendStream(context.Background(), strings.NewReader(""))
 
 	assert.Len(t, h.requests, 1)
-	assertAuthorization(t, h.requests[0], "")
+	assertAuthorization(t, h.requests[0])
 }
 
 func TestHTTPTransportTLS(t *testing.T) {
