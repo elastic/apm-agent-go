@@ -23,7 +23,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/v9"
 
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/module/apmsql"
