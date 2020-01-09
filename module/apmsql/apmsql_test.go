@@ -60,15 +60,67 @@ func TestExecContext(t *testing.T) {
 	defer db.Close()
 
 	db.Ping() // connect
+	const N = 5
 	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
 		_, err := db.ExecContext(ctx, "CREATE TABLE foo (bar INT)")
 		require.NoError(t, err)
+		for i := 0; i < N; i++ {
+			result, err := db.ExecContext(ctx, "INSERT INTO foo VALUES (?)", i)
+			require.NoError(t, err)
+
+			rowsAffected, err := result.RowsAffected()
+			require.NoError(t, err)
+			assert.Equal(t, int64(1), rowsAffected)
+		}
+		result, err := db.ExecContext(ctx, "DELETE FROM foo")
+		require.NoError(t, err)
+		rowsAffected, err := result.RowsAffected()
+		require.NoError(t, err)
+		assert.Equal(t, int64(N), rowsAffected)
 	})
-	require.Len(t, spans, 1)
+	require.Len(t, spans, 2+N)
+
+	int64ptr := func(n int64) *int64 { return &n }
+
 	assert.Equal(t, "CREATE", spans[0].Name)
 	assert.Equal(t, "db", spans[0].Type)
 	assert.Equal(t, "sqlite3", spans[0].Subtype)
 	assert.Equal(t, "exec", spans[0].Action)
+	assert.Equal(t, &model.SpanContext{
+		Database: &model.DatabaseSpanContext{
+			Instance: ":memory:",
+			// Ideally RowsAffected would not be returned for DDL
+			// statements, but this is on the driver; it should
+			// be returning database/sql/driver.ResultNoRows for
+			// DDL statements, in which case we'll omit this.
+			RowsAffected: int64ptr(0),
+			Statement:    "CREATE TABLE foo (bar INT)",
+			Type:         "sql",
+		},
+	}, spans[0].Context)
+
+	for i := 0; i < N; i++ {
+		span := spans[i+1]
+		assert.Equal(t, "INSERT INTO foo", span.Name)
+		assert.Equal(t, &model.SpanContext{
+			Database: &model.DatabaseSpanContext{
+				Instance:     ":memory:",
+				RowsAffected: int64ptr(1),
+				Statement:    "INSERT INTO foo VALUES (?)",
+				Type:         "sql",
+			},
+		}, span.Context)
+	}
+
+	assert.Equal(t, "DELETE FROM foo", spans[N+1].Name)
+	assert.Equal(t, &model.SpanContext{
+		Database: &model.DatabaseSpanContext{
+			Instance:     ":memory:",
+			RowsAffected: int64ptr(N),
+			Statement:    "DELETE FROM foo",
+			Type:         "sql",
+		},
+	}, spans[N+1].Context)
 }
 
 func TestQueryContext(t *testing.T) {
