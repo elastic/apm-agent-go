@@ -167,6 +167,9 @@ pipeline {
           post {
             always {
               junit(allowEmptyResults: true, keepLongStdio: true, testResults: "${BASE_DIR}/build/junit-*.xml")
+              dir("${BASE_DIR}"){
+                bat script: 'scripts/jenkins/windows/uninstall-tools.bat', label: 'Uninstall tools'
+              }
               cleanWs(disableDeferredWipeout: true, notFailBuild: true)
             }
           }
