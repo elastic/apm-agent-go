@@ -314,6 +314,10 @@ type DatabaseSpanContext struct {
 	// Statement holds the database statement (e.g. query).
 	Statement string `json:"statement,omitempty"`
 
+	// RowsAffected holds the number of rows affected by the
+	// database operation.
+	RowsAffected *int64 `json:"rows_affected,omitempty"`
+
 	// Type holds the database type. For any SQL database,
 	// this should be "sql"; for others, the lower-cased
 	// database category, e.g. "cassandra", "hbase", "redis".

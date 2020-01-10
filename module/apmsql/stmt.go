@@ -64,9 +64,9 @@ func (s *stmt) ColumnConverter(idx int) driver.ValueConverter {
 	return driver.DefaultParameterConverter
 }
 
-func (s *stmt) ExecContext(ctx context.Context, args []driver.NamedValue) (_ driver.Result, resultError error) {
+func (s *stmt) ExecContext(ctx context.Context, args []driver.NamedValue) (result driver.Result, resultError error) {
 	span, ctx := s.startSpan(ctx, s.conn.driver.execSpanType)
-	defer s.conn.finishSpan(ctx, span, &resultError)
+	defer s.conn.finishSpan(ctx, span, &result, &resultError)
 	if s.stmtExecContext != nil {
 		return s.stmtExecContext.ExecContext(ctx, args)
 	}
@@ -84,7 +84,7 @@ func (s *stmt) ExecContext(ctx context.Context, args []driver.NamedValue) (_ dri
 
 func (s *stmt) QueryContext(ctx context.Context, args []driver.NamedValue) (_ driver.Rows, resultError error) {
 	span, ctx := s.startSpan(ctx, s.conn.driver.querySpanType)
-	defer s.conn.finishSpan(ctx, span, &resultError)
+	defer s.conn.finishSpan(ctx, span, nil, &resultError)
 	if s.stmtQueryContext != nil {
 		return s.stmtQueryContext.QueryContext(ctx, args)
 	}

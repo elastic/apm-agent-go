@@ -78,3 +78,50 @@ func benchmarkQueries(b *testing.B, ctx context.Context, stmt *sql.Stmt) {
 		rows.Close()
 	}
 }
+
+func BenchmarkStmtExecContext(b *testing.B) {
+	db, err := apmsql.Open("sqlite3", ":memory:")
+	require.NoError(b, err)
+	defer db.Close()
+
+	_, err = db.Exec("CREATE TABLE foo (bar INT)")
+	require.NoError(b, err)
+
+	stmt, err := db.Prepare("DELETE FROM foo")
+	require.NoError(b, err)
+	defer stmt.Close()
+
+	b.Run("baseline", func(b *testing.B) {
+		benchmarkExec(b, context.Background(), stmt)
+	})
+	b.Run("instrumented", func(b *testing.B) {
+		invalidServerURL, err := url.Parse("http://testing.invalid:8200")
+		if err != nil {
+			panic(err)
+		}
+		httpTransport, err := transport.NewHTTPTransport()
+		require.NoError(b, err)
+		httpTransport.SetServerURL(invalidServerURL)
+
+		tracer, err := apm.NewTracerOptions(apm.TracerOptions{
+			ServiceName:    "apmhttp_test",
+			ServiceVersion: "0.1",
+			Transport:      httpTransport,
+		})
+		require.NoError(b, err)
+		defer tracer.Close()
+
+		tracer.SetMaxSpans(b.N)
+		tx := tracer.StartTransaction("name", "type")
+		ctx := apm.ContextWithTransaction(context.Background(), tx)
+		benchmarkExec(b, ctx, stmt)
+	})
+}
+
+func benchmarkExec(b *testing.B, ctx context.Context, stmt *sql.Stmt) {
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := stmt.ExecContext(ctx)
+		require.NoError(b, err)
+	}
+}
