@@ -167,7 +167,6 @@ pipeline {
           post {
             always {
               junit(allowEmptyResults: true, keepLongStdio: true, testResults: "${BASE_DIR}/build/junit-*.xml")
-              cleanWs(disableDeferredWipeout: true, notFailBuild: true)
             }
           }
         }
