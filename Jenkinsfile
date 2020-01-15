@@ -228,6 +228,7 @@ pipeline {
         stage('Opbeans') {
           environment {
             REPO_NAME = "${OPBEANS_REPO}"
+            GO_VERSION = "${params.GO_VERSION}"
           }
           steps {
             deleteDir()
