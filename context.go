@@ -20,10 +20,21 @@ package apm
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"go.elastic.co/apm/internal/apmhttputil"
 	"go.elastic.co/apm/model"
 )
+
+// MessageContext holds details about the message that triggered a transaction.
+//
+// TODO(axw) document fields.
+type MessageContext struct {
+	QueueName string
+	Body      string
+	Headers   http.Header
+	Age       *time.Duration
+}
 
 // Context provides methods for setting transaction and error context.
 //
@@ -35,6 +46,7 @@ type Context struct {
 	requestSocket    model.RequestSocket
 	response         model.Response
 	user             model.User
+	message          model.Message
 	service          model.Service
 	serviceFramework model.Framework
 	captureHeaders   bool
@@ -46,6 +58,7 @@ func (c *Context) build() *model.Context {
 	case c.model.Request != nil:
 	case c.model.Response != nil:
 	case c.model.User != nil:
+	case c.model.Message != nil:
 	case c.model.Service != nil:
 	case len(c.model.Tags) != 0:
 	case len(c.model.Custom) != 0:
@@ -253,4 +266,29 @@ func (c *Context) SetUsername(username string) {
 	if c.user.Username != "" {
 		c.model.User = &c.user
 	}
+}
+
+// SetMessage records details of the message the triggered the transaction.
+func (c *Context) SetMessage(m MessageContext) {
+	c.message = model.Message{
+		QueueName: m.QueueName,
+		Body:      m.Body,
+		Age:       -1,
+	}
+	if c.captureHeaders {
+		// TODO(axw) make sure these headers are sanitised
+		for k, values := range m.Headers {
+			c.message.Headers = append(c.message.Headers, model.Header{
+				Key: k, Values: values,
+			})
+		}
+	}
+	if m.Age != nil {
+		if *m.Age <= 0 {
+			c.message.Age = 0
+		} else {
+			c.message.Age = int64(*m.Age / time.Millisecond)
+		}
+	}
+	c.model.Message = &c.message
 }

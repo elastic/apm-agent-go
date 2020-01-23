@@ -19,9 +19,11 @@ package apm_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -119,6 +121,57 @@ func TestSpanContextSetHTTPRequest(t *testing.T) {
 					Resource: tc.resource,
 				},
 			}, spans[0].Context.Destination)
+		})
+	}
+}
+
+func TestSpanContextSetMessage(t *testing.T) {
+	type testcase struct {
+		queueName string
+		age       time.Duration
+
+		expectedAgeMillis int64
+	}
+
+	testcases := []testcase{{
+		queueName:         "foo",
+		age:               -1, // Don't set age at all
+		expectedAgeMillis: -1,
+	}, {
+		queueName:         "bar",
+		age:               0,
+		expectedAgeMillis: 0,
+	}, {
+		age:               time.Millisecond * 5,
+		expectedAgeMillis: 5,
+	}, {
+		age:               -time.Second,
+		expectedAgeMillis: 0, // Negative ages are corrected to zero
+	}, {
+		queueName:         "baz",
+		age:               time.Microsecond * 2500,
+		expectedAgeMillis: 2,
+	}}
+
+	for i, tc := range testcases {
+		t.Run(fmt.Sprint(i), func(t *testing.T) {
+			_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+				span, _ := apm.StartSpan(ctx, "name", "type")
+				var age *time.Duration
+				if tc.age != -1 {
+					age = &tc.age
+				}
+				span.Context.SetMessage(apm.MessageSpanContext{
+					QueueName: tc.queueName,
+					Age:       age,
+				})
+				span.End()
+			})
+			require.Len(t, spans, 1)
+			assert.Equal(t, &model.Message{
+				QueueName: tc.queueName,
+				Age:       tc.expectedAgeMillis,
+			}, spans[0].Context.Message)
 		})
 	}
 }

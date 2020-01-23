@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"go.elastic.co/apm/internal/apmhttputil"
 	"go.elastic.co/apm/model"
@@ -35,6 +36,7 @@ type SpanContext struct {
 	databaseRowsAffected int64
 	database             model.DatabaseSpanContext
 	http                 model.HTTPSpanContext
+	message              model.Message
 }
 
 // DatabaseSpanContext holds database span context.
@@ -64,12 +66,23 @@ type DestinationServiceSpanContext struct {
 	Resource string
 }
 
+// MessageSpanContext holds messaging span context.
+type MessageSpanContext struct {
+	// QueueName holds the name of the queue or topic, which the message
+	// is sent to or received from.
+	QueueName string
+
+	// Age holds the message's age, if known.
+	Age *time.Duration
+}
+
 func (c *SpanContext) build() *model.SpanContext {
 	switch {
 	case len(c.model.Tags) != 0:
 	case c.model.Database != nil:
 	case c.model.HTTP != nil:
 	case c.model.Destination != nil:
+	case c.model.Message != nil:
 	default:
 		return nil
 	}
@@ -171,6 +184,20 @@ func (c *SpanContext) SetHTTPRequest(req *http.Request) {
 func (c *SpanContext) SetHTTPStatusCode(statusCode int) {
 	c.http.StatusCode = statusCode
 	c.model.HTTP = &c.http
+}
+
+// SetMessage sets the span context for messaging-related operations.
+func (c *SpanContext) SetMessage(m MessageSpanContext) {
+	c.message = model.Message{QueueName: m.QueueName, Age: -1}
+	if m.Age != nil {
+		if *m.Age <= 0 {
+			// Negative age is invalid, and may indicate clock skew.
+			c.message.Age = 0
+		} else {
+			c.message.Age = int64(*m.Age / time.Millisecond)
+		}
+	}
+	c.model.Message = &c.message
 }
 
 // SetDestinationAddress sets the destination address and port in the context.
