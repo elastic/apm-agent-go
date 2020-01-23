@@ -6,8 +6,8 @@ require (
 	github.com/mailru/easyjson v0.0.0-20180823135443-60711f1a8329 // indirect
 	github.com/olivere/elastic v6.2.16+incompatible
 	github.com/stretchr/testify v1.4.0
-	go.elastic.co/apm v1.6.0
-	go.elastic.co/apm/module/apmelasticsearch v1.6.0
+	go.elastic.co/apm v1.7.0
+	go.elastic.co/apm/module/apmelasticsearch v1.7.0
 )
 
 replace go.elastic.co/apm => ../../../..

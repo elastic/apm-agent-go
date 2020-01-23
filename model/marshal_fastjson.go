@@ -616,6 +616,16 @@ func (v *DatabaseSpanContext) MarshalFastJSON(w *fastjson.Writer) error {
 		}
 		w.String(v.Instance)
 	}
+	if v.RowsAffected != nil {
+		const prefix = ",\"rows_affected\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.Int64(*v.RowsAffected)
+	}
 	if v.Statement != "" {
 		const prefix = ",\"statement\":"
 		if first {

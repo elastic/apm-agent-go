@@ -29,11 +29,12 @@ import (
 
 // SpanContext provides methods for setting span context.
 type SpanContext struct {
-	model              model.SpanContext
-	destination        model.DestinationSpanContext
-	destinationService model.DestinationServiceSpanContext
-	database           model.DatabaseSpanContext
-	http               model.HTTPSpanContext
+	model                model.SpanContext
+	destination          model.DestinationSpanContext
+	destinationService   model.DestinationServiceSpanContext
+	databaseRowsAffected int64
+	database             model.DatabaseSpanContext
+	http                 model.HTTPSpanContext
 }
 
 // DatabaseSpanContext holds database span context.
@@ -118,6 +119,13 @@ func (c *SpanContext) SetDatabase(db DatabaseSpanContext) {
 		User:      truncateString(db.User),
 	}
 	c.model.Database = &c.database
+}
+
+// SetDatabaseRowsAffected records the number of rows affected by
+// a database operation.
+func (c *SpanContext) SetDatabaseRowsAffected(n int64) {
+	c.databaseRowsAffected = n
+	c.database.RowsAffected = &c.databaseRowsAffected
 }
 
 // SetHTTPRequest sets the details of the HTTP request in the context.

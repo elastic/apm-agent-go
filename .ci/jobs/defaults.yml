@@ -48,6 +48,7 @@
           recursive: true
           parent-credentials: true
           timeout: 100
+          reference-repo: /var/lib/jenkins/.git-references/apm-agent-go.git
         timeout: '15'
         use-author: true
         wipe-workspace: 'True'

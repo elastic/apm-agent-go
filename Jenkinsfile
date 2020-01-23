@@ -54,7 +54,7 @@ pipeline {
           steps {
             pipelineManager([ cancelPreviousRunningBuilds: [ when: 'PR' ] ])
             deleteDir()
-            gitCheckout(basedir: "${BASE_DIR}", githubNotifyFirstTimeContributor: true)
+            gitCheckout(basedir: "${BASE_DIR}", githubNotifyFirstTimeContributor: true, reference: '/var/lib/jenkins/.git-references/apm-agent-go.git')
             stash allowEmpty: true, name: 'source', useDefaultExcludes: false
           }
         }
@@ -167,10 +167,6 @@ pipeline {
           post {
             always {
               junit(allowEmptyResults: true, keepLongStdio: true, testResults: "${BASE_DIR}/build/junit-*.xml")
-              dir("${BASE_DIR}"){
-                bat script: 'scripts/jenkins/windows/uninstall-tools.bat', label: 'Uninstall tools'
-              }
-              cleanWs(disableDeferredWipeout: true, notFailBuild: true)
             }
           }
         }
@@ -232,6 +228,7 @@ pipeline {
         stage('Opbeans') {
           environment {
             REPO_NAME = "${OPBEANS_REPO}"
+            GO_VERSION = "${params.GO_VERSION}"
           }
           steps {
             deleteDir()
