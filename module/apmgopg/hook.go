@@ -31,7 +31,7 @@ import (
 )
 
 func init() {
-	stacktrace.RegisterLibraryPackage("github.com/go-pg/pg")
+	stacktrace.RegisterLibraryPackage("github.com/go-pg/pg/v9")
 }
 
 const elasticApmSpanKey = "go-apm-agent:span"
@@ -80,12 +80,12 @@ func (qh *queryHook) BeforeQuery(evt *pg.QueryEvent) {
 		User:     user,
 		Instance: database,
 	})
-	evt.Data[elasticApmSpanKey] = span
+	evt.Stash[elasticApmSpanKey] = span
 }
 
 // AfterQuery ends the initiated span from BeforeQuery
 func (qh *queryHook) AfterQuery(evt *pg.QueryEvent) {
-	span, ok := evt.Data[elasticApmSpanKey]
+	span, ok := evt.Stash[elasticApmSpanKey]
 	if !ok {
 		return
 	}
