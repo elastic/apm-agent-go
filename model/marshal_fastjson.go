@@ -510,6 +510,18 @@ func (v *SpanContext) MarshalFastJSON(w *fastjson.Writer) error {
 			firstErr = err
 		}
 	}
+	if v.Message != nil {
+		const prefix = ",\"message\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		if err := v.Message.MarshalFastJSON(w); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
 	if !v.Tags.isZero() {
 		const prefix = ",\"tags\":"
 		if first {
@@ -673,6 +685,18 @@ func (v *Context) MarshalFastJSON(w *fastjson.Writer) error {
 			w.RawString(prefix)
 		}
 		if err := v.Custom.MarshalFastJSON(w); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	if v.Message != nil {
+		const prefix = ",\"message\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		if err := v.Message.MarshalFastJSON(w); err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}

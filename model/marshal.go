@@ -630,6 +630,67 @@ func (s *MetricsSpan) isZero() bool {
 	return *s == MetricsSpan{}
 }
 
+// MarshalFastJSON writes the JSON representation of m to w.
+func (m *Message) MarshalFastJSON(w *fastjson.Writer) error {
+	w.RawByte('{')
+	before := w.Size()
+	if m.QueueName != "" {
+		w.RawString(`"queue":{"name":`)
+		w.String(m.QueueName)
+		w.RawByte('}')
+	}
+	if m.Body != "" {
+		if w.Size() > before {
+			w.RawByte(',')
+		}
+		w.RawString(`"body":`)
+		w.String(m.Body)
+	}
+	if !m.Headers.isZero() {
+		if w.Size() > before {
+			w.RawByte(',')
+		}
+		w.RawString(`"headers":`)
+		if err := m.Headers.MarshalFastJSON(w); err != nil {
+			return err
+		}
+	}
+	if m.Age >= 0 {
+		if w.Size() > before {
+			w.RawByte(',')
+		}
+		w.RawString(`"age": {"ms":`)
+		w.Int64(m.Age)
+		w.RawByte('}')
+	}
+	w.RawByte('}')
+	return nil
+}
+
+// UnmarshalJSON unmarshals the JSON data into m.
+func (m *Message) UnmarshalJSON(data []byte) error {
+	var message struct {
+		Queue   struct{ Name string }
+		Body    string
+		Headers Headers
+		Age     struct {
+			Millis int64 `json:"ms"`
+		}
+	}
+	message.Age.Millis = -1 // Indicates it wasn't set
+
+	if err := json.Unmarshal(data, &message); err != nil {
+		return err
+	}
+	*m = Message{
+		QueueName: message.Queue.Name,
+		Body:      message.Body,
+		Headers:   message.Headers,
+		Age:       message.Age.Millis,
+	}
+	return nil
+}
+
 func writeHex(w *fastjson.Writer, v []byte) {
 	const hextable = "0123456789abcdef"
 	for _, v := range v {

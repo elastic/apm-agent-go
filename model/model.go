@@ -273,6 +273,10 @@ type SpanContext struct {
 	// HTTP holds contextual information for HTTP client request spans.
 	HTTP *HTTPSpanContext `json:"http,omitempty"`
 
+	// Message holds contextual information for a message sent to or
+	// received from a queue/bus/etc.
+	Message *Message `json:"message,omitempty"`
+
 	// Tags holds user-defined key/value pairs.
 	Tags IfaceMap `json:"tags,omitempty"`
 }
@@ -349,6 +353,10 @@ type Context struct {
 	// transaction or error, if relevant.
 	Response *Response `json:"response,omitempty"`
 
+	// Message holds details of a message received from a queue/bus/etc.,
+	// which triggered the transaction.
+	Message *Message `json:"message,omitempty"`
+
 	// User holds details of the authenticated user relating to the
 	// transaction or error, if relevant.
 	User *User `json:"user,omitempty"`
@@ -371,6 +379,24 @@ type User struct {
 
 	// Email holds the email address of the user.
 	Email string `json:"email,omitempty"`
+}
+
+// Message holds information about a message, as in a message sent to or
+// received from a message queue.
+type Message struct {
+	// QueueName holds the name of the queue or topic which the message
+	// is being sent to, or has been received from.
+	QueueName string
+
+	// Body holds the message body.
+	Body string
+
+	// Headers holds message headers.
+	Headers Headers
+
+	// Age holds the message's age, in milliseconds. If negative,
+	// the value will be omitted.
+	Age int64
 }
 
 // Error represents an error occurring in the service.
