@@ -17,5 +17,5 @@
 
 // +build go1.11
 
-// Package apmgopg provides wrappers for tracing go-pg operations for v9 and above.
+// Package apmgopgv9 provides wrappers for tracing go-pg operations for v9 and above.
 package apmgopgv9

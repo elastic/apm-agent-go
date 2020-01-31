@@ -31,7 +31,7 @@ import (
 )
 
 func init() {
-	stacktrace.RegisterLibraryPackage("github.com/go-pg/pg")
+	stacktrace.RegisterLibraryPackage("github.com/go-pg/pg/v9")
 }
 
 const elasticApmSpanKey = "go-apm-agent:span"
