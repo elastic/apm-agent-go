@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// +build go1.11
+// +build go1.12
 
 // Package apmgopgv9 provides wrappers for tracing go-pg operations for v9.
 package apmgopgv9
