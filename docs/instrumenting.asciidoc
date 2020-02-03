@@ -386,7 +386,7 @@ func main() {
 
 [[builtin-modules-apmgopgv9]]
 ==== module/apmgopgv9
-Package apmgopgv9 provides a means of instrumenting http://github.com/go-pg/pg[go-pg] database operations for v9 and above.
+Package apmgopgv9 provides a means of instrumenting http://github.com/go-pg/pg[go-pg] database operations for v9.
 
 To trace `go-pg` statements, call `apmgopgv9.Instrument` with the database instance you plan on using and provide
 a context that contains an apm transaction.
