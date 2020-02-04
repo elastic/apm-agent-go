@@ -394,7 +394,7 @@ a context that contains an apm transaction.
 [source,go]
 ----
 import (
-	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/v9"
 
 	"go.elastic.co/apm/module/apmgopgv9"
 )
