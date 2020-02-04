@@ -20,6 +20,7 @@
 package apmgopgv9
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -54,7 +55,7 @@ func Instrument(db *pg.DB) error {
 type queryHook struct{}
 
 // BeforeQuery initiates the span for the database query
-func (qh *queryHook) BeforeQuery(evt *pg.QueryEvent) {
+func (qh *queryHook) BeforeQuery(ctx context.Context, evt *pg.QueryEvent) (context.Context, error) {
 	var (
 		database string
 		user     string
@@ -81,15 +82,18 @@ func (qh *queryHook) BeforeQuery(evt *pg.QueryEvent) {
 		Instance: database,
 	})
 	evt.Stash[elasticApmSpanKey] = span
+	return ctx, nil
 }
 
 // AfterQuery ends the initiated span from BeforeQuery
-func (qh *queryHook) AfterQuery(evt *pg.QueryEvent) {
+func (qh *queryHook) AfterQuery(_ context.Context, evt *pg.QueryEvent) error {
 	span, ok := evt.Stash[elasticApmSpanKey]
 	if !ok {
-		return
+		return fmt.Errorf("no span found")
 	}
 	if s, ok := span.(*apm.Span); ok {
 		s.End()
 	}
+
+	return nil
 }
