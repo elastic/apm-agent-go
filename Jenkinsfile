@@ -182,8 +182,7 @@ pipeline {
               deleteDir()
               unstash 'source'
               dir("${BASE_DIR}"){
-                sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
-                sh script: './scripts/jenkins/build-test.sh', label: 'Build and test'
+                buildAndTest()
               }
             }
           }
@@ -262,11 +261,7 @@ def generateStep(version){
         echo "${version}"
         dir("${BASE_DIR}"){
           withEnv(["GO_VERSION=${version}"]) {
-            retry(2) {
-              sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
-              sh script: './scripts/jenkins/build.sh', label: 'Build'
-            }
-            sh script: './scripts/jenkins/test.sh', label: 'Test'
+            buildAndTest()
           }
         }
       } catch(e){
@@ -290,4 +285,12 @@ def generateStepAndCatchError(version){
 
 def cleanDir(path){
   powershell label: "Clean ${path}", script: "Remove-Item -Recurse -Force ${path}"
+}
+
+def buildAndTest() {
+  retry(2) {
+    sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
+    sh script: './scripts/jenkins/build.sh', label: 'Build'
+  }
+  sh script: './scripts/jenkins/test.sh', label: 'Test'
 }
