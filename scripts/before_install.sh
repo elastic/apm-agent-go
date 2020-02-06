@@ -20,7 +20,7 @@ function pin() {
     url="https://$repo"
   fi
   mkdir -p "$orgdir"
-  (cd "$orgdir" && [ -d "${projname}" ] && rm -rf $projname)
+  (cd "$orgdir" && rm -rf $projname || true)
   (cd "$orgdir" && git clone "$url" && cd "${projname}" && git checkout $commit)
 }
 
