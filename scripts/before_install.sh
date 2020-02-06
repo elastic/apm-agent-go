@@ -20,7 +20,8 @@ function pin() {
     url="https://$repo"
   fi
   mkdir -p "$orgdir"
-  (cd "$orgdir" && git clone "$url" && cd $projname && git checkout $commit)
+  (cd "$orgdir" && [ -d "${projname}" ] && rm -rf $projname)
+  (cd "$orgdir" && git clone "$url" && cd "${projname}" && git checkout $commit)
 }
 
 if (! go run scripts/mingoversion.go 1.11 &>/dev/null); then
