@@ -35,8 +35,6 @@ func init() {
 	stacktrace.RegisterLibraryPackage("github.com/go-pg/pg/v9")
 }
 
-const elasticApmSpanKey = "go-apm-agent:span"
-
 // Instrument modifies db such that operations are hooked and reported as spans
 // to Elastic APM if they occur within the context of a captured transaction.
 //
@@ -72,7 +70,7 @@ func (qh *queryHook) BeforeQuery(ctx context.Context, evt *pg.QueryEvent) (conte
 		sql = fmt.Sprintf("[go-pg] error: %s", err.Error())
 	}
 
-	span, _ := apm.StartSpan(evt.DB.Context(), apmsql.QuerySignature(sql), "db.postgresql.query")
+	span, ctx := apm.StartSpan(ctx, apmsql.QuerySignature(sql), "db.postgresql.query")
 	span.Context.SetDatabase(apm.DatabaseSpanContext{
 		Statement: sql,
 
@@ -81,18 +79,13 @@ func (qh *queryHook) BeforeQuery(ctx context.Context, evt *pg.QueryEvent) (conte
 		User:     user,
 		Instance: database,
 	})
-	evt.Stash[elasticApmSpanKey] = span
 	return ctx, nil
 }
 
 // AfterQuery ends the initiated span from BeforeQuery
-func (qh *queryHook) AfterQuery(_ context.Context, evt *pg.QueryEvent) error {
-	span, ok := evt.Stash[elasticApmSpanKey]
-	if !ok {
-		return fmt.Errorf("no span found")
-	}
-	if s, ok := span.(*apm.Span); ok {
-		s.End()
+func (qh *queryHook) AfterQuery(ctx context.Context, evt *pg.QueryEvent) error {
+	if span := apm.SpanFromContext(ctx); span != nil {
+		span.End()
 	}
 
 	return nil
