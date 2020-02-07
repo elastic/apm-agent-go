@@ -16,6 +16,7 @@ that framework's API. The request context can be used for reporting <<custom-ins
 * <<builtin-modules-apmlambda>>
 * <<builtin-modules-apmsql>>
 * <<builtin-modules-apmgopg>>
+* <<builtin-modules-apmgopgv9>>
 * <<builtin-modules-apmgorm>>
 * <<builtin-modules-apmgocql>>
 * <<builtin-modules-apmredigo>>
@@ -378,6 +379,29 @@ import (
 func main() {
 	db := pg.Connect(&pg.Options{})
 	apmgopg.Instrument(db)
+
+	db.WithContext(ctx).Model(...)
+}
+----
+
+[[builtin-modules-apmgopgv9]]
+==== module/apmgopgv9
+Package apmgopgv9 provides a means of instrumenting http://github.com/go-pg/pg[go-pg] database operations for v9.
+
+To trace `go-pg` statements, call `apmgopgv9.Instrument` with the database instance you plan on using and provide
+a context that contains an apm transaction.
+
+[source,go]
+----
+import (
+	"github.com/go-pg/pg/v9"
+
+	"go.elastic.co/apm/module/apmgopgv9"
+)
+
+func main() {
+	db := pg.Connect(&pg.Options{})
+	apmgopgv9.Instrument(db)
 
 	db.WithContext(ctx).Model(...)
 }
