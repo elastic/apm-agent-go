@@ -548,5 +548,5 @@ adds trace context headers to outgoing HTTP requests made with <<builtin-modules
 These headers (`traceparent` and `tracestate`) are defined in the
 https://www.w3.org/TR/trace-context-1/[W3C Trace Context] specification.
 
-When this setting is `true`, the agent will also add the header `elasticapm-traceparent`
+When this setting is `true`, the agent will also add the header `elastic-apm-traceparent`
 for backwards compatibility with older versions of Elastic APM agents.
