@@ -24,7 +24,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/DATA-DOG/godog"
+	"github.com/cucumber/godog"
 
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/transport"

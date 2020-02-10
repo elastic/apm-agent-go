@@ -22,9 +22,9 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/DATA-DOG/godog"
-	"github.com/DATA-DOG/godog/colors"
-	"github.com/DATA-DOG/godog/gherkin"
+	"github.com/cucumber/godog"
+	"github.com/cucumber/godog/colors"
+	"github.com/cucumber/godog/gherkin"
 )
 
 // Run runs the Gherkin feature files specified in paths as Go subtests.

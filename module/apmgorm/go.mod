@@ -8,7 +8,6 @@ require (
 	go.elastic.co/apm v1.7.0
 	go.elastic.co/apm/module/apmsql v1.7.0
 	golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413 // indirect
-	google.golang.org/appengine v1.6.1 // indirect
 )
 
 replace go.elastic.co/apm => ../..
