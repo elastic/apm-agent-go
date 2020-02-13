@@ -154,6 +154,65 @@ func TestInternalStackTraceLimit(t *testing.T) {
 	}
 }
 
+func TestRuntimeStackTrace(t *testing.T) {
+	pc := make([]uintptr, 20)
+	n := runtime.Callers(1, pc)
+	pc = pc[:n]
+
+	modelError := sendError(t, &runtimeStackTracer{
+		message: "zing",
+		trace:   pc,
+	})
+
+	exception := modelError.Exception
+	stacktrace := exception.Stacktrace
+	assert.Equal(t, "zing", exception.Message)
+	assert.Equal(t, "go.elastic.co/apm_test", exception.Module)
+	assert.Equal(t, "runtimeStackTracer", exception.Type)
+	assert.Equal(t, 3, len(stacktrace))
+
+	frame := stacktrace[0]
+	assert.Equal(t, "go.elastic.co/apm_test", frame.Module)
+	assert.Equal(t, "error_test.go", frame.File)
+	assert.Equal(t, "TestRuntimeStackTrace", frame.Function)
+	assert.Greater(t, frame.Line, 0)
+}
+
+func TestRuntimeStackTraceLimit(t *testing.T) {
+	pc := make([]uintptr, 20)
+	n := runtime.Callers(1, pc)
+	pc = pc[:n]
+
+	funcsInStackTrace := []string{
+		"TestRuntimeStackTraceLimit",
+		"tRunner",
+		"goexit",
+	}
+
+	defer os.Unsetenv("ELASTIC_APM_STACK_TRACE_LIMIT")
+	for i := -1; i < n; i++ {
+		os.Setenv("ELASTIC_APM_STACK_TRACE_LIMIT", strconv.Itoa(i))
+		modelError := sendError(t, &runtimeStackTracer{
+			message: "zing",
+			trace:   pc,
+		})
+		stacktrace := modelError.Exception.Stacktrace
+		if i == 0 {
+			assert.Nil(t, stacktrace)
+			continue
+		}
+
+		expect := funcsInStackTrace
+		if i > 0 {
+			expect = expect[:i]
+		}
+		assert.Equal(t, len(expect), len(stacktrace))
+		for i, funcName := range expect {
+			assert.Equal(t, funcName, stacktrace[i].Function)
+		}
+	}
+}
+
 func TestErrorAutoStackTraceReuse(t *testing.T) {
 	tracer, r := transporttest.NewRecorderTracer()
 	defer tracer.Close()
@@ -599,4 +658,17 @@ func (es errorslice) Error() string {
 
 func (es errorslice) Cause() error {
 	return es[0]
+}
+
+type runtimeStackTracer struct {
+	message string
+	trace   []uintptr
+}
+
+func (rst runtimeStackTracer) Error() string {
+	return rst.message
+}
+
+func (rst runtimeStackTracer) StackTrace() *runtime.Frames {
+	return runtime.CallersFrames(rst.trace)
 }
