@@ -200,24 +200,35 @@ func TestStatementGetBodyErrors(t *testing.T) {
 		runTest(t, func() (io.ReadCloser, error) { return nil, errors.New("nope") })
 	})
 	t.Run("Read", func(t *testing.T) {
-		rc := errorReadCloser{readError: errors.New("Read failed")}
+		rc := readCloser{Reader: errorReader{errors.New("Read failed")}}
 		runTest(t, func() (io.ReadCloser, error) { return &rc, nil })
 		assert.True(t, rc.closed)
 	})
 	t.Run("Close", func(t *testing.T) {
-		rc := errorReadCloser{}
+		rc := readCloser{}
 		runTest(t, func() (io.ReadCloser, error) { return &rc, nil })
 		assert.True(t, rc.closed)
 	})
 }
 
 func TestStatementBodyReadError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {}))
-	defer server.Close()
-	client := &http.Client{Transport: apmelasticsearch.WrapRoundTripper(http.DefaultTransport)}
+	// Use a custom RoundTripper to check that the request body is passed
+	// on unharmed, including the error, when the instrumentation receives
+	// an error reading from it to capture the search body.
+	const contentLength = 5
+	readErr := errors.New("Read failed")
+	var roundTripper roundTripperFunc = func(req *http.Request) (*http.Response, error) {
+		defer req.Body.Close()
+		data, err := ioutil.ReadAll(req.Body)
+		require.EqualError(t, err, readErr.Error())
+		assert.Equal(t, strings.Repeat("!", contentLength), string(data))
+		return nil, err
+	}
+	client := &http.Client{Transport: apmelasticsearch.WrapRoundTripper(roundTripper)}
 
-	rc := errorReadCloser{readError: errors.New("Read failed")}
-	req, _ := http.NewRequest("GET", server.URL+"/twitter/_search", &rc)
+	rc := readCloser{Reader: errorReader{readErr}}
+	req, _ := http.NewRequest("GET", "http://testing.invalid/twitter/_search", &rc)
+	req.ContentLength = contentLength
 	_, spans, errs := apmtest.WithTransaction(func(ctx context.Context) {
 		_, err := client.Do(req.WithContext(ctx))
 		require.Error(t, err)
@@ -292,22 +303,39 @@ func TestDestination(t *testing.T) {
 	test("http://[2001:db8::1]:80/_search", "2001:db8::1", 80)
 }
 
-type errorReadCloser struct {
-	readError error
-	closed    bool
+type readCloser struct {
+	io.Reader
+	closed bool
 }
 
-func (r *errorReadCloser) Read(p []byte) (int, error) {
-	if r.readError != nil {
-		copy(p, bytes.Repeat([]byte("!"), len(p)))
-		return len(p), r.readError
+func (r *readCloser) Read(p []byte) (int, error) {
+	if r.Reader != nil {
+		return r.Reader.Read(p)
 	}
 	return len(p), nil
 }
 
-func (r *errorReadCloser) Close() error {
+func (r *readCloser) Close() error {
 	r.closed = true
 	return errors.New("Close failed")
+}
+
+type errorReader struct {
+	err error
+}
+
+func (e errorReader) Read(p []byte) (int, error) {
+	if e.err != nil {
+		copy(p, bytes.Repeat([]byte("!"), len(p)))
+		return len(p), e.err
+	}
+	return len(p), nil
+}
+
+type readerFunc func(p []byte) (int, error)
+
+func (f readerFunc) Read(p []byte) (int, error) {
+	return f(p)
 }
 
 type roundTripperFunc func(*http.Request) (*http.Response, error)
