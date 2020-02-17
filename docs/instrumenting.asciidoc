@@ -59,7 +59,7 @@ the echo/middleware.Recover middleware.
 
 [[builtin-modules-apmgin]]
 ==== module/apmgin
-Package apmgin provides middleware for the https://gin-gonic.github.io/gin/[Gin] web framework.
+Package apmgin provides middleware for the https://github.com/gin-gonic/gin[Gin] web framework.
 
 For each request, a transaction is stored in the request context, which can be obtained via
 https://godoc.org/github.com/gin-gonic/gin#Context[gin.Context]`.Request.Context()` in your handler.
