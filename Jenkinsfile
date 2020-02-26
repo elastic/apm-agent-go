@@ -261,7 +261,12 @@ def generateStep(version){
         echo "${version}"
         dir("${BASE_DIR}"){
           withEnv(["GO_VERSION=${version}"]) {
-            sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
+            // Another retry in case there are any environmental issues
+            // See https://issuetracker.google.com/issues/146072599 for more context
+            retry(2) {
+              sleep randomNumber(min: 2, max: 5)
+              sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
+            }
             sh script: './scripts/jenkins/build-test.sh', label: 'Build and test'
           }
         }
