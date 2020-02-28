@@ -209,7 +209,7 @@ pipeline {
       }
       steps {
         build(job: env.ITS_PIPELINE, propagate: false, wait: false,
-              parameters: [string(name: 'AGENT_INTEGRATION_TEST', value: 'Go'),
+              parameters: [string(name: 'INTEGRATION_TEST', value: 'Go'),
                            string(name: 'BUILD_OPTS', value: "--go-agent-version ${env.GIT_BASE_COMMIT} --opbeans-go-agent-branch ${env.GIT_BASE_COMMIT}"),
                            string(name: 'GITHUB_CHECK_NAME', value: env.GITHUB_CHECK_ITS_NAME),
                            string(name: 'GITHUB_CHECK_REPO', value: env.REPO),
