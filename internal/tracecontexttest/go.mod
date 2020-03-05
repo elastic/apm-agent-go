@@ -1,6 +1,6 @@
 module tracecontexttest
 
-require go.elastic.co/apm/module/apmhttp v1.7.0
+require go.elastic.co/apm/module/apmhttp v1.7.1
 
 replace go.elastic.co/apm => ../..
 
