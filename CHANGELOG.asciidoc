@@ -23,6 +23,8 @@ endif::[]
 
 https://github.com/elastic/apm-agent-go/compare/v1.7.0...master[View commits]
 
+- Fix segfault on 32-bit architectures {pull}728[(#728)]
+
 [[release-notes-1.x]]
 === Go Agent version 1.x
 
