@@ -21,10 +21,17 @@ endif::[]
 [[unreleased]]
 === Unreleased
 
-https://github.com/elastic/apm-agent-go/compare/v1.7.0...master[View commits]
+https://github.com/elastic/apm-agent-go/compare/v1.7.1...master[View commits]
 
 [[release-notes-1.x]]
 === Go Agent version 1.x
+
+[[release-notes-1.7.1]]
+==== 1.7.1 - 2020/03/05
+
+https://github.com/elastic/apm-agent-go/releases/tag/v1.7.1[View release]
+
+- Fix segfault on 32-bit architectures {pull}728[(#728)]
 
 [[release-notes-1.7.0]]
 ==== 1.7.0 - 2020/01/10

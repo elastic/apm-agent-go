@@ -4,7 +4,7 @@
 The Elastic APM Go Agent enables you to trace the execution of operations in your https://golang.org/[Go]
 applications, sending performance metrics and errors to the Elastic APM server.
 It has built-in support for popular frameworks and toolkits,
-like http://www.gorillatoolkit.org/[Gorilla] and https://gin-gonic.github.io/gin/[Gin],
+like http://www.gorillatoolkit.org/[Gorilla] and https://gin-gonic.com/[Gin],
 as well as support for instrumenting Go's built-in https://golang.org/pkg/net/http/[net/http],
 https://golang.org/pkg/database/sql/[database/sql] drivers.
 The Agent also offers an <<api>> for custom instrumentation.

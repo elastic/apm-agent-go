@@ -93,6 +93,7 @@ in your controller.
 import (
 	"github.com/astaxie/beego"
 
+	"go.elastic.co/apm"
 	"go.elastic.co/apm/module/apmbeego"
 )
 
@@ -105,8 +106,8 @@ func (c *thingController) Get() {
 }
 
 func main() {
-	beego.Router("/", &testController{})
-	beego.Router("/thing/:id:int", &testController{}, "get:Get")
+	beego.Router("/", &thingController{})
+	beego.Router("/thing/:id:int", &thingController{}, "get:Get")
 	beego.RunWithMiddleWares("localhost:8080", apmbeego.Middleware())
 }
 ----
