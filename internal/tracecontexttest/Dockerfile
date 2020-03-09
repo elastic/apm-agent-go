@@ -1,4 +1,4 @@
-FROM golang:latest
+FROM golang:1.13
 ADD . /go/src/go.elastic.co/apm
 ENV GO111MODULE=on
 ENV GOPROXY=https://proxy.golang.org
