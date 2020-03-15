@@ -2,7 +2,7 @@ module go.elastic.co/apm
 
 require (
 	github.com/armon/go-radix v1.0.0
-	github.com/cucumber/godog v0.8.0
+	github.com/cucumber/godog v0.8.1
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/elastic/go-sysinfo v1.1.1
 	github.com/google/go-cmp v0.3.1
