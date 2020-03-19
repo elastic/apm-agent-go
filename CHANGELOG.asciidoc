@@ -21,10 +21,15 @@ endif::[]
 [[unreleased]]
 === Unreleased
 
-https://github.com/elastic/apm-agent-go/compare/v1.7.1...master[View commits]
+https://github.com/elastic/apm-agent-go/compare/v1.7.2...master[View commits]
 
 [[release-notes-1.x]]
 === Go Agent version 1.x
+
+[[release-notes-1.7.2]]
+==== 1.7.2 - 2020/03/19
+
+- Update cucumber/godog to 0.8.1 {pull}733[(#733)]
 
 [[release-notes-1.7.1]]
 ==== 1.7.1 - 2020/03/05
