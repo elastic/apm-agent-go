@@ -87,7 +87,7 @@ func (c *Core) With(fields []zapcore.Field) zapcore.Core {
 
 // Check checks if the entry should be logged, and adds c to checked if so.
 func (c *Core) Check(entry zapcore.Entry, checked *zapcore.CheckedEntry) *zapcore.CheckedEntry {
-	if entry.Level < zapcore.ErrorLevel || !c.tracer().Active() {
+	if entry.Level < zapcore.ErrorLevel || !c.tracer().Recording() {
 		return checked
 	}
 	return checked.AddCore(entry, c)
@@ -122,7 +122,7 @@ func (c *contextCore) With(fields []zapcore.Field) zapcore.Core {
 }
 
 func (c *contextCore) Check(entry zapcore.Entry, checked *zapcore.CheckedEntry) *zapcore.CheckedEntry {
-	if entry.Level < zapcore.ErrorLevel || !c.core.tracer().Active() {
+	if entry.Level < zapcore.ErrorLevel || !c.core.tracer().Recording() {
 		return checked
 	}
 	return checked.AddCore(entry, c)

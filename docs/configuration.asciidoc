@@ -213,6 +213,20 @@ Enable or disable the agent. If set to false, then the Go agent does not send
 any data to the Elastic APM server, and instrumentation overhead is minimized.
 
 [float]
+[[config-recording]]
+=== `ELASTIC_APM_RECORDING`
+
+[options="header"]
+|============
+| Environment             | Default | Example
+| `ELASTIC_APM_RECORDING` | true    | `false`
+|============
+
+Enable or disable recording of events. If set to false, then the Go agent does
+send any events to the Elastic APM server, and instrumentation overhead is
+minimized, but the agent will continue to poll the server for configuration changes.
+
+[float]
 [[config-global-labels]]
 === `ELASTIC_APM_GLOBAL_LABELS`
 

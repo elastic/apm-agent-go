@@ -244,6 +244,22 @@ func TestErrorNilError(t *testing.T) {
 	assert.EqualError(t, e, "")
 }
 
+func TestErrorNotRecording(t *testing.T) {
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+	tracer.SetRecording(false)
+
+	e := tracer.NewError(errors.New("boom"))
+	require.NotNil(t, e)
+	require.NotNil(t, e.ErrorData)
+	e.Send()
+	require.Nil(t, e.ErrorData)
+	tracer.Flush(nil)
+
+	payloads := tracer.Payloads()
+	require.Empty(t, payloads.Errors)
+}
+
 func TestErrorTransactionSampled(t *testing.T) {
 	_, _, errors := apmtest.WithTransaction(func(ctx context.Context) {
 		apm.TransactionFromContext(ctx).Type = "foo"

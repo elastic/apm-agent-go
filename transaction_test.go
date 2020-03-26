@@ -156,6 +156,25 @@ func TestTransactionContextNotSampled(t *testing.T) {
 	assert.Nil(t, payloads.Transactions[0].Context)
 }
 
+func TestTransactionNotRecording(t *testing.T) {
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+	tracer.SetRecording(false)
+	tracer.SetSampler(samplerFunc(func(apm.TraceContext) bool {
+		panic("should not be called")
+	}))
+
+	tx := tracer.StartTransaction("name", "type")
+	require.NotNil(t, tx)
+	require.NotNil(t, tx.TransactionData)
+	tx.End()
+	require.Nil(t, tx.TransactionData)
+	tracer.Flush(nil)
+
+	payloads := tracer.Payloads()
+	require.Empty(t, payloads.Transactions)
+}
+
 func BenchmarkTransaction(b *testing.B) {
 	tracer, err := apm.NewTracer("service", "")
 	require.NoError(b, err)

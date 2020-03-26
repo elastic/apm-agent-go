@@ -69,7 +69,7 @@ type routeInfo struct {
 }
 
 func (m *middleware) handle(c *gin.Context) {
-	if !m.tracer.Active() || m.requestIgnorer(c.Request) {
+	if !m.tracer.Recording() || m.requestIgnorer(c.Request) {
 		c.Next()
 		return
 	}

@@ -53,8 +53,20 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 	}
 	tx := &Transaction{tracer: t, TransactionData: td}
 
-	tx.Name = name
-	tx.Type = transactionType
+	// Take a snapshot of config that should apply to all spans within the
+	// transaction.
+	instrumentationConfig := t.instrumentationConfig()
+	tx.recording = instrumentationConfig.recording
+	if !tx.recording {
+		return tx
+	}
+
+	tx.maxSpans = instrumentationConfig.maxSpans
+	tx.spanFramesMinDuration = instrumentationConfig.spanFramesMinDuration
+	tx.stackTraceLimit = instrumentationConfig.stackTraceLimit
+	tx.Context.captureHeaders = instrumentationConfig.captureHeaders
+	tx.propagateLegacyHeader = instrumentationConfig.propagateLegacyHeader
+	tx.breakdownMetricsEnabled = t.breakdownMetrics.enabled
 
 	var root bool
 	if opts.TraceContext.Trace.Validate() == nil {
@@ -84,16 +96,6 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 		}
 	}
 
-	// Take a snapshot of config that should apply to all spans within the
-	// transaction.
-	instrumentationConfig := t.instrumentationConfig()
-	tx.maxSpans = instrumentationConfig.maxSpans
-	tx.spanFramesMinDuration = instrumentationConfig.spanFramesMinDuration
-	tx.stackTraceLimit = instrumentationConfig.stackTraceLimit
-	tx.Context.captureHeaders = instrumentationConfig.captureHeaders
-	tx.breakdownMetricsEnabled = t.breakdownMetrics.enabled
-	tx.propagateLegacyHeader = instrumentationConfig.propagateLegacyHeader
-
 	if root {
 		sampler := instrumentationConfig.sampler
 		if sampler == nil || sampler.Sample(tx.traceContext) {
@@ -108,6 +110,9 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 		// applications may end up being sampled at a very high rate.
 		tx.traceContext.Options = opts.TraceContext.Options
 	}
+
+	tx.Name = name
+	tx.Type = transactionType
 	tx.timestamp = opts.Start
 	if tx.timestamp.IsZero() {
 		tx.timestamp = time.Now()
@@ -234,10 +239,14 @@ func (tx *Transaction) End() {
 	if tx.ended() {
 		return
 	}
-	if tx.Duration < 0 {
-		tx.Duration = time.Since(tx.timestamp)
+	if tx.recording {
+		if tx.Duration < 0 {
+			tx.Duration = time.Since(tx.timestamp)
+		}
+		tx.enqueue()
+	} else {
+		tx.reset(tx.tracer)
 	}
-	tx.enqueue()
 	tx.TransactionData = nil
 }
 
@@ -291,6 +300,7 @@ type TransactionData struct {
 	// Result holds the transaction result.
 	Result string
 
+	recording               bool
 	maxSpans                int
 	spanFramesMinDuration   time.Duration
 	stackTraceLimit         int

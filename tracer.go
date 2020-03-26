@@ -108,6 +108,7 @@ type TracerOptions struct {
 	spanFramesMinDuration time.Duration
 	stackTraceLimit       int
 	active                bool
+	recording             bool
 	configWatcher         apmconfig.Watcher
 	breakdownMetrics      bool
 	propagateLegacyHeader bool
@@ -192,6 +193,11 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 		active = true
 	}
 
+	recording, err := initialRecording()
+	if failed(err) {
+		recording = true
+	}
+
 	centralConfigEnabled, err := initialCentralConfigEnabled()
 	if failed(err) {
 		centralConfigEnabled = true
@@ -246,6 +252,7 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 	opts.spanFramesMinDuration = spanFramesMinDuration
 	opts.stackTraceLimit = stackTraceLimit
 	opts.active = active
+	opts.recording = recording
 	opts.propagateLegacyHeader = propagateLegacyHeader
 	if opts.Transport == nil {
 		opts.Transport = transport.Default
@@ -379,6 +386,9 @@ func newTracer(opts TracerOptions) *Tracer {
 	t.breakdownMetrics.enabled = opts.breakdownMetrics
 
 	// Initialise local transaction config.
+	t.setLocalInstrumentationConfig(envRecording, func(cfg *instrumentationConfigValues) {
+		cfg.recording = opts.recording
+	})
 	t.setLocalInstrumentationConfig(envCaptureBody, func(cfg *instrumentationConfigValues) {
 		cfg.captureBody = opts.captureBody
 	})
@@ -409,6 +419,7 @@ func newTracer(opts TracerOptions) *Tracer {
 
 	go t.loop()
 	t.configCommands <- func(cfg *tracerConfig) {
+		cfg.recording = opts.recording
 		cfg.cpuProfileInterval = opts.cpuProfileInterval
 		cfg.cpuProfileDuration = opts.cpuProfileDuration
 		cfg.heapProfileInterval = opts.heapProfileInterval
@@ -433,6 +444,7 @@ func newTracer(opts TracerOptions) *Tracer {
 // tracerConfig holds the tracer's runtime configuration, which may be modified
 // by sending a tracerConfigCommand to the tracer's configCommands channel.
 type tracerConfig struct {
+	recording               bool
 	requestSize             int
 	requestDuration         time.Duration
 	metricsInterval         time.Duration
@@ -474,6 +486,15 @@ func (t *Tracer) Flush(abort <-chan struct{}) {
 		}
 	case <-t.closed:
 	}
+}
+
+// Recording reports whether the tracer is recording events. Instrumentation
+// may use this to avoid creating transactions, spans, and metrics when the
+// tracer is configured to not record.
+//
+// Recording will also return false if the tracer is inactive.
+func (t *Tracer) Recording() bool {
+	return t.instrumentationConfig().recording && t.Active()
 }
 
 // Active reports whether the tracer is active. If the tracer is inactive,
@@ -594,6 +615,21 @@ func (t *Tracer) sendConfigCommand(cmd tracerConfigCommand) {
 	case <-t.closing:
 	case <-t.closed:
 	}
+}
+
+// SetRecording enables or disables recording of future events.
+//
+// SetRecording does not affect in-flight events.
+func (t *Tracer) SetRecording(r bool) {
+	t.setLocalInstrumentationConfig(envRecording, func(cfg *instrumentationConfigValues) {
+		// Update instrumentation config to disable transactions and errors.
+		cfg.recording = r
+	})
+	t.sendConfigCommand(func(cfg *tracerConfig) {
+		// Consult t.instrumentationConfig() as local config may not be in effect,
+		// or there may have been a concurrent change to instrumentation config.
+		cfg.recording = t.instrumentationConfig().recording
+	})
 }
 
 // SetSampler sets the sampler the tracer.
@@ -763,6 +799,46 @@ func (t *Tracer) loop() {
 		stats:         &stats,
 	}
 
+	handleTracerConfigCommand := func(cmd tracerConfigCommand) {
+		var oldMetricsInterval time.Duration
+		if cfg.recording {
+			oldMetricsInterval = cfg.metricsInterval
+		}
+		cmd(&cfg)
+		var metricsInterval, cpuProfileInterval, cpuProfileDuration, heapProfileInterval time.Duration
+		if cfg.recording {
+			metricsInterval = cfg.metricsInterval
+			cpuProfileInterval = cfg.cpuProfileInterval
+			cpuProfileDuration = cfg.cpuProfileDuration
+			heapProfileInterval = cfg.heapProfileInterval
+		}
+
+		cpuProfilingState.updateConfig(cpuProfileInterval, cpuProfileDuration)
+		heapProfilingState.updateConfig(heapProfileInterval, 0)
+		if !gatheringMetrics && metricsInterval != oldMetricsInterval {
+			if metricsTimerStart.IsZero() {
+				if metricsInterval > 0 {
+					metricsTimer.Reset(metricsInterval)
+					metricsTimerStart = time.Now()
+				}
+			} else {
+				if metricsInterval <= 0 {
+					metricsTimerStart = time.Time{}
+					if !metricsTimer.Stop() {
+						<-metricsTimer.C
+					}
+				} else {
+					alreadyPassed := time.Since(metricsTimerStart)
+					if alreadyPassed >= metricsInterval {
+						metricsTimer.Reset(0)
+					} else {
+						metricsTimer.Reset(metricsInterval - alreadyPassed)
+					}
+				}
+			}
+		}
+	}
+
 	for {
 		var gatherMetrics bool
 		select {
@@ -771,32 +847,7 @@ func (t *Tracer) loop() {
 			iochanReader.CloseRead(io.EOF)
 			return
 		case cmd := <-t.configCommands:
-			oldMetricsInterval := cfg.metricsInterval
-			cmd(&cfg)
-			cpuProfilingState.updateConfig(cfg.cpuProfileInterval, cfg.cpuProfileDuration)
-			heapProfilingState.updateConfig(cfg.heapProfileInterval, 0)
-			if !gatheringMetrics && cfg.metricsInterval != oldMetricsInterval {
-				if metricsTimerStart.IsZero() {
-					if cfg.metricsInterval > 0 {
-						metricsTimer.Reset(cfg.metricsInterval)
-						metricsTimerStart = time.Now()
-					}
-				} else {
-					if cfg.metricsInterval <= 0 {
-						metricsTimerStart = time.Time{}
-						if !metricsTimer.Stop() {
-							<-metricsTimer.C
-						}
-					} else {
-						alreadyPassed := time.Since(metricsTimerStart)
-						if alreadyPassed >= cfg.metricsInterval {
-							metricsTimer.Reset(0)
-						} else {
-							metricsTimer.Reset(cfg.metricsInterval - alreadyPassed)
-						}
-					}
-				}
-			}
+			handleTracerConfigCommand(cmd)
 			continue
 		case cw := <-t.configWatcher:
 			if configChanges != nil {
@@ -833,6 +884,9 @@ func (t *Tracer) loop() {
 			} else {
 				t.updateRemoteConfig(cfg.logger, lastConfigChange, change.Attrs)
 				lastConfigChange = change.Attrs
+				handleTracerConfigCommand(func(cfg *tracerConfig) {
+					cfg.recording = t.instrumentationConfig().recording
+				})
 			}
 			continue
 		case event := <-t.events:
@@ -859,18 +913,20 @@ func (t *Tracer) loop() {
 			metricsTimerStart = time.Time{}
 			gatherMetrics = !gatheringMetrics
 		case sentMetrics = <-t.forceSendMetrics:
-			if !metricsTimerStart.IsZero() {
-				if !metricsTimer.Stop() {
-					<-metricsTimer.C
+			if cfg.recording {
+				if !metricsTimerStart.IsZero() {
+					if !metricsTimer.Stop() {
+						<-metricsTimer.C
+					}
+					metricsTimerStart = time.Time{}
 				}
-				metricsTimerStart = time.Time{}
+				gatherMetrics = !gatheringMetrics
 			}
-			gatherMetrics = !gatheringMetrics
 		case <-gatheredMetrics:
 			modelWriter.writeMetrics(&metrics)
 			gatheringMetrics = false
 			flushRequest = true
-			if cfg.metricsInterval > 0 {
+			if cfg.recording && cfg.metricsInterval > 0 {
 				metricsTimerStart = time.Now()
 				metricsTimer.Reset(cfg.metricsInterval)
 			}

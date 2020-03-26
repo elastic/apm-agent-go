@@ -92,10 +92,12 @@ func (t *Tracer) NewError(err error) *Error {
 	e := t.newError()
 	e.cause = err
 	e.err = err.Error()
-	rand.Read(e.ID[:]) // ignore error, can't do anything about it
-	initException(&e.exception, err, e.stackTraceLimit)
-	if len(e.exception.stacktrace) == 0 {
-		e.SetStacktrace(2)
+	if e.recording {
+		rand.Read(e.ID[:]) // ignore error, can't do anything about it
+		initException(&e.exception, err, e.stackTraceLimit)
+		if len(e.exception.stacktrace) == 0 {
+			e.SetStacktrace(2)
+		}
 	}
 	return e
 }
@@ -108,20 +110,22 @@ func (t *Tracer) NewError(err error) *Error {
 // If r.Message is empty, "[EMPTY]" will be used.
 func (t *Tracer) NewErrorLog(r ErrorLogRecord) *Error {
 	e := t.newError()
-	e.log = ErrorLogRecord{
-		Message:       truncateString(r.Message),
-		MessageFormat: truncateString(r.MessageFormat),
-		Level:         truncateString(r.Level),
-		LoggerName:    truncateString(r.LoggerName),
-	}
-	if e.log.Message == "" {
-		e.log.Message = "[EMPTY]"
-	}
 	e.cause = r.Error
 	e.err = e.log.Message
-	rand.Read(e.ID[:]) // ignore error, can't do anything about it
-	if r.Error != nil {
-		initException(&e.exception, r.Error, e.stackTraceLimit)
+	if e.recording {
+		e.log = ErrorLogRecord{
+			Message:       truncateString(r.Message),
+			MessageFormat: truncateString(r.MessageFormat),
+			Level:         truncateString(r.Level),
+			LoggerName:    truncateString(r.LoggerName),
+		}
+		if e.log.Message == "" {
+			e.log.Message = "[EMPTY]"
+		}
+		rand.Read(e.ID[:]) // ignore error, can't do anything about it
+		if r.Error != nil {
+			initException(&e.exception, r.Error, e.stackTraceLimit)
+		}
 	}
 	return e
 }
@@ -137,11 +141,14 @@ func (t *Tracer) newError() *Error {
 			},
 		}
 	}
-	e.Timestamp = time.Now()
 
 	instrumentationConfig := t.instrumentationConfig()
-	e.Context.captureHeaders = instrumentationConfig.captureHeaders
-	e.stackTraceLimit = instrumentationConfig.stackTraceLimit
+	e.recording = instrumentationConfig.recording
+	if e.recording {
+		e.Timestamp = time.Now()
+		e.Context.captureHeaders = instrumentationConfig.captureHeaders
+		e.stackTraceLimit = instrumentationConfig.stackTraceLimit
+	}
 
 	return &Error{ErrorData: e}
 }
@@ -166,6 +173,7 @@ type Error struct {
 // When the error is sent, its ErrorData field will be set to nil.
 type ErrorData struct {
 	tracer             *Tracer
+	recording          bool
 	stackTraceLimit    int
 	exception          exceptionData
 	log                ErrorLogRecord
@@ -306,7 +314,11 @@ func (e *Error) Send() {
 	if e == nil || e.sent() {
 		return
 	}
-	e.ErrorData.enqueue()
+	if e.recording {
+		e.ErrorData.enqueue()
+	} else {
+		e.reset()
+	}
 	e.ErrorData = nil
 }
 

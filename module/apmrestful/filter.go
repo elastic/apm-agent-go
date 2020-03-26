@@ -51,7 +51,7 @@ type filter struct {
 }
 
 func (f *filter) filter(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
-	if !f.tracer.Active() || f.requestIgnorer(req.Request) {
+	if !f.tracer.Recording() || f.requestIgnorer(req.Request) {
 		chain.ProcessFilter(req, resp)
 		return
 	}

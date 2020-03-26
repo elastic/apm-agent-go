@@ -66,7 +66,7 @@ type middleware struct {
 
 func (m *middleware) handle(c echo.Context) error {
 	req := c.Request()
-	if !m.tracer.Active() || m.requestIgnorer(req) {
+	if !m.tracer.Recording() || m.requestIgnorer(req) {
 		return m.handler(c)
 	}
 	name := req.Method + " " + c.Path()

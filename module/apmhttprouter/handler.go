@@ -38,7 +38,7 @@ import (
 func Wrap(h httprouter.Handle, route string, o ...Option) httprouter.Handle {
 	opts := gatherOptions(o...)
 	return func(w http.ResponseWriter, req *http.Request, p httprouter.Params) {
-		if !opts.tracer.Active() || opts.requestIgnorer(req) {
+		if !opts.tracer.Recording() || opts.requestIgnorer(req) {
 			h(w, req, p)
 			return
 		}
