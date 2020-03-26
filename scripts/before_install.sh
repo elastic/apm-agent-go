@@ -26,6 +26,7 @@ function pin() {
 if (! go run scripts/mingoversion.go 1.11 &>/dev/null); then
   pin github.com/gin-gonic/gin v1.3.0
   pin github.com/stretchr/testify v1.4.0
+  pin github.com/cucumber/godog v0.8.0
 fi
 
 if (! go run scripts/mingoversion.go 1.10 &>/dev/null); then
