@@ -30,11 +30,6 @@ import (
 	"go.elastic.co/apm/transport"
 )
 
-const (
-	aSecretToken = "a_secret_token"
-	anAPIKey     = "an_api_key"
-)
-
 type featureContext struct {
 	apiKey      string
 	secretToken string
@@ -47,12 +42,9 @@ func InitContext(s *godog.Suite) {
 
 	s.Step("^an agent$", c.anAgent)
 	s.Step("^an api key is not set in the config$", func() error { return nil })
-	s.Step("^an api key is set in the config$", func() error { return c.setAPIKey(anAPIKey) })
 	s.Step("^an api key is set to '(.*)' in the config$", c.setAPIKey)
-	s.Step("^a secret_token is set in the config$", func() error { return c.setSecretToken(aSecretToken) })
+	s.Step("^a secret_token is set to '(.*)' in the config$", c.setSecretToken)
 	s.Step("^the Authorization header is '(.*)'$", c.checkAuthorizationHeader)
-	s.Step("^the secret token is sent in the Authorization header$", c.secretTokenSentInAuthorizationHeader)
-	s.Step("^the api key is sent in the Authorization header$", c.apiKeySentInAuthorizationHeader)
 }
 
 func (c *featureContext) reset() {
@@ -78,14 +70,6 @@ func (c *featureContext) setAPIKey(v string) error {
 func (c *featureContext) setSecretToken(v string) error {
 	c.secretToken = v
 	return nil
-}
-
-func (c *featureContext) secretTokenSentInAuthorizationHeader() error {
-	return c.checkAuthorizationHeader("Bearer " + c.secretToken)
-}
-
-func (c *featureContext) apiKeySentInAuthorizationHeader() error {
-	return c.checkAuthorizationHeader("ApiKey " + c.apiKey)
 }
 
 func (c *featureContext) checkAuthorizationHeader(expected string) error {
