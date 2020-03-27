@@ -56,6 +56,12 @@ pipeline {
             deleteDir()
             gitCheckout(basedir: "${BASE_DIR}", githubNotifyFirstTimeContributor: true, reference: '/var/lib/jenkins/.git-references/apm-agent-go.git')
             stash allowEmpty: true, name: 'source', useDefaultExcludes: false
+            script {
+              dir("${BASE_DIR}"){
+                // Skip all the stages except docs for PR's with asciidoc and md changes only
+                env.ONLY_DOCS = isGitRegionMatch(patterns: [ '.*\\.(asciidoc|md)' ], shouldMatchAll: true)
+              }
+            }
           }
         }
         /**
@@ -64,7 +70,11 @@ pipeline {
         stage('Tests') {
           options { skipDefaultCheckout() }
           when {
-            expression { return params.test_ci }
+            beforeAgent true
+            allOf {
+              expression { return env.ONLY_DOCS == "false" }
+              expression { return params.test_ci }
+            }
           }
           steps {
             withGithubNotify(context: 'Tests', tab: 'tests') {
@@ -91,7 +101,11 @@ pipeline {
         stage('Coverage') {
           options { skipDefaultCheckout() }
           when {
-            expression { return params.docker_test_ci }
+            beforeAgent true
+            allOf {
+              expression { return env.ONLY_DOCS == "false" }
+              expression { return params.docker_test_ci }
+            }
           }
           steps {
             withGithubNotify(context: 'Coverage') {
@@ -144,6 +158,10 @@ pipeline {
       }
     }
     stage('More OS') {
+      when {
+        beforeAgent true
+        expression { return env.ONLY_DOCS == "false" }
+      }
       parallel {
         stage('Windows') {
           agent { label 'windows-2019-immutable' }
@@ -201,8 +219,9 @@ pipeline {
       when {
         beforeAgent true
         allOf {
+          expression { return env.ONLY_DOCS == "false" }
           anyOf {
-            environment name: 'GIT_BUILD_CAUSE', value: 'pr'
+            changeRequest()
             expression { return !params.Run_As_Master_Branch }
           }
         }
