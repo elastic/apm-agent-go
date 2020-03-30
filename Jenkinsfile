@@ -279,7 +279,7 @@ def generateStep(version){
         withEnv(["GO_VERSION=${version}"]) {
           // Another retry in case there are any environmental issues
           // See https://issuetracker.google.com/issues/146072599 for more context
-          retry(2) {
+          retry(3) {
             deleteDir()
             unstash 'source'
             dir("${BASE_DIR}"){
