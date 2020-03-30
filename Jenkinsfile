@@ -275,18 +275,20 @@ def generateStep(version){
   return {
     node('linux && immutable'){
       try {
-        deleteDir()
-        unstash 'source'
         echo "${version}"
-        dir("${BASE_DIR}"){
-          withEnv(["GO_VERSION=${version}"]) {
-            // Another retry in case there are any environmental issues
-            // See https://issuetracker.google.com/issues/146072599 for more context
-            retry(2) {
-              sleep randomNumber(min: 2, max: 5)
+        withEnv(["GO_VERSION=${version}"]) {
+          // Another retry in case there are any environmental issues
+          // See https://issuetracker.google.com/issues/146072599 for more context
+          retry(3) {
+            deleteDir()
+            unstash 'source'
+            dir("${BASE_DIR}"){
               sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
+              sh script: './scripts/jenkins/build.sh', label: 'Build'
             }
-            sh script: './scripts/jenkins/build-test.sh', label: 'Build and test'
+          }
+          dir("${BASE_DIR}"){
+            sh script: './scripts/jenkins/test.sh', label: 'Test'
           }
         }
       } catch(e){
