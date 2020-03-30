@@ -290,8 +290,9 @@ def generateStep(version){
             // See https://issuetracker.google.com/issues/146072599 for more context
             retry(2) {
               sleep randomNumber(min: 2, max: 5)
-              sh script: './scripts/jenkins/build-test.sh', label: 'Build and test'
+              sh script: './scripts/jenkins/build.sh', label: 'Build'
             }
+            sh script: './scripts/jenkins/test.sh', label: 'Test'
           }
         }
       } catch(e){
