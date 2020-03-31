@@ -660,6 +660,66 @@ func (v *DatabaseSpanContext) MarshalFastJSON(w *fastjson.Writer) error {
 	return nil
 }
 
+func (v *HTTPResponseSpanContext) MarshalFastJSON(w *fastjson.Writer) error {
+	var firstErr error
+	w.RawByte('{')
+	first := true
+	if v.DecodedBodySize != 0 {
+		const prefix = ",\"decoded_body_size\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.Int64(int64(v.DecodedBodySize))
+	}
+	if v.EncodedBodySize != 0 {
+		const prefix = ",\"encoded_body_size\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.Int64(int64(v.EncodedBodySize))
+	}
+	if !v.Headers.isZero() {
+		const prefix = ",\"headers\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		if err := v.Headers.MarshalFastJSON(w); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	if v.StatusCode != 0 {
+		const prefix = ",\"status_code\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.Int64(int64(v.StatusCode))
+	}
+	if v.TransferSize != 0 {
+		const prefix = ",\"transfer_size\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.Int64(int64(v.TransferSize))
+	}
+	w.RawByte('}')
+	return firstErr
+}
+
 func (v *Context) MarshalFastJSON(w *fastjson.Writer) error {
 	var firstErr error
 	w.RawByte('{')

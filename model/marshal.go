@@ -70,16 +70,36 @@ func (v *HTTPSpanContext) UnmarshalJSON(data []byte) error {
 // MarshalFastJSON writes the JSON representation of v to w.
 func (v *HTTPSpanContext) MarshalFastJSON(w *fastjson.Writer) error {
 	w.RawByte('{')
-	beforeURL := w.Size()
-	w.RawString(`"url":"`)
-	if v.marshalURL(w) {
-		w.RawByte('"')
-	} else {
-		w.Rewind(beforeURL)
+	first := true
+	if v.URL != nil {
+		beforeURL := w.Size()
+		w.RawString(`"url":"`)
+		if v.marshalURL(w) {
+			w.RawByte('"')
+			first = false
+		} else {
+			w.Rewind(beforeURL)
+		}
 	}
 	if v.StatusCode > 0 {
-		w.RawString(`,"status_code":`)
+		if first {
+			first = false
+		} else {
+			w.RawByte(',')
+		}
+		w.RawString(`"status_code":`)
 		w.Int64(int64(v.StatusCode))
+	}
+	if v.Response != nil {
+		if first {
+			first = false
+		} else {
+			w.RawByte(',')
+		}
+		w.RawString(`"response":`)
+		if err := v.Response.MarshalFastJSON(w); err != nil {
+			return err
+		}
 	}
 	w.RawByte('}')
 	return nil

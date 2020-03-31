@@ -333,7 +333,41 @@ type HTTPSpanContext struct {
 	URL *url.URL
 
 	// StatusCode holds the HTTP response status code.
+	//
+	// This field is deprecated in the Elastic APM Server 7.7.0 release,
+	// replaced by `context.http.response.status_code`. We continue to
+	// send this field for backwards compatibility.
 	StatusCode int `json:"status_code,omitempty"`
+
+	// Response holds details of the HTTP response.
+	Response *HTTPResponseSpanContext `json:"response,omitempty"`
+}
+
+// HTTPResponseSpanContext holds contextual information about the response for
+// HTTP client request spans.
+type HTTPResponseSpanContext struct {
+	// StatusCode holds the HTTP response status code.
+	//
+	// This field replaces the field `context.http.status_code` that was
+	// deprecated in the Elastic APM Server 7.7.0 release. For now, we
+	// continue to use the deprecated field for backwards compatibility.
+	StatusCode int `json:"status_code,omitempty"`
+
+	// Headers holds the response headers.
+	Headers Headers `json:"headers,omitempty"`
+
+	// TransferSize is the size (in octets) of the fetched resource.
+	// The size includes the response header fields plus the response
+	// payload body.
+	TransferSize int `json:"transfer_size,omitempty"`
+
+	// EncodedBodySize is the size (in octets) of the payload body,
+	// before removing any applied content-codings.
+	EncodedBodySize int `json:"encoded_body_size,omitempty"`
+
+	// DecodedBodySize is the size (in octets) of the message body,
+	// after removing any applied content-codings.
+	DecodedBodySize int `json:"decoded_body_size,omitempty"`
 }
 
 // Context holds contextual information relating to a transaction or error.
