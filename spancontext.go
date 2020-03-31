@@ -187,6 +187,31 @@ func (c *SpanContext) SetHTTPResponseHeaders(h http.Header) {
 	}
 }
 
+// SetHTTPResponseTransferSize sets the HTTP response transfer size in the context.
+func (c *SpanContext) SetHTTPResponseTransferSize(size int) {
+	c.httpResponse.TransferSize = size
+	c.http.Response = &c.httpResponse
+	c.model.HTTP = &c.http
+}
+
+// SetHTTPResponseBodySize sets the HTTP response body size in the context.
+//
+// The first parameter is the size (in octets) of the payload body, before
+// removing any applied content-codings. The second parameter is the size
+// (in octets) of the message body, after removing any applied content-codings.
+//
+// To set only the encoded or decoded size, specify zero for the other.
+func (c *SpanContext) SetHTTPResponseBodySize(encodedSize, decodedSize int) {
+	if encodedSize > 0 {
+		c.httpResponse.EncodedBodySize = encodedSize
+	}
+	if decodedSize > 0 {
+		c.httpResponse.DecodedBodySize = decodedSize
+	}
+	c.http.Response = &c.httpResponse
+	c.model.HTTP = &c.http
+}
+
 // SetDestinationAddress sets the destination address and port in the context.
 //
 // SetDestinationAddress has no effect when called when an empty addr.
