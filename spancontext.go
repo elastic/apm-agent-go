@@ -35,6 +35,7 @@ type SpanContext struct {
 	databaseRowsAffected int64
 	database             model.DatabaseSpanContext
 	http                 model.HTTPSpanContext
+	httpResponse         model.HTTPResponseSpanContext
 }
 
 // DatabaseSpanContext holds database span context.
@@ -171,6 +172,19 @@ func (c *SpanContext) SetHTTPRequest(req *http.Request) {
 func (c *SpanContext) SetHTTPStatusCode(statusCode int) {
 	c.http.StatusCode = statusCode
 	c.model.HTTP = &c.http
+}
+
+// SetHTTPResponseHeaders sets the HTTP response headers in the context.
+func (c *SpanContext) SetHTTPResponseHeaders(h http.Header) {
+	for k, values := range h {
+		c.httpResponse.Headers = append(c.httpResponse.Headers, model.Header{
+			Key: k, Values: values,
+		})
+	}
+	if len(c.httpResponse.Headers) != 0 {
+		c.http.Response = &c.httpResponse
+		c.model.HTTP = &c.http
+	}
 }
 
 // SetDestinationAddress sets the destination address and port in the context.
