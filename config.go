@@ -357,6 +357,28 @@ func (t *Tracer) updateRemoteConfig(logger WarningLogger, old, attrs map[string]
 					cfg.recording = recording
 				})
 			}
+		case envSpanFramesMinDuration:
+			duration, err := configutil.ParseDuration(v)
+			if err != nil {
+				errorf("central config failure: failed to parse %s: %s", k, err)
+				delete(attrs, k)
+				continue
+			} else {
+				updates = append(updates, func(cfg *instrumentationConfig) {
+					cfg.spanFramesMinDuration = duration
+				})
+			}
+		case envStackTraceLimit:
+			limit, err := strconv.Atoi(v)
+			if err != nil {
+				errorf("central config failure: failed to parse %s: %s", k, err)
+				delete(attrs, k)
+				continue
+			} else {
+				updates = append(updates, func(cfg *instrumentationConfig) {
+					cfg.stackTraceLimit = limit
+				})
+			}
 		case envTransactionSampleRate:
 			sampler, err := parseSampleRate(k, v)
 			if err != nil {
