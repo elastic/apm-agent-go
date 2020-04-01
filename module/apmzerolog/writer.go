@@ -108,7 +108,7 @@ func (w *Writer) WriteLevel(level zerolog.Level, p []byte) (int, error) {
 		return len(p), nil
 	}
 	tracer := w.tracer()
-	if !tracer.Active() {
+	if !tracer.Recording() {
 		return len(p), nil
 	}
 	var logRecord logRecord

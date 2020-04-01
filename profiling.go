@@ -136,6 +136,10 @@ func (state *profilingState) start(ctx context.Context, logger Logger, metadata 
 			if logger != nil && ctx.Err() == nil {
 				logger.Errorf("failed to send %s profile: %s", state.profileType, err)
 			}
+			return
+		}
+		if logger != nil {
+			logger.Debugf("sent %s profile", state.profileType)
 		}
 	}()
 }

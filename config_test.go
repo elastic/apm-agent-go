@@ -245,3 +245,57 @@ func TestTracerConfigWatcherPrecedence(t *testing.T) {
 		}
 	}
 }
+
+func TestTracerCentralConfigRecording(t *testing.T) {
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+
+	changes := make(chan apmconfig.Change)
+	watcherFunc := apmtest.WatchConfigFunc(func(ctx context.Context, params apmconfig.WatchParams) <-chan apmconfig.Change {
+		return changes
+	})
+	tracer.SetLogger(apmtest.NewTestLogger(t))
+	tracer.SetConfigWatcher(watcherFunc)
+	tracer.SetMetricsInterval(0) // disable periodic gathering
+
+	checkRecording := func(expected bool) {
+		defer tracer.ResetPayloads()
+		tracer.StartTransaction("name", "type").End()
+		tracer.Flush(nil)
+		if expected {
+			require.True(t, tracer.Recording())
+			tracer.SendMetrics(nil)
+			payloads := tracer.Payloads()
+			require.NotEmpty(t, payloads.Metrics)
+			require.NotEmpty(t, payloads.Transactions)
+		} else {
+			require.False(t, tracer.Recording())
+			// testTracerMetricsNotRecording enables periodic
+			// gathering, checks that no gathering takes place
+			// (because we're expected not to be recording),
+			// and then disable periodic gathering again.
+			testTracerMetricsNotRecording(t, tracer)
+			payloads := tracer.Payloads()
+			require.Empty(t, payloads.Transactions)
+		}
+	}
+	updateRemoteConfig := func(attrs map[string]string) {
+		// We send twice as a means of waiting for the first change to be applied.
+		for i := 0; i < 2; i++ {
+			changes <- apmconfig.Change{Attrs: attrs}
+		}
+	}
+
+	// Initially local config is in effect.
+	checkRecording(true)
+
+	updateRemoteConfig(map[string]string{"recording": "false"})
+	checkRecording(false)
+
+	updateRemoteConfig(map[string]string{"recording": "true"})
+	tracer.SetRecording(false) // not effective, remote config in effect
+	checkRecording(true)
+
+	updateRemoteConfig(map[string]string{})
+	checkRecording(false) // local config in effect now
+}

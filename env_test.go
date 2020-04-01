@@ -334,6 +334,7 @@ func TestTracerActiveEnv(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 	assert.False(t, tracer.Active())
+	assert.False(t, tracer.Recording()) // inactive => not recording
 
 	tx := tracer.StartTransaction("name", "type")
 	tx.End()

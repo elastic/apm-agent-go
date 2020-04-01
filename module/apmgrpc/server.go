@@ -63,7 +63,7 @@ func NewUnaryServerInterceptor(o ...ServerOption) grpc.UnaryServerInterceptor {
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (resp interface{}, err error) {
-		if !opts.tracer.Active() || opts.requestIgnorer(info) {
+		if !opts.tracer.Recording() || opts.requestIgnorer(info) {
 			return handler(ctx, req)
 		}
 		tx, ctx := startTransaction(ctx, opts.tracer, info.FullMethod)

@@ -46,6 +46,7 @@ const (
 	envEnvironment                 = "ELASTIC_APM_ENVIRONMENT"
 	envSpanFramesMinDuration       = "ELASTIC_APM_SPAN_FRAMES_MIN_DURATION"
 	envActive                      = "ELASTIC_APM_ACTIVE"
+	envRecording                   = "ELASTIC_APM_RECORDING"
 	envAPIRequestSize              = "ELASTIC_APM_API_REQUEST_SIZE"
 	envAPIRequestTime              = "ELASTIC_APM_API_REQUEST_TIME"
 	envAPIBufferSize               = "ELASTIC_APM_API_BUFFER_SIZE"
@@ -252,6 +253,10 @@ func initialActive() (bool, error) {
 	return configutil.ParseBoolEnv(envActive, true)
 }
 
+func initialRecording() (bool, error) {
+	return configutil.ParseBoolEnv(envRecording, true)
+}
+
 func initialDisabledMetrics() wildcard.Matchers {
 	return configutil.ParseWildcardPatternsEnv(envDisableMetrics, nil)
 }
@@ -339,6 +344,17 @@ func (t *Tracer) updateRemoteConfig(logger WarningLogger, old, attrs map[string]
 			} else {
 				updates = append(updates, func(cfg *instrumentationConfig) {
 					cfg.maxSpans = value
+				})
+			}
+		case envRecording:
+			recording, err := strconv.ParseBool(v)
+			if err != nil {
+				errorf("central config failure: failed to parse %s: %s", k, err)
+				delete(attrs, k)
+				continue
+			} else {
+				updates = append(updates, func(cfg *instrumentationConfig) {
+					cfg.recording = recording
 				})
 			}
 		case envTransactionSampleRate:
@@ -438,6 +454,7 @@ type instrumentationConfig struct {
 // set the initial entry in instrumentationConfig.local, in order to properly reset
 // to the local value, even if the default is the zero value.
 type instrumentationConfigValues struct {
+	recording             bool
 	captureBody           CaptureBodyMode
 	captureHeaders        bool
 	maxSpans              int

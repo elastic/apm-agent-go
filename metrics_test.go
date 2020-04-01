@@ -35,6 +35,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"go.elastic.co/apm"
+	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/transport/transporttest"
 )
@@ -281,7 +282,7 @@ func TestTracerMetricsBuffered(t *testing.T) {
 	}
 }
 
-func TestTracerMetricsDisable(t *testing.T) {
+func TestTracerDisableMetrics(t *testing.T) {
 	os.Setenv("ELASTIC_APM_DISABLE_METRICS", "golang.heap.*, system.memory.*, system.process.*")
 	defer os.Unsetenv("ELASTIC_APM_DISABLE_METRICS")
 
@@ -300,6 +301,54 @@ func TestTracerMetricsDisable(t *testing.T) {
 	}
 	sort.Strings(actual)
 	assert.EqualValues(t, expected, actual)
+}
+
+func TestTracerMetricsNotRecording(t *testing.T) {
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+	tracer.SetRecording(false)
+	testTracerMetricsNotRecording(t, tracer)
+}
+
+func testTracerMetricsNotRecording(t *testing.T, tracer *apmtest.RecordingTracer) {
+	done := make(chan struct{})
+	defer close(done)
+
+	gathered := make(chan struct{})
+	tracer.RegisterMetricsGatherer(apm.GatherMetricsFunc(
+		func(ctx context.Context, m *apm.Metrics) error {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-done:
+			case gathered <- struct{}{}:
+			}
+			return nil
+		},
+	))
+
+	tracer.SetMetricsInterval(time.Millisecond)
+	defer tracer.SetMetricsInterval(0) // disable at end
+
+	sent := make(chan struct{})
+	go func() {
+		defer close(sent)
+		tracer.SendMetrics(nil) // unblocked by tracer.Close
+	}()
+
+	// Because the tracer is configured to not record,
+	// the metrics gatherer should never be called.
+	select {
+	case <-time.After(100 * time.Millisecond):
+	case <-sent:
+		t.Fatal("expected SendMetrics to block")
+	case <-gathered:
+		t.Fatal("unexpected metrics gatherer call")
+	}
+
+	tracer.Flush(nil) // empty queue, should not block
+	payloads := tracer.Payloads()
+	require.Empty(t, payloads.Metrics)
 }
 
 // busyWork does meaningless work for the specified duration,

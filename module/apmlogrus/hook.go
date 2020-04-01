@@ -87,7 +87,7 @@ func (h *Hook) Levels() []logrus.Level {
 // Fire reports the log entry as an error to the APM Server.
 func (h *Hook) Fire(entry *logrus.Entry) error {
 	tracer := h.tracer()
-	if !tracer.Active() {
+	if !tracer.Recording() {
 		return nil
 	}
 
