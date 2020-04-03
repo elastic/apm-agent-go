@@ -23,6 +23,7 @@ import (
 	"net"
 	"os"
 	"reflect"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -480,6 +481,9 @@ func (b *exceptionDataBuilder) initErrorStacktrace(out *[]stacktrace.Frame, err 
 	type errorsStackTracer interface {
 		StackTrace() errors.StackTrace
 	}
+	type runtimeStackTracer interface {
+		StackTrace() *runtime.Frames
+	}
 	switch stackTracer := err.(type) {
 	case internalStackTracer:
 		stackTrace := stackTracer.StackTrace()
@@ -490,6 +494,20 @@ func (b *exceptionDataBuilder) initErrorStacktrace(out *[]stacktrace.Frame, err 
 	case errorsStackTracer:
 		stackTrace := stackTracer.StackTrace()
 		pkgerrorsutil.AppendStacktrace(stackTrace, out, b.stackTraceLimit)
+	case runtimeStackTracer:
+		frames := stackTracer.StackTrace()
+		count := 0
+		for {
+			if b.stackTraceLimit >= 0 && count == b.stackTraceLimit {
+				break
+			}
+			frame, more := frames.Next()
+			*out = append(*out, stacktrace.RuntimeFrame(frame))
+			if !more {
+				break
+			}
+			count++
+		}
 	}
 }
 
