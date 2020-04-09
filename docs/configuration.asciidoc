@@ -5,6 +5,7 @@ To adapt the Elastic APM Go agent to your needs, you can configure it using
 one of the following three methods, in descending order of precedence:
 
  1. {apm-app-ref}/agent-configuration.html[APM Agent Configuration via Kibana]
+ (supported options are marked with <<dynamic-configuration, image:./images/dynamic-config.svg[] >>)
  2. In code, using the <<tracer-config-api, Tracer Config API>>
  3. Environment variables
 
@@ -24,6 +25,17 @@ of your server, you may also need to set <<config-api-key, ELASTIC_APM_API_KEY>>
 <<config-verify-server-cert, ELASTIC_APM_VERIFY_SERVER_CERT>>. All other variables
 have usable defaults.
 // end::setup-config[]
+
+[float]
+[[dynamic-configuration]]
+=== Dynamic configuration
+
+Configuration options marked with the image:./images/dynamic-config.svg[] badge can be changed at runtime
+when set from a supported source.
+
+The Go Agent supports {apm-app-ref}/agent-configuration.html[Central configuration],
+which allows you to fine-tune certain configurations via the APM app.
+This feature is enabled in the Agent by default, with <<config-central-config>>.
 
 [float]
 === Configuration formats
@@ -172,10 +184,10 @@ of the deployed revision, e.g. the output of `git rev-parse HEAD`.
 | `ELASTIC_APM_SERVICE_NODE_NAME` |         | `my-node-name`
 |============
 
-Optional name used to differentiate between nodes in a service. 
+Optional name used to differentiate between nodes in a service.
 Must be unique, otherwise data from multiple nodes will be aggregated together.
 
-If you do not specify `ELASTIC_APM_SERVICE_NODE_NAME`, service nodes will be identified using the container ID if available, 
+If you do not specify `ELASTIC_APM_SERVICE_NODE_NAME`, service nodes will be identified using the container ID if available,
 otherwise the host name.
 
 NOTE: This feature is fully supported in the APM Server versions >= 7.5.
@@ -215,6 +227,8 @@ any data to the Elastic APM server, and instrumentation overhead is minimized.
 [float]
 [[config-recording]]
 === `ELASTIC_APM_RECORDING`
+
+<<dynamic-configuration, image:./images/dynamic-config.svg[] >>
 
 [options="header"]
 |============
@@ -279,6 +293,8 @@ Prefixing a pattern with `(?-i)` makes the matching case sensitive.
 [[config-capture-headers]]
 === `ELASTIC_APM_CAPTURE_HEADERS`
 
+<<dynamic-configuration, image:./images/dynamic-config.svg[] >>
+
 [options="header"]
 |============
 | Environment                   | Default
@@ -294,6 +310,8 @@ Captured headers are subject to sanitization, per <<config-sanitize-field-names>
 [float]
 [[config-capture-body]]
 === `ELASTIC_APM_CAPTURE_BODY`
+
+<<dynamic-configuration, image:./images/dynamic-config.svg[] >>
 
 [options="header"]
 |============
@@ -355,7 +373,7 @@ to the APM server.
 [[config-api-buffer-size]]
 === `ELASTIC_APM_API_BUFFER_SIZE`
 
-[options="header"]           
+[options="header"]
 |============
 | Environment                   | Default | Minimum | Maximum
 | `ELASTIC_APM_API_BUFFER_SIZE` | `1MB`   | `10KB`  | `100MB`
@@ -369,6 +387,8 @@ fills up, new events will start replacing older ones.
 [float]
 [[config-transaction-max-spans]]
 === `ELASTIC_APM_TRANSACTION_MAX_SPANS`
+
+<<dynamic-configuration, image:./images/dynamic-config.svg[] >>
 
 [options="header"]
 |============
@@ -387,6 +407,8 @@ for such edge cases.
 [[config-span-frames-min-duration-ms]]
 === `ELASTIC_APM_SPAN_FRAMES_MIN_DURATION`
 
+<<dynamic-configuration, image:./images/dynamic-config.svg[] >>
+
 [options="header"]
 |============
 | Environment                            | Default
@@ -401,6 +423,8 @@ some processing and storage overhead.
 [float]
 [[config-stack-trace-limit]]
 === `ELASTIC_APM_STACK_TRACE_LIMIT`
+
+<<dynamic-configuration, image:./images/dynamic-config.svg[] >>
 
 [options="header"]
 |============
@@ -417,6 +441,8 @@ a negative value, such as -1, means that all frames will be collected.
 [float]
 [[config-transaction-sample-rate]]
 === `ELASTIC_APM_TRANSACTION_SAMPLE_RATE`
+
+<<dynamic-configuration, image:./images/dynamic-config.svg[] >>
 
 [options="header"]
 |============
