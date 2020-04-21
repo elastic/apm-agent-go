@@ -25,6 +25,7 @@ https://github.com/elastic/apm-agent-go/compare/v1.7.2...master[View commits]
 
 - Add "recording" config option, to dynamically disable event recording {pull}737[(#737)]
 - Enable central configuration of "stack_frames_min_duration" and "stack_trace_limit" {pull}742[(#742)]
+- Implement "CloseIdleConnections" on the Elasticsearch RoundTripper {pull}750[(#750)]
 
 [[release-notes-1.x]]
 === Go Agent version 1.x
