@@ -400,6 +400,20 @@ func TestMarshalURL(t *testing.T) {
 	assert.Equal(t, in, out)
 }
 
+func TestMarshalURLPathEmpty(t *testing.T) {
+	var empty fastjson.Writer
+	(&model.URL{
+		Hostname: "example.com",
+		Path:     "",
+		Protocol: "http",
+	}).MarshalFastJSON(&empty)
+
+	var out model.URL
+	err := json.Unmarshal(empty.Bytes(), &out)
+	require.NoError(t, err)
+	assert.Equal(t, "http://example.com", out.Full)
+}
+
 func TestMarshalURLPathLeadingSlashMissing(t *testing.T) {
 	in := model.URL{
 		Path:     "foo",
