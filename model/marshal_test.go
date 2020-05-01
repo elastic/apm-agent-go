@@ -401,12 +401,14 @@ func TestMarshalURL(t *testing.T) {
 }
 
 func TestMarshalURLPathEmpty(t *testing.T) {
-	var empty fastjson.Writer
-	(&model.URL{
+	in := model.URL{
 		Hostname: "example.com",
 		Path:     "",
 		Protocol: "http",
-	}).MarshalFastJSON(&empty)
+	}
+
+	var w fastjson.Writer
+	w.MarshalFastJSON(&w)
 
 	var out model.URL
 	err := json.Unmarshal(empty.Bytes(), &out)
