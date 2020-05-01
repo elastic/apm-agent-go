@@ -262,7 +262,7 @@ span := tx.StartSpanOptions("SELECT FROM foo", "db.mysql.query", opts)
 ==== `func StartSpan(ctx context.Context, name, spanType string) (*Span, context.Context)`
 
 StartSpan starts and returns a new Span within the sampled transaction and parent span
-in the context, if any. If the span isn't dropped, it will be indluded in the resulting
+in the context, if any. If the span isn't dropped, it will be included in the resulting
 context.
 
 [source,go]
