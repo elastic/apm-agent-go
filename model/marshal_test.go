@@ -408,10 +408,10 @@ func TestMarshalURLPathEmpty(t *testing.T) {
 	}
 
 	var w fastjson.Writer
-	w.MarshalFastJSON(&w)
+	in.MarshalFastJSON(&w)
 
 	var out model.URL
-	err := json.Unmarshal(empty.Bytes(), &out)
+	err := json.Unmarshal(w.Bytes(), &out)
 	require.NoError(t, err)
 	assert.Equal(t, "http://example.com", out.Full)
 }
