@@ -24,6 +24,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -398,6 +399,37 @@ func TestMarshalURL(t *testing.T) {
 	out.Full = ""
 
 	assert.Equal(t, in, out)
+}
+
+func TestMarshalURLFullTruncated(t *testing.T) {
+	t.Run("escape", func(t *testing.T) {
+		testMarshalURLFullTruncated(t, '&')
+	})
+	t.Run("unicode", func(t *testing.T) {
+		testMarshalURLFullTruncated(t, '世')
+	})
+}
+
+func testMarshalURLFullTruncated(t *testing.T, r rune) {
+	const maxRunes = 1024
+	in := model.URL{
+		Hostname: "example.com",
+		Path:     "/",
+		Protocol: "http",
+		Search:   strings.Repeat(string(r), maxRunes), // should be truncated
+	}
+
+	var w fastjson.Writer
+	in.MarshalFastJSON(&w)
+
+	var out model.URL
+	err := json.Unmarshal(w.Bytes(), &out)
+	require.NoError(t, err)
+
+	assert.Equal(t, maxRunes, utf8.RuneCountInString(out.Full))
+
+	const prefix = "http://example.com/?"
+	assert.Equal(t, prefix+strings.Repeat(string(r), maxRunes-len(prefix)), out.Full)
 }
 
 func TestMarshalURLPathEmpty(t *testing.T) {

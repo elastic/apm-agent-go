@@ -28,6 +28,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"go.elastic.co/apm/internal/apmstrings"
 	"go.elastic.co/fastjson"
 )
 
@@ -229,37 +230,52 @@ func marshalScheme(w *fastjson.Writer, scheme string) bool {
 
 func (v *URL) marshalFullURL(w *fastjson.Writer, scheme []byte) bool {
 	w.RawByte('"')
-	before := w.Size()
 	w.RawBytes(scheme)
 	w.RawString("://")
+
+	// Track how many runes we encode, and stop once we've hit the limit.
+	const maxRunes = 1024
+	runes := len(scheme) + len("://") // all known to be single-byte runes
+	rawByte := func(v byte) {
+		if runes == maxRunes {
+			return
+		}
+		w.RawByte(v)
+		runes++
+	}
+	stringContents := func(v string) {
+		remaining := maxRunes - runes
+		truncated, n := apmstrings.Truncate(v, remaining)
+		if n > 0 {
+			w.StringContents(truncated)
+			runes += n
+		}
+	}
+
 	if strings.IndexByte(v.Hostname, ':') == -1 {
-		w.StringContents(v.Hostname)
+		stringContents(v.Hostname)
 	} else {
-		w.RawByte('[')
-		w.StringContents(v.Hostname)
-		w.RawByte(']')
+		rawByte('[')
+		stringContents(v.Hostname)
+		rawByte(']')
 	}
 	if v.Port != "" {
-		w.RawByte(':')
-		w.StringContents(v.Port)
+		rawByte(':')
+		stringContents(v.Port)
 	}
 	if v.Path != "" {
 		if !strings.HasPrefix(v.Path, "/") {
-			w.RawByte('/')
+			rawByte('/')
 		}
-		w.StringContents(v.Path)
+		stringContents(v.Path)
 	}
 	if v.Search != "" {
-		w.RawByte('?')
-		w.StringContents(v.Search)
+		rawByte('?')
+		stringContents(v.Search)
 	}
 	if v.Hash != "" {
-		w.RawByte('#')
-		w.StringContents(v.Hash)
-	}
-	if n := w.Size() - before; n > 1024 {
-		// Truncate the full URL to 1024 bytes.
-		w.Rewind(w.Size() - n + 1024)
+		rawByte('#')
+		stringContents(v.Hash)
 	}
 	w.RawByte('"')
 	return true
