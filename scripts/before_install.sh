@@ -33,9 +33,11 @@ if (! go run scripts/mingoversion.go 1.10 &>/dev/null); then
   pin github.com/gocql/gocql 16cf9ea1b3e2
   pin github.com/go-sql-driver/mysql v1.4.1
   pin github.com/labstack/echo v4.1.9
+  pin github.com/lib/pq v1.0.0
 fi
 
 if (! go run scripts/mingoversion.go 1.9 &>/dev/null); then
+  pin github.com/golang/protobuf v1.3.5
   pin github.com/olivere/elastic release-branch.v6
   pin golang.org/x/sys fc99dfbffb4e https://go.googlesource.com/sys
   pin github.com/prometheus/client_golang v1.1.0
