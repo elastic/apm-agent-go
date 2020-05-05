@@ -110,7 +110,7 @@ func (t *otTracer) Inject(sc opentracing.SpanContext, format interface{}, carrie
 		tx := spanContext.Transaction()
 		headerValue := apmhttp.FormatTraceparentHeader(spanContext.traceContext)
 		writer.Set(apmhttp.W3CTraceparentHeader, headerValue)
-		if tx.ShouldPropagateLegacyHeader() {
+		if tx != nil && tx.ShouldPropagateLegacyHeader() {
 			writer.Set(apmhttp.ElasticTraceparentHeader, headerValue)
 		}
 		if tracestate := spanContext.traceContext.State.String(); tracestate != "" {
