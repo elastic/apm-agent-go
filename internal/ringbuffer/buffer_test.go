@@ -48,6 +48,7 @@ func TestBuffer(t *testing.T) {
 
 		var bb bytes.Buffer
 		_, n, err := b.WriteBlockTo(&bb)
+		assert.NoError(t, err)
 		assert.Equal(t, int64(blen-BlockHeaderSize), n)
 		assert.Equal(t, block, bb.String())
 		assert.Equal(t, 0, b.Len())

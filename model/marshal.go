@@ -191,7 +191,7 @@ func (v *URL) MarshalFastJSON(w *fastjson.Writer) error {
 		}
 		w.String(v.Search)
 	}
-	if schemeEnd != -1 && v.Hostname != "" && v.Path != "" {
+	if schemeEnd != -1 && v.Hostname != "" {
 		before := w.Size()
 		w.RawString(",\"full\":")
 		if !v.marshalFullURL(w, w.Bytes()[schemeBegin:schemeEnd]) {
@@ -243,10 +243,12 @@ func (v *URL) marshalFullURL(w *fastjson.Writer, scheme []byte) bool {
 		w.RawByte(':')
 		w.StringContents(v.Port)
 	}
-	if !strings.HasPrefix(v.Path, "/") {
-		w.RawByte('/')
+	if v.Path != "" {
+		if !strings.HasPrefix(v.Path, "/") {
+			w.RawByte('/')
+		}
+		w.StringContents(v.Path)
 	}
-	w.StringContents(v.Path)
 	if v.Search != "" {
 		w.RawByte('?')
 		w.StringContents(v.Search)
