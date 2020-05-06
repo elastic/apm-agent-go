@@ -503,6 +503,16 @@ func (t *Tracer) Active() bool {
 	return atomic.LoadInt32(&t.active) == 1
 }
 
+// ShouldPropagateLegacyHeader reports whether instrumentation should
+// propagate the legacy "Elastic-Apm-Traceparent" header in addition to
+// the standard W3C "traceparent" header.
+//
+// This method will be removed in a future major version when we remove
+// support for propagating the legacy header.
+func (t *Tracer) ShouldPropagateLegacyHeader() bool {
+	return t.instrumentationConfig().propagateLegacyHeader
+}
+
 // SetRequestDuration sets the maximum amount of time to keep a request open
 // to the APM server for streaming data before closing the stream and starting
 // a new request.
