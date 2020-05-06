@@ -20,7 +20,10 @@ package apmot_test
 import (
 	"context"
 	"errors"
+	"net/http"
 	"net/url"
+	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -361,6 +364,41 @@ func TestSpanFinishWithOptionsLogs(t *testing.T) {
 	assert.Equal(t, model.Time(err0Time), errors[0].Timestamp)
 	assert.Equal(t, "C5H8NO4Na", errors[1].Log.Message)
 	assert.Equal(t, model.Time(spanFinish), errors[1].Timestamp)
+}
+
+func TestTraceInjectExtract(t *testing.T) {
+	testTraceInjectExtract(t, true)
+	testTraceInjectExtract(t, false)
+}
+
+func testTraceInjectExtract(t *testing.T, shouldPropagateLegacyHeader bool) {
+	os.Setenv("ELASTIC_APM_USE_ELASTIC_TRACEPARENT_HEADER", strconv.FormatBool(shouldPropagateLegacyHeader))
+	defer os.Unsetenv("ELASTIC_APM_USE_ELASTIC_TRACEPARENT_HEADER")
+
+	tracer, apmtracer, _ := newTestTracer()
+	defer apmtracer.Close()
+
+	span := tracer.StartSpan("span")
+	headers1 := make(http.Header)
+	carrier1 := opentracing.HTTPHeadersCarrier(headers1)
+
+	err := tracer.Inject(span.Context(), opentracing.HTTPHeaders, carrier1)
+	require.NoError(t, err)
+
+	spanContext, err := tracer.Extract(opentracing.HTTPHeaders, carrier1)
+	require.NoError(t, err)
+
+	headers2 := make(http.Header)
+	carrier2 := opentracing.HTTPHeadersCarrier(headers2)
+	err = tracer.Inject(spanContext, opentracing.HTTPHeaders, carrier2)
+	require.NoError(t, err)
+
+	assert.Equal(t, headers1, headers2)
+	if shouldPropagateLegacyHeader {
+		assert.Contains(t, headers1, "Elastic-Apm-Traceparent")
+	} else {
+		assert.NotContains(t, headers1, "Elastic-Apm-Traceparent")
+	}
 }
 
 func BenchmarkSpanSetSpanContext(b *testing.B) {
