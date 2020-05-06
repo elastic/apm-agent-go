@@ -6,8 +6,8 @@ require (
 	github.com/onsi/ginkgo v1.8.0 // indirect
 	github.com/onsi/gomega v1.5.0 // indirect
 	github.com/stretchr/testify v1.4.0
-	go.elastic.co/apm v1.7.2
-	go.elastic.co/apm/module/apmsql v1.7.2
+	go.elastic.co/apm v1.8.0
+	go.elastic.co/apm/module/apmsql v1.8.0
 	golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413 // indirect
 	golang.org/x/net v0.0.0-20190724013045-ca1201d0de80 // indirect
 	golang.org/x/text v0.3.2 // indirect
