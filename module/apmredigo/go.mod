@@ -3,7 +3,7 @@ module go.elastic.co/apm/module/apmredigo
 require (
 	github.com/gomodule/redigo v2.0.0+incompatible
 	github.com/stretchr/testify v1.4.0
-	go.elastic.co/apm v1.7.2
+	go.elastic.co/apm v1.8.0
 )
 
 replace go.elastic.co/apm => ../..
