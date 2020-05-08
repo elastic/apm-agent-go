@@ -79,7 +79,14 @@ func parentSpanContext(refs []opentracing.SpanReference) (*spanContext, bool) {
 // specific test case: TestStartSpanWithParent, which tests both child-of and
 // follows-from.
 
-var isValidSpanRef = isChildOfSpanRef
+// var isValidSpanRef = isChildOfSpanRef
+var isValidSpanRef = func(ref opentracing.SpanReference) bool {
+	switch ref.Type {
+	case opentracing.ChildOfRef, opentracing.FollowsFromRef:
+		return true
+	}
+	return false
+}
 
 func isChildOfSpanRef(ref opentracing.SpanReference) bool {
 	return ref.Type == opentracing.ChildOfRef
