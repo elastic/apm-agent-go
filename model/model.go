@@ -246,7 +246,7 @@ type Span struct {
 	ID SpanID `json:"id"`
 
 	// TransactionID holds the ID of the transaction of which the span is a part.
-	TransactionID SpanID `json:"transaction_id"`
+	TransactionID SpanID `json:"transaction_id,omitempty"`
 
 	// TraceID holds the ID of the trace that this span is a part of.
 	TraceID TraceID `json:"trace_id"`

@@ -10,7 +10,7 @@ require (
 	github.com/prometheus/procfs v0.0.3 // indirect
 	github.com/santhosh-tekuri/jsonschema v1.2.4
 	github.com/stretchr/testify v1.4.0
-	go.elastic.co/fastjson v1.0.0
+	go.elastic.co/fastjson v1.1.0
 	golang.org/x/sys v0.0.0-20191204072324-ce4227a45e2e
 )
 
