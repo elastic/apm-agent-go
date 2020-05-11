@@ -138,22 +138,48 @@ func TestMarshalSpan(t *testing.T) {
 	span.Duration = 4
 	span.Name = "GET testing.invalid:8000"
 	span.Type = "ext.http"
-	span.ParentID = model.SpanID{} // parent_id is optional
+	span.ParentID = model.SpanID{}      // parent_id is optional
+	span.TransactionID = model.SpanID{} // transaction_id is optional
 	span.Context = fakeHTTPSpanContext()
 	span.MarshalFastJSON(&w)
 
 	decoded = mustUnmarshalJSON(w)
 	assert.Equal(t, map[string]interface{}{
-		"trace_id":       "000102030405060708090a0b0c0d0e0f",
-		"id":             "0001020304050607",
-		"transaction_id": "0001020304050607",
-		"name":           "GET testing.invalid:8000",
-		"timestamp":      float64(123000000),
-		"duration":       float64(4),
-		"type":           "ext.http",
+		"trace_id":  "000102030405060708090a0b0c0d0e0f",
+		"id":        "0001020304050607",
+		"name":      "GET testing.invalid:8000",
+		"timestamp": float64(123000000),
+		"duration":  float64(4),
+		"type":      "ext.http",
 		"context": map[string]interface{}{
 			"http": map[string]interface{}{
 				"url": "http://testing.invalid:8000/path?query#fragment",
+			},
+		},
+	}, decoded)
+}
+
+func TestMarshalSpanHTTPStatusCode(t *testing.T) {
+	var w fastjson.Writer
+	span := fakeSpan()
+	span.Context = &model.SpanContext{
+		HTTP: &model.HTTPSpanContext{StatusCode: 200},
+	}
+	span.MarshalFastJSON(&w)
+
+	decoded := mustUnmarshalJSON(w)
+	assert.Equal(t, map[string]interface{}{
+		"trace_id":       "000102030405060708090a0b0c0d0e0f",
+		"id":             "0001020304050607",
+		"transaction_id": "0001020304050607",
+		"parent_id":      "0001020304050607",
+		"name":           "SELECT FROM bar",
+		"timestamp":      float64(123000000),
+		"duration":       float64(3),
+		"type":           "db.postgresql.query",
+		"context": map[string]interface{}{
+			"http": map[string]interface{}{
+				"status_code": 200.0,
 			},
 		},
 	}, decoded)

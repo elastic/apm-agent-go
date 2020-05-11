@@ -427,10 +427,6 @@ func (v *Span) MarshalFastJSON(w *fastjson.Writer) error {
 	if err := v.TraceID.MarshalFastJSON(w); err != nil && firstErr == nil {
 		firstErr = err
 	}
-	w.RawString(",\"transaction_id\":")
-	if err := v.TransactionID.MarshalFastJSON(w); err != nil && firstErr == nil {
-		firstErr = err
-	}
 	w.RawString(",\"type\":")
 	w.String(v.Type)
 	if v.Action != "" {
@@ -465,6 +461,12 @@ func (v *Span) MarshalFastJSON(w *fastjson.Writer) error {
 	if v.Subtype != "" {
 		w.RawString(",\"subtype\":")
 		w.String(v.Subtype)
+	}
+	if !v.TransactionID.isZero() {
+		w.RawString(",\"transaction_id\":")
+		if err := v.TransactionID.MarshalFastJSON(w); err != nil && firstErr == nil {
+			firstErr = err
+		}
 	}
 	w.RawByte('}')
 	return firstErr
