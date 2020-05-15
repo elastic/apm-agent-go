@@ -342,6 +342,12 @@ type Tracer struct {
 // This is equivalent to calling NewTracerOptions with a
 // TracerOptions having ServiceName and ServiceVersion set to
 // the provided arguments.
+//
+// NOTE when this package is imported, DefaultTracer is initialised
+// using environment variables for configuration. When creating a
+// tracer with NewTracer or NewTracerOptions, you should close
+// apm.DefaultTracer if it is not needed, e.g. by calling
+// apm.DefaultTracer.Close() in an init function.
 func NewTracer(serviceName, serviceVersion string) (*Tracer, error) {
 	return NewTracerOptions(TracerOptions{
 		ServiceName:    serviceName,
@@ -352,6 +358,12 @@ func NewTracer(serviceName, serviceVersion string) (*Tracer, error) {
 // NewTracerOptions returns a new Tracer using the provided options.
 // See TracerOptions for details on the options, and their default
 // values.
+//
+// NOTE when this package is imported, DefaultTracer is initialised
+// using environment variables for configuration. When creating a
+// tracer with NewTracer or NewTracerOptions, you should close
+// apm.DefaultTracer if it is not needed, e.g. by calling
+// apm.DefaultTracer.Close() in an init function.
 func NewTracerOptions(opts TracerOptions) (*Tracer, error) {
 	if err := opts.initDefaults(false); err != nil {
 		return nil, err
