@@ -76,7 +76,7 @@ func (r *RecorderTransport) SendProfile(ctx context.Context, metadata io.Reader,
 
 // Metadata returns the metadata recorded by the transport. If metadata is yet to
 // be received, this method will panic.
-func (r *RecorderTransport) Metadata() (_ model.System, _ model.Process, _ model.Service, labels model.StringMap) {
+func (r *RecorderTransport) Metadata() (_ model.System, _ model.Process, _ model.Service, labels model.IfaceMap) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.metadata.System, r.metadata.Process, r.metadata.Service, r.metadata.Labels
@@ -196,8 +196,8 @@ func (p *Payloads) Len() int {
 }
 
 type metadata struct {
-	System  model.System    `json:"system"`
-	Process model.Process   `json:"process"`
-	Service model.Service   `json:"service"`
-	Labels  model.StringMap `json:"labels,omitempty"`
+	System  model.System   `json:"system"`
+	Process model.Process  `json:"process"`
+	Service model.Service  `json:"service"`
+	Labels  model.IfaceMap `json:"labels,omitempty"`
 }
