@@ -349,7 +349,7 @@ The host name to use when sending error and transaction data to the APM server.
 | `ELASTIC_APM_API_REQUEST_TIME` | `10s`
 |============
 
-Amount of time to wait before ending a request to the Elastic APM server.
+Amount of time to wait before sending a request to the Elastic APM server.
 When you report transactions, spans and errors, the agent will initiate a
 request and send them to the server when there is enough data to send; the
 request will remain open until this time has been exceeded, or until the
