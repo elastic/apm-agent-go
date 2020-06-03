@@ -16,6 +16,7 @@ COPY module/apmgokit/go.mod module/apmgokit/go.sum /go/src/go.elastic.co/apm/mod
 COPY module/apmgometrics/go.mod module/apmgometrics/go.sum /go/src/go.elastic.co/apm/module/apmgometrics/
 COPY module/apmgopg/go.mod module/apmgopg/go.sum /go/src/go.elastic.co/apm/module/apmgopg/
 COPY module/apmgoredis/go.mod module/apmgoredis/go.sum /go/src/go.elastic.co/apm/module/apmgoredis/
+COPY module/apmgoredisv8/go.mod module/apmgoredisv8/go.sum /go/src/go.elastic.co/apm/module/apmgoredisv8/
 COPY module/apmgorilla/go.mod module/apmgorilla/go.sum /go/src/go.elastic.co/apm/module/apmgorilla/
 COPY module/apmgorm/go.mod module/apmgorm/go.sum /go/src/go.elastic.co/apm/module/apmgorm/
 COPY module/apmgrpc/go.mod module/apmgrpc/go.sum /go/src/go.elastic.co/apm/module/apmgrpc/
@@ -48,6 +49,7 @@ RUN cd /go/src/go.elastic.co/apm/module/apmgokit && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmgometrics && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmgopg && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmgoredis && go mod download
+RUN cd /go/src/go.elastic.co/apm/module/apmgoredisv8 && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmgorilla && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmgorm && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmgrpc && go mod download
