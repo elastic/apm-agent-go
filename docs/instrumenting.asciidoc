@@ -20,6 +20,7 @@ that framework's API. The request context can be used for reporting <<custom-ins
 * <<builtin-modules-apmgocql>>
 * <<builtin-modules-apmredigo>>
 * <<builtin-modules-apmgoredis>>
+* <<builtin-modules-apmgoredisv8>>
 * <<builtin-modules-apmrestful>>
 * <<builtin-modules-apmchi>>
 * <<builtin-modules-apmlogrus>>
@@ -514,6 +515,32 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
 	// transaction.
 	client := apmgoredis.Wrap(redisClient).WithContext(req.Context())
 	...
+}
+----
+
+[[builtin-modules-apmgoredisv8]]
+==== module/apmgoredisv8
+Package apmgoredisv8 provides a means of instrumenting https://github.com/go-redis/redis[go-redis/redis] for v8
+so that Redis commands are reported as spans within the current transaction.
+
+To report Redis commands, you can call `AddHook(apmgoredis.NewHook())`
+from instance of `redis.Client`, `redis.ClusterClient`, or `redis.Ring`.
+
+[source,go]
+----
+import (
+	"github.com/go-redis/redis/v8"
+
+	apmgoredis "go.elastic.co/apm/module/apmgoredisv8"
+)
+
+func main() {
+	redisClient := redis.NewClient(&redis.Options{})
+	// Add apm hook to redisClient.
+	// Redis commands will be reported as spans within the current transaction.
+	redisClient.AddHook(apmgoredis.NewHook())
+
+	redisClient.Get(ctx, "key")
 }
 ----
 
