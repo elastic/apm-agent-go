@@ -141,7 +141,7 @@ func redisEmptyClient() *redis.Client {
 
 func redisHookedClient() *redis.Client {
 	client := redisEmptyClient()
-	client.AddHook(apmgoredis.NewGoRedisApmHook())
+	client.AddHook(apmgoredis.NewHook())
 	return client
 }
 
@@ -151,7 +151,7 @@ func redisEmptyClusterClient() *redis.ClusterClient {
 
 func redisHookedClusterClient() *redis.ClusterClient {
 	client := redisEmptyClusterClient()
-	client.AddHook(apmgoredis.NewGoRedisApmHook())
+	client.AddHook(apmgoredis.NewHook())
 	return client
 }
 
@@ -161,6 +161,6 @@ func redisEmptyRing() *redis.Ring {
 
 func redisHookedRing() *redis.Ring {
 	client := redisEmptyRing()
-	client.AddHook(apmgoredis.NewGoRedisApmHook())
+	client.AddHook(apmgoredis.NewHook())
 	return client
 }

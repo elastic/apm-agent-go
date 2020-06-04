@@ -29,30 +29,30 @@ import (
 	"go.elastic.co/apm"
 )
 
-// goRedisApmHook is an implementation of redis.Hook that reports cmds as spans to Elastic APM.
-type goRedisApmHook struct{}
+// hook is an implementation of redis.Hook that reports cmds as spans to Elastic APM.
+type hook struct{}
 
-// NewGoRedisApmHook returns a redis.Hook that reports cmds as spans to Elastic APM.
-func NewGoRedisApmHook() redis.Hook {
-	return &goRedisApmHook{}
+// NewHook returns a redis.Hook that reports cmds as spans to Elastic APM.
+func NewHook() redis.Hook {
+	return &hook{}
 }
 
 // BeforeProcess initiates the span for the redis cmd
-func (r *goRedisApmHook) BeforeProcess(ctx context.Context, cmd redis.Cmder) (context.Context, error) {
-	span, ctx := apm.StartSpan(ctx, getCmdName(cmd), "db.redis")
-	return withSpan(ctx, span), nil
+func (r *hook) BeforeProcess(ctx context.Context, cmd redis.Cmder) (context.Context, error) {
+	_, ctx = apm.StartSpan(ctx, getCmdName(cmd), "db.redis")
+	return ctx, nil
 }
 
 // AfterProcess ends the initiated span from BeforeProcess
-func (r *goRedisApmHook) AfterProcess(ctx context.Context, cmd redis.Cmder) error {
-	if span := spanFromContext(ctx); span != nil {
+func (r *hook) AfterProcess(ctx context.Context, cmd redis.Cmder) error {
+	if span := apm.SpanFromContext(ctx); span != nil {
 		span.End()
 	}
 	return nil
 }
 
 // BeforeProcessPipeline initiates the span for the redis cmds
-func (r *goRedisApmHook) BeforeProcessPipeline(ctx context.Context, cmds []redis.Cmder) (context.Context, error) {
+func (r *hook) BeforeProcessPipeline(ctx context.Context, cmds []redis.Cmder) (context.Context, error) {
 	// Join all cmd names with ", ".
 	var cmdNameBuf bytes.Buffer
 	for i, cmd := range cmds {
@@ -62,13 +62,13 @@ func (r *goRedisApmHook) BeforeProcessPipeline(ctx context.Context, cmds []redis
 		cmdNameBuf.WriteString(getCmdName(cmd))
 	}
 
-	span, ctx := apm.StartSpan(ctx, cmdNameBuf.String(), "db.redis")
-	return withSpan(ctx, span), nil
+	_, ctx = apm.StartSpan(ctx, cmdNameBuf.String(), "db.redis")
+	return ctx, nil
 }
 
 // AfterProcess ends the initiated span from BeforeProcessPipeline
-func (r *goRedisApmHook) AfterProcessPipeline(ctx context.Context, cmds []redis.Cmder) error {
-	if span := spanFromContext(ctx); span != nil {
+func (r *hook) AfterProcessPipeline(ctx context.Context, cmds []redis.Cmder) error {
+	if span := apm.SpanFromContext(ctx); span != nil {
 		span.End()
 	}
 	return nil
@@ -80,17 +80,4 @@ func getCmdName(cmd redis.Cmder) string {
 		cmdName = "(empty command)"
 	}
 	return cmdName
-}
-
-type goRedisApmSpanKey struct{}
-
-var key = goRedisApmSpanKey{}
-
-func withSpan(ctx context.Context, span *apm.Span) context.Context {
-	return context.WithValue(ctx, key, span)
-}
-
-func spanFromContext(ctx context.Context) *apm.Span {
-	span, _ := ctx.Value(key).(*apm.Span)
-	return span
 }
