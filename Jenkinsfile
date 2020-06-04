@@ -29,7 +29,7 @@ pipeline {
     quietPeriod(10)
   }
   triggers {
-    issueCommentTrigger('(?i).*(?:jenkins\\W+)?run\\W+(?:the\\W+)?tests(?:\\W+please)?.*')
+    issueCommentTrigger('(?i).*(?:jenkins\\W+)?run\\W+(?:the\\W+)?(?:benchmark\\W+)?tests(?:\\W+please)?.*')
   }
   parameters {
     string(name: 'GO_VERSION', defaultValue: "1.14.2", description: "Go version to use.")
@@ -139,6 +139,7 @@ pipeline {
                 branch 'master'
                 tag pattern: 'v\\d+\\.\\d+\\.\\d+.*', comparator: 'REGEXP'
                 expression { return params.Run_As_Master_Branch }
+                expression { return env.GITHUB_COMMENT?.contains('benchmark tests') }
               }
               expression { return params.bench_ci }
             }
