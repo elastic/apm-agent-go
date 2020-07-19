@@ -311,6 +311,24 @@ func TestWithClientRequestName(t *testing.T) {
 	assert.Equal(t, "http://test", span.Name)
 }
 
+func TestWithClientTrace(t *testing.T) {
+	server := httptest.NewServer(http.NotFoundHandler())
+	defer server.Close()
+
+	tx, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+		mustGET(ctx, server.URL, apmhttp.WithClientTrace())
+	})
+
+	require.Len(t, spans, 4)
+	assert.Equal(t, "Connect", spans[0].Name)
+	assert.Equal(t, "Server Processing", spans[1].Name)
+	assert.Equal(t, "Transfer", spans[2].Name)
+	assert.Equal(t, model.IfaceMap{
+		model.IfaceMapItem{Key: "conn_returned", Value: true},
+		model.IfaceMapItem{Key: "conn_reused", Value: true},
+		model.IfaceMapItem{Key: "dns", Value: false}}, tx.Context.Tags)
+}
+
 func mustGET(ctx context.Context, url string, o ...apmhttp.ClientOption) (statusCode int, responseBody string) {
 	client := apmhttp.WrapClient(http.DefaultClient, o...)
 	resp, err := ctxhttp.Get(ctx, client, url)

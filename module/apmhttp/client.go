@@ -70,6 +70,7 @@ type roundTripper struct {
 	r              http.RoundTripper
 	requestName    RequestNameFunc
 	requestIgnorer RequestIgnorerFunc
+	requestTracer  *requestTracer
 }
 
 // RoundTrip delegates to r.r, emitting a span if req's context
@@ -83,6 +84,7 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	if tx == nil {
 		return r.r.RoundTrip(req)
 	}
+	ctx = r.requestTracer.start(ctx)
 
 	// RoundTrip is not supposed to mutate req, so copy req
 	// and set the trace-context headers only in the copy.
@@ -114,6 +116,7 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	r.setHeaders(req, traceContext, propagateLegacyHeader)
 	resp, err := r.r.RoundTrip(req)
+	r.requestTracer.end()
 	if span != nil {
 		if err != nil {
 			span.End()
