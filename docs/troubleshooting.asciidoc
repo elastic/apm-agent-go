@@ -1,0 +1,29 @@
+[[troubleshooting]]
+== Troubleshooting
+
+Is something not working as expected?
+Don't worry if you can't figure out what the problem is; we’re here to help!
+As a first step, ensure your app is compatible with the Agent's <<supported-tech,supported technologies>>.
+
+If you're an existing Elastic customer with a support contract, please create a ticket in the
+https://support.elastic.co/customers/s/login/[Elastic Support portal].
+Other users can post in the https://discuss.elastic.co/c/apm[APM discuss forum].
+
+IMPORTANT: *Please attach your debug logs* so that we can analyze the problem.
+Upload the *complete* logs to a service like https://gist.github.com.
+The logs should include everything from the time the application starts up until the first request has been executed.
+
+[float]
+[[disable-agent]]
+=== Disable the Agent
+
+In the unlikely event the Agent causes disruptions to a production application,
+you can disable the Agent while you troubleshoot.
+
+If you have access to <<dynamic-configuration,dynamic configuration>>,
+you can disable the recording of events by setting <<config-recording,`ELASTIC_APM_RECORDING`>> to `false`.
+When changed at runtime from a supported source, there's no need to redeploy your application for the change to take effect.
+
+If that doesn't work, or you don't have access to dynamic configuration, you can disable the Agent by setting
+<<config-active,`ELASTIC_APM_ACTIVE`>> to `false`.
+You'll need to restart your application for the changes to apply.
