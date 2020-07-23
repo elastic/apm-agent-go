@@ -1,0 +1,54 @@
+[[troubleshooting]]
+== Troubleshooting
+
+Is something not working as expected?
+Don't worry if you can't figure out what the problem is; we’re here to help!
+As a first step, ensure your app is compatible with the agent's <<supported-tech,supported technologies>>.
+
+If you're an existing Elastic customer with a support contract, please create a ticket in the
+https://support.elastic.co/customers/s/login/[Elastic Support portal].
+Other users can post in the https://discuss.elastic.co/c/apm[APM discuss forum].
+
+IMPORTANT: *Please upload your complete debug logs* to a service like https://gist.github.com[GitHub Gist]
+so that we can analyze the problem.
+Logs should include everything from when the application starts up until the first request executes.
+Instructions for enabling logging are below.
+
+[float]
+[[agent-logging]]
+=== Logging
+
+Agent logs are critical to the debugging process.
+By default, this logging is disabled. To enable it, set a log output file with <<config-log-file,`ELASTIC_APM_LOG_FILE`>>.
+Alternatively, if you're using Docker or Kubernetes and are okay with mixing agent and application logs,
+you can set `ELASTIC_APM_LOG_FILE=stderr`.
+
+NOTE: The agent does not rotate log files. Log rotation must be handled externally.
+
+With logging enabled, you can use <<config-log-level,`ELASTIC_APM_LOG_LEVEL`>> to increase the granularity of the agent's logging.
+For example: `ELASTIC_APM_LOG_FILE=debug`.
+
+Make sure to execute a few requests to your application before posting your log files.
+Each request should add lines similar to these in the logs:
+
+[source,log]
+----
+{"level":"debug","time":"2020-07-23T11:46:32+08:00","message":"sent request with 100 transactions, 0 spans, 0 errors, 0 metricsets"}
+----
+
+If you don't see lines like these, it's likely that you haven't instrumented your application correctly.
+
+[float]
+[[disable-agent]]
+=== Disable the Agent
+
+In the unlikely event the agent causes disruptions to a production application,
+you can disable the agent while you troubleshoot.
+
+If you have access to <<dynamic-configuration,dynamic configuration>>,
+you can disable the recording of events by setting <<config-recording,`ELASTIC_APM_RECORDING`>> to `false`.
+When changed at runtime from a supported source, there's no need to restart your application.
+
+If that doesn't work, or you don't have access to dynamic configuration, you can disable the agent by setting
+<<config-active,`ELASTIC_APM_ACTIVE`>> to `false`.
+You'll need to restart your application for the changes to apply.
