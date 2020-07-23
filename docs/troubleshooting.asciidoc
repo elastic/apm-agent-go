@@ -33,10 +33,8 @@ Each request should add lines similar to these in the logs:
 
 [source,log]
 ----
-{"@timestamp":"2020-07-23T03:14:16Z","client-ip":"127.0.0.1","duration":31693200,"log.level":"info","message":"GET /api/orders (200)","method":"GET","path":"/api/orders","status":200,"trace.id":"9790410c7c9ff50ea1606094bf75946d","transaction.id":"9790410c7c9ff50e"}
-{"@timestamp":"2020-07-23T03:14:20Z","log.level":"debug","message":"cached stats","trace.id":"531db52a3756eacf26dd4a928022d3b3","transaction.id":"531db52a3756eacf"}
-{"@timestamp":"2020-07-23T03:14:20Z","client-ip":"172.20.0.8","duration":27064400,"log.level":"info","message":"GET /api/stats (200)","method":"GET","path":"/api/stats","status":200,"trace.id":"531db52a3756eacf26dd4a928022d3b3","transaction.id":"531db52a3756eacf"}
-{"@timestamp":"2020-07-23T03:14:20Z","log.level":"debug","message":"serving stats from cache","trace.id":"0992fa0d4bd5d72def4d44d81da01de4","transaction.id":"0992fa0d4bd5d72d"}
+{"level":"debug","time":"2020-07-23T11:46:32+08:00","message":"sent request with 100 transactions, 0 spans, 0 errors, 0 metricsets"}
+
 ----
 
 If you don't see lines like these, it's likely that you haven't instrumented your application correctly.
