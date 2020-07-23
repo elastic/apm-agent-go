@@ -9,13 +9,13 @@ If you're an existing Elastic customer with a support contract, please create a 
 https://support.elastic.co/customers/s/login/[Elastic Support portal].
 Other users can post in the https://discuss.elastic.co/c/apm[APM discuss forum].
 
-IMPORTANT: *Please attach your debug logs* so that we can analyze the problem.
-Upload the *complete* logs to a service like https://gist.github.com.
+IMPORTANT: *Please upload your complete debug logs* to a service like https://gist.github.com[GitHub Gist]
+so that we can analyze the problem.
 Logs should include everything from when the application starts up until the first request executes.
 Instructions for enabling logging are below.
 
 [float]
-[[agent-logging]
+[[agent-logging]]
 === Logging
 
 Agent logs are critical to the debugging process.
@@ -34,7 +34,6 @@ Each request should add lines similar to these in the logs:
 [source,log]
 ----
 {"level":"debug","time":"2020-07-23T11:46:32+08:00","message":"sent request with 100 transactions, 0 spans, 0 errors, 0 metricsets"}
-
 ----
 
 If you don't see lines like these, it's likely that you haven't instrumented your application correctly.
