@@ -33,7 +33,7 @@ https://golang.org/pkg/net/http/#Request.Context[net/http.Context].
 You can read more about this in <<custom-instrumentation-propagation>>.
 
 In addition to capturing events like those mentioned above,
-the agent also also collects system and application metrics at regular intervals.
+the agent also collects system and application metrics at regular intervals.
 This collection happens in a background goroutine that is automatically started when the agent is initialized.
 
 [float]
