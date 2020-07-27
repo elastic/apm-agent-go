@@ -37,6 +37,7 @@ func newConn(in driver.Conn, d *tracingDriver, dsnInfo DSNInfo) driver.Conn {
 	conn.execerContext, _ = in.(driver.ExecerContext)
 	conn.connBeginTx, _ = in.(driver.ConnBeginTx)
 	conn.connGo110.init(in)
+	conn.connGo115.init(in)
 	if in, ok := in.(driver.ConnBeginTx); ok {
 		return &connBeginTx{conn, in}
 	}
@@ -46,6 +47,7 @@ func newConn(in driver.Conn, d *tracingDriver, dsnInfo DSNInfo) driver.Conn {
 type conn struct {
 	driver.Conn
 	connGo110
+	connGo115
 	driver  *tracingDriver
 	dsnInfo DSNInfo
 
