@@ -62,7 +62,7 @@ func (r *requestTracer) start(ctx context.Context) context.Context {
 			r.Connect = r.tx.StartSpan("Connect", "http.connect", nil)
 
 			if r.DNS == nil {
-				r.tx.Context.SetLabel("dns", false)
+				r.Connect.Context.SetLabel("dns", false)
 			}
 		},
 
@@ -76,16 +76,6 @@ func (r *requestTracer) start(ctx context.Context) context.Context {
 
 		TLSHandshakeDone: func(_ tls.ConnectionState, _ error) {
 			r.TLS.End()
-		},
-
-		PutIdleConn: func(err error) {
-			r.tx.Context.SetLabel("conn_returned", err == nil)
-		},
-
-		GotConn: func(i httptrace.GotConnInfo) {
-			// Handle when keep alive is used and connection is reused.
-			// DNSStart(Done) and ConnectStart(Done) is skipped
-			r.tx.Context.SetLabel("conn_reused", true)
 		},
 
 		WroteRequest: func(info httptrace.WroteRequestInfo) {
