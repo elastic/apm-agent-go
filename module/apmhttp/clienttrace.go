@@ -30,7 +30,7 @@ import (
 // tracing events within HTTP client requests.
 func WithClientTrace() ClientOption {
 	return func(rt *roundTripper) {
-		rt.requestTracer = &requestTracer{}
+		rt.traceRequests = true
 	}
 }
 
@@ -44,14 +44,11 @@ type requestTracer struct {
 	Response *apm.Span
 }
 
-func (r *requestTracer) start(ctx context.Context) context.Context {
-	if r == nil {
-		return ctx
-	}
+func (r *requestTracer) start(ctx context.Context, parent *apm.Span) context.Context {
 	r.tx = apm.TransactionFromContext(ctx)
 	return httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{
 		DNSStart: func(i httptrace.DNSStartInfo) {
-			r.DNS = r.tx.StartSpan(fmt.Sprintf("DNS %s", i.Host), "http.dns", nil)
+			r.DNS = r.tx.StartSpan(fmt.Sprintf("DNS %s", i.Host), "http.dns", parent)
 		},
 
 		DNSDone: func(i httptrace.DNSDoneInfo) {
@@ -59,7 +56,7 @@ func (r *requestTracer) start(ctx context.Context) context.Context {
 		},
 
 		ConnectStart: func(_, _ string) {
-			r.Connect = r.tx.StartSpan("Connect", "http.connect", nil)
+			r.Connect = r.tx.StartSpan("Connect", "http.connect", parent)
 
 			if r.DNS == nil {
 				r.Connect.Context.SetLabel("dns", false)
@@ -71,7 +68,7 @@ func (r *requestTracer) start(ctx context.Context) context.Context {
 		},
 
 		TLSHandshakeStart: func() {
-			r.TLS = r.tx.StartSpan("TLS", "http.tls", nil)
+			r.TLS = r.tx.StartSpan("TLS", "http.tls", parent)
 		},
 
 		TLSHandshakeDone: func(_ tls.ConnectionState, _ error) {
@@ -79,12 +76,12 @@ func (r *requestTracer) start(ctx context.Context) context.Context {
 		},
 
 		WroteRequest: func(info httptrace.WroteRequestInfo) {
-			r.Request = r.tx.StartSpan("Request", "http.request", nil)
+			r.Request = r.tx.StartSpan("Request", "http.request", parent)
 		},
 
 		GotFirstResponseByte: func() {
 			r.Request.End()
-			r.Response = r.tx.StartSpan("Response", "http.response", nil)
+			r.Response = r.tx.StartSpan("Response", "http.response", parent)
 		},
 	})
 }

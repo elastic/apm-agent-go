@@ -70,7 +70,7 @@ type roundTripper struct {
 	r              http.RoundTripper
 	requestName    RequestNameFunc
 	requestIgnorer RequestIgnorerFunc
-	requestTracer  *requestTracer
+	traceRequests  bool
 }
 
 // RoundTrip delegates to r.r, emitting a span if req's context
@@ -84,7 +84,6 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	if tx == nil {
 		return r.r.RoundTrip(req)
 	}
-	ctx = r.requestTracer.start(ctx)
 
 	// RoundTrip is not supposed to mutate req, so copy req
 	// and set the trace-context headers only in the copy.
@@ -104,6 +103,10 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	name := r.requestName(req)
 	span := tx.StartSpan(name, "external.http", apm.SpanFromContext(ctx))
+	var rt requestTracer
+	if r.traceRequests {
+		ctx = rt.start(ctx, span)
+	}
 	if !span.Dropped() {
 		traceContext = span.TraceContext()
 		ctx = apm.ContextWithSpan(ctx, span)
@@ -116,13 +119,19 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	r.setHeaders(req, traceContext, propagateLegacyHeader)
 	resp, err := r.r.RoundTrip(req)
-	r.requestTracer.end()
 	if span != nil {
 		if err != nil {
+			if r.traceRequests {
+				rt.end()
+			}
 			span.End()
 		} else {
 			span.Context.SetHTTPStatusCode(resp.StatusCode)
-			resp.Body = &responseBody{span: span, body: resp.Body}
+			body := &responseBody{span: span, body: resp.Body}
+			if r.traceRequests {
+				body.requestTracer = &rt
+			}
+			resp.Body = body
 		}
 	}
 	return resp, err
@@ -161,6 +170,7 @@ func (r *roundTripper) CancelRequest(req *http.Request) {
 
 type responseBody struct {
 	span *apm.Span
+	*requestTracer
 	body io.ReadCloser
 }
 
@@ -181,6 +191,7 @@ func (b *responseBody) Read(p []byte) (n int, err error) {
 }
 
 func (b *responseBody) endSpan() {
+	b.requestTracer.end()
 	addr := (*unsafe.Pointer)(unsafe.Pointer(&b.span))
 	if old := atomic.SwapPointer(addr, nil); old != nil {
 		(*apm.Span)(old).End()
