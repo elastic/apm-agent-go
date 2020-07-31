@@ -20,6 +20,7 @@ package apmhttp
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"net/http/httptrace"
 
 	"go.elastic.co/apm"
@@ -39,8 +40,8 @@ type requestTracer struct {
 	DNS,
 	Connect,
 	TLS,
-	Server,
-	Transfer *apm.Span
+	Request,
+	Response *apm.Span
 }
 
 func (r *requestTracer) start(ctx context.Context) context.Context {
@@ -50,7 +51,7 @@ func (r *requestTracer) start(ctx context.Context) context.Context {
 	r.tx = apm.TransactionFromContext(ctx)
 	return httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{
 		DNSStart: func(i httptrace.DNSStartInfo) {
-			r.DNS = r.tx.StartSpan("DNS Lookup", "http.dns", nil)
+			r.DNS = r.tx.StartSpan(fmt.Sprintf("DNS %s", i.Host), "http.dns", nil)
 		},
 
 		DNSDone: func(i httptrace.DNSDoneInfo) {
@@ -70,8 +71,7 @@ func (r *requestTracer) start(ctx context.Context) context.Context {
 		},
 
 		TLSHandshakeStart: func() {
-			r.TLS = r.tx.StartSpan("TLS Handshake", "http.tls", nil)
-			r.tx.Context.SetLabel("tls", true)
+			r.TLS = r.tx.StartSpan("TLS", "http.tls", nil)
 		},
 
 		TLSHandshakeDone: func(_ tls.ConnectionState, _ error) {
@@ -89,17 +89,12 @@ func (r *requestTracer) start(ctx context.Context) context.Context {
 		},
 
 		WroteRequest: func(info httptrace.WroteRequestInfo) {
-			r.Server = r.tx.StartSpan("Server Processing", "http.server", nil)
-
-			// When connection is re-used, DNS/TCP/TLS hooks not called.
-			if r.Connect == nil {
-				// TODO
-			}
+			r.Request = r.tx.StartSpan("Request", "http.request", nil)
 		},
 
 		GotFirstResponseByte: func() {
-			r.Server.End()
-			r.Transfer = r.tx.StartSpan("Transfer", "http.transfer", nil)
+			r.Request.End()
+			r.Response = r.tx.StartSpan("Response", "http.response", nil)
 		},
 	})
 }
@@ -108,7 +103,7 @@ func (r *requestTracer) end() {
 	if r == nil {
 		return
 	}
-	if r.Transfer != nil {
-		r.Transfer.End()
+	if r.Response != nil {
+		r.Response.End()
 	}
 }
