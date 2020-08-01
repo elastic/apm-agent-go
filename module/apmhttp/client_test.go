@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -320,7 +321,8 @@ func TestWithClientTrace(t *testing.T) {
 	})
 
 	require.Len(t, spans, 4)
-	assert.Equal(t, "Connect", spans[0].Name)
+	assert.True(t, strings.HasPrefix(spans[0].Name, "Connect "),
+		fmt.Sprintf("want: Connect ... got: %s", spans[0].Name))
 	assert.Equal(t, "Request", spans[1].Name)
 	assert.Equal(t, "Response", spans[2].Name)
 	assert.Equal(t, model.IfaceMap{
