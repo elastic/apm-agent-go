@@ -63,17 +63,11 @@ func withClientTrace(ctx context.Context, tx *apm.Transaction, parent *apm.Span)
 
 		ConnectStart: func(network, addr string) {
 			span := tx.StartSpan(fmt.Sprintf("Connect %s", addr), "http.connect", parent)
-			if r.DNS == nil {
-				span.Context.SetLabel("dns", false)
-			}
 			r.Connects[connectKey{network: network, addr: addr}] = span
 		},
 
 		ConnectDone: func(network, addr string, err error) {
 			span := r.Connects[connectKey{network: network, addr: addr}]
-			if err != nil {
-				span.Context.SetLabel("error", err.Error())
-			}
 			span.End()
 		},
 
