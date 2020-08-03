@@ -103,13 +103,13 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	name := r.requestName(req)
 	span := tx.StartSpan(name, "external.http", apm.SpanFromContext(ctx))
-	var rt requestTracer
-	if r.traceRequests {
-		ctx = rt.start(ctx, span)
-	}
+	var rt *requestTracer
 	if !span.Dropped() {
 		traceContext = span.TraceContext()
 		ctx = apm.ContextWithSpan(ctx, span)
+		if r.traceRequests {
+			ctx, rt = withClientTrace(ctx, tx, span)
+		}
 		req = RequestWithContext(ctx, req)
 		span.Context.SetHTTPRequest(req)
 	} else {
@@ -127,11 +127,7 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 			span.End()
 		} else {
 			span.Context.SetHTTPStatusCode(resp.StatusCode)
-			body := &responseBody{span: span, body: resp.Body}
-			if r.traceRequests {
-				body.requestTracer = &rt
-			}
-			resp.Body = body
+			resp.Body = &responseBody{span: span, body: resp.Body, requestTracer: rt}
 		}
 	}
 	return resp, err
@@ -169,9 +165,9 @@ func (r *roundTripper) CancelRequest(req *http.Request) {
 }
 
 type responseBody struct {
-	span *apm.Span
-	*requestTracer
-	body io.ReadCloser
+	span          *apm.Span
+	requestTracer *requestTracer
+	body          io.ReadCloser
 }
 
 // Close closes the response body, and ends the span if it hasn't already been ended.
@@ -191,7 +187,9 @@ func (b *responseBody) Read(p []byte) (n int, err error) {
 }
 
 func (b *responseBody) endSpan() {
-	b.requestTracer.end()
+	if b.requestTracer != nil {
+		b.requestTracer.end()
+	}
 	addr := (*unsafe.Pointer)(unsafe.Pointer(&b.span))
 	if old := atomic.SwapPointer(addr, nil); old != nil {
 		(*apm.Span)(old).End()

@@ -321,8 +321,7 @@ func TestWithClientTrace(t *testing.T) {
 	})
 
 	require.Len(t, spans, 4)
-	assert.True(t, strings.HasPrefix(spans[0].Name, "Connect "),
-		fmt.Sprintf("want: Connect ... got: %s", spans[0].Name))
+	assert.Equal(t, fmt.Sprintf(fmt.Sprintf("Connect %s", server.Listener.Addr())), spans[0].Name)
 	assert.Equal(t, "Request", spans[1].Name)
 	assert.Equal(t, "Response", spans[2].Name)
 	assert.Equal(t, model.IfaceMap{
