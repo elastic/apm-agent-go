@@ -97,9 +97,6 @@ func (r *requestTracer) start(ctx context.Context, parent *apm.Span) context.Con
 }
 
 func (r *requestTracer) end() {
-	if r == nil {
-		return
-	}
 	if r.Response != nil {
 		r.Response.End()
 	}
