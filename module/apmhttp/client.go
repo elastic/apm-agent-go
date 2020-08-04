@@ -121,7 +121,7 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	resp, err := r.r.RoundTrip(req)
 	if span != nil {
 		if err != nil {
-			if r.traceRequests {
+			if rt != nil {
 				rt.end()
 			}
 			span.End()
