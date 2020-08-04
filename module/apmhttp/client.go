@@ -187,11 +187,11 @@ func (b *responseBody) Read(p []byte) (n int, err error) {
 }
 
 func (b *responseBody) endSpan() {
-	if b.requestTracer != nil {
-		b.requestTracer.end()
-	}
 	addr := (*unsafe.Pointer)(unsafe.Pointer(&b.span))
 	if old := atomic.SwapPointer(addr, nil); old != nil {
+		if b.requestTracer != nil {
+			b.requestTracer.end()
+		}
 		(*apm.Span)(old).End()
 	}
 }
