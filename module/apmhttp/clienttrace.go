@@ -45,7 +45,7 @@ type requestTracer struct {
 	Request,
 	Response *apm.Span
 
-	mu sync.RWMutex
+	mu       sync.RWMutex
 	Connects map[connectKey]*apm.Span
 }
 
