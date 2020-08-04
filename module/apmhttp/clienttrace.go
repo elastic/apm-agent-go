@@ -89,10 +89,6 @@ func withClientTrace(ctx context.Context, tx *apm.Transaction, parent *apm.Span)
 			r.TLS.End()
 		},
 
-		WroteRequest: func(info httptrace.WroteRequestInfo) {
-			r.Request.End()
-		},
-
 		GotFirstResponseByte: func() {
 			r.Request.End()
 			r.Response = tx.StartSpan("Response", "http.response", parent)
