@@ -22,6 +22,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http/httptrace"
+	"sync"
 
 	"go.elastic.co/apm"
 )
@@ -44,6 +45,7 @@ type requestTracer struct {
 	Request,
 	Response *apm.Span
 
+	mu sync.RWMutex
 	Connects map[connectKey]*apm.Span
 }
 
@@ -63,11 +65,15 @@ func withClientTrace(ctx context.Context, tx *apm.Transaction, parent *apm.Span)
 
 		ConnectStart: func(network, addr string) {
 			span := tx.StartSpan(fmt.Sprintf("Connect %s", addr), "http.connect", parent)
+			r.mu.Lock()
 			r.Connects[connectKey{network: network, addr: addr}] = span
+			r.mu.Unlock()
 		},
 
 		ConnectDone: func(network, addr string, err error) {
+			r.mu.RLock()
 			span := r.Connects[connectKey{network: network, addr: addr}]
+			r.mu.RUnlock()
 			span.End()
 		},
 
