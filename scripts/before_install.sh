@@ -20,7 +20,7 @@ function pin() {
     url="https://$repo"
   fi
   mkdir -p "$orgdir"
-  (cd "$orgdir" && git clone "$url" && cd $projname && git checkout $commit)
+  (cd "$orgdir" && git clone "$url" "$projname" && cd $projname && git checkout $commit)
 }
 
 if (! go run scripts/mingoversion.go 1.11 &>/dev/null); then
@@ -35,6 +35,7 @@ if (! go run scripts/mingoversion.go 1.10 &>/dev/null); then
   pin github.com/go-sql-driver/mysql v1.4.1
   pin github.com/labstack/echo v4.1.9
   pin github.com/lib/pq v1.0.0
+  pin google.golang.org/grpc v1.30.0 https://github.com/grpc/grpc-go
 fi
 
 if (! go run scripts/mingoversion.go 1.9 &>/dev/null); then
