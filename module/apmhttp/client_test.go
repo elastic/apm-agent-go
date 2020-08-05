@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -309,6 +310,20 @@ func TestWithClientRequestName(t *testing.T) {
 	require.Len(t, spans, 1)
 	span := spans[0]
 	assert.Equal(t, "http://test", span.Name)
+}
+
+func TestWithClientTrace(t *testing.T) {
+	server := httptest.NewServer(http.NotFoundHandler())
+	defer server.Close()
+
+	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+		mustGET(ctx, server.URL, apmhttp.WithClientTrace())
+	})
+
+	require.Len(t, spans, 4)
+	assert.Equal(t, fmt.Sprintf(fmt.Sprintf("Connect %s", server.Listener.Addr())), spans[0].Name)
+	assert.Equal(t, "Request", spans[1].Name)
+	assert.Equal(t, "Response", spans[2].Name)
 }
 
 func mustGET(ctx context.Context, url string, o ...apmhttp.ClientOption) (statusCode int, responseBody string) {
