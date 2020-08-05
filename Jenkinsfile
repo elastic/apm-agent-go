@@ -281,9 +281,9 @@ def generateStep(version){
           // Another retry in case there are any environmental issues
           // See https://issuetracker.google.com/issues/146072599 for more context
           retry(3) {
+            deleteDir()
+            unstash 'source'
             dir("${BASE_DIR}"){
-              deleteDir()
-              unstash 'source'
               sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
             }
           }
