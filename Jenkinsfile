@@ -280,11 +280,15 @@ def generateStep(version){
         withEnv(["GO_VERSION=${version}"]) {
           // Another retry in case there are any environmental issues
           // See https://issuetracker.google.com/issues/146072599 for more context
+          deleteDir()
+          unstash 'source'
           retry(3) {
-            deleteDir()
-            unstash 'source'
             dir("${BASE_DIR}"){
               sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
+            }
+          }
+          retry(3) {
+            dir("${BASE_DIR}"){
               sh script: './scripts/jenkins/build.sh', label: 'Build'
             }
           }
