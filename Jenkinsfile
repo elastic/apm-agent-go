@@ -207,8 +207,11 @@ pipeline {
               }
               retry(3) {
                 dir("${BASE_DIR}"){
-                  sh script: './scripts/jenkins/build-test.sh', label: 'Build and test'
+                  sh script: './scripts/jenkins/build.sh', label: 'Build'
                 }
+              }
+              dir("${BASE_DIR}"){
+                sh script: './scripts/jenkins/test.sh', label: 'Test'
               }
             }
           }
