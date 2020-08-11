@@ -197,11 +197,17 @@ pipeline {
           }
           steps {
             withGithubNotify(context: 'Build-Test - OSX') {
-              deleteDir()
-              unstash 'source'
-              dir("${BASE_DIR}"){
-                sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
-                sh script: './scripts/jenkins/build-test.sh', label: 'Build and test'
+              retry(3) {
+                deleteDir()
+                unstash 'source'
+                dir("${BASE_DIR}"){
+                  sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
+                }
+              }
+              retry(3) {
+                dir("${BASE_DIR}"){
+                  sh script: './scripts/jenkins/build-test.sh', label: 'Build and test'
+                }
               }
             }
           }
@@ -284,6 +290,10 @@ def generateStep(version){
             unstash 'source'
             dir("${BASE_DIR}"){
               sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
+            }
+          }
+          retry(3) {
+            dir("${BASE_DIR}"){
               sh script: './scripts/jenkins/build.sh', label: 'Build'
             }
           }
