@@ -97,8 +97,8 @@ func TestTraceStateInvalidValueLength(t *testing.T) {
 
 func TestTraceStateInvalidValueCharacter(t *testing.T) {
 	for _, value := range []string{
-		string(0),
-		"header" + string(0) + "trailer",
+		string(rune(0)),
+		"header" + string(rune(0)) + "trailer",
 	} {
 		ts := apm.NewTraceState(apm.TraceStateEntry{Key: "oy", Value: value})
 		assert.EqualError(t, ts.Validate(),
