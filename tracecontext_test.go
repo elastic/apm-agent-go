@@ -105,3 +105,14 @@ func TestTraceStateInvalidValueCharacter(t *testing.T) {
 			`invalid tracestate entry at position 0: invalid value for key "oy": value contains invalid character '\x00'`)
 	}
 }
+
+func TestTraceStateInvalidElasticEntry(t *testing.T) {
+	ts := apm.NewTraceState(apm.TraceStateEntry{Key: "es", Value: "foo"})
+	assert.EqualError(t, ts.Validate(), `invalid tracestate entry at position 0: malformed 'es' tracestate entry`)
+
+	ts = apm.NewTraceState(apm.TraceStateEntry{Key: "es", Value: "s:foo"})
+	assert.EqualError(t, ts.Validate(), `invalid tracestate entry at position 0: strconv.ParseFloat: parsing "foo": invalid syntax`)
+
+	ts = apm.NewTraceState(apm.TraceStateEntry{Key: "es", Value: "s:1.5"})
+	assert.EqualError(t, ts.Validate(), `invalid tracestate entry at position 0: sample rate "1.5" out of range`)
+}

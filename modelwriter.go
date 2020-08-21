@@ -109,6 +109,9 @@ func (w *modelWriter) buildModelTransaction(out *model.Transaction, tx *Transact
 	if !sampled {
 		out.Sampled = &notSampled
 	}
+	if tx.traceContext.State.haveSampleRate {
+		out.SampleRate = &tx.traceContext.State.sampleRate
+	}
 
 	out.ParentID = model.SpanID(td.parentSpan)
 	out.Name = truncateString(td.Name)
@@ -137,6 +140,9 @@ func (w *modelWriter) buildModelSpan(out *model.Span, span *Span, sd *SpanData) 
 	out.ID = model.SpanID(span.traceContext.Span)
 	out.TraceID = model.TraceID(span.traceContext.Trace)
 	out.TransactionID = model.SpanID(span.transactionID)
+	if span.traceContext.State.haveSampleRate {
+		out.SampleRate = &span.traceContext.State.sampleRate
+	}
 
 	out.ParentID = model.SpanID(sd.parentID)
 	out.Name = truncateString(sd.Name)

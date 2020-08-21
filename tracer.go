@@ -412,6 +412,7 @@ func newTracer(opts TracerOptions) *Tracer {
 	})
 	t.setLocalInstrumentationConfig(envTransactionSampleRate, func(cfg *instrumentationConfigValues) {
 		cfg.sampler = opts.sampler
+		cfg.extendedSampler, _ = opts.sampler.(ExtendedSampler)
 	})
 	t.setLocalInstrumentationConfig(envSpanFramesMinDuration, func(cfg *instrumentationConfigValues) {
 		cfg.spanFramesMinDuration = opts.spanFramesMinDuration
@@ -664,6 +665,7 @@ func (t *Tracer) SetRecording(r bool) {
 func (t *Tracer) SetSampler(s Sampler) {
 	t.setLocalInstrumentationConfig(envTransactionSampleRate, func(cfg *instrumentationConfigValues) {
 		cfg.sampler = s
+		cfg.extendedSampler, _ = s.(ExtendedSampler)
 	})
 }
 

@@ -35,6 +35,37 @@ type Sampler interface {
 	Sample(TraceContext) bool
 }
 
+// ExtendedSampler may be implemented by Samplers, providing
+// a method for sampling and returning an extended SampleResult.
+//
+// TODO(axw) in v2.0.0, replace the Sampler interface with this.
+type ExtendedSampler interface {
+	// SampleExtended indicates whether or not a transaction
+	// should be sampled, and the sampling rate in effect at
+	// the time. This method will be invoked by calls to
+	// Tracer.StartTransaction for the root of a trace, so it
+	// must be goroutine-safe, and should avoid synchronization
+	// as far as possible.
+	SampleExtended(SampleParams) SampleResult
+}
+
+// SampleParams holds parameters for SampleExtended.
+type SampleParams struct {
+	// TraceContext holds the newly-generated TraceContext
+	// for the root transaction which is being sampled.
+	TraceContext TraceContext
+}
+
+// SampleResult holds information about a sampling decision.
+type SampleResult struct {
+	// Sampled holds the sampling decision.
+	Sampled bool
+
+	// SampleRate holds the sample rate in effect at the
+	// time of the sampling decision.
+	SampleRate float64
+}
+
 // NewRatioSampler returns a new Sampler with the given ratio
 //
 // A ratio of 1.0 samples 100% of transactions, a ratio of 0.5
@@ -51,16 +82,27 @@ func NewRatioSampler(r float64) Sampler {
 	x.SetUint64(math.MaxUint64)
 	x.Mul(&x, big.NewFloat(r))
 	ceil, _ := x.Uint64()
-	return ratioSampler{ceil}
+	return ratioSampler{r, ceil}
 }
 
 type ratioSampler struct {
-	ceil uint64
+	ratio float64
+	ceil  uint64
 }
 
 // Sample samples the transaction according to the configured
 // ratio and pseudo-random source.
 func (s ratioSampler) Sample(c TraceContext) bool {
-	v := binary.BigEndian.Uint64(c.Span[:])
-	return v > 0 && v-1 < s.ceil
+	return s.SampleExtended(SampleParams{TraceContext: c}).Sampled
+}
+
+// SampleExtended samples the transaction according to the configured
+// ratio and pseudo-random source.
+func (s ratioSampler) SampleExtended(args SampleParams) SampleResult {
+	v := binary.BigEndian.Uint64(args.TraceContext.Span[:])
+	result := SampleResult{
+		Sampled:    v > 0 && v-1 < s.ceil,
+		SampleRate: s.ratio,
+	}
+	return result
 }

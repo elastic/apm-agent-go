@@ -93,7 +93,7 @@ func testClientSpan(t *testing.T, traceparentHeaders ...string) {
 	}
 	assert.Equal(t, clientSpans[0].TraceID, serverTransactions[1].TraceID)
 	assert.Equal(t, clientSpans[0].ID, serverTransactions[1].ParentID)
-	assert.Equal(t, "server_span", serverSpans[0].Name) // no tracestate
+	assert.Equal(t, "es=s:1", serverSpans[0].Name) // automatically created tracestate
 	assert.Equal(t, "vendor=tracestate", serverSpans[1].Name)
 
 	traceparentValue := apmhttp.FormatTraceparentHeader(apm.TraceContext{

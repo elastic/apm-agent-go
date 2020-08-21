@@ -388,6 +388,7 @@ func (t *Tracer) updateRemoteConfig(logger WarningLogger, old, attrs map[string]
 			} else {
 				updates = append(updates, func(cfg *instrumentationConfig) {
 					cfg.sampler = sampler
+					cfg.extendedSampler, _ = sampler.(ExtendedSampler)
 				})
 			}
 		default:
@@ -479,6 +480,7 @@ type instrumentationConfigValues struct {
 	recording             bool
 	captureBody           CaptureBodyMode
 	captureHeaders        bool
+	extendedSampler       ExtendedSampler
 	maxSpans              int
 	sampler               Sampler
 	spanFramesMinDuration time.Duration
