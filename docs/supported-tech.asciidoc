@@ -56,7 +56,7 @@ about Echo instrumentation.
 [float]
 ==== Gin
 
-We support the https://gin-gonic.github.io/gin/[Gin] web framework,
+We support the https://gin-gonic.com/[Gin] web framework,
 https://github.com/gin-gonic/gin/releases/tag/v1.2[v1.2] and greater.
 
 See <<builtin-modules-apmgin, module/apmgin>> for more information
