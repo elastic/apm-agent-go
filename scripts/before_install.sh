@@ -28,6 +28,7 @@ if (! go run scripts/mingoversion.go 1.11 &>/dev/null); then
   pin github.com/stretchr/testify v1.4.0
   pin github.com/cucumber/godog v0.8.0
   pin github.com/elastic/go-sysinfo v1.3.0
+  pin google.golang.org/grpc v1.30.0 https://github.com/grpc/grpc-go
 fi
 
 if (! go run scripts/mingoversion.go 1.10 &>/dev/null); then
@@ -35,7 +36,6 @@ if (! go run scripts/mingoversion.go 1.10 &>/dev/null); then
   pin github.com/go-sql-driver/mysql v1.4.1
   pin github.com/labstack/echo v4.1.9
   pin github.com/lib/pq v1.0.0
-  pin google.golang.org/grpc v1.30.0 https://github.com/grpc/grpc-go
 fi
 
 if (! go run scripts/mingoversion.go 1.9 &>/dev/null); then
