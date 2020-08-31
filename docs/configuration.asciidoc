@@ -258,12 +258,12 @@ server versions.
 
 [float]
 [[config-ignore-urls]]
-=== `ELASTIC_APM_IGNORE_URLS`
+=== `ELASTIC_APM_TRANSACTION_IGNORE_URLS`
 
 [options="header"]
 |============
-| Environment               | Default | Example
-| `ELASTIC_APM_IGNORE_URLS` |         | `/heartbeat*, *.jpg`
+| Environment                           | Default | Example
+| `ELASTIC_APM_TRANSACTION_IGNORE_URLS` |         | `/heartbeat*, *.jpg`
 |============
 
 A list of patterns to match HTTP requests to ignore. An incoming HTTP request
