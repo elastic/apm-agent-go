@@ -27,7 +27,8 @@ import (
 )
 
 const (
-	envIgnoreURLs = "ELASTIC_APM_IGNORE_URLS"
+	envIgnoreURLs           = "ELASTIC_APM_TRANSACTION_IGNORE_URLS"
+	deprecatedEnvIgnoreURLs = "ELASTIC_APM_IGNORE_URLS"
 )
 
 var (
@@ -36,12 +37,15 @@ var (
 )
 
 // DefaultServerRequestIgnorer returns the default RequestIgnorer to use in
-// handlers. If ELASTIC_APM_IGNORE_URLS is set, it will be treated as a
+// handlers. If ELASTIC_APM_TRANSACTION_IGNORE_URLS is set, it will be treated as a
 // comma-separated list of wildcard patterns; requests that match any of the
 // patterns will be ignored.
 func DefaultServerRequestIgnorer() RequestIgnorerFunc {
 	defaultServerRequestIgnorerOnce.Do(func() {
 		matchers := configutil.ParseWildcardPatternsEnv(envIgnoreURLs, nil)
+		if len(matchers) == 0 {
+			matchers = configutil.ParseWildcardPatternsEnv(deprecatedEnvIgnoreURLs, nil)
+		}
 		if len(matchers) != 0 {
 			defaultServerRequestIgnorer = NewWildcardPatternsRequestIgnorer(matchers)
 		}

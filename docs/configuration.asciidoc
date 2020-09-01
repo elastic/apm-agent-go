@@ -258,12 +258,12 @@ server versions.
 
 [float]
 [[config-ignore-urls]]
-=== `ELASTIC_APM_IGNORE_URLS`
+=== `ELASTIC_APM_TRANSACTION_IGNORE_URLS`
 
 [options="header"]
 |============
-| Environment               | Default | Example
-| `ELASTIC_APM_IGNORE_URLS` |         | `/heartbeat*, *.jpg`
+| Environment                           | Default | Example
+| `ELASTIC_APM_TRANSACTION_IGNORE_URLS` |         | `/heartbeat*, *.jpg`
 |============
 
 A list of patterns to match HTTP requests to ignore. An incoming HTTP request
@@ -272,6 +272,9 @@ whose request line matches any of the patterns will not be reported as a transac
 This option supports the wildcard `*`, which matches zero or more characters.
 Examples: `/foo/*/bar/*/baz*`, `*foo*`. Matching is case insensitive by default.
 Prefixing a pattern with `(?-i)` makes the matching case sensitive.
+
+NOTE: this configuration was previously known as `ELASTIC_APM_IGNORE_URLS`, which has been deprecated and will be removed in a future major
+version of the agent.
 
 [float]
 [[config-sanitize-field-names]]

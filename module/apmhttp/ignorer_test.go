@@ -61,11 +61,24 @@ func testDefaultServerRequestIgnorer(t *testing.T, ignoreURLs string, r *http.Re
 		if os.Getenv("_INSIDE_TEST") != "1" {
 			cmd := exec.Command(os.Args[0], "-test.run=^"+regexp.QuoteMeta(t.Name())+"$")
 			cmd.Env = append(os.Environ(), "_INSIDE_TEST=1")
-			cmd.Env = append(cmd.Env, "ELASTIC_APM_IGNORE_URLS="+ignoreURLs)
+			cmd.Env = append(cmd.Env, "ELASTIC_APM_TRANSACTION_IGNORE_URLS="+ignoreURLs)
 			assert.NoError(t, cmd.Run())
 			return
 		}
 		ignorer := apmhttp.DefaultServerRequestIgnorer()
 		assert.Equal(t, expect, ignorer(r))
 	})
+}
+
+func TestFallbackDeprecatedRequestIgnorer(t *testing.T) {
+	if os.Getenv("_INSIDE_TEST") != "1" {
+		cmd := exec.Command(os.Args[0], "-test.run=^"+regexp.QuoteMeta(t.Name())+"$")
+		cmd.Env = append(os.Environ(), "_INSIDE_TEST=1")
+		cmd.Env = append(cmd.Env, "ELASTIC_APM_IGNORE_URLS=*/foo*")
+		assert.NoError(t, cmd.Run())
+		return
+	}
+	req := &http.Request{URL: &url.URL{Path: "/foo"}}
+	ignorer := apmhttp.DefaultServerRequestIgnorer()
+	assert.Equal(t, true, ignorer(req))
 }
