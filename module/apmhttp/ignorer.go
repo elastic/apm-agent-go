@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	envIgnoreURLs = "ELASTIC_APM_TRANSACTION_IGNORE_URLS"
+	envIgnoreURLs           = "ELASTIC_APM_TRANSACTION_IGNORE_URLS"
 	deprecatedEnvIgnoreURLs = "ELASTIC_APM_IGNORE_URLS"
 )
 
