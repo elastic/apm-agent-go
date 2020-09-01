@@ -273,6 +273,9 @@ This option supports the wildcard `*`, which matches zero or more characters.
 Examples: `/foo/*/bar/*/baz*`, `*foo*`. Matching is case insensitive by default.
 Prefixing a pattern with `(?-i)` makes the matching case sensitive.
 
+NOTE: `ELASTIC_APM_IGNORE_URLS` is deprecated, and will be removed in a future major
+version of the agent.
+
 [float]
 [[config-sanitize-field-names]]
 === `ELASTIC_APM_SANITIZE_FIELD_NAMES`
