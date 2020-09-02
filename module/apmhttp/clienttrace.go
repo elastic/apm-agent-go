@@ -56,7 +56,7 @@ func withClientTrace(ctx context.Context, tx *apm.Transaction, parent *apm.Span)
 
 	return httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{
 		DNSStart: func(i httptrace.DNSStartInfo) {
-			r.DNS = tx.StartSpan(fmt.Sprintf("DNS %s", i.Host), "http.dns", parent)
+			r.DNS = tx.StartSpan(fmt.Sprintf("DNS %s", i.Host), "external.http.dns", parent)
 		},
 
 		DNSDone: func(i httptrace.DNSDoneInfo) {
@@ -64,7 +64,7 @@ func withClientTrace(ctx context.Context, tx *apm.Transaction, parent *apm.Span)
 		},
 
 		ConnectStart: func(network, addr string) {
-			span := tx.StartSpan(fmt.Sprintf("Connect %s", addr), "http.connect", parent)
+			span := tx.StartSpan(fmt.Sprintf("Connect %s", addr), "external.http.connect", parent)
 			r.mu.Lock()
 			r.Connects[connectKey{network: network, addr: addr}] = span
 			r.mu.Unlock()
@@ -78,11 +78,11 @@ func withClientTrace(ctx context.Context, tx *apm.Transaction, parent *apm.Span)
 		},
 
 		GotConn: func(info httptrace.GotConnInfo) {
-			r.Request = tx.StartSpan("Request", "http.request", parent)
+			r.Request = tx.StartSpan("Request", "external.http.request", parent)
 		},
 
 		TLSHandshakeStart: func() {
-			r.TLS = tx.StartSpan("TLS", "http.tls", parent)
+			r.TLS = tx.StartSpan("TLS", "external.http.tls", parent)
 		},
 
 		TLSHandshakeDone: func(_ tls.ConnectionState, _ error) {
@@ -91,7 +91,7 @@ func withClientTrace(ctx context.Context, tx *apm.Transaction, parent *apm.Span)
 
 		GotFirstResponseByte: func() {
 			r.Request.End()
-			r.Response = tx.StartSpan("Response", "http.response", parent)
+			r.Response = tx.StartSpan("Response", "external.http.response", parent)
 		},
 	}), &r
 }
