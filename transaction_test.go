@@ -210,10 +210,22 @@ func TestTransactionSampleRate(t *testing.T) {
 func TestTransactionUnsampledSampleRate(t *testing.T) {
 	tracer := apmtest.NewRecordingTracer()
 	defer tracer.Close()
-	tracer.SetSampler(apm.NewRatioSampler(0))
+	tracer.SetSampler(apm.NewRatioSampler(0.5))
 
-	tx := tracer.StartTransactionOptions("name", "type", apm.TransactionOptions{})
-	tx.End()
+	// Create transactions until we get an unsampled one.
+	//
+	// Even though the configured sampling rate is 0.5,
+	// we record sample_rate=0 to ensure the server does
+	// not count the transaction toward metrics.
+	var tx *apm.Transaction
+	for {
+		tx = tracer.StartTransactionOptions("name", "type", apm.TransactionOptions{})
+		if !tx.Sampled() {
+			tx.End()
+			break
+		}
+		tx.Discard()
+	}
 	tracer.Flush(nil)
 
 	payloads := tracer.Payloads()
