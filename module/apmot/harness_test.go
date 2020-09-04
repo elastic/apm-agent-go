@@ -115,5 +115,6 @@ func (harnessAPIProbe) SameSpanContext(span opentracing.Span, sc opentracing.Spa
 	if !ok {
 		return false
 	}
-	return ctx1.traceContext == ctx2.traceContext
+	return ctx1.traceContext.Trace == ctx2.traceContext.Trace &&
+		ctx1.traceContext.Span == ctx2.traceContext.Span
 }

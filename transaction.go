@@ -97,8 +97,30 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 	}
 
 	if root {
-		sampler := instrumentationConfig.sampler
-		if sampler == nil || sampler.Sample(tx.traceContext) {
+		var result SampleResult
+		if instrumentationConfig.extendedSampler != nil {
+			result = instrumentationConfig.extendedSampler.SampleExtended(SampleParams{
+				TraceContext: tx.traceContext,
+			})
+			if !result.Sampled {
+				// Special case: for unsampled transactions we
+				// report a sample rate of 0, so that we do not
+				// count them in aggregations in the server.
+				// This is necessary to avoid overcounting, as
+				// we will scale the sampled transactions.
+				result.SampleRate = 0
+			}
+			sampleRate := round(1000*result.SampleRate) / 1000
+			tx.traceContext.State = NewTraceState(TraceStateEntry{
+				Key:   elasticTracestateVendorKey,
+				Value: formatElasticTracestateValue(sampleRate),
+			})
+		} else if instrumentationConfig.sampler != nil {
+			result.Sampled = instrumentationConfig.sampler.Sample(tx.traceContext)
+		} else {
+			result.Sampled = true
+		}
+		if result.Sampled {
 			o := tx.traceContext.Options.WithRecorded(true)
 			tx.traceContext.Options = o
 		}

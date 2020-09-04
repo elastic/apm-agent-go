@@ -205,6 +205,10 @@ type Transaction struct {
 	// it to true.
 	Sampled *bool `json:"sampled,omitempty"`
 
+	// SampleRate holds the sample rate in effect when the trace was started,
+	// if known. This is used by the server to aggregate transaction metrics.
+	SampleRate *float64 `json:"sample_rate,omitempty"`
+
 	// SpanCount holds statistics on spans within a transaction.
 	SpanCount SpanCount `json:"span_count"`
 }
@@ -253,6 +257,10 @@ type Span struct {
 
 	// ParentID holds the ID of the span's parent (span or transaction).
 	ParentID SpanID `json:"parent_id,omitempty"`
+
+	// SampleRate holds the sample rate in effect when the trace was started,
+	// if known. This is used by the server to aggregate span metrics.
+	SampleRate *float64 `json:"sample_rate,omitempty"`
 
 	// Context holds contextual information relating to the span.
 	Context *SpanContext `json:"context,omitempty"`

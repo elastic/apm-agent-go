@@ -86,3 +86,23 @@ func TestRatioSamplerNever(t *testing.T) {
 		Span: apm.SpanID{255, 255, 255, 255, 255, 255, 255, 255},
 	}))
 }
+
+func TestRatioSamplerExtended(t *testing.T) {
+	s := apm.NewRatioSampler(0.5).(apm.ExtendedSampler)
+
+	result := s.SampleExtended(apm.SampleParams{
+		TraceContext: apm.TraceContext{Span: apm.SpanID{255, 0, 0, 0, 0, 0, 0, 0}},
+	})
+	assert.Equal(t, apm.SampleResult{
+		Sampled:    false,
+		SampleRate: 0.5,
+	}, result)
+
+	result = s.SampleExtended(apm.SampleParams{
+		TraceContext: apm.TraceContext{Span: apm.SpanID{1, 0, 0, 0, 0, 0, 0, 0}},
+	})
+	assert.Equal(t, apm.SampleResult{
+		Sampled:    true,
+		SampleRate: 0.5,
+	}, result)
+}

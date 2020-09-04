@@ -175,6 +175,128 @@ func TestTransactionNotRecording(t *testing.T) {
 	require.Empty(t, payloads.Transactions)
 }
 
+func TestTransactionSampleRate(t *testing.T) {
+	type test struct {
+		actualSampleRate   float64
+		recordedSampleRate float64
+		expectedTraceState string
+	}
+	tests := []test{
+		{0, 0, "es=s:0"},
+		{1, 1, "es=s:1"},
+		{0.5555, 0.556, "es=s:0.556"},
+	}
+	for _, test := range tests {
+		test := test // copy for closure
+		t.Run(fmt.Sprintf("%v", test.actualSampleRate), func(t *testing.T) {
+			tracer := apmtest.NewRecordingTracer()
+			defer tracer.Close()
+
+			tracer.SetSampler(apm.NewRatioSampler(test.actualSampleRate))
+			tx := tracer.StartTransactionOptions("name", "type", apm.TransactionOptions{
+				// Use a known transaction ID for deterministic sampling.
+				TransactionID: apm.SpanID{1, 2, 3, 4, 5, 6, 7, 8},
+			})
+			tx.End()
+			tracer.Flush(nil)
+
+			payloads := tracer.Payloads()
+			assert.Equal(t, test.recordedSampleRate, *payloads.Transactions[0].SampleRate)
+			assert.Equal(t, test.expectedTraceState, tx.TraceContext().State.String())
+		})
+	}
+}
+
+func TestTransactionUnsampledSampleRate(t *testing.T) {
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+	tracer.SetSampler(apm.NewRatioSampler(0.5))
+
+	// Create transactions until we get an unsampled one.
+	//
+	// Even though the configured sampling rate is 0.5,
+	// we record sample_rate=0 to ensure the server does
+	// not count the transaction toward metrics.
+	var tx *apm.Transaction
+	for {
+		tx = tracer.StartTransactionOptions("name", "type", apm.TransactionOptions{})
+		if !tx.Sampled() {
+			tx.End()
+			break
+		}
+		tx.Discard()
+	}
+	tracer.Flush(nil)
+
+	payloads := tracer.Payloads()
+	assert.Equal(t, float64(0), *payloads.Transactions[0].SampleRate)
+	assert.Equal(t, "es=s:0", tx.TraceContext().State.String())
+}
+
+func TestTransactionSampleRatePropagation(t *testing.T) {
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+
+	for _, tracestate := range []apm.TraceState{
+		apm.NewTraceState(apm.TraceStateEntry{Key: "es", Value: "s:0.5"}),
+		apm.NewTraceState(apm.TraceStateEntry{Key: "es", Value: "x:y;s:0.5;zz:y"}),
+		apm.NewTraceState(
+			apm.TraceStateEntry{Key: "other", Value: "s:1.0"},
+			apm.TraceStateEntry{Key: "es", Value: "s:0.5"},
+		),
+	} {
+		tx := tracer.StartTransactionOptions("name", "type", apm.TransactionOptions{
+			TraceContext: apm.TraceContext{
+				Trace: apm.TraceID{1},
+				Span:  apm.SpanID{1},
+				State: tracestate,
+			},
+		})
+		tx.End()
+	}
+	tracer.Flush(nil)
+
+	payloads := tracer.Payloads()
+	assert.Len(t, payloads.Transactions, 3)
+	for _, tx := range payloads.Transactions {
+		assert.Equal(t, 0.5, *tx.SampleRate)
+	}
+}
+
+func TestTransactionSampleRateOmission(t *testing.T) {
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+
+	// For downstream transactions, sample_rate should be
+	// omitted if a valid value is not found in tracestate.
+	for _, tracestate := range []apm.TraceState{
+		apm.TraceState{}, // empty
+		apm.NewTraceState(apm.TraceStateEntry{Key: "other", Value: "s:1.0"}), // not "es", ignored
+		apm.NewTraceState(apm.TraceStateEntry{Key: "es", Value: "s:123.0"}),  // out of range
+		apm.NewTraceState(apm.TraceStateEntry{Key: "es", Value: ""}),         // 's' missing
+		apm.NewTraceState(apm.TraceStateEntry{Key: "es", Value: "wat"}),      // malformed
+	} {
+		for _, sampled := range []bool{false, true} {
+			tx := tracer.StartTransactionOptions("name", "type", apm.TransactionOptions{
+				TraceContext: apm.TraceContext{
+					Trace:   apm.TraceID{1},
+					Span:    apm.SpanID{1},
+					Options: apm.TraceOptions(0).WithRecorded(sampled),
+					State:   tracestate,
+				},
+			})
+			tx.End()
+		}
+	}
+	tracer.Flush(nil)
+
+	payloads := tracer.Payloads()
+	assert.Len(t, payloads.Transactions, 10)
+	for _, tx := range payloads.Transactions {
+		assert.Nil(t, tx.SampleRate)
+	}
+}
+
 func BenchmarkTransaction(b *testing.B) {
 	tracer, err := apm.NewTracer("service", "")
 	require.NoError(b, err)

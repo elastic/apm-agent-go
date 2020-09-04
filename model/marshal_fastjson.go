@@ -390,6 +390,10 @@ func (v *Transaction) MarshalFastJSON(w *fastjson.Writer) error {
 		w.RawString(",\"result\":")
 		w.String(v.Result)
 	}
+	if v.SampleRate != nil {
+		w.RawString(",\"sample_rate\":")
+		w.Float64(*v.SampleRate)
+	}
 	if v.Sampled != nil {
 		w.RawString(",\"sampled\":")
 		w.Bool(*v.Sampled)
@@ -444,6 +448,10 @@ func (v *Span) MarshalFastJSON(w *fastjson.Writer) error {
 		if err := v.ParentID.MarshalFastJSON(w); err != nil && firstErr == nil {
 			firstErr = err
 		}
+	}
+	if v.SampleRate != nil {
+		w.RawString(",\"sample_rate\":")
+		w.Float64(*v.SampleRate)
 	}
 	if v.Stacktrace != nil {
 		w.RawString(",\"stacktrace\":")
