@@ -765,8 +765,13 @@ func (t *Tracer) loop() {
 	// Run another goroutine to perform the blocking requests,
 	// communicating with the tracer loop to obtain stream data.
 	sendStreamRequest := make(chan time.Duration)
-	defer close(sendStreamRequest)
+	done := make(chan struct{})
+	defer func() {
+		close(sendStreamRequest)
+		<-done
+	}()
 	go func() {
+		defer close(done)
 		jitterRand := rand.New(rand.NewSource(time.Now().UnixNano()))
 		for gracePeriod := range sendStreamRequest {
 			if gracePeriod > 0 {
