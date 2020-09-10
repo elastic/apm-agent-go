@@ -529,6 +529,36 @@ func TestTransactionUnmarshalJSON(t *testing.T) {
 	assert.Equal(t, tx, out)
 }
 
+func TestMarshalCloud(t *testing.T) {
+	cloud := fakeCloud()
+
+	var w fastjson.Writer
+	cloud.MarshalFastJSON(&w)
+
+	decoded := mustUnmarshalJSON(w)
+	expect := map[string]interface{}{
+		"provider":          "zeus",
+		"region":            "troposphere",
+		"availability_zone": "torrid",
+		"instance": map[string]interface{}{
+			"id":   "instance_id",
+			"name": "instance_name",
+		},
+		"machine": map[string]interface{}{
+			"type": "machine_type",
+		},
+		"account": map[string]interface{}{
+			"id":   "account_id",
+			"name": "account_name",
+		},
+		"project": map[string]interface{}{
+			"id":   "project_id",
+			"name": "project_name",
+		},
+	}
+	assert.Equal(t, expect, decoded)
+}
+
 func fakeTransaction() model.Transaction {
 	return model.Transaction{
 		TraceID:   model.TraceID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
@@ -683,6 +713,29 @@ func fakeProcess() *model.Process {
 		Ppid:  &ppid,
 		Title: "my-fake-service",
 		Argv:  []string{"my-fake-service", "-f", "config.yml"},
+	}
+}
+
+func fakeCloud() *model.Cloud {
+	return &model.Cloud{
+		Provider:         "zeus",
+		Region:           "troposphere",
+		AvailabilityZone: "torrid",
+		Instance: &model.CloudInstance{
+			ID:   "instance_id",
+			Name: "instance_name",
+		},
+		Machine: &model.CloudMachine{
+			Type: "machine_type",
+		},
+		Account: &model.CloudAccount{
+			ID:   "account_id",
+			Name: "account_name",
+		},
+		Project: &model.CloudProject{
+			ID:   "project_id",
+			Name: "project_name",
+		},
 	}
 }
 

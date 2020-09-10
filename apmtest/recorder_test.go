@@ -34,17 +34,18 @@ import (
 func TestRecordingTracerCloudMetadata(t *testing.T) {
 	r := apmtest.NewRecordingTracer()
 
+	// Add just enough cloud metadata to check that it is picked up
+	// by the recorder.
+	//
+	// TODO this test should be removed when we send cloud metadata
+	// from the agent, at which point we should have a test that
+	// ensures the tracer's cloud metadata is sent as expected.
 	var buf bytes.Buffer
 	zw := zlib.NewWriter(&buf)
-	fmt.Fprint(zw, `{"metadata":{"cloud":{"provider":"zeus","region":"troposphere","availability_zone":"torrid","account":{"id":"okayenough"}}}}`)
+	fmt.Fprint(zw, `{"metadata":{"cloud":{"provider":"zeus"}}}`)
 	assert.NoError(t, zw.Close())
 
 	err := r.SendStream(context.Background(), &buf)
 	require.NoError(t, err)
-	assert.Equal(t, model.Cloud{
-		Provider:         "zeus",
-		Region:           "troposphere",
-		AvailabilityZone: "torrid",
-		Account:          &model.CloudAccount{ID: "okayenough"},
-	}, r.CloudMetadata())
+	assert.Equal(t, model.Cloud{Provider: "zeus"}, r.CloudMetadata())
 }
