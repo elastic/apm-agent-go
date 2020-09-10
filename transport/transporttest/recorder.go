@@ -76,10 +76,24 @@ func (r *RecorderTransport) SendProfile(ctx context.Context, metadata io.Reader,
 
 // Metadata returns the metadata recorded by the transport. If metadata is yet to
 // be received, this method will panic.
+//
+// TODO(axw) introduce an exported type which contains all metadata, and return
+// that. Although we don't guarantee stability for this package this has a high
+// probability of breaking existing external tests, so let's do that in v2.
 func (r *RecorderTransport) Metadata() (_ model.System, _ model.Process, _ model.Service, labels model.IfaceMap) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.metadata.System, r.metadata.Process, r.metadata.Service, r.metadata.Labels
+}
+
+// CloudMetadata returns the cloud metadata recorded by the transport. If metadata
+// is yet to be received, this method will panic.
+//
+// TODO(axw) remove when Metadata returns an exported type containing all metadata.
+func (r *RecorderTransport) CloudMetadata() model.Cloud {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.metadata.Cloud
 }
 
 // Payloads returns the payloads recorded by SendStream.
@@ -199,5 +213,6 @@ type metadata struct {
 	System  model.System   `json:"system"`
 	Process model.Process  `json:"process"`
 	Service model.Service  `json:"service"`
+	Cloud   model.Cloud    `json:"cloud"`
 	Labels  model.IfaceMap `json:"labels,omitempty"`
 }
