@@ -165,6 +165,63 @@ type KubernetesPod struct {
 	UID string `json:"uid,omitempty"`
 }
 
+// Cloud represents the cloud in which the service is running.
+type Cloud struct {
+	// Provider is the cloud provider name, e.g. aws, azure, gcp.
+	Provider string `json:"provider"`
+
+	// Region is the cloud region name, e.g. us-east-1.
+	Region string `json:"region,omitempty"`
+
+	// AvailabilityZone is the cloud availability zone name, e.g. us-east-1a.
+	AvailabilityZone string `json:"availability_zone,omitempty"`
+
+	// Instance holds information about the cloud instance (virtual machine).
+	Instance *CloudInstance `json:"instance,omitempty"`
+
+	// Machine also holds information about the cloud instance (virtual machine).
+	Machine *CloudMachine `json:"machine,omitempty"`
+
+	// Account holds information about the cloud account.
+	Account *CloudAccount `json:"account,omitempty"`
+
+	// Project holds information about the cloud project.
+	Project *CloudProject `json:"project,omitempty"`
+}
+
+// CloudInstance holds information about a cloud instance (virtual machine).
+type CloudInstance struct {
+	// ID holds the cloud instance identifier.
+	ID string `json:"id,omitempty"`
+
+	// ID holds the cloud instance name.
+	Name string `json:"name,omitempty"`
+}
+
+// CloudMachine holds information about a cloud instance (virtual machine).
+type CloudMachine struct {
+	// Type holds the cloud instance type, e.g. t2.medium.
+	Type string `json:"type,omitempty"`
+}
+
+// CloudAccount holds information about a cloud account.
+type CloudAccount struct {
+	// ID holds the cloud account identifier.
+	ID string `json:"id,omitempty"`
+
+	// ID holds the cloud account name.
+	Name string `json:"name,omitempty"`
+}
+
+// CloudProject holds information about a cloud project.
+type CloudProject struct {
+	// ID holds the cloud project identifier.
+	ID string `json:"id,omitempty"`
+
+	// Name holds the cloud project name.
+	Name string `json:"name,omitempty"`
+}
+
 // Transaction represents a transaction handled by the service.
 type Transaction struct {
 	// ID holds the 64-bit hex-encoded transaction ID.
