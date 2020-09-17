@@ -114,33 +114,42 @@ func TestCgroupContainerInfoNonHex(t *testing.T) {
 }
 
 func TestCgroupContainerInfoKubernetes(t *testing.T) {
+	type testcase struct {
+		input            string
+		containerID      string
+		kubernetesPodUID string
+	}
+
+	testscases := []testcase{{
+		input:            "1:name=systemd:/kubepods/besteffort/pode9b90526-f47d-11e8-b2a5-080027b9f4fb/15aa6e53-b09a-40c7-8558-c6c31e36c88a",
+		containerID:      "15aa6e53-b09a-40c7-8558-c6c31e36c88a",
+		kubernetesPodUID: "e9b90526-f47d-11e8-b2a5-080027b9f4fb",
+	}, {
+		input:            "1:name=systemd:/kubepods.slice/kubepods-burstable.slice/kubepods-burstable-pod90d81341_92de_11e7_8cf2_507b9d4141fa.slice/crio-2227daf62df6694645fee5df53c1f91271546a9560e8600a525690ae252b7f63.scope",
+		containerID:      "2227daf62df6694645fee5df53c1f91271546a9560e8600a525690ae252b7f63",
+		kubernetesPodUID: "90d81341-92de-11e7-8cf2-507b9d4141fa",
+	}, {
+		input:            "12:pids:/kubepods/kubepods/besteffort/pod0e886e9a-3879-45f9-b44d-86ef9df03224/244a65edefdffe31685c42317c9054e71dc1193048cf9459e2a4dd35cbc1dba4",
+		containerID:      "244a65edefdffe31685c42317c9054e71dc1193048cf9459e2a4dd35cbc1dba4",
+		kubernetesPodUID: "0e886e9a-3879-45f9-b44d-86ef9df03224",
+	}, {
+		input:            "10:cpuset:/kubepods/pod5eadac96-ab58-11ea-b82b-0242ac110009/7fe41c8a2d1da09420117894f11dd91f6c3a44dfeb7d125dc594bd53468861df",
+		containerID:      "7fe41c8a2d1da09420117894f11dd91f6c3a44dfeb7d125dc594bd53468861df",
+		kubernetesPodUID: "5eadac96-ab58-11ea-b82b-0242ac110009",
+	}}
+
 	hostname, err := os.Hostname()
 	require.NoError(t, err)
-	container, kubernetes, err := readCgroupContainerInfo(strings.NewReader(`
-1:name=systemd:/kubepods/besteffort/pode9b90526-f47d-11e8-b2a5-080027b9f4fb/15aa6e53-b09a-40c7-8558-c6c31e36c88a`[1:]))
 
-	assert.NoError(t, err)
-	assert.Equal(t, &model.Container{ID: "15aa6e53-b09a-40c7-8558-c6c31e36c88a"}, container)
-	assert.Equal(t, &model.Kubernetes{
-		Pod: &model.KubernetesPod{
-			UID:  "e9b90526-f47d-11e8-b2a5-080027b9f4fb",
-			Name: hostname,
-		},
-	}, kubernetes)
-}
-
-func TestCgroupContainerInfoKubernetesSystemd(t *testing.T) {
-	hostname, err := os.Hostname()
-	require.NoError(t, err)
-	container, kubernetes, err := readCgroupContainerInfo(strings.NewReader(`
-1:name=systemd:/kubepods.slice/kubepods-burstable.slice/kubepods-burstable-pod90d81341_92de_11e7_8cf2_507b9d4141fa.slice/crio-2227daf62df6694645fee5df53c1f91271546a9560e8600a525690ae252b7f63.scope`[1:]))
-
-	assert.NoError(t, err)
-	assert.Equal(t, &model.Container{ID: "2227daf62df6694645fee5df53c1f91271546a9560e8600a525690ae252b7f63"}, container)
-	assert.Equal(t, &model.Kubernetes{
-		Pod: &model.KubernetesPod{
-			UID:  "90d81341-92de-11e7-8cf2-507b9d4141fa",
-			Name: hostname,
-		},
-	}, kubernetes)
+	for _, testcase := range testscases {
+		container, kubernetes, err := readCgroupContainerInfo(strings.NewReader(testcase.input))
+		assert.NoError(t, err)
+		assert.Equal(t, &model.Container{ID: testcase.containerID}, container)
+		assert.Equal(t, &model.Kubernetes{
+			Pod: &model.KubernetesPod{
+				UID:  testcase.kubernetesPodUID,
+				Name: hostname,
+			},
+		}, kubernetes)
+	}
 }
