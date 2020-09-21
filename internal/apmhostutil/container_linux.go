@@ -44,7 +44,7 @@ var (
 
 	kubepodsRegexp = regexp.MustCompile(
 		"" +
-			`(?:^/kubepods/[^/]+/pod([^/]+)/$)|` +
+			`(?:^/kubepods[\S]*/pod([^/]+)/$)|` +
 			`(?:^/kubepods\.slice/kubepods-[^/]+\.slice/kubepods-[^/]+-pod([^/]+)\.slice/$)`,
 	)
 
