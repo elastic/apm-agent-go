@@ -28,14 +28,32 @@
                     "type": "string",
                     "maxLength": 1024
                 },
+                "child_ids": {
+                    "description": "List of successor transactions and/or spans.",
+                    "type": ["array", "null"],
+                    "minItems": 0,
+                    "maxLength": 1024,
+                    "items": {
+                        "type": "string",
+                        "maxLength": 1024
+                    }
+                },
                 "start": {
                     "type": ["number", "null"],
                     "description": "Offset relative to the transaction's timestamp identifying the start of the span, in milliseconds"
+                },
+                "sample_rate": {
+                    "description": "Sampling rate",
+                    "type": ["number", "null"]
                 },
                 "action": {
                     "type": ["string", "null"],
                     "description": "The specific kind of event within the sub-type represented by the span (e.g. query, connect)",
                     "maxLength": 1024
+                },
+                "outcome": {
+                    "$ref": "../outcome.json",
+                    "description": "The outcome of the span: success, failure, or unknown. Outcome may be one of a limited set of permitted values describing the success or failure of the span. This field can be used for calculating error rates for outgoing requests."
                 },
                 "context": {
                     "type": ["object", "null"],
@@ -119,12 +137,15 @@
                                 },
                                 "status_code": {
                                     "type": ["integer", "null"],
-                                    "description": "The status code of the http request."
+                                    "description": "Deprecated: Use span.context.http.response.status_code instead."
                                 },
                                 "method": {
                                     "type": ["string", "null"],
                                     "maxLength": 1024,
                                     "description": "The method of the http request."
+                                },
+                                "response": {
+                                    "$ref": "../http_response.json"
                                 }
                             }
                         },
@@ -182,7 +203,8 @@
                 },
                 "duration": {
                     "type": "number",
-                    "description": "Duration of the span in milliseconds"
+                    "description": "Duration of the span in milliseconds",
+                    "minimum": 0
                 },
                 "name": {
                     "type": "string",

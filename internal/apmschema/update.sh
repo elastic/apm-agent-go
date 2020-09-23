@@ -13,10 +13,14 @@ FILES=( \
     "metricsets/metricset.json" \
     "metricsets/sample.json" \
     "context.json" \
+    "cloud.json" \
+    "http_response.json" \
     "message.json" \
     "metadata.json" \
+    "outcome.json" \
     "process.json" \
     "request.json" \
+    "rum_experience.json" \
     "service.json" \
     "span_subtype.json" \
     "span_type.json" \
