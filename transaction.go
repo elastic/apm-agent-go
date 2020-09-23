@@ -322,6 +322,17 @@ type TransactionData struct {
 	// Result holds the transaction result.
 	Result string
 
+	// Outcome holds the transaction outcome: success, failure, or
+	// unknown (the default). If Outcome is set to something else,
+	// it will be replaced with "unknown".
+	//
+	// Outcome is used for error rate calculations. A value of "success"
+	// indicates that a transaction succeeded, while "failure" indicates
+	// that the transaction failed. If Outcome is set to "unknown" (or
+	// some other value), then the transaction will not be included in
+	// error rate calculations.
+	Outcome string
+
 	recording               bool
 	maxSpans                int
 	spanFramesMinDuration   time.Duration

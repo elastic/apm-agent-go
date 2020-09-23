@@ -78,6 +78,14 @@ func TestValidateTransactionResult(t *testing.T) {
 	})
 }
 
+func TestValidateTransactionOutcome(t *testing.T) {
+	validatePayloads(t, func(tracer *apm.Tracer) {
+		tx := tracer.StartTransaction("name", "type")
+		tx.Outcome = "excellent" // changed to "unknown"
+		tx.End()
+	})
+}
+
 func TestValidateSpanName(t *testing.T) {
 	validateTransaction(t, func(tx *apm.Transaction) {
 		tx.StartSpan(strings.Repeat("x", 1025), "type", nil).End()
@@ -87,6 +95,14 @@ func TestValidateSpanName(t *testing.T) {
 func TestValidateSpanType(t *testing.T) {
 	validateTransaction(t, func(tx *apm.Transaction) {
 		tx.StartSpan("name", strings.Repeat("x", 1025), nil).End()
+	})
+}
+
+func TestValidateSpanOutcome(t *testing.T) {
+	validateTransaction(t, func(tx *apm.Transaction) {
+		span := tx.StartSpan("name", "type", nil)
+		span.Outcome = "excellent" // changed to "unknown"
+		span.End()
 	})
 }
 

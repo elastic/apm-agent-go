@@ -394,6 +394,15 @@ type SpanData struct {
 	// duration based on the elapsed time since the span's start time.
 	Duration time.Duration
 
+	// Outcome holds the span outcome: success, failure, or unknown (the default).
+	// If Outcome is set to something else, it will be replaced with "unknown".
+	//
+	// Outcome is used for error rate calculations. A value of "success" indicates
+	// that a operation succeeded, while "failure" indicates that the operation
+	// failed. If Outcome is set to "unknown" (or some other value), then the
+	// span will not be included in error rate calculations.
+	Outcome string
+
 	// Context describes the context in which span occurs.
 	Context SpanContext
 
