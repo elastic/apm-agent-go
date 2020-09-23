@@ -268,6 +268,9 @@ type Transaction struct {
 
 	// SpanCount holds statistics on spans within a transaction.
 	SpanCount SpanCount `json:"span_count"`
+
+	// Outcome holds the transaction outcome: success, failure, or unknown.
+	Outcome string `json:"outcome,omitempty"`
 }
 
 // SpanCount holds statistics on spans within a transaction.
@@ -324,6 +327,9 @@ type Span struct {
 
 	// Stacktrace holds stack frames corresponding to the span.
 	Stacktrace []StacktraceFrame `json:"stacktrace,omitempty"`
+
+	// Outcome holds the span outcome: success, failure, or unknown.
+	Outcome string `json:"outcome,omitempty"`
 }
 
 // SpanContext holds contextual information relating to the span.

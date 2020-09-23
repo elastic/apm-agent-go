@@ -512,6 +512,10 @@ func (v *Transaction) MarshalFastJSON(w *fastjson.Writer) error {
 			firstErr = err
 		}
 	}
+	if v.Outcome != "" {
+		w.RawString(",\"outcome\":")
+		w.String(v.Outcome)
+	}
 	if !v.ParentID.isZero() {
 		w.RawString(",\"parent_id\":")
 		if err := v.ParentID.MarshalFastJSON(w); err != nil && firstErr == nil {
@@ -574,6 +578,10 @@ func (v *Span) MarshalFastJSON(w *fastjson.Writer) error {
 		if err := v.Context.MarshalFastJSON(w); err != nil && firstErr == nil {
 			firstErr = err
 		}
+	}
+	if v.Outcome != "" {
+		w.RawString(",\"outcome\":")
+		w.String(v.Outcome)
 	}
 	if !v.ParentID.isZero() {
 		w.RawString(",\"parent_id\":")
