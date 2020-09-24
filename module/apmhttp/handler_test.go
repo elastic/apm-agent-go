@@ -107,6 +107,55 @@ func TestHandler(t *testing.T) {
 	}, transaction.Context)
 }
 
+func TestHandlerOutcome(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	mux := http.NewServeMux()
+	mux.Handle("/2xx", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.WriteHeader(200)
+	}))
+	mux.Handle("/4xx", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.WriteHeader(400)
+	}))
+	mux.Handle("/5xx", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.WriteHeader(500)
+	}))
+	mux.Handle("/panic", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		panic("eek")
+	}))
+	mux.Handle("/override", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		tx := apm.TransactionFromContext(req.Context())
+		tx.Outcome = "unknown" // override status
+		w.WriteHeader(500)
+	}))
+
+	srv := httptest.NewServer(apmhttp.Wrap(mux, apmhttp.WithTracer(tracer)))
+	defer srv.Close()
+	for _, path := range []string{"/2xx", "/4xx", "/5xx", "/panic", "/override"} {
+		resp, _ := http.Get(srv.URL + path)
+		resp.Body.Close()
+	}
+	tracer.Flush(nil)
+
+	payloads := transport.Payloads()
+	require.Len(t, payloads.Transactions, 5)
+
+	// 200s are obviously considered successful.
+	//
+	// Less obvious: 400s are considered successful from the
+	// server's perspective, as they are _client_ errors.
+	//
+	// 500s and panics (implicit 500) are considered failures.
+	// Outcome can be overridden by the handler, in which case
+	// the status code will not impact the outcome.
+	assert.Equal(t, "success", payloads.Transactions[0].Outcome)
+	assert.Equal(t, "success", payloads.Transactions[1].Outcome)
+	assert.Equal(t, "failure", payloads.Transactions[2].Outcome)
+	assert.Equal(t, "failure", payloads.Transactions[3].Outcome)
+	assert.Equal(t, "unknown", payloads.Transactions[4].Outcome)
+}
+
 func TestHandlerCaptureBodyRaw(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()

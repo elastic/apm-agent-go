@@ -26,7 +26,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc/codes"
 	pb "google.golang.org/grpc/examples/helloworld/helloworld"
+	"google.golang.org/grpc/status"
 
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/apmtest"
@@ -170,4 +172,30 @@ func TestClientTransactionUnsampled(t *testing.T) {
 	require.Len(t, serverTransactions, 1)
 	assert.Equal(t, clientTransaction.TraceID, serverTransactions[0].TraceID)
 	assert.Equal(t, clientTransaction.ID, serverTransactions[0].ParentID)
+}
+
+func TestClientOutcome(t *testing.T) {
+	s, helloworldServer, addr := newServer(t, apmtest.DiscardTracer)
+	defer s.GracefulStop()
+
+	conn, client := newClient(t, addr)
+	defer conn.Close()
+
+	clientTracer := apmtest.NewRecordingTracer()
+	defer clientTracer.Close()
+
+	_, spans, _ := clientTracer.WithTransaction(func(ctx context.Context) {
+		client.SayHello(ctx, &pb.HelloRequest{Name: "birita"})
+
+		helloworldServer.err = status.Errorf(codes.Unknown, "boom")
+		client.SayHello(ctx, &pb.HelloRequest{Name: "birita"})
+
+		helloworldServer.err = status.Errorf(codes.NotFound, "boom")
+		client.SayHello(ctx, &pb.HelloRequest{Name: "birita"})
+	})
+	require.Len(t, spans, 3)
+
+	assert.Equal(t, "success", spans[0].Outcome)
+	assert.Equal(t, "unknown", spans[1].Outcome)
+	assert.Equal(t, "failure", spans[2].Outcome)
 }

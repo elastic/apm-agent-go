@@ -120,15 +120,32 @@ func getIncomingMetadataTraceContext(md metadata.MD, header string) (apm.TraceCo
 }
 
 func setTransactionResult(tx *apm.Transaction, err error) {
-	if err == nil {
-		tx.Result = codes.OK.String()
-	} else {
-		statusCode := codes.Unknown
-		if s, ok := status.FromError(err); ok {
-			statusCode = s.Code()
+	statusCode := statusCodeFromError(err)
+	tx.Result = statusCode.String()
+
+	// For gRPC servers, the transaction outcome is generally "success",
+	// except for codes which are not subject to client interpretation.
+	if tx.Outcome == "" {
+		switch statusCode {
+		case codes.Unknown:
+			tx.Outcome = "unknown"
+		case codes.DataLoss, codes.Unavailable, codes.Internal, codes.Unimplemented:
+			tx.Outcome = "failure"
+		default:
+			tx.Outcome = "success"
 		}
-		tx.Result = statusCode.String()
 	}
+}
+
+func statusCodeFromError(err error) codes.Code {
+	if err == nil {
+		return codes.OK
+	}
+	statusCode := codes.Unknown
+	if s, ok := status.FromError(err); ok {
+		statusCode = s.Code()
+	}
+	return statusCode
 }
 
 type serverOptions struct {

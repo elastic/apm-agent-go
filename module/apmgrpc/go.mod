@@ -5,7 +5,7 @@ require (
 	github.com/stretchr/testify v1.4.0
 	go.elastic.co/apm v1.8.0
 	go.elastic.co/apm/module/apmhttp v1.8.0
-	golang.org/x/net v0.0.0-20190724013045-ca1201d0de80
+	golang.org/x/net v0.0.0-20200226121028-0de0cce0169b
 	google.golang.org/grpc v1.17.0
 )
 

@@ -109,6 +109,7 @@ func testServerTransactionHappy(t *testing.T, p testParams) {
 		assert.Equal(t, "/helloworld.Greeter/SayHello", tx.Name)
 		assert.Equal(t, "request", tx.Type)
 		assert.Equal(t, "OK", tx.Result)
+		assert.Equal(t, "success", tx.Outcome)
 		assert.Equal(t, model.TraceID(traceID), tx.TraceID)
 		assert.Equal(t, model.SpanID(clientSpanID), tx.ParentID)
 		assert.Equal(t, &model.Context{
@@ -137,6 +138,7 @@ func testServerTransactionUnknownError(t *testing.T, p testParams) {
 	assert.Equal(t, "/helloworld.Greeter/SayHello", tx.Name)
 	assert.Equal(t, "request", tx.Type)
 	assert.Equal(t, "Unknown", tx.Result)
+	assert.Equal(t, "unknown", tx.Outcome)
 }
 
 func testServerTransactionStatusError(t *testing.T, p testParams) {
@@ -150,6 +152,7 @@ func testServerTransactionStatusError(t *testing.T, p testParams) {
 	assert.Equal(t, "/helloworld.Greeter/SayHello", tx.Name)
 	assert.Equal(t, "request", tx.Type)
 	assert.Equal(t, "DataLoss", tx.Result)
+	assert.Equal(t, "failure", tx.Outcome)
 }
 
 func testServerTransactionPanic(t *testing.T, p testParams) {

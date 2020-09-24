@@ -293,6 +293,9 @@ func (s *Span) End() {
 	if s.Duration < 0 {
 		s.Duration = time.Since(s.timestamp)
 	}
+	if s.Outcome == "" {
+		s.Outcome = s.Context.outcome()
+	}
 	if s.dropped() {
 		if s.tx == nil {
 			droppedSpanDataPool.Put(s.SpanData)

@@ -22,6 +22,7 @@ package apmgrpc
 import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 
 	"go.elastic.co/apm"
@@ -51,7 +52,11 @@ func NewUnaryClientInterceptor(o ...ClientOption) grpc.UnaryClientInterceptor {
 		if span != nil {
 			defer span.End()
 		}
-		return invoker(ctx, method, req, resp, cc, opts...)
+		err := invoker(ctx, method, req, resp, cc, opts...)
+		if span != nil {
+			setSpanOutcome(span, err)
+		}
+		return err
 	}
 }
 
@@ -93,6 +98,23 @@ func outgoingContextWithTraceContext(
 		md.Set(tracestateHeader, tracestate)
 	}
 	return metadata.NewOutgoingContext(ctx, md)
+}
+
+func setSpanOutcome(span *apm.Span, err error) {
+	statusCode := statusCodeFromError(err)
+
+	// On the client side, all codes except for OK and Unknown are treated
+	// as failures by default, and can be overridden.
+	if span.Outcome == "" {
+		switch statusCode {
+		case codes.Unknown:
+			span.Outcome = "unknown"
+		case codes.OK:
+			span.Outcome = "success"
+		default:
+			span.Outcome = "failure"
+		}
+	}
 }
 
 type clientOptions struct {

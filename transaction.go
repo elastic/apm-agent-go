@@ -265,6 +265,9 @@ func (tx *Transaction) End() {
 		if tx.Duration < 0 {
 			tx.Duration = time.Since(tx.timestamp)
 		}
+		if tx.Outcome == "" {
+			tx.Outcome = tx.Context.outcome()
+		}
 		tx.enqueue()
 	} else {
 		tx.reset(tx.tracer)

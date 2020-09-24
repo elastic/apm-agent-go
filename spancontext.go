@@ -168,6 +168,10 @@ func (c *SpanContext) SetHTTPRequest(req *http.Request) {
 }
 
 // SetHTTPStatusCode records the HTTP response status code.
+//
+// If, when the transaction ends, its Outcome field has not
+// been explicitly set, it will be set based on the status code:
+// "success" if statusCode < 400, and "failure" otherwise.
 func (c *SpanContext) SetHTTPStatusCode(statusCode int) {
 	c.http.StatusCode = statusCode
 	c.model.HTTP = &c.http
@@ -190,4 +194,16 @@ func (c *SpanContext) SetDestinationService(service DestinationServiceSpanContex
 	c.destinationService.Resource = truncateString(service.Resource)
 	c.destination.Service = &c.destinationService
 	c.model.Destination = &c.destination
+}
+
+// outcome returns the outcome to assign to the associated span, based on
+// context (e.g. HTTP status code).
+func (c *SpanContext) outcome() string {
+	if c.http.StatusCode != 0 {
+		if c.http.StatusCode < 400 {
+			return "success"
+		}
+		return "failure"
+	}
+	return ""
 }

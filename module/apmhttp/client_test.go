@@ -326,6 +326,34 @@ func TestWithClientTrace(t *testing.T) {
 	assert.Equal(t, "Response", spans[2].Name)
 }
 
+func TestClientOutcome(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.Handle("/2xx", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.WriteHeader(200)
+	}))
+	mux.Handle("/4xx", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.WriteHeader(400)
+	}))
+	mux.Handle("/5xx", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.WriteHeader(500)
+	}))
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+		mustGET(ctx, srv.URL+"/2xx")
+		mustGET(ctx, srv.URL+"/4xx")
+		mustGET(ctx, srv.URL+"/5xx")
+	})
+	require.Len(t, spans, 3)
+
+	// 200s are considered successful, while 400s and 500s
+	// are both considered failed by the client.
+	assert.Equal(t, "success", spans[0].Outcome)
+	assert.Equal(t, "failure", spans[1].Outcome)
+	assert.Equal(t, "failure", spans[2].Outcome)
+}
+
 func mustGET(ctx context.Context, url string, o ...apmhttp.ClientOption) (statusCode int, responseBody string) {
 	client := apmhttp.WrapClient(http.DefaultClient, o...)
 	resp, err := ctxhttp.Get(ctx, client, url)
