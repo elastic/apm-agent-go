@@ -31,6 +31,7 @@ https://github.com/elastic/apm-agent-go/compare/v1.8.0...master[View commits]
 - Deprecate IGNORE_URLS, replace with TRANSACTION_IGNORE_URLS {pull}811[(#811)]
 - Tracer.Close now waits for the transport goroutine to end before returning {pull}816[#(816)]
 - Relax Kubernetes pod UID discovery rules {pull}819[#(819)]
+- Add transaction and span outcome {pull}820[#(820)]
 
 [[release-notes-1.x]]
 === Go Agent version 1.x
