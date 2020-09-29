@@ -57,6 +57,7 @@ const (
 	envCentralConfig               = "ELASTIC_APM_CENTRAL_CONFIG"
 	envBreakdownMetrics            = "ELASTIC_APM_BREAKDOWN_METRICS"
 	envUseElasticTraceparentHeader = "ELASTIC_APM_USE_ELASTIC_TRACEPARENT_HEADER"
+	envCloudProvider               = "ELASTIC_APM_CLOUD_PROVIDER"
 
 	// NOTE(axw) profiling environment variables are experimental.
 	// They may be removed in a future minor version without being
