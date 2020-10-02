@@ -401,6 +401,10 @@ func TestTracerMetadata(t *testing.T) {
 		require.NotNil(t, system.Container)
 		assert.Equal(t, container, system.Container)
 	}
+
+	// Cloud metadata is disabled by apmtest by default.
+	assert.Equal(t, "none", os.Getenv("ELASTIC_APM_CLOUD_PROVIDER"))
+	assert.Zero(t, recorder.CloudMetadata())
 }
 
 func TestTracerKubernetesMetadata(t *testing.T) {

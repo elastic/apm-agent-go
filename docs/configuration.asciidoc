@@ -593,3 +593,20 @@ https://www.w3.org/TR/trace-context-1/[W3C Trace Context] specification.
 
 When this setting is `true`, the agent will also add the header `elastic-apm-traceparent`
 for backwards compatibility with older versions of Elastic APM agents.
+
+[float]
+[[config-cloud-provider]]
+==== `ELASTIC_APM_CLOUD_PROVIDER`
+
+[options="header"]
+|============
+| Environment                  | Default  | Example
+| `ELASTIC_APM_CLOUD_PROVIDER` | `"none"` | `"aws"`
+|============
+
+This config value allows you to specify which cloud provider should be assumed
+for metadata collection. By default, the agent will use trial and error to
+automatically collect the cloud metadata.
+
+Valid options are `"none"`, `"auto"`, `"aws"`, `"gcp"`, and `"azure"`
+If this config value is set to `"none"`, then no cloud metadata will be collected.
