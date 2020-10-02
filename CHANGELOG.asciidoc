@@ -32,6 +32,7 @@ https://github.com/elastic/apm-agent-go/compare/v1.8.0...master[View commits]
 - Tracer.Close now waits for the transport goroutine to end before returning {pull}816[#(816)]
 - Relax Kubernetes pod UID discovery rules {pull}819[#(819)]
 - Add transaction and span outcome {pull}820[#(820)]
+- Add cloud metadata, configurable with ELASTIC_APM_CLOUD_PROVIDER {pull}823[#(823)]
 
 [[release-notes-1.x]]
 === Go Agent version 1.x
