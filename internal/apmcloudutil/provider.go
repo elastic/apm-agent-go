@@ -89,6 +89,9 @@ func (p Provider) getCloudMetadata(ctx context.Context, client *http.Client, log
 	if p == None {
 		return false
 	}
+	// Rather than switching on p, we loop through all providers
+	// to support "auto". If and only if p == Auto, we'll loop back
+	// around on errors.
 	for _, provider := range []Provider{AWS, Azure, GCP} {
 		if p != Auto && p != provider {
 			continue
