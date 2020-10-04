@@ -90,20 +90,20 @@ func registerCallbacks(db *gorm.DB, dsnInfo apmsql.DSNInfo) {
 
 	// Row Query Callbacks
 	_ = db.Callback().Row().
-		Before("gorm:row_query").
+		Before("gorm:row").
 		Register(fmt.Sprintf("%s:before:%s", callbackPrefix, querySpanType), newBeforeCallback(querySpanType))
 
 	_ = db.Callback().Row().
-		After("gorm:row_query").
+		After("gorm:row").
 		Register(fmt.Sprintf("%s:after:%s", callbackPrefix, querySpanType), newAfterCallback(dsnInfo))
 
 	// Raw Query Callbacks
 	_ = db.Callback().Row().
-		Before("gorm:raw_query").
+		Before("gorm:raw").
 		Register(fmt.Sprintf("%s:before:%s", callbackPrefix, querySpanType), newBeforeCallback(querySpanType))
 
 	_ = db.Callback().Row().
-		After("gorm:raw_query").
+		After("gorm:raw").
 		Register(fmt.Sprintf("%s:after:%s", callbackPrefix, querySpanType), newAfterCallback(dsnInfo))
 }
 
