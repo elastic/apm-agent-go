@@ -15,12 +15,37 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Package apmgormpostgres imports the gorm postgres dialect package,
-// and also registers the lib/pq driver with apmsql.
-package apmgormpostgres
+// +build go1.9
+
+package apmgormv2
 
 import (
-	_ "gorm.io/driver/postgres" // import the postgres dialect
-
-	_ "go.elastic.co/apm/module/apmsql/pq" // register lib/pq with apmsql
+	"go.elastic.co/apm/module/apmsql"
+	"gorm.io/gorm"
 )
+
+// Plugin struct
+// - It can be used with existing *gorm.DB using db.Use(NewPlugin())
+type Plugin struct {
+}
+
+// NewPlugin plugin constructor
+func NewPlugin() *Plugin {
+	return &Plugin{}
+}
+
+// Name name of plugin
+func (p Plugin) Name() string {
+	return "elasticapm"
+}
+
+// Initialize to register callbacks
+func (p Plugin) Initialize(db *gorm.DB) error {
+	dialect := db.Dialector
+	dsn, err := extractDsn(dialect)
+	if err != nil {
+		return err
+	}
+	registerCallbacks(db, apmsql.DriverDSNParser(dialect.Name())(dsn))
+	return nil
+}

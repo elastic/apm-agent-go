@@ -17,11 +17,11 @@
 
 // +build go1.9
 
-package apmgormio_test
+package apmgormv2_test
 
 import (
 	"context"
-	"go.elastic.co/apm/module/apmgormio"
+	"go.elastic.co/apm/module/apmgormv2"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
@@ -34,9 +34,9 @@ import (
 	"gorm.io/gorm"
 
 	"go.elastic.co/apm/apmtest"
-	_ "go.elastic.co/apm/module/apmgormio/dialects/mysql"
-	_ "go.elastic.co/apm/module/apmgormio/dialects/postgres"
-	_ "go.elastic.co/apm/module/apmgormio/dialects/sqlite"
+	_ "go.elastic.co/apm/module/apmgormv2/dialects/mysql"
+	_ "go.elastic.co/apm/module/apmgormv2/dialects/postgres"
+	_ "go.elastic.co/apm/module/apmgormv2/dialects/sqlite"
 	"go.elastic.co/apm/module/apmsql"
 )
 
@@ -89,7 +89,7 @@ func TestWithContext(t *testing.T) {
 
 func testWithContext(t *testing.T, dsnInfo apmsql.DSNInfo, dialect gorm.Dialector, config *gorm.Config) {
 	_, spans, errors := apmtest.WithTransaction(func(ctx context.Context) {
-		db, err := apmgormio.Open(dialect, config)
+		db, err := apmgormv2.Open(dialect, config)
 		require.NoError(t, err)
 		ddb, _ := db.DB()
 		defer ddb.Close()
@@ -143,7 +143,7 @@ func testWithContext(t *testing.T, dsnInfo apmsql.DSNInfo, dialect gorm.Dialecto
 // TestWithContextNoTransaction checks that using WithContext without
 // a transaction won't cause any issues.
 func TestWithContextNoTransaction(t *testing.T) {
-	db, err := apmgormio.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err := apmgormv2.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
 	ddb, _ := db.DB()
 	defer ddb.Close()
@@ -163,7 +163,7 @@ func TestWithContextNonSampled(t *testing.T) {
 	os.Setenv("ELASTIC_APM_TRANSACTION_SAMPLE_RATE", "0")
 	defer os.Unsetenv("ELASTIC_APM_TRANSACTION_SAMPLE_RATE")
 
-	db, err := apmgormio.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err := apmgormv2.Open(sqlite.Open(":memory:"), &gorm.Config{})
 
 	require.NoError(t, err)
 
@@ -184,7 +184,7 @@ func TestWithContextNonSampled(t *testing.T) {
 
 func TestCaptureErrors(t *testing.T) {
 	t.Run("sqlite3", func(t *testing.T) {
-		db, err := apmgormio.Open(sqlite.Open(":memory:"), &gorm.Config{})
+		db, err := apmgormv2.Open(sqlite.Open(":memory:"), &gorm.Config{})
 		require.NoError(t, err)
 
 		ddb, _ := db.DB()
@@ -197,7 +197,7 @@ func TestCaptureErrors(t *testing.T) {
 		t.Logf("PGHOST not specified, skipping")
 	} else {
 		t.Run("postgres", func(t *testing.T) {
-			db, err := apmgormio.Open(postgres.Open("user=postgres password=hunter2 dbname=test_db sslmode=disable"), &gorm.Config{})
+			db, err := apmgormv2.Open(postgres.Open("user=postgres password=hunter2 dbname=test_db sslmode=disable"), &gorm.Config{})
 			require.NoError(t, err)
 
 			ddb, _ := db.DB()
@@ -244,7 +244,7 @@ func testCaptureErrors(t *testing.T, db *gorm.DB) {
 }
 
 func TestOpenWithDriver(t *testing.T) {
-	db, err := apmgormio.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err := apmgormv2.Open(sqlite.Open(":memory:"), &gorm.Config{})
 
 	require.NoError(t, err)
 

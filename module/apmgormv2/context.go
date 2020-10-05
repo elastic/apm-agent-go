@@ -17,7 +17,7 @@
 
 // +build go1.9
 
-package apmgormio
+package apmgormv2
 
 import (
 	"context"

@@ -17,14 +17,13 @@
 
 // +build go1.9
 
-package apmgormio
+package apmgormv2
 
 import (
 	"github.com/pkg/errors"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
-	"go.elastic.co/apm/module/apmsql"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 )
@@ -35,28 +34,25 @@ import (
 // as spans.
 //
 // Open accepts the following signatures:
-//  - a datasource name (i.e. the second argument to sql.Open)
-//  - a driver name and a datasource name
-//  - a *sql.DB, or some other type with the same interface
+//  - a gorm.Dialect
+//  - a *gorm.Config
 //
 // If a driver and datasource name are supplied, and the appropriate
 // apmgorm/dialects package has been imported (or the driver has
 // otherwise been registered with apmsql), then the datasource name
 // will be parsed for inclusion in the span context.
 func Open(dialect gorm.Dialector, config *gorm.Config) (*gorm.DB, error) {
-	dsn, err := extractDsn(dialect)
-	if err != nil {
-		return nil, err
-	}
-
 	db, err := gorm.Open(dialect, config)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	registerCallbacks(db, apmsql.DriverDSNParser(dialect.Name())(dsn))
+	if err := db.Use(NewPlugin()); err != nil {
+		return nil, err
+	}
 	return db, nil
 }
 
+// Extracts dsn with given gorm.Dialector
 func extractDsn(dialect gorm.Dialector) (string, error) {
 	switch dialect.Name() {
 	case mysql.Dialector{}.Name():

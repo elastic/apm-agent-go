@@ -1,4 +1,4 @@
-module go.elastic.co/apm/module/apmgormio
+module go.elastic.co/apm/module/apmgormv2
 
 require (
 	github.com/pkg/errors v0.8.1
