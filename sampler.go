@@ -78,6 +78,10 @@ func NewRatioSampler(r float64) Sampler {
 	if r < 0 || r > 1.0 {
 		panic(errors.Errorf("ratio %v out of range [0,1.0]", r))
 	}
+	if r > 0 && r < 0.0001 {
+		r = 0.0001
+	}
+	r = math.Round(r*10000) / 10000
 	var x big.Float
 	x.SetUint64(math.MaxUint64)
 	x.Mul(&x, big.NewFloat(r))

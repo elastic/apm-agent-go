@@ -106,3 +106,17 @@ func TestRatioSamplerExtended(t *testing.T) {
 		SampleRate: 0.5,
 	}, result)
 }
+
+func TestRatioSamplerPrecision(t *testing.T) {
+	ratios := map[float64]float64{
+		0.00001: 0.0001,
+		0.55554: 0.5555,
+		0.55555: 0.5556,
+		0.55556: 0.5556,
+	}
+	for r, want := range ratios {
+		s := apm.NewRatioSampler(r).(apm.ExtendedSampler)
+		got := s.SampleExtended(apm.SampleParams{}).SampleRate
+		assert.Equal(t, want, got)
+	}
+}
