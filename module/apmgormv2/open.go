@@ -20,7 +20,9 @@
 package apmgormv2
 
 import (
+	"database/sql"
 	"github.com/pkg/errors"
+	"go.elastic.co/apm/module/apmsql"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
@@ -42,10 +44,31 @@ import (
 // otherwise been registered with apmsql), then the datasource name
 // will be parsed for inclusion in the span context.
 func Open(dialect gorm.Dialector, config *gorm.Config) (*gorm.DB, error) {
+	if err := initDialect(dialect); err != nil {
+		return nil, errors.WithStack(err)
+	}
+
 	db, err := gorm.Open(dialect, config)
+
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
+
+	if dialect.Name() == (sqlite.Dialector{}.Name()) {
+		dsn, err := extractDsn(dialect)
+		if err != nil {
+			return nil, err
+		}
+		conn, err := apmsql.Open(dialect.Name(), dsn)
+		if err != nil {
+			return nil, err
+		}
+		if oldConn, ok := db.ConnPool.(*sql.DB); ok {
+			_ = oldConn.Close()
+		}
+		db.ConnPool = conn
+	}
+
 	if err := db.Use(NewPlugin()); err != nil {
 		return nil, err
 	}
@@ -75,4 +98,32 @@ func extractDsn(dialect gorm.Dialector) (string, error) {
 		}
 	}
 	return "", errors.New("dialect not supported")
+}
+
+func initDialect(dialect gorm.Dialector) error {
+	dsn, err := extractDsn(dialect)
+	if err != nil {
+		return err
+	}
+	conn, err := apmsql.Open(dialect.Name(), dsn)
+	if err != nil {
+		return err
+	}
+	switch dialect.Name() {
+	case mysql.Dialector{}.Name():
+		if driver, ok := dialect.(mysql.Dialector); !ok {
+			return errors.New("unable to cast dialect")
+		} else {
+			driver.Conn = conn
+		}
+	case postgres.Dialector{}.Name():
+		if driver, ok := dialect.(postgres.Dialector); !ok {
+			return errors.New("unable to cast dialect")
+		} else {
+			driver.Conn = conn
+		}
+	case sqlite.Dialector{}.Name():
+		return nil
+	}
+	return errors.New("invalid dialect")
 }
