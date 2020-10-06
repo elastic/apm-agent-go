@@ -15,9 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Package apmgormv2sqlite imports the gorm sqlite dialect package,
+// Package apmsqlite imports the gorm sqlite dialect package,
 // and also registers the sqlite3 driver with apmsql.
-package apmgormv2sqlite
+package apmsqlite
 
 import (
 	"gorm.io/driver/sqlite"

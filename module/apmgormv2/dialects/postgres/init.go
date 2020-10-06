@@ -15,9 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Package apmgormv2postgres imports the gorm postgres dialect package,
+// Package apmpostgres imports the gorm postgres dialect package,
 // and also registers the lib/pq driver with apmsql.
-package apmgormv2postgres
+package apmgpostgres
 
 import (
 	"go.elastic.co/apm/module/apmsql"
