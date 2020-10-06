@@ -23,6 +23,7 @@ import (
 	"context"
 	"gorm.io/gorm/logger"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -31,7 +32,6 @@ import (
 
 	"go.elastic.co/apm/apmtest"
 	mysql "go.elastic.co/apm/module/apmgormv2/driver/mysql"
-	postgres "go.elastic.co/apm/module/apmgormv2/driver/postgres"
 	sqlite "go.elastic.co/apm/module/apmgormv2/driver/sqlite"
 	"go.elastic.co/apm/module/apmsql"
 )
@@ -49,22 +49,6 @@ func TestWithContext(t *testing.T) {
 			sqlite.Open(":memory:"), &gorm.Config{},
 		)
 	})
-
-	if os.Getenv("PGHOST") == "" {
-		t.Logf("PGHOST not specified, skipping")
-	} else {
-		t.Run("postgres", func(t *testing.T) {
-			testWithContext(t,
-				apmsql.DSNInfo{
-					Address:  os.Getenv("PGHOST"),
-					Port:     5432,
-					Database: "test_db",
-					User:     "postgres",
-				},
-				postgres.Open("user=postgres password=hunter2 dbname=test_db sslmode=disable"), &gorm.Config{},
-			)
-		})
-	}
 
 	if mysqlHost := os.Getenv("MYSQL_HOST"); mysqlHost == "" {
 		t.Logf("MYSQL_HOST not specified, skipping")
@@ -101,7 +85,7 @@ func testWithContext(t *testing.T, dsnInfo apmsql.DSNInfo, dialect gorm.Dialecto
 		var product Product
 		var count int64
 		assert.NoError(t, db.Model(&product).Count(&count).Error)
-		assert.Equal(t, 1, count)
+		assert.Equal(t, int64(1), count)
 		assert.NoError(t, db.First(&product, "code = ?", "L1212").Error)
 		assert.NoError(t, db.Model(&product).Update("Price", 2000).Error)
 		assert.NoError(t, db.Delete(&product).Error)            // soft
@@ -110,9 +94,11 @@ func testWithContext(t *testing.T, dsnInfo apmsql.DSNInfo, dialect gorm.Dialecto
 	require.NotEmpty(t, spans)
 	assert.Empty(t, errors)
 
-	spanNames := make([]string, len(spans))
-	for i, span := range spans {
-		spanNames[i] = span.Name
+	var spanNames []string
+	for _, span := range spans {
+		if strings.Contains(span.Name, "products") && span.Action != "prepare" {
+			spanNames = append(spanNames, span.Name)
+		}
 		require.NotNil(t, span.Context)
 		require.NotNil(t, span.Context.Database)
 		assert.Equal(t, dsnInfo.Database, span.Context.Database.Instance)
@@ -188,20 +174,6 @@ func TestCaptureErrors(t *testing.T) {
 
 		testCaptureErrors(t, db)
 	})
-
-	if os.Getenv("PGHOST") == "" {
-		t.Logf("PGHOST not specified, skipping")
-	} else {
-		t.Run("postgres", func(t *testing.T) {
-			db, err := gorm.Open(postgres.Open("user=postgres password=hunter2 dbname=test_db sslmode=disable"), &gorm.Config{})
-			require.NoError(t, err)
-
-			ddb, _ := db.DB()
-			defer ddb.Close()
-
-			testCaptureErrors(t, db)
-		})
-	}
 }
 
 func testCaptureErrors(t *testing.T, db *gorm.DB) {
@@ -217,10 +189,6 @@ func testCaptureErrors(t *testing.T, db *gorm.DB) {
 		// gorm.ErrRecordNotFound should not cause an error
 		db.Where("code=?", "L1212").First(&Product{})
 
-		// The postgres dialect will use QueryRow when inserting, in order to fetch
-		// the inserted row ID. By using "ON CONFLICT (id) DO NOTHING", no row will
-		// be inserted, and QueryRow will return sql.ErrNoRows. This should not be
-		// reported as an error.
 		product := Product{
 			Model: gorm.Model{
 				ID: 1001,
@@ -229,12 +197,11 @@ func testCaptureErrors(t *testing.T, db *gorm.DB) {
 			Price: 1001,
 		}
 		require.NoError(t, db.Create(&product).Error)
-		db.Set("gorm:insert_option", "ON CONFLICT (id) DO NOTHING").Create(&product)
 
 		// invalid SQL should
 		db.Where("bananas").First(&Product{})
 	})
-	assert.Len(t, spans, 4)
+	assert.Len(t, spans, 3)
 	require.Len(t, errors, 1)
 	assert.Regexp(t, `.*bananas.*`, errors[0].Exception.Message)
 }

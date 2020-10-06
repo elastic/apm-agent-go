@@ -20,6 +20,7 @@
 package apmsqlite
 
 import (
+	"go.elastic.co/apm/module/apmsql"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
@@ -28,11 +29,10 @@ import (
 
 // Open creates a dialect with apmsql
 func Open(dsn string) gorm.Dialector {
-	driverName := sqlite.Dialector{}.Name()
 
 	dialect := &sqlite.Dialector{
 		DSN: dsn,
-		DriverName: driverName,
+		DriverName: apmsql.DriverPrefix + sqlite.DriverName,
 	}
 
 	return dialect
