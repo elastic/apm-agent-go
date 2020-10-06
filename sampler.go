@@ -72,6 +72,10 @@ type SampleResult struct {
 // samples ~50%, and so on. If the ratio provided does not lie
 // within the range [0,1.0], NewRatioSampler will panic.
 //
+// Sampling rate is rounded to 4 digits half away from zero,
+// except if it is in the interval (0, 0.0001], in which case
+// is set to 0.0001.
+//
 // The returned Sampler bases its decision on the value of the
 // transaction ID, so there is no synchronization involved.
 func NewRatioSampler(r float64) Sampler {
