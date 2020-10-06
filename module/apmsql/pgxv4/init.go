@@ -15,15 +15,15 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmpq
+package apmpgxv4
 
 import (
-	"github.com/lib/pq"
+	"github.com/jackc/pgx/v4/stdlib"
 	"go.elastic.co/apm/module/apmsql/pgutils"
 
 	"go.elastic.co/apm/module/apmsql"
 )
 
 func init() {
-	apmsql.Register("postgres", &pq.Driver{}, apmsql.WithDSNParser(pgutils.ParseDSN))
+	apmsql.Register("pgxv4", &stdlib.Driver{}, apmsql.WithDSNParser(pgutils.ParseDSN))
 }

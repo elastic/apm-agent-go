@@ -15,15 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmpq
-
-import (
-	"github.com/lib/pq"
-	"go.elastic.co/apm/module/apmsql/pgutils"
-
-	"go.elastic.co/apm/module/apmsql"
-)
-
-func init() {
-	apmsql.Register("postgres", &pq.Driver{}, apmsql.WithDSNParser(pgutils.ParseDSN))
-}
+// Package apmpgxv4 registers the "postgres" driver with
+// apmsql, so that you can trace pgx/v4 database connections.
+package apmpgxv4

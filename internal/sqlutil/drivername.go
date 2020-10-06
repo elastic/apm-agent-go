@@ -41,6 +41,10 @@ func DriverName(d driver.Driver) string {
 		if strings.HasSuffix(t.PkgPath(), "github.com/lib/pq") {
 			return "postgresql"
 		}
+
+		if strings.HasSuffix(t.PkgPath(), "github.com/jackc/pgx/v4/stdlib") {
+			return "postgresql"
+		}
 	}
 	// TODO include the package path of the driver in context
 	// so we can easily determine how the rules above should

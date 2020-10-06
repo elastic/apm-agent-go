@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmpq_test
+package pgutils_test
 
 import (
 	"os"

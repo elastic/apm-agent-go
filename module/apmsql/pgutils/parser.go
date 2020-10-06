@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmpq
+package pgutils
 
 import (
 	"fmt"
@@ -34,7 +34,7 @@ const (
 	defaultPostgresPort = 5432
 )
 
-// ParseDSN parses the given lib/pq datasource name, which may
+// ParseDSN parses the given lib/pq or pgx/v4 datasource name, which may
 // be either a URL or connection string.
 func ParseDSN(name string) apmsql.DSNInfo {
 	if connStr, err := parseURL(name); err == nil {
