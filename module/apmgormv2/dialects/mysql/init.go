@@ -20,7 +20,22 @@
 package apmgormv2mysql
 
 import (
-	_ "gorm.io/driver/mysql" // import the mysql dialect
+	"go.elastic.co/apm/module/apmsql"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 
 	_ "go.elastic.co/apm/module/apmsql/mysql" // register mysql with apmsql
 )
+
+// Open creates a dialect with apmsql
+func Open(dsn string) gorm.Dialector {
+	driverName := mysql.Dialector{}.Name()
+	dialect := &mysql.Dialector{
+		Config: &mysql.Config{
+			DriverName: apmsql.DriverPrefix + driverName,
+			DSN:        dsn,
+		},
+	}
+
+	return dialect
+}

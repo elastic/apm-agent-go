@@ -20,7 +20,23 @@
 package apmgormv2postgres
 
 import (
-	_ "gorm.io/driver/postgres" // import the postgres dialect
+	"go.elastic.co/apm/module/apmsql"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 
 	_ "go.elastic.co/apm/module/apmsql/pq" // register lib/pq with apmsql
 )
+
+// Open creates a dialect with apmsql
+func Open(dsn string) gorm.Dialector {
+	driverName := postgres.Dialector{}.Name()
+
+	dialect := &postgres.Dialector{
+		Config: &postgres.Config{
+			DriverName: apmsql.DriverPrefix + driverName,
+			DSN:        dsn,
+		},
+	}
+
+	return dialect
+}
