@@ -15,7 +15,5 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// +build go1.14
-
 // Package apmgormv2 provides wrappers for tracing GORM operations.
 package apmgormv2
