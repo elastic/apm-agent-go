@@ -57,7 +57,7 @@ func TestTracerStats(t *testing.T) {
 	}, tracer.Stats())
 }
 
-func TestTracerClosedSendNonblocking(t *testing.T) {
+func TestTracerClosedSendNonBlocking(t *testing.T) {
 	tracer, err := apm.NewTracer("tracer_testing", "")
 	assert.NoError(t, err)
 	tracer.Close()

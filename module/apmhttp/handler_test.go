@@ -526,6 +526,27 @@ func TestHandlerTracestateHeader(t *testing.T) {
 	assert.Equal(t, "", w.Body.String())
 }
 
+func TestHandlerReaderFrom(t *testing.T) {
+	recorder := apmtest.NewRecordingTracer()
+	defer recorder.Close()
+
+	mux := http.NewServeMux()
+	mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		assert.Implements(t, new(io.ReaderFrom), w)
+		rf := w.(io.ReaderFrom)
+		rf.ReadFrom(strings.NewReader("hello"))
+	}))
+
+	srv := httptest.NewServer(apmhttp.Wrap(mux, apmhttp.WithTracer(recorder.Tracer)))
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL)
+	require.NoError(t, err)
+	content, _ := ioutil.ReadAll(resp.Body)
+	assert.NoError(t, resp.Body.Close())
+	assert.Equal(t, "hello", string(content))
+}
+
 func panicHandler(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusTeapot)
 	panic("foo")

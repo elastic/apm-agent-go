@@ -15,14 +15,18 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmpq
+// +build go1.14
+
+package apmpgxv4
 
 import (
-	"go.elastic.co/apm/module/apmsql"
+	"github.com/jackc/pgx/v4/stdlib"
+
 	"go.elastic.co/apm/module/apmsql/internal/pgutil"
+
+	"go.elastic.co/apm/module/apmsql"
 )
 
-// ParseDSN is proxy to pgutils.ParseDSN to maintain api compatibility
-func ParseDSN(name string) apmsql.DSNInfo {
-	return pgutil.ParseDSN(name)
+func init() {
+	apmsql.Register("pgx", &stdlib.Driver{}, apmsql.WithDSNParser(pgutil.ParseDSN))
 }

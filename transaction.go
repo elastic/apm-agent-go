@@ -57,7 +57,7 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 	// transaction.
 	instrumentationConfig := t.instrumentationConfig()
 	tx.recording = instrumentationConfig.recording
-	if !tx.recording {
+	if !tx.recording || !t.Active() {
 		return tx
 	}
 
