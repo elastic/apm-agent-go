@@ -15,16 +15,18 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmpq_test
+package pgutil_test
 
 import (
 	"os"
 	"testing"
 
+	apmpq "go.elastic.co/apm/module/apmsql/pq"
+
 	"github.com/stretchr/testify/assert"
 
 	"go.elastic.co/apm/module/apmsql"
-	apmpq "go.elastic.co/apm/module/apmsql/pq"
+	"go.elastic.co/apm/module/apmsql/internal/pgutil"
 )
 
 func patchEnv(k, v string) func() {
@@ -44,7 +46,7 @@ func TestParseDSNURL(t *testing.T) {
 	}
 
 	test := func(url, addr string, port int) {
-		info := apmpq.ParseDSN(url)
+		info := pgutil.ParseDSN(url)
 		assert.Equal(t, apmsql.DSNInfo{
 			Address:  addr,
 			Port:     port,
