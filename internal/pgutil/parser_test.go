@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package pgutils_test
+package pgutil_test
 
 import (
 	"os"
@@ -23,7 +23,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	apmpq "go.elastic.co/apm/internal/pgutils"
+	apmpq "go.elastic.co/apm/internal/pgutil"
 	"go.elastic.co/apm/module/apmsql"
 )
 

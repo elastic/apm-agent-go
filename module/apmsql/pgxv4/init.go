@@ -22,11 +22,11 @@ package apmpgxv4
 import (
 	"github.com/jackc/pgx/v4/stdlib"
 
-	"go.elastic.co/apm/internal/pgutils"
+	"go.elastic.co/apm/internal/pgutil"
 
 	"go.elastic.co/apm/module/apmsql"
 )
 
 func init() {
-	apmsql.Register("pgxv4", &stdlib.Driver{}, apmsql.WithDSNParser(pgutils.ParseDSN))
+	apmsql.Register("pgxv4", &stdlib.Driver{}, apmsql.WithDSNParser(pgutil.ParseDSN))
 }

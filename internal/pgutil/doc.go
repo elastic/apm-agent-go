@@ -15,14 +15,5 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmpq
-
-import (
-	"go.elastic.co/apm/internal/pgutil"
-	"go.elastic.co/apm/module/apmsql"
-)
-
-// ParseDSN is proxy to pgutils.ParseDSN to maintain api compatibility
-func ParseDSN(name string) apmsql.DSNInfo {
-	return pgutil.ParseDSN(name)
-}
+// Package pgutil provides utilities to postgres related modules.
+package pgutil
