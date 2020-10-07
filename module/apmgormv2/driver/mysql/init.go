@@ -15,14 +15,17 @@
 // specific language governing permissions and limitations
 // under the License.
 
+// +build go1.14
+
 // Package apmmysql imports the gorm mysql dialect package,
 // and also registers the mysql driver with apmsql.
 package apmmysql
 
 import (
-	"go.elastic.co/apm/module/apmsql"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+
+	"go.elastic.co/apm/module/apmsql"
 
 	_ "go.elastic.co/apm/module/apmsql/mysql" // register mysql with apmsql
 )

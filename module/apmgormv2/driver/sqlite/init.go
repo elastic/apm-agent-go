@@ -15,14 +15,17 @@
 // specific language governing permissions and limitations
 // under the License.
 
+// +build go1.14
+
 // Package apmsqlite imports the gorm sqlite dialect package,
 // and also registers the sqlite3 driver with apmsql.
 package apmsqlite
 
 import (
-	"go.elastic.co/apm/module/apmsql"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+
+	"go.elastic.co/apm/module/apmsql"
 
 	_ "go.elastic.co/apm/module/apmsql/sqlite3" // register sqlite3 with apmsql
 )
@@ -31,7 +34,7 @@ import (
 func Open(dsn string) gorm.Dialector {
 
 	dialect := &sqlite.Dialector{
-		DSN: dsn,
+		DSN:        dsn,
 		DriverName: apmsql.DriverPrefix + sqlite.DriverName,
 	}
 

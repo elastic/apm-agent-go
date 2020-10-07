@@ -15,16 +15,17 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// +build go1.9
+// +build go1.14
 
 package apmgormv2_test
 
 import (
 	"context"
-	"gorm.io/gorm/logger"
 	"os"
 	"strings"
 	"testing"
+
+	"gorm.io/gorm/logger"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
