@@ -42,7 +42,7 @@ func DriverName(d driver.Driver) string {
 			return "postgresql"
 		}
 
-		if strings.HasSuffix(t.PkgPath(), "github.com/jackc/pgx/v4/stdlib") {
+		if strings.HasSuffix(t.PkgPath(), "github.com/jackc/pgx/") {
 			return "postgresql"
 		}
 	}

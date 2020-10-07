@@ -23,8 +23,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	apmpq "go.elastic.co/apm/internal/pgutils"
 	"go.elastic.co/apm/module/apmsql"
-	apmpq "go.elastic.co/apm/module/apmsql/pq"
 )
 
 func patchEnv(k, v string) func() {

@@ -15,11 +15,13 @@
 // specific language governing permissions and limitations
 // under the License.
 
+// +build go1.12
+
 package apmpgxv4
 
 import (
 	"github.com/jackc/pgx/v4/stdlib"
-	"go.elastic.co/apm/module/apmsql/pgutils"
+	"go.elastic.co/apm/internal/pgutils"
 
 	"go.elastic.co/apm/module/apmsql"
 )

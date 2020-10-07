@@ -19,11 +19,9 @@ package apmpq
 
 import (
 	"github.com/lib/pq"
-	"go.elastic.co/apm/module/apmsql/pgutils"
-
 	"go.elastic.co/apm/module/apmsql"
 )
 
 func init() {
-	apmsql.Register("postgres", &pq.Driver{}, apmsql.WithDSNParser(pgutils.ParseDSN))
+	apmsql.Register("postgres", &pq.Driver{}, apmsql.WithDSNParser(ParseDSN))
 }
