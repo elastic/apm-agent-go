@@ -18,6 +18,6 @@
 // Package apmpgxv4 registers the "postgres" driver with
 // apmsql, so that you can trace pgx/v4 database connections.
 
-// +build go1.12
+// +build go1.14
 
 package apmpgxv4
