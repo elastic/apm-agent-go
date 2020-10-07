@@ -22,7 +22,7 @@ package apmpgxv4
 import (
 	"github.com/jackc/pgx/v4/stdlib"
 
-	"go.elastic.co/apm/internal/pgutil"
+	"go.elastic.co/apm/module/apmsql/internal/pgutil"
 
 	"go.elastic.co/apm/module/apmsql"
 )

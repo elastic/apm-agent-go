@@ -18,8 +18,8 @@
 package apmpq
 
 import (
-	"go.elastic.co/apm/internal/pgutil"
 	"go.elastic.co/apm/module/apmsql"
+	"go.elastic.co/apm/module/apmsql/internal/pgutil"
 )
 
 // ParseDSN is proxy to pgutils.ParseDSN to maintain api compatibility

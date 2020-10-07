@@ -25,8 +25,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"go.elastic.co/apm/internal/pgutil"
 	"go.elastic.co/apm/module/apmsql"
+	"go.elastic.co/apm/module/apmsql/internal/pgutil"
 )
 
 func patchEnv(k, v string) func() {
