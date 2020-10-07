@@ -19,6 +19,7 @@ package apmpq
 
 import (
 	"github.com/lib/pq"
+
 	"go.elastic.co/apm/module/apmsql"
 )
 

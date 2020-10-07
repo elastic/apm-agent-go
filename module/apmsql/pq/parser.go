@@ -6,6 +6,6 @@ import (
 )
 
 // ParseDSN is proxy to pgutils.ParseDSN to maintain api compatibility
-func ParseDSN(name string) apmsql.DSNInfo  {
+func ParseDSN(name string) apmsql.DSNInfo {
 	return pgutils.ParseDSN(name)
 }

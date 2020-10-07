@@ -21,6 +21,7 @@ package apmpgxv4
 
 import (
 	"github.com/jackc/pgx/v4/stdlib"
+
 	"go.elastic.co/apm/internal/pgutils"
 
 	"go.elastic.co/apm/module/apmsql"
