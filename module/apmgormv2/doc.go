@@ -17,5 +17,5 @@
 
 // +build go1.14
 
-// Package apmgorm provides wrappers for tracing GORM operations.
+// Package apmgormv2 provides wrappers for tracing GORM operations.
 package apmgormv2
