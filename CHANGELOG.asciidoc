@@ -33,6 +33,7 @@ https://github.com/elastic/apm-agent-go/compare/v1.8.0...master[View commits]
 - Relax Kubernetes pod UID discovery rules {pull}819[#(819)]
 - Add transaction and span outcome {pull}820[#(820)]
 - Add cloud metadata, configurable with ELASTIC_APM_CLOUD_PROVIDER {pull}823[#(823)]
+- Round ELASTIC_APM_SAMPLING_RATE with 4 digits precision {pull}828[#(828)]
 - module/apmhttp: implement io.ReaderFrom in wrapped http.ResponseWriter {pull}830[#(830)]
 
 [[release-notes-1.x]]
