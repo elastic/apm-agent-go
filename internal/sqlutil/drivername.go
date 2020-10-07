@@ -42,7 +42,7 @@ func DriverName(d driver.Driver) string {
 			return "postgresql"
 		}
 
-		if strings.HasSuffix(t.PkgPath(), "github.com/jackc/pgx/") {
+		if strings.HasPrefix(t.PkgPath(), "github.com/jackc/pgx/") {
 			return "postgresql"
 		}
 	}
