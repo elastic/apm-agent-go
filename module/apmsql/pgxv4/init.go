@@ -28,5 +28,5 @@ import (
 )
 
 func init() {
-	apmsql.Register("pgxv4", &stdlib.Driver{}, apmsql.WithDSNParser(pgutil.ParseDSN))
+	apmsql.Register("pgx", &stdlib.Driver{}, apmsql.WithDSNParser(pgutil.ParseDSN))
 }

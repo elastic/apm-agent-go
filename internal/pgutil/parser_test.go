@@ -21,9 +21,11 @@ import (
 	"os"
 	"testing"
 
+	apmpq "go.elastic.co/apm/module/apmsql/pq"
+
 	"github.com/stretchr/testify/assert"
 
-	apmpq "go.elastic.co/apm/internal/pgutil"
+	"go.elastic.co/apm/internal/pgutil"
 	"go.elastic.co/apm/module/apmsql"
 )
 
@@ -44,7 +46,7 @@ func TestParseDSNURL(t *testing.T) {
 	}
 
 	test := func(url, addr string, port int) {
-		info := apmpq.ParseDSN(url)
+		info := pgutil.ParseDSN(url)
 		assert.Equal(t, apmsql.DSNInfo{
 			Address:  addr,
 			Port:     port,

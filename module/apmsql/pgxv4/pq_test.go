@@ -38,7 +38,7 @@ func TestQueryContext(t *testing.T) {
 		t.Skipf("PGHOST not specified")
 	}
 
-	db, err := apmsql.Open("pgxv4", "user=postgres password=hunter2 dbname=test_db sslmode=disable")
+	db, err := apmsql.Open("pgx", "user=postgres password=hunter2 dbname=test_db sslmode=disable")
 	require.NoError(t, err)
 	defer db.Close()
 
