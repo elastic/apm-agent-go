@@ -15,14 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmpq
+// Package apmpgxv4 registers the "postgres" driver with
+// apmsql, so that you can trace pgx/v4 database connections.
 
-import (
-	"go.elastic.co/apm/module/apmsql"
-	"go.elastic.co/apm/module/apmsql/internal/pgutil"
-)
+// +build go1.14
 
-// ParseDSN is proxy to pgutils.ParseDSN to maintain api compatibility
-func ParseDSN(name string) apmsql.DSNInfo {
-	return pgutil.ParseDSN(name)
-}
+package apmpgxv4
