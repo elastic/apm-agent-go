@@ -17,19 +17,25 @@
 
 // +build go1.14
 
-package apmpgxv4
+// Package apmpostgres imports the gorm mysql dialect package,
+// and also registers the mysql driver with apmsql.
+package apmpostgres
 
 import (
-	"github.com/jackc/pgx/v4/stdlib"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 
-	"go.elastic.co/apm/module/apmsql/internal/pgutil"
-
-	"go.elastic.co/apm/module/apmsql"
+	"go.elastic.co/apm/module/apmsql/pgxv4"
 )
 
-// DriverName for pgx v4
-const DriverName = apmsql.DriverPrefix + "pgx"
+// Open creates a dialect with apmsql
+func Open(dsn string) gorm.Dialector {
+	dialect := &postgres.Dialector{
+		Config: &postgres.Config{
+			DriverName: apmpgxv4.DriverName,
+			DSN:        dsn,
+		},
+	}
 
-func init() {
-	apmsql.Register("pgx", &stdlib.Driver{}, apmsql.WithDSNParser(pgutil.ParseDSN))
+	return dialect
 }

@@ -33,6 +33,7 @@ import (
 
 	"go.elastic.co/apm/apmtest"
 	mysql "go.elastic.co/apm/module/apmgormv2/driver/mysql"
+	postgres "go.elastic.co/apm/module/apmgormv2/driver/postgres"
 	sqlite "go.elastic.co/apm/module/apmgormv2/driver/sqlite"
 	"go.elastic.co/apm/module/apmsql"
 )
@@ -50,6 +51,22 @@ func TestWithContext(t *testing.T) {
 			sqlite.Open(":memory:"), &gorm.Config{},
 		)
 	})
+
+	if pgHost := os.Getenv("PGHOST"); pgHost == "" {
+		t.Logf("PGHOST not specified, skipping")
+	} else {
+		t.Run("postgres", func(t *testing.T) {
+			testWithContext(t,
+				apmsql.DSNInfo{
+					Address:  pgHost,
+					Port:     5432,
+					Database: "test_db",
+					User:     "postgres",
+				},
+				postgres.Open("user=postgres password=hunter2 dbname=test_db sslmode=disable"), &gorm.Config{},
+			)
+		})
+	}
 
 	if mysqlHost := os.Getenv("MYSQL_HOST"); mysqlHost == "" {
 		t.Logf("MYSQL_HOST not specified, skipping")
