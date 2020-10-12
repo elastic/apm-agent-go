@@ -22,10 +22,9 @@
 package apmpostgres
 
 import (
+	apmpgxv4 "go.elastic.co/apm/module/apmsql/pgxv4"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-
-	"go.elastic.co/apm/module/apmsql/pgxv4"
 )
 
 // Open creates a dialect with apmsql
