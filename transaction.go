@@ -110,7 +110,7 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 				// we will scale the sampled transactions.
 				result.SampleRate = 0
 			}
-			sampleRate := round(1000*result.SampleRate) / 1000
+			sampleRate := roundSampleRate(result.SampleRate)
 			tx.traceContext.State = NewTraceState(TraceStateEntry{
 				Key:   elasticTracestateVendorKey,
 				Value: formatElasticTracestateValue(sampleRate),

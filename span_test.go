@@ -150,7 +150,7 @@ func TestTracerStartSpanIDSpecified(t *testing.T) {
 func TestSpanSampleRate(t *testing.T) {
 	tracer := apmtest.NewRecordingTracer()
 	defer tracer.Close()
-	tracer.SetSampler(apm.NewRatioSampler(0.5555))
+	tracer.SetSampler(apm.NewRatioSampler(0.55555))
 
 	tx := tracer.StartTransactionOptions("name", "type", apm.TransactionOptions{
 		// Use a known transaction ID for deterministic sampling.
@@ -164,7 +164,7 @@ func TestSpanSampleRate(t *testing.T) {
 	tracer.Flush(nil)
 
 	payloads := tracer.Payloads()
-	assert.Equal(t, 0.556, *payloads.Transactions[0].SampleRate)
-	assert.Equal(t, 0.556, *payloads.Spans[0].SampleRate)
-	assert.Equal(t, 0.556, *payloads.Spans[1].SampleRate)
+	assert.Equal(t, 0.5556, *payloads.Transactions[0].SampleRate)
+	assert.Equal(t, 0.5556, *payloads.Spans[0].SampleRate)
+	assert.Equal(t, 0.5556, *payloads.Spans[1].SampleRate)
 }
