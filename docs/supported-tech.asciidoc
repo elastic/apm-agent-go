@@ -141,7 +141,10 @@ operation.
 As with `database/sql` support we provide additional support for the
 postgres, mysql, and sqlite dialects.
 
-See <<builtin-modules-apmgorm, module/apmgorm>> for more information
+We provide different packages for the Gorm v1 and v2 versions:
+`module/apmgorm` for Gorm v1.x, and `module/apmgormv2` for Gorm v2.x.
+
+See <<builtin-modules-apmgorm, module/apmgorm>> or <<builtin-modules-apmgorm, module/apmgormv2>> for more information
 about GORM instrumentation.
 
 [float]
