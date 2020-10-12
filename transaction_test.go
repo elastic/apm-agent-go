@@ -184,7 +184,10 @@ func TestTransactionSampleRate(t *testing.T) {
 	tests := []test{
 		{0, 0, "es=s:0"},
 		{1, 1, "es=s:1"},
-		{0.5555, 0.556, "es=s:0.556"},
+		{0.00001, 0.0001, "es=s:0.0001"},
+		{0.55554, 0.5555, "es=s:0.5555"},
+		{0.55555, 0.5556, "es=s:0.5556"},
+		{0.55556, 0.5556, "es=s:0.5556"},
 	}
 	for _, test := range tests {
 		test := test // copy for closure
@@ -195,7 +198,7 @@ func TestTransactionSampleRate(t *testing.T) {
 			tracer.SetSampler(apm.NewRatioSampler(test.actualSampleRate))
 			tx := tracer.StartTransactionOptions("name", "type", apm.TransactionOptions{
 				// Use a known transaction ID for deterministic sampling.
-				TransactionID: apm.SpanID{1, 2, 3, 4, 5, 6, 7, 8},
+				TransactionID: apm.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
 			})
 			tx.End()
 			tracer.Flush(nil)

@@ -330,8 +330,8 @@ func (e *TraceStateEntry) validateValue() error {
 }
 
 func formatElasticTracestateValue(sampleRate float64) string {
-	// 0      -> "s:0"
-	// 1      -> "s:1"
-	// 0.5555 -> "s:0.555" (any rounding should be applied prior)
-	return fmt.Sprintf("s:%.3g", sampleRate)
+	// 0       -> "s:0"
+	// 1       -> "s:1"
+	// 0.55555 -> "s:0.5555" (any rounding should be applied prior)
+	return fmt.Sprintf("s:%.4g", sampleRate)
 }
