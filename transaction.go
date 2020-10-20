@@ -246,6 +246,7 @@ func (tx *Transaction) Discard() {
 		return
 	}
 	tx.reset(tx.tracer)
+	tx.TransactionData = nil
 }
 
 // End enqueues tx for sending to the Elastic APM server.

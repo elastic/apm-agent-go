@@ -300,6 +300,20 @@ func TestTransactionSampleRateOmission(t *testing.T) {
 	}
 }
 
+func TestTransactionDiscard(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	tx := tracer.StartTransaction("name", "type")
+	tx.Discard()
+	assert.Nil(t, tx.TransactionData)
+	tx.End() // ending after discarding should be a no-op
+
+	tracer.Flush(nil)
+	payloads := transport.Payloads()
+	require.Empty(t, payloads)
+}
+
 func BenchmarkTransaction(b *testing.B) {
 	tracer, err := apm.NewTracer("service", "")
 	require.NoError(b, err)
