@@ -24,6 +24,7 @@ function pin() {
 }
 
 if (! go run scripts/mingoversion.go 1.11 &>/dev/null); then
+  pin go.uber.org/multierr v1.6.0 https://github.com/uber-go/multierr
   pin github.com/astaxie/beego v1.11.1
   pin github.com/gin-gonic/gin v1.3.0
   pin github.com/stretchr/testify v1.4.0
