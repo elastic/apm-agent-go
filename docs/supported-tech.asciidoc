@@ -124,6 +124,7 @@ be able to parse the datasource name, and provide more context in the
 spans it emits:
 
 - https://github.com/lib/pq[lib/pq] (PostgreSQL)
+- https://github.com/jackc/pgx[jackc/pgx] (PostgreSQL)
 - https://github.com/go-sql-driver/mysql[go-sql-driver/mysql]
 - https://github.com/go-sqlite3[mattn/go-sqlite3]
 

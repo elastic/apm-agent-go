@@ -36,6 +36,8 @@ https://github.com/elastic/apm-agent-go/compare/v1.8.0...master[View commits]
 - Round ELASTIC_APM_SAMPLING_RATE with 4 digits precision {pull}828[#(828)]
 - module/apmhttp: implement io.ReaderFrom in wrapped http.ResponseWriter {pull}830[#(830)]
 - Fixed Transaction.Discard so that it sets TransactionData to nil {pull}836[#(836)]
+- module/apmsql/pgxv4: add support for pgx driver {pull}831[#(831)]
+- module/apmgormv2: add support for gorm.io (GORM v2) {pull}825[#(825)]
 
 [[release-notes-1.x]]
 === Go Agent version 1.x
