@@ -17,7 +17,7 @@
 
 // +build gofuzz
 
-package apm
+package apm // import "go.elastic.co/apm"
 
 import (
 	"bytes"

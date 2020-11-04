@@ -17,7 +17,7 @@
 
 // Package apmgormpostgres imports the gorm postgres dialect package,
 // and also registers the lib/pq driver with apmsql.
-package apmgormpostgres
+package apmgormpostgres // import "go.elastic.co/apm/module/apmgorm/dialects/postgres"
 
 import (
 	_ "github.com/jinzhu/gorm/dialects/postgres" // import the postgres dialect

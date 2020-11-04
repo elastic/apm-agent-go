@@ -17,7 +17,7 @@
 
 // +build go1.10
 
-package apmsql
+package apmsql // import "go.elastic.co/apm/module/apmsql"
 
 import (
 	"context"

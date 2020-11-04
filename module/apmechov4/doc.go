@@ -19,4 +19,4 @@
 
 // Package apmechov4 provides middleware for the version 4 of Echo framework,
 // for tracing HTTP requests.
-package apmechov4
+package apmechov4 // import "go.elastic.co/apm/module/apmechov4"

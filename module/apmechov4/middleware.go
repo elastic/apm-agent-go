@@ -17,7 +17,7 @@
 
 // +build go1.9
 
-package apmechov4
+package apmechov4 // import "go.elastic.co/apm/module/apmechov4"
 
 import (
 	"errors"

@@ -17,4 +17,4 @@
 
 // Package apmsqlite3 registers the "sqlite3" driver with
 // apmsql, so that you can trace sqlite3 database connections.
-package apmsqlite3
+package apmsqlite3 // import "go.elastic.co/apm/module/apmsql/sqlite3"

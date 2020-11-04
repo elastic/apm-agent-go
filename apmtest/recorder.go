@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmtest
+package apmtest // import "go.elastic.co/apm/apmtest"
 
 import (
 	"context"

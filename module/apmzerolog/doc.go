@@ -18,4 +18,4 @@
 // Package apmzerolog provides an implementaton of zerolog.LevelWriter
 // for sending error records to Elastic APM, as well as functions for
 // adding trace context and detailed error stack traces to log records.
-package apmzerolog
+package apmzerolog // import "go.elastic.co/apm/module/apmzerolog"

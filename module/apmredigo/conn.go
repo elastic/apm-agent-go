@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmredigo
+package apmredigo // import "go.elastic.co/apm/module/apmredigo"
 
 import (
 	"context"

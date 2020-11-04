@@ -16,4 +16,4 @@
 // under the License.
 
 // Package apmbeego provides tracing and error-reporting middleware for Beego applications.
-package apmbeego
+package apmbeego // import "go.elastic.co/apm/module/apmbeego"

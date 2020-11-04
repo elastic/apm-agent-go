@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package transporttest
+package transporttest // import "go.elastic.co/apm/transport/transporttest"
 
 import (
 	"context"

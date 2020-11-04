@@ -17,7 +17,7 @@
 
 // +build !go1.9
 
-package apmsql
+package apmsql // import "go.elastic.co/apm/module/apmsql"
 
 import "database/sql/driver"
 

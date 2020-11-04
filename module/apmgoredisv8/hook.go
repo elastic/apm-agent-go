@@ -17,7 +17,7 @@
 
 // +build go1.11
 
-package apmgoredisv8
+package apmgoredisv8 // import "go.elastic.co/apm/module/apmgoredisv8"
 
 import (
 	"bytes"

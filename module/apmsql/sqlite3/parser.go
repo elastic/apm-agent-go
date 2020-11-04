@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmsqlite3
+package apmsqlite3 // import "go.elastic.co/apm/module/apmsql/sqlite3"
 
 import (
 	"strings"

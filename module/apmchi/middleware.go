@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmchi
+package apmchi // import "go.elastic.co/apm/module/apmchi"
 
 import (
 	"net/http"

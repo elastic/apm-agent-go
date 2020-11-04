@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmot
+package apmot // import "go.elastic.co/apm/module/apmot"
 
 import (
 	"time"

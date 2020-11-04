@@ -17,7 +17,7 @@
 
 // +build !go1.10
 
-package apmelasticsearch
+package apmelasticsearch // import "go.elastic.co/apm/module/apmelasticsearch"
 
 import (
 	"fmt"

@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package model
+package model // import "go.elastic.co/apm/model"
 
 import (
 	"net/http"

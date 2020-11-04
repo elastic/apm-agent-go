@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmsql
+package apmsql // import "go.elastic.co/apm/module/apmsql"
 
 import (
 	"context"

@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmbeego
+package apmbeego // import "go.elastic.co/apm/module/apmbeego"
 
 import (
 	"context"

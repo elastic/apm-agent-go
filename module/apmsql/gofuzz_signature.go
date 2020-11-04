@@ -17,7 +17,7 @@
 
 // +build gofuzz
 
-package apmsql_test
+package apmsql_test // import "go.elastic.co/apm/module/apmsql"
 
 import (
 	"strings"

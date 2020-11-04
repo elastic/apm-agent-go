@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmtest
+package apmtest // import "go.elastic.co/apm/apmtest"
 
 // TestLogger is an implementation of apm.Logger,
 // logging to a testing.T.

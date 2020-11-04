@@ -16,4 +16,4 @@
 // under the License.
 
 // Package apmredigo provides helpers for tracing github.com/gomodule/redigo/redis client operations as spans.
-package apmredigo
+package apmredigo // import "go.elastic.co/apm/module/apmredigo"

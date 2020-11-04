@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmgin
+package apmgin // import "go.elastic.co/apm/module/apmgin"
 
 import (
 	"net/http"
