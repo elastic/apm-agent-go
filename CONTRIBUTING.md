@@ -89,3 +89,6 @@ adequately cover the code using `go test -cover`.
 1. Create release on GitHub
 
 	hub release -d vN.N.N
+
+1. Reset the latest major branch (1.x, 2.x etc) to point to the new release tag, e.g. git branch -f N.x vN.n.n
+1. Update the latest major branch on upstream with `git push upstream <major_branch>`
