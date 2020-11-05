@@ -19,7 +19,7 @@
 
 // Package apmmysql imports the gorm mysql dialect package,
 // and also registers the mysql driver with apmsql.
-package apmmysql
+package apmmysql // import "go.elastic.co/apm/module/apmgormv2/driver/mysql"
 
 import (
 	"gorm.io/driver/mysql"

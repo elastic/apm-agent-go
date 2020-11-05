@@ -17,7 +17,7 @@
 
 // +build go1.14
 
-package apmpgxv4
+package apmpgxv4 // import "go.elastic.co/apm/module/apmsql/pgxv4"
 
 import (
 	"github.com/jackc/pgx/v4/stdlib"

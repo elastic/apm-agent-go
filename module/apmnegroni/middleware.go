@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmnegroni
+package apmnegroni // import "go.elastic.co/apm/module/apmnegroni"
 
 import (
 	"context"

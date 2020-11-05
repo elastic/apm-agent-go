@@ -17,7 +17,7 @@
 
 // +build go1.9
 
-package apmgrpc
+package apmgrpc // import "go.elastic.co/apm/module/apmgrpc"
 
 import (
 	"golang.org/x/net/context"

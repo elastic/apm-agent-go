@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmmysql
+package apmmysql // import "go.elastic.co/apm/module/apmsql/mysql"
 
 import (
 	"github.com/go-sql-driver/mysql"

@@ -17,7 +17,7 @@
 
 // +build go1.11
 
-package apmgoredis
+package apmgoredis // import "go.elastic.co/apm/module/apmgoredis"
 
 import (
 	"context"

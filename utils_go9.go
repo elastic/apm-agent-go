@@ -17,7 +17,7 @@
 
 // +build !go1.10
 
-package apm
+package apm // import "go.elastic.co/apm"
 
 import "math"
 

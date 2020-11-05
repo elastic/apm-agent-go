@@ -17,7 +17,7 @@
 
 // +build go1.11
 
-package apmgopg
+package apmgopg // import "go.elastic.co/apm/module/apmgopg"
 
 import (
 	"errors"

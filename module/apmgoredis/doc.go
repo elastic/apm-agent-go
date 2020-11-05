@@ -18,4 +18,4 @@
 // +build go1.11
 
 // Package apmgoredis provides helpers for tracing github.com/go-redis/redis client operations as spans.
-package apmgoredis
+package apmgoredis // import "go.elastic.co/apm/module/apmgoredis"

@@ -17,7 +17,7 @@
 
 // +build go1.9
 
-package apmgocql
+package apmgocql // import "go.elastic.co/apm/module/apmgocql"
 
 import (
 	"context"

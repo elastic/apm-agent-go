@@ -17,7 +17,7 @@
 
 // +build go1.9
 
-package apmzap
+package apmzap // import "go.elastic.co/apm/module/apmzap"
 
 import (
 	"context"

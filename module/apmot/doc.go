@@ -21,4 +21,4 @@
 //  - binary propagation format
 //  - baggage
 //  - logging (generally; errors are reported)
-package apmot
+package apmot // import "go.elastic.co/apm/module/apmot"

@@ -17,7 +17,7 @@
 
 // +build go1.10
 
-package apmmongo
+package apmmongo // import "go.elastic.co/apm/module/apmmongo"
 
 import (
 	"context"

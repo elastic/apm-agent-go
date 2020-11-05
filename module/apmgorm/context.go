@@ -17,7 +17,7 @@
 
 // +build go1.9
 
-package apmgorm
+package apmgorm // import "go.elastic.co/apm/module/apmgorm"
 
 import (
 	"context"

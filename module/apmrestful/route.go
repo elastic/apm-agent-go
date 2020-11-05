@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmrestful
+package apmrestful // import "go.elastic.co/apm/module/apmrestful"
 
 import (
 	"bytes"

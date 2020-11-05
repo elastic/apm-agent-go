@@ -17,7 +17,7 @@
 
 // +build go1.10
 
-package apmhttp
+package apmhttp // import "go.elastic.co/apm/module/apmhttp"
 
 import (
 	"net/http"
