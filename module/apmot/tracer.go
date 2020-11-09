@@ -34,6 +34,9 @@ import (
 //
 // By default, the returned tracer will use apm.DefaultTracer.
 // This can be overridden by using a WithTracer option.
+// The option WithSpanRefValidator allows to override the
+// set of spans that are traced. By default only child-of
+// spans are traced.
 func New(opts ...Option) opentracing.Tracer {
 	t := &otTracer{
 		tracer:         apm.DefaultTracer,
@@ -204,9 +207,9 @@ func WithTracer(t *apm.Tracer) Option {
 // SpanRefValidator verifies if a span is valid and can be processed.
 type SpanRefValidator func(ref opentracing.SpanReference) bool
 
-// WithSpanValidator returns an Option which sets the span validation
+// WithSpanRefValidator returns an Option which sets the span validation
 // function. By default only child-of span are considered valid.
-func WithSpanValidator(validator SpanRefValidator) Option {
+func WithSpanRefValidator(validator SpanRefValidator) Option {
 	if validator == nil {
 		panic("validator == nil")
 	}

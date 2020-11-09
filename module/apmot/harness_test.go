@@ -85,7 +85,7 @@ func (w harnessSuiteWrapper) TestStartSpanWithParent() {
 	// that to prevent us from testing the child-of case.
 	w.TearDownTest()
 
-	tracerOptions = append(tracerOptions, WithSpanValidator(func(ref opentracing.SpanReference) bool {
+	tracerOptions = append(tracerOptions, WithSpanRefValidator(func(ref opentracing.SpanReference) bool {
 		switch ref.Type {
 		case opentracing.ChildOfRef, opentracing.FollowsFromRef:
 			return true
