@@ -31,6 +31,8 @@ import (
 	"go.elastic.co/apm/module/apmhttp"
 )
 
+var tracerOptions = []Option{WithTracer(apmtest.DiscardTracer)}
+
 func TestHarness(t *testing.T) {
 	// NOTE(axw) we do not support binary propagation, but we patch in
 	// basic support *for the tests only* so we can check compatibility
@@ -51,7 +53,7 @@ func TestHarness(t *testing.T) {
 	}()
 
 	newTracer := func() (opentracing.Tracer, func()) {
-		tracer := New(WithTracer(apmtest.DiscardTracer))
+		tracer := New(tracerOptions...)
 		return tracer, func() {}
 	}
 
@@ -81,14 +83,19 @@ func (w harnessSuiteWrapper) TestStartSpanWithParent() {
 	// APICheckSuite.TestStartSpanWithParent tests both child-of and
 	// follows-from. We don't support follows-from, but we don't want
 	// that to prevent us from testing the child-of case.
-	isValidSpanRef = func(ref opentracing.SpanReference) bool {
+	w.TearDownTest()
+
+	tracerOptions = append(tracerOptions, WithSpanValidator(func(ref opentracing.SpanReference) bool {
 		switch ref.Type {
 		case opentracing.ChildOfRef, opentracing.FollowsFromRef:
 			return true
 		}
 		return false
-	}
-	defer func() { isValidSpanRef = isChildOfSpanRef }()
+	}))
+	defer func() { tracerOptions = tracerOptions[0:1] }()
+
+	w.SetupTest()
+
 	w.APICheckSuite.TestStartSpanWithParent()
 }
 
