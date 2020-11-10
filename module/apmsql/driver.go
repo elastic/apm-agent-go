@@ -152,3 +152,8 @@ func (d *tracingDriver) Open(name string) (driver.Conn, error) {
 	}
 	return newConn(conn, d, d.dsnParser(name)), nil
 }
+
+// Unwrap returns the wrapped database/sql/driver.Driver.
+func (d *tracingDriver) Unwrap() driver.Driver {
+	return d.Driver
+}
