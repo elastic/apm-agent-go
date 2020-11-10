@@ -37,6 +37,18 @@ func init() {
 	apmsql.Register("sqlite3_test", &sqlite3TestDriver{})
 }
 
+func TestDriverUnwrap(t *testing.T) {
+	var underlying struct {
+		driver.Driver
+	}
+	type Unwrapper interface {
+		Unwrap() driver.Driver
+	}
+	wrapped := apmsql.Wrap(&underlying)
+	u := wrapped.(Unwrapper)
+	assert.Equal(t, &underlying, u.Unwrap())
+}
+
 func TestPingContext(t *testing.T) {
 	db, err := apmsql.Open("sqlite3", ":memory:")
 	require.NoError(t, err)
