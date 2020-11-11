@@ -47,9 +47,9 @@ func (s *spanContext) Transaction() *apm.Transaction {
 // ForeachBaggageItem is a no-op; we do not support baggage propagation.
 func (*spanContext) ForeachBaggageItem(handler func(k, v string) bool) {}
 
-func parentSpanContext(refs []opentracing.SpanReference) (*spanContext, bool) {
+func (t *otTracer) parentSpanContext(refs []opentracing.SpanReference) (*spanContext, bool) {
 	for _, ref := range refs {
-		if !isValidSpanRef(ref) {
+		if !t.isValidSpanRef(ref) {
 			continue
 		}
 		if ctx, ok := ref.ReferencedContext.(*spanContext); ok {
@@ -75,12 +75,9 @@ func parentSpanContext(refs []opentracing.SpanReference) (*spanContext, bool) {
 }
 
 // NOTE(axw) we currently support only "child-of" span references, but we make
-// it possible to override them in order to appease the OT test harness in one
-// specific test case: TestStartSpanWithParent, which tests both child-of and
-// follows-from.
-
-var isValidSpanRef = isChildOfSpanRef
-
+// it possible to override them using options in order to appease the OT test
+// harness in one specific test case: TestStartSpanWithParent, which tests
+// both child-of and follows-from.
 func isChildOfSpanRef(ref opentracing.SpanReference) bool {
 	return ref.Type == opentracing.ChildOfRef
 }
