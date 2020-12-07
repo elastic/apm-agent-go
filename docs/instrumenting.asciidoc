@@ -385,6 +385,31 @@ func main() {
 	db.WithContext(ctx).Model(...)
 }
 ----
+Spans will be created for queries and other statement executions if the context methods are
+used, and the context includes a transaction.
+
+[[builtin-modules-apmgopgv10]]
+==== module/apmgopgv10
+Package apmgopgv10 provides a means of instrumenting v10 of http://github.com/go-pg/pg[go-pg] database operations.
+
+To trace `go-pg` statements, call `apmgopgv10.Instrument` with the database instance you plan on using and provide
+a context that contains an apm transaction.
+
+[source,go]
+----
+import (
+	"github.com/go-pg/pg/v10"
+
+	"go.elastic.co/apm/module/apmgopgv10"
+)
+
+func main() {
+	db := pg.Connect(&pg.Options{})
+	apmgopg.Instrument(db)
+
+	db.WithContext(ctx).Model(...)
+}
+----
 
 [[builtin-modules-apmgorm]]
 ==== module/apmgorm
