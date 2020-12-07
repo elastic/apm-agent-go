@@ -39,9 +39,7 @@ func init() {
 //
 // If Instrument cannot instrument db, then an error will be returned.
 func Instrument(db *pg.DB) error {
-	qh := &queryHook{}
-
-	db.AddQueryHook(qh)
+	db.AddQueryHook(&queryHook{})
 
 	return nil
 }
