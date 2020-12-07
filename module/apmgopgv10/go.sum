@@ -23,8 +23,6 @@ github.com/fsnotify/fsnotify v1.4.7 h1:IXs+QLmnXW2CcXuY+8Mzv/fWEsPGWxqefPtCP5CnV
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
 github.com/fsnotify/fsnotify v1.4.9 h1:hsms1Qyu0jgnwNXIxa+/V/PDsU6CfLf6CNO8H7IWoS4=
 github.com/fsnotify/fsnotify v1.4.9/go.mod h1:znqG4EE+3YCdAaPaxE2ZRY/06pZUdp0tY4IgpuI1SZQ=
-github.com/go-pg/pg v8.0.4+incompatible h1:mNnhnAf6xtMNG0eNCAzBcBelIZvkGa99xJ+qBylZVJA=
-github.com/go-pg/pg v8.0.4+incompatible/go.mod h1:a2oXow+aFOrvwcKs3eIA0lNFmMilrxK2sOkB5NWe0vA=
 github.com/go-pg/pg/v10 v10.7.3 h1:oL/Hz5MJie/9epmwxlZjfReO+2wlLPOK6BeGb9I+XHk=
 github.com/go-pg/pg/v10 v10.7.3/go.mod h1:UsDYtA+ihbBNX1OeIvDejxkL4RXzL3wsZYoEv5NUEqM=
 github.com/go-pg/zerochecker v0.2.0 h1:pp7f72c3DobMWOb2ErtZsnrPaSvHd2W4o9//8HtF4mU=
