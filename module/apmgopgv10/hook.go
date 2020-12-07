@@ -20,10 +20,10 @@
 package apmgopgv10 // import "go.elastic.co/apm/module/apmgopgv10"
 
 import (
-	"errors"
-	"fmt"
+	"context"
 
 	"github.com/go-pg/pg/v10"
+	"github.com/pkg/errors"
 
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/module/apmsql"
@@ -34,27 +34,25 @@ func init() {
 	stacktrace.RegisterLibraryPackage("github.com/go-pg/pg/v10")
 }
 
-const elasticApmSpanKey = "go-apm-agent:span"
-
 // Instrument modifies db such that operations are hooked and reported as spans
 // to Elastic APM if they occur within the context of a captured transaction.
 //
 // If Instrument cannot instrument db, then an error will be returned.
 func Instrument(db *pg.DB) error {
 	qh := &queryHook{}
-	switch qh := ((interface{})(qh)).(type) {
-	case pg.QueryHook:
-		db.AddQueryHook(qh)
-		return nil
-	}
-	return errors.New("cannot instrument pg.DB, does not implement required interface")
+
+	db.AddQueryHook(qh)
+
+	return nil
 }
+
+var _ pg.QueryHook = (*queryHook)(nil)
 
 // queryHook is an implementation of pg.QueryHook that reports queries as spans to Elastic APM.
 type queryHook struct{}
 
 // BeforeQuery initiates the span for the database query
-func (qh *queryHook) BeforeQuery(evt *pg.QueryEvent) {
+func (qh *queryHook) BeforeQuery(ctx context.Context, evt *pg.QueryEvent) (context.Context, error) {
 	var (
 		database string
 		user     string
@@ -67,11 +65,10 @@ func (qh *queryHook) BeforeQuery(evt *pg.QueryEvent) {
 
 	sql, err := evt.UnformattedQuery()
 	if err != nil {
-		// Expose the error making it a bit easier to debug
-		sql = []byte(fmt.Sprintf("[go-pg] error: %s", err.Error()))
+		return ctx, errors.Wrap(err, "failed to generate sql")
 	}
 
-	span, _ := apm.StartSpan(evt.DB.Context(), apmsql.QuerySignature(string(sql)), "db.postgresql.query")
+	span, ctx := apm.StartSpan(ctx, apmsql.QuerySignature(string(sql)), "db.postgresql.query")
 	span.Context.SetDatabase(apm.DatabaseSpanContext{
 		Statement: string(sql),
 
@@ -81,16 +78,14 @@ func (qh *queryHook) BeforeQuery(evt *pg.QueryEvent) {
 		Instance: database,
 	})
 
-	evt.Stash[elasticApmSpanKey] = span
+	return ctx, nil
 }
 
 // AfterQuery ends the initiated span from BeforeQuery
-func (qh *queryHook) AfterQuery(evt *pg.QueryEvent) {
-	span, ok := evt.Stash[elasticApmSpanKey]
-	if !ok {
-		return
+func (qh *queryHook) AfterQuery(ctx context.Context, evt *pg.QueryEvent) error {
+	if span := apm.SpanFromContext(ctx); span != nil {
+		span.End()
 	}
-	if s, ok := span.(*apm.Span); ok {
-		s.End()
-	}
+
+	return nil
 }
