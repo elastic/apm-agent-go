@@ -1,4 +1,4 @@
-module go.elastic.co/apm/module/apmgopg
+module go.elastic.co/apm/module/apmgopgv10
 
 require (
 	github.com/go-pg/pg/v10 v10.7.3
