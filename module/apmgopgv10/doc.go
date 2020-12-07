@@ -15,7 +15,5 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// +build go1.14
-
 // Package apmgopgv10 provides wrappers for tracing go-pg/v10 operations.
 package apmgopgv10 // import "go.elastic.co/apm/module/apmgopgv10"
