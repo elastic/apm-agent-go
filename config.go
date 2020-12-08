@@ -358,6 +358,11 @@ func (t *Tracer) updateRemoteConfig(logger WarningLogger, old, attrs map[string]
 					cfg.recording = recording
 				})
 			}
+		case envSanitizeFieldNames:
+			matchers := configutil.ParseWildcardPatterns(v)
+			updates = append(updates, func(cfg *instrumentationConfig) {
+				cfg.sanitizedFieldNames = matchers
+			})
 		case envSpanFramesMinDuration:
 			duration, err := configutil.ParseDuration(v)
 			if err != nil {
@@ -487,4 +492,5 @@ type instrumentationConfigValues struct {
 	spanFramesMinDuration time.Duration
 	stackTraceLimit       int
 	propagateLegacyHeader bool
+	sanitizedFieldNames   wildcard.Matchers
 }

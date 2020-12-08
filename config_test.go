@@ -83,6 +83,20 @@ func TestTracerCentralConfigUpdate(t *testing.T) {
 		assert.Len(t, payloads.Errors, 1)
 		return len(payloads.Errors[0].Exception.Stacktrace) == 1
 	})
+	run("sanitize_field_names", "secret", func(tracer *apmtest.RecordingTracer) bool {
+		tracer.ResetPayloads()
+		tracer.SetSanitizedFieldNames("not_secret")
+		req, _ := http.NewRequest("GET", "http://server.testing/", nil)
+		req.AddCookie(&http.Cookie{Name: "secret", Value: "top"})
+		tx := tracer.StartTransaction("name", "type")
+		tx.Context.SetHTTPRequest(req)
+		tx.End()
+		tracer.Flush(nil)
+		payloads := tracer.Payloads()
+		assert.Len(t, payloads.Transactions, 1)
+		assert.Len(t, payloads.Transactions[0].Context.Request.Cookies, 1)
+		return payloads.Transactions[0].Context.Request.Cookies[0].Value == "[REDACTED]"
+	})
 }
 
 func testTracerCentralConfigUpdate(t *testing.T, serverResponse string, isRemote func(*apmtest.RecordingTracer) bool) {
