@@ -29,6 +29,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"go.elastic.co/apm/internal/apmlog"
 	"go.elastic.co/apm/internal/configutil"
 	"go.elastic.co/apm/internal/wildcard"
 	"go.elastic.co/apm/model"
@@ -396,6 +397,22 @@ func (t *Tracer) updateRemoteConfig(logger WarningLogger, old, attrs map[string]
 					cfg.sampler = sampler
 					cfg.extendedSampler, _ = sampler.(ExtendedSampler)
 				})
+			}
+		case apmlog.EnvLogLevel:
+			level, err := apmlog.ParseLogLevel(v)
+			if err != nil {
+				errorf("central config failure: %s", err)
+				delete(attrs, k)
+				continue
+			}
+			if apmlog.DefaultLogger != nil && apmlog.DefaultLogger == logger {
+				updates = append(updates, func(*instrumentationConfig) {
+					apmlog.DefaultLogger.SetLevel(level)
+				})
+			} else {
+				warningf("central config ignored: %s set to %s, but custom logger in use", k, v)
+				delete(attrs, k)
+				continue
 			}
 		default:
 			warningf("central config failure: unsupported config: %s", k)

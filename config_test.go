@@ -20,10 +20,12 @@ package apm_test
 import (
 	"context"
 	"encoding/json"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -36,6 +38,7 @@ import (
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/apmconfig"
 	"go.elastic.co/apm/apmtest"
+	"go.elastic.co/apm/internal/apmlog"
 	"go.elastic.co/apm/transport"
 	"go.elastic.co/apm/transport/transporttest"
 )
@@ -44,7 +47,7 @@ func TestTracerCentralConfigUpdate(t *testing.T) {
 	run := func(configKey, configValue string, isRemote func(*apmtest.RecordingTracer) bool) {
 		t.Run(configKey, func(t *testing.T) {
 			response, _ := json.Marshal(map[string]string{configKey: configValue})
-			testTracerCentralConfigUpdate(t, string(response), isRemote)
+			testTracerCentralConfigUpdate(t, apmtest.NewTestLogger(t), string(response), isRemote)
 		})
 	}
 	run("transaction_sample_rate", "0", func(tracer *apmtest.RecordingTracer) bool {
@@ -97,9 +100,31 @@ func TestTracerCentralConfigUpdate(t *testing.T) {
 		assert.Len(t, payloads.Transactions[0].Context.Request.Cookies, 1)
 		return payloads.Transactions[0].Context.Request.Cookies[0].Value == "[REDACTED]"
 	})
+	t.Run("log_level", func(t *testing.T) {
+		tempdir, err := ioutil.TempDir("", "apmtest_log_level")
+		require.NoError(t, err)
+		defer os.RemoveAll(tempdir)
+
+		logfile := filepath.Join(tempdir, "apm.log")
+		os.Setenv(apmlog.EnvLogFile, logfile)
+		os.Setenv(apmlog.EnvLogLevel, "off")
+		defer os.Unsetenv(apmlog.EnvLogFile)
+		defer os.Unsetenv(apmlog.EnvLogLevel)
+		apmlog.InitDefaultLogger()
+
+		response, _ := json.Marshal(map[string]string{"log_level": "debug"})
+		testTracerCentralConfigUpdate(t, apmlog.DefaultLogger, string(response), func(tracer *apmtest.RecordingTracer) bool {
+			require.NoError(t, os.Truncate(logfile, 0))
+			tracer.StartTransaction("name", "type").End()
+			tracer.Flush(nil)
+			log, err := ioutil.ReadFile(logfile)
+			require.NoError(t, err)
+			return len(log) > 0
+		})
+	})
 }
 
-func testTracerCentralConfigUpdate(t *testing.T, serverResponse string, isRemote func(*apmtest.RecordingTracer) bool) {
+func testTracerCentralConfigUpdate(t *testing.T, logger apm.Logger, serverResponse string, isRemote func(*apmtest.RecordingTracer) bool) {
 	type response struct {
 		etag string
 		body string
@@ -139,7 +164,7 @@ func testTracerCentralConfigUpdate(t *testing.T, serverResponse string, isRemote
 	// configuration.
 	t.Parallel()
 
-	tracer.SetLogger(apmtest.NewTestLogger(t))
+	tracer.SetLogger(logger)
 	assert.False(t, isRemote(tracer))
 
 	timeout := time.After(10 * time.Second)
