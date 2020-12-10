@@ -30,6 +30,11 @@ import (
 	"go.elastic.co/fastjson"
 )
 
+const (
+	EnvLogFile  = "ELASTIC_APM_LOG_FILE"
+	EnvLogLevel = "ELASTIC_APM_LOG_LEVEL"
+)
+
 var (
 	// DefaultLogger is the default Logger to use, if ELASTIC_APM_LOG_* are specified.
 	DefaultLogger *LevelLogger
@@ -48,7 +53,7 @@ func init() {
 // InitDefaultLogger initialises DefaultLogger using the environment variables
 // ELASTIC_APM_LOG_FILE and ELASTIC_APM_LOG_LEVEL.
 func InitDefaultLogger() {
-	fileStr := strings.TrimSpace(os.Getenv("ELASTIC_APM_LOG_FILE"))
+	fileStr := strings.TrimSpace(os.Getenv(EnvLogFile))
 	if fileStr == "" {
 		DefaultLogger = nil
 		return
@@ -70,10 +75,10 @@ func InitDefaultLogger() {
 	}
 
 	logLevel := errorLevel
-	if levelStr := strings.TrimSpace(os.Getenv("ELASTIC_APM_LOG_LEVEL")); levelStr != "" {
+	if levelStr := strings.TrimSpace(os.Getenv(EnvLogLevel)); levelStr != "" {
 		level, err := ParseLogLevel(levelStr)
 		if err != nil {
-			log.Printf("invalid ELASTIC_APM_LOG_LEVEL %q, falling back to %q", levelStr, logLevel)
+			log.Printf("invalid %s %q, falling back to %q", EnvLogLevel, levelStr, logLevel)
 		} else {
 			logLevel = level
 		}
