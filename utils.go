@@ -178,7 +178,7 @@ func getCloudMetadata() *model.Cloud {
 			var err error
 			provider, err = apmcloudutil.ParseProvider(str)
 			if err != nil && logger != nil {
-				logger.Warningf("disabling cloud metadata: %s", envCloudProvider, err)
+				logger.Warningf("disabling %q cloud metadata: %s", envCloudProvider, err)
 			}
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)

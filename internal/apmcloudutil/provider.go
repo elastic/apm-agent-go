@@ -24,7 +24,6 @@ import (
 	"net/http"
 	"time"
 
-	"go.elastic.co/apm/internal/apmlog"
 	"go.elastic.co/apm/model"
 )
 
@@ -81,11 +80,11 @@ func ParseProvider(s string) (Provider, error) {
 //
 // It is the caller's responsibility to set a reasonable timeout, to ensure
 // requests do not block normal operation in non-cloud environments.
-func (p Provider) GetCloudMetadata(ctx context.Context, logger apmlog.Logger, out *model.Cloud) bool {
+func (p Provider) GetCloudMetadata(ctx context.Context, logger Logger, out *model.Cloud) bool {
 	return p.getCloudMetadata(ctx, defaultClient, logger, out)
 }
 
-func (p Provider) getCloudMetadata(ctx context.Context, client *http.Client, logger apmlog.Logger, out *model.Cloud) bool {
+func (p Provider) getCloudMetadata(ctx context.Context, client *http.Client, logger Logger, out *model.Cloud) bool {
 	if p == None {
 		return false
 	}
@@ -116,4 +115,9 @@ func (p Provider) getCloudMetadata(ctx context.Context, client *http.Client, log
 		}
 	}
 	return false
+}
+
+// Logger defines the interface for logging while fetching cloud metadata.
+type Logger interface {
+	Warningf(format string, args ...interface{})
 }

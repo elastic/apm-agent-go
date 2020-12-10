@@ -426,6 +426,14 @@ func newTracer(opts TracerOptions) *Tracer {
 	t.setLocalInstrumentationConfig(envSanitizeFieldNames, func(cfg *instrumentationConfigValues) {
 		cfg.sanitizedFieldNames = opts.sanitizedFieldNames
 	})
+	if apmlog.DefaultLogger != nil {
+		defaultLogLevel := apmlog.DefaultLogger.Level()
+		t.setLocalInstrumentationConfig(apmlog.EnvLogLevel, func(cfg *instrumentationConfigValues) {
+			// Revert to the original, local, log level when
+			// the centrally defined log level is removed.
+			apmlog.DefaultLogger.SetLevel(defaultLogLevel)
+		})
+	}
 
 	if !opts.active {
 		t.active = 0

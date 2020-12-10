@@ -29,7 +29,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"go.elastic.co/apm/internal/apmlog"
 	"go.elastic.co/apm/model"
 )
 
@@ -86,8 +85,8 @@ func (rt *targetedRoundTripper) RoundTrip(req *http.Request) (*http.Response, er
 }
 
 type testLogger struct {
-	apmlog.Logger // panic on unexpected method calls
-	buf           bytes.Buffer
+	Logger // panic on unexpected method calls
+	buf    bytes.Buffer
 }
 
 func (tl *testLogger) Warningf(format string, args ...interface{}) {
