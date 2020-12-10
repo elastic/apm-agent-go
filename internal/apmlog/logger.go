@@ -31,8 +31,13 @@ import (
 )
 
 const (
-	EnvLogFile         = "ELASTIC_APM_LOG_FILE"
-	EnvLogLevel        = "ELASTIC_APM_LOG_LEVEL"
+	// EnvLogFile is the environment variable that controls where the default logger writes.
+	EnvLogFile = "ELASTIC_APM_LOG_FILE"
+
+	// EnvLogLevel is the environment variable that controls the default logger's level.
+	EnvLogLevel = "ELASTIC_APM_LOG_LEVEL"
+
+	// DefaultLevel holds the default log level, if EnvLogLevel is not specified.
 	DefaultLevel Level = ErrorLevel
 )
 
@@ -87,6 +92,7 @@ func InitDefaultLogger() {
 	DefaultLogger = &LevelLogger{w: logWriter, level: logLevel}
 }
 
+// Log levels.
 const (
 	DebugLevel Level = iota
 	InfoLevel
@@ -96,6 +102,7 @@ const (
 	OffLevel
 )
 
+// Level represents a log level.
 type Level uint32
 
 func (l Level) String() string {
