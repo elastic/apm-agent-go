@@ -273,8 +273,8 @@ func TestTracerRequestSize(t *testing.T) {
 	}))
 	defer server.Close()
 
-	os.Setenv("ELASTIC_APM_SERVER_URLS", server.URL)
-	defer os.Unsetenv("ELASTIC_APM_SERVER_URLS")
+	os.Setenv("ELASTIC_APM_SERVER_URL", server.URL)
+	defer os.Unsetenv("ELASTIC_APM_SERVER_URL")
 
 	httpTransport, err := transport.NewHTTPTransport()
 	require.NoError(t, err)
@@ -368,8 +368,8 @@ func TestTracerBodyUnread(t *testing.T) {
 	}))
 	defer server.Close()
 
-	os.Setenv("ELASTIC_APM_SERVER_URLS", server.URL)
-	defer os.Unsetenv("ELASTIC_APM_SERVER_URLS")
+	os.Setenv("ELASTIC_APM_SERVER_URL", server.URL)
+	defer os.Unsetenv("ELASTIC_APM_SERVER_URL")
 
 	httpTransport, err := transport.NewHTTPTransport()
 	require.NoError(t, err)
