@@ -31,7 +31,7 @@ import (
 
 var (
 	// DefaultLogger is the default Logger to use, if ELASTIC_APM_LOG_* are specified.
-	DefaultLogger Logger
+	DefaultLogger *LevelLogger
 
 	fastjsonPool = &sync.Pool{
 		New: func() interface{} {
@@ -74,7 +74,7 @@ func initDefaultLogger() {
 			logLevel = level
 		}
 	}
-	DefaultLogger = levelLogger{w: logWriter, level: logLevel}
+	DefaultLogger = &LevelLogger{w: logWriter, level: logLevel}
 }
 
 const (
@@ -115,34 +115,27 @@ func parseLogLevel(s string) (logLevel, error) {
 	return noLevel, fmt.Errorf("invalid log level string %q", s)
 }
 
-// Logger provides methods for logging.
-type Logger interface {
-	Debugf(format string, args ...interface{})
-	Errorf(format string, args ...interface{})
-	Warningf(format string, args ...interface{})
-}
-
-type levelLogger struct {
-	w     io.Writer
+type LevelLogger struct {
 	level logLevel
+	w     io.Writer
 }
 
 // Debugf logs a message with log.Printf, with a DEBUG prefix.
-func (l levelLogger) Debugf(format string, args ...interface{}) {
+func (l *LevelLogger) Debugf(format string, args ...interface{}) {
 	l.logf(debugLevel, format, args...)
 }
 
 // Errorf logs a message with log.Printf, with an ERROR prefix.
-func (l levelLogger) Errorf(format string, args ...interface{}) {
+func (l *LevelLogger) Errorf(format string, args ...interface{}) {
 	l.logf(errorLevel, format, args...)
 }
 
 // Warningf logs a message with log.Printf, with a WARNING prefix.
-func (l levelLogger) Warningf(format string, args ...interface{}) {
+func (l *LevelLogger) Warningf(format string, args ...interface{}) {
 	l.logf(warnLevel, format, args...)
 }
 
-func (l levelLogger) logf(level logLevel, format string, args ...interface{}) {
+func (l *LevelLogger) logf(level logLevel, format string, args ...interface{}) {
 	if level < l.level {
 		return
 	}
