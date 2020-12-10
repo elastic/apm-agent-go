@@ -42,12 +42,15 @@ var (
 )
 
 func init() {
-	initDefaultLogger()
+	InitDefaultLogger()
 }
 
-func initDefaultLogger() {
+// InitDefaultLogger initialises DefaultLogger using the environment variables
+// ELASTIC_APM_LOG_FILE and ELASTIC_APM_LOG_LEVEL.
+func InitDefaultLogger() {
 	fileStr := strings.TrimSpace(os.Getenv("ELASTIC_APM_LOG_FILE"))
 	if fileStr == "" {
+		DefaultLogger = nil
 		return
 	}
 

@@ -37,7 +37,7 @@ func init() {
 
 func TestInitDefaultLoggerNoEnv(t *testing.T) {
 	DefaultLogger = nil
-	initDefaultLogger()
+	InitDefaultLogger()
 	assert.Nil(t, DefaultLogger)
 }
 
@@ -48,7 +48,7 @@ func TestInitDefaultLoggerInvalidFile(t *testing.T) {
 	DefaultLogger = nil
 	os.Setenv("ELASTIC_APM_LOG_FILE", ".")
 	defer os.Unsetenv("ELASTIC_APM_LOG_FILE")
-	initDefaultLogger()
+	InitDefaultLogger()
 
 	assert.Nil(t, DefaultLogger)
 	assert.Regexp(t, `failed to create "\.": .* \(disabling logging\)`, logbuf.String())
@@ -62,7 +62,7 @@ func TestInitDefaultLoggerFile(t *testing.T) {
 	DefaultLogger = nil
 	os.Setenv("ELASTIC_APM_LOG_FILE", filepath.Join(dir, "log.json"))
 	defer os.Unsetenv("ELASTIC_APM_LOG_FILE")
-	initDefaultLogger()
+	InitDefaultLogger()
 
 	require.NotNil(t, DefaultLogger)
 	DefaultLogger.Debugf("debug message")
@@ -95,7 +95,7 @@ func TestInitDefaultLoggerStdio(t *testing.T) {
 	for _, filename := range []string{"stdout", "stderr"} {
 		DefaultLogger = nil
 		os.Setenv("ELASTIC_APM_LOG_FILE", filename)
-		initDefaultLogger()
+		InitDefaultLogger()
 		require.NotNil(t, DefaultLogger)
 		DefaultLogger.Errorf("%s", filename)
 	}
@@ -122,7 +122,7 @@ func TestInitDefaultLoggerInvalidLevel(t *testing.T) {
 	os.Setenv("ELASTIC_APM_LOG_LEVEL", "panic")
 	defer os.Unsetenv("ELASTIC_APM_LOG_FILE")
 	defer os.Unsetenv("ELASTIC_APM_LOG_LEVEL")
-	initDefaultLogger()
+	InitDefaultLogger()
 
 	require.NotNil(t, DefaultLogger)
 	DefaultLogger.Debugf("debug message")
@@ -147,7 +147,7 @@ func TestInitDefaultLoggerLevel(t *testing.T) {
 	os.Setenv("ELASTIC_APM_LOG_LEVEL", "debug")
 	defer os.Unsetenv("ELASTIC_APM_LOG_FILE")
 	defer os.Unsetenv("ELASTIC_APM_LOG_LEVEL")
-	initDefaultLogger()
+	InitDefaultLogger()
 
 	require.NotNil(t, DefaultLogger)
 	DefaultLogger.Debugf("debug message")
@@ -169,7 +169,7 @@ func BenchmarkDefaultLogger(b *testing.B) {
 	DefaultLogger = nil
 	os.Setenv("ELASTIC_APM_LOG_FILE", filepath.Join(dir, "log.json"))
 	defer os.Unsetenv("ELASTIC_APM_LOG_FILE")
-	initDefaultLogger()
+	InitDefaultLogger()
 	require.NotNil(b, DefaultLogger)
 
 	b.ResetTimer()
