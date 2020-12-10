@@ -78,7 +78,7 @@ func TestHTTPTransportUserAgent(t *testing.T) {
 	var h recordingHandler
 	server := httptest.NewServer(&h)
 	defer server.Close()
-	defer patchEnv("ELASTIC_APM_SERVER_URLS", server.URL)()
+	defer patchEnv("ELASTIC_APM_SERVER_URL", server.URL)()
 
 	transport, err := transport.NewHTTPTransport()
 	assert.NoError(t, err)
@@ -99,7 +99,7 @@ func TestHTTPTransportSecretToken(t *testing.T) {
 	var h recordingHandler
 	server := httptest.NewServer(&h)
 	defer server.Close()
-	defer patchEnv("ELASTIC_APM_SERVER_URLS", server.URL)()
+	defer patchEnv("ELASTIC_APM_SERVER_URL", server.URL)()
 
 	transport, err := transport.NewHTTPTransport()
 	transport.SetSecretToken("hunter2")
@@ -114,7 +114,7 @@ func TestHTTPTransportEnvSecretToken(t *testing.T) {
 	var h recordingHandler
 	server := httptest.NewServer(&h)
 	defer server.Close()
-	defer patchEnv("ELASTIC_APM_SERVER_URLS", server.URL)()
+	defer patchEnv("ELASTIC_APM_SERVER_URL", server.URL)()
 	defer patchEnv("ELASTIC_APM_SECRET_TOKEN", "hunter2")()
 
 	transport, err := transport.NewHTTPTransport()
@@ -129,7 +129,7 @@ func TestHTTPTransportAPIKey(t *testing.T) {
 	var h recordingHandler
 	server := httptest.NewServer(&h)
 	defer server.Close()
-	defer patchEnv("ELASTIC_APM_SERVER_URLS", server.URL)()
+	defer patchEnv("ELASTIC_APM_SERVER_URL", server.URL)()
 
 	transport, err := transport.NewHTTPTransport()
 	transport.SetAPIKey("hunter2")
@@ -144,7 +144,7 @@ func TestHTTPTransportEnvAPIKey(t *testing.T) {
 	var h recordingHandler
 	server := httptest.NewServer(&h)
 	defer server.Close()
-	defer patchEnv("ELASTIC_APM_SERVER_URLS", server.URL)()
+	defer patchEnv("ELASTIC_APM_SERVER_URL", server.URL)()
 	defer patchEnv("ELASTIC_APM_API_KEY", "api_key_wins")()
 	defer patchEnv("ELASTIC_APM_SECRET_TOKEN", "secret_token_loses")()
 
@@ -173,7 +173,7 @@ func TestHTTPTransportTLS(t *testing.T) {
 	server.Config.ErrorLog = log.New(ioutil.Discard, "", 0)
 	server.StartTLS()
 	defer server.Close()
-	defer patchEnv("ELASTIC_APM_SERVER_URLS", server.URL)()
+	defer patchEnv("ELASTIC_APM_SERVER_URL", server.URL)()
 
 	transport, err := transport.NewHTTPTransport()
 	assert.NoError(t, err)
@@ -206,7 +206,7 @@ func TestHTTPTransportEnvVerifyServerCert(t *testing.T) {
 	var h recordingHandler
 	server := httptest.NewTLSServer(&h)
 	defer server.Close()
-	defer patchEnv("ELASTIC_APM_SERVER_URLS", server.URL)()
+	defer patchEnv("ELASTIC_APM_SERVER_URL", server.URL)()
 	defer patchEnv("ELASTIC_APM_VERIFY_SERVER_CERT", "false")()
 
 	transport, err := transport.NewHTTPTransport()
@@ -237,7 +237,7 @@ func TestHTTPTransportContent(t *testing.T) {
 	var h recordingHandler
 	server := httptest.NewServer(&h)
 	defer server.Close()
-	defer patchEnv("ELASTIC_APM_SERVER_URLS", server.URL)()
+	defer patchEnv("ELASTIC_APM_SERVER_URL", server.URL)()
 
 	transport, err := transport.NewHTTPTransport()
 	assert.NoError(t, err)
@@ -254,7 +254,7 @@ func TestHTTPTransportServerTimeout(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(blockingHandler))
 	defer server.Close()
 	defer close(done)
-	defer patchEnv("ELASTIC_APM_SERVER_URLS", server.URL)()
+	defer patchEnv("ELASTIC_APM_SERVER_URL", server.URL)()
 	defer patchEnv("ELASTIC_APM_SERVER_TIMEOUT", "50ms")()
 
 	before := time.Now()
@@ -320,7 +320,7 @@ func TestHTTPTransportServerCert(t *testing.T) {
 	server.Config.ErrorLog = log.New(ioutil.Discard, "", 0)
 	server.StartTLS()
 	defer server.Close()
-	defer patchEnv("ELASTIC_APM_SERVER_URLS", server.URL)()
+	defer patchEnv("ELASTIC_APM_SERVER_URL", server.URL)()
 
 	p := strings.NewReader("")
 
