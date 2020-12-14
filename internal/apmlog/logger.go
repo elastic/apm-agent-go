@@ -94,9 +94,10 @@ func InitDefaultLogger() {
 
 // Log levels.
 const (
-	DebugLevel Level = iota
+	TraceLevel Level = iota
+	DebugLevel
 	InfoLevel
-	WarnLevel
+	WarningLevel
 	ErrorLevel
 	CriticalLevel
 	OffLevel
@@ -107,14 +108,20 @@ type Level uint32
 
 func (l Level) String() string {
 	switch l {
+	case TraceLevel:
+		return "trace"
 	case DebugLevel:
 		return "debug"
 	case InfoLevel:
 		return "info"
-	case WarnLevel:
-		return "warn"
+	case WarningLevel:
+		return "warning"
 	case ErrorLevel:
 		return "error"
+	case CriticalLevel:
+		return "critical"
+	case OffLevel:
+		return "off"
 	}
 	return ""
 }
@@ -122,12 +129,16 @@ func (l Level) String() string {
 // ParseLogLevel parses s as a log level.
 func ParseLogLevel(s string) (Level, error) {
 	switch strings.ToLower(s) {
+	case "trace":
+		return TraceLevel, nil
 	case "debug":
 		return DebugLevel, nil
 	case "info":
 		return InfoLevel, nil
-	case "warn":
-		return WarnLevel, nil
+	case "warn", "warning":
+		// "warn" exists for backwards compatibility;
+		// "warning" is the canonical level name.
+		return WarningLevel, nil
 	case "error":
 		return ErrorLevel, nil
 	case "critical":
@@ -167,7 +178,7 @@ func (l *LevelLogger) Errorf(format string, args ...interface{}) {
 
 // Warningf logs a message with log.Printf, with a WARNING prefix.
 func (l *LevelLogger) Warningf(format string, args ...interface{}) {
-	l.logf(WarnLevel, format, args...)
+	l.logf(WarningLevel, format, args...)
 }
 
 func (l *LevelLogger) logf(level Level, format string, args ...interface{}) {
