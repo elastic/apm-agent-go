@@ -26,6 +26,7 @@ https://github.com/elastic/apm-agent-go/compare/v1.9.0...master[View commits]
 - module/apmsql: add tracingDriver.Unwrap method to get underlying driver {pull}#849[#(849)]
 - module/apmgopgv10: add support for github.com/go-pg/pg/v10 {pull}857[(#857)]
 - Enable central configuration of "sanitize_field_names" {pull}856[(#856)]
+- module/apmgrpc: set span destination context {pull}861[(#861)]
 
 [[release-notes-1.x]]
 === Go Agent version 1.x
