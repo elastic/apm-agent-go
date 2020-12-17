@@ -541,6 +541,9 @@ type StacktraceFrame struct {
 	// use the package path (e.g. "net/http").
 	Module string `json:"module,omitempty"`
 
+	// Classname holds the name of the class to which the frame belongs.
+	Classname string `json:"classname,omitempty"`
+
 	// Function holds the name of the function to which the frame belongs.
 	Function string `json:"function,omitempty"`
 

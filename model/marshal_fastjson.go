@@ -1097,6 +1097,10 @@ func (v *StacktraceFrame) MarshalFastJSON(w *fastjson.Writer) error {
 		w.RawString(",\"abs_path\":")
 		w.String(v.AbsolutePath)
 	}
+	if v.Classname != "" {
+		w.RawString(",\"classname\":")
+		w.String(v.Classname)
+	}
 	if v.Column != nil {
 		w.RawString(",\"colno\":")
 		w.Int64(int64(*v.Column))
