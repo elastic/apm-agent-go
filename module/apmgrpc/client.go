@@ -20,10 +20,13 @@
 package apmgrpc // import "go.elastic.co/apm/module/apmgrpc"
 
 import (
+	"net"
+
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
 
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/module/apmhttp"
@@ -48,13 +51,25 @@ func NewUnaryClientInterceptor(o ...ClientOption) grpc.UnaryClientInterceptor {
 		invoker grpc.UnaryInvoker,
 		opts ...grpc.CallOption,
 	) error {
+		var peer peer.Peer // maybe set after call if span != nil
 		span, ctx := startSpan(ctx, method)
 		if span != nil {
 			defer span.End()
+			opts = append(opts, grpc.Peer(&peer))
 		}
 		err := invoker(ctx, method, req, resp, cc, opts...)
 		if span != nil {
 			setSpanOutcome(span, err)
+			if peer.Addr != nil {
+				if tcpAddr, ok := peer.Addr.(*net.TCPAddr); ok {
+					span.Context.SetDestinationAddress(tcpAddr.IP.String(), tcpAddr.Port)
+				}
+				addrString := peer.Addr.String()
+				span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
+					Name:     addrString,
+					Resource: addrString,
+				})
+			}
 		}
 		return err
 	}

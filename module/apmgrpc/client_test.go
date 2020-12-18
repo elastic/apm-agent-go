@@ -20,6 +20,7 @@
 package apmgrpc_test
 
 import (
+	"net"
 	"os"
 	"testing"
 
@@ -56,6 +57,7 @@ func testClientSpan(t *testing.T, traceparentHeaders ...string) {
 	defer serverTracer.Close()
 	s, _, addr := newServer(t, serverTracer)
 	defer s.GracefulStop()
+	tcpAddr := addr.(*net.TCPAddr)
 
 	conn, client := newClient(t, addr)
 	defer conn.Close()
@@ -84,6 +86,15 @@ func testClientSpan(t *testing.T, traceparentHeaders ...string) {
 	assert.Equal(t, "/helloworld.Greeter/SayHello", clientSpans[0].Name)
 	assert.Equal(t, "external", clientSpans[0].Type)
 	assert.Equal(t, "grpc", clientSpans[0].Subtype)
+	assert.Equal(t, &model.DestinationSpanContext{
+		Address: tcpAddr.IP.String(),
+		Port:    tcpAddr.Port,
+		Service: &model.DestinationServiceSpanContext{
+			Type:     "external",
+			Name:     tcpAddr.String(),
+			Resource: tcpAddr.String(),
+		},
+	}, clientSpans[0].Context.Destination)
 
 	serverTracer.Flush(nil)
 	serverTransactions := serverTransport.Payloads().Transactions
