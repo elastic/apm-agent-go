@@ -42,7 +42,7 @@ func Wrap(h http.Handler, o ...ServerOption) http.Handler {
 		handler:        h,
 		tracer:         apm.DefaultTracer,
 		requestName:    ServerRequestName,
-		requestIgnorer: DefaultServerRequestIgnorer(),
+		requestIgnorer: DynamicServerRequestIgnorer(apm.DefaultTracer),
 	}
 	for _, o := range o {
 		o(handler)

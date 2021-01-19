@@ -22,6 +22,7 @@ import (
 	"regexp"
 	"sync"
 
+	"go.elastic.co/apm"
 	"go.elastic.co/apm/internal/configutil"
 	"go.elastic.co/apm/internal/wildcard"
 )
@@ -50,6 +51,16 @@ func DefaultServerRequestIgnorer() RequestIgnorerFunc {
 			defaultServerRequestIgnorer = NewWildcardPatternsRequestIgnorer(matchers)
 		}
 	})
+	return defaultServerRequestIgnorer
+}
+
+// DynamicServerRequestIgnorer returns the RequestIgnorer to use in
+// handlers. The list of wildcard patterns comes from central config
+func DynamicServerRequestIgnorer(t *apm.Tracer) RequestIgnorerFunc {
+	matchers := t.GetIgnoreURLs()
+	if len(matchers) != 0 {
+		defaultServerRequestIgnorer = NewWildcardPatternsRequestIgnorer(matchers)
+	}
 	return defaultServerRequestIgnorer
 }
 

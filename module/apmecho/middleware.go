@@ -41,7 +41,7 @@ import (
 func Middleware(o ...Option) echo.MiddlewareFunc {
 	opts := options{
 		tracer:         apm.DefaultTracer,
-		requestIgnorer: apmhttp.DefaultServerRequestIgnorer(),
+		requestIgnorer: apmhttp.DynamicServerRequestIgnorer(apm.DefaultTracer),
 	}
 	for _, o := range o {
 		o(&opts)

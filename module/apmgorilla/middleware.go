@@ -77,7 +77,7 @@ func WrapMethodNotAllowedHandler(h http.Handler, m mux.MiddlewareFunc) http.Hand
 func Middleware(o ...Option) mux.MiddlewareFunc {
 	opts := options{
 		tracer:         apm.DefaultTracer,
-		requestIgnorer: apmhttp.DefaultServerRequestIgnorer(),
+		requestIgnorer: apmhttp.DynamicServerRequestIgnorer(apm.DefaultTracer),
 	}
 	for _, o := range o {
 		o(&opts)

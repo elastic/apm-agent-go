@@ -47,7 +47,7 @@ func Middleware(engine *gin.Engine, o ...Option) gin.HandlerFunc {
 	m := &middleware{
 		engine:         engine,
 		tracer:         apm.DefaultTracer,
-		requestIgnorer: apmhttp.DefaultServerRequestIgnorer(),
+		requestIgnorer: apmhttp.DynamicServerRequestIgnorer(apm.DefaultTracer),
 	}
 	for _, o := range o {
 		o(m)

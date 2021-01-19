@@ -103,6 +103,7 @@ type TracerOptions struct {
 	sampler               Sampler
 	sanitizedFieldNames   wildcard.Matchers
 	disabledMetrics       wildcard.Matchers
+	ignoreURLs            wildcard.Matchers
 	captureHeaders        bool
 	captureBody           CaptureBodyMode
 	spanFramesMinDuration time.Duration
@@ -246,6 +247,7 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 	opts.sampler = sampler
 	opts.sanitizedFieldNames = initialSanitizedFieldNames()
 	opts.disabledMetrics = initialDisabledMetrics()
+	opts.ignoreURLs = initialIgnoreUrls()
 	opts.breakdownMetrics = breakdownMetricsEnabled
 	opts.captureHeaders = captureHeaders
 	opts.captureBody = captureBody

@@ -53,6 +53,8 @@ const (
 	envAPIBufferSize               = "ELASTIC_APM_API_BUFFER_SIZE"
 	envMetricsBufferSize           = "ELASTIC_APM_METRICS_BUFFER_SIZE"
 	envDisableMetrics              = "ELASTIC_APM_DISABLE_METRICS"
+	envIgnoreURLs                  = "ELASTIC_APM_TRANSACTION_IGNORE_URLS"
+	deprecatedEnvIgnoreURLs        = "ELASTIC_APM_IGNORE_URLS"
 	envGlobalLabels                = "ELASTIC_APM_GLOBAL_LABELS"
 	envStackTraceLimit             = "ELASTIC_APM_STACK_TRACE_LIMIT"
 	envCentralConfig               = "ELASTIC_APM_CENTRAL_CONFIG"
@@ -263,6 +265,14 @@ func initialDisabledMetrics() wildcard.Matchers {
 	return configutil.ParseWildcardPatternsEnv(envDisableMetrics, nil)
 }
 
+func initialIgnoreUrls() wildcard.Matchers {
+	matchers := configutil.ParseWildcardPatternsEnv(envIgnoreURLs, nil)
+	if len(matchers) == 0 {
+		matchers = configutil.ParseWildcardPatternsEnv(deprecatedEnvIgnoreURLs, nil)
+	}
+	return matchers
+}
+
 func initialStackTraceLimit() (int, error) {
 	value := os.Getenv(envStackTraceLimit)
 	if value == "" {
@@ -348,6 +358,11 @@ func (t *Tracer) updateRemoteConfig(logger WarningLogger, old, attrs map[string]
 					cfg.maxSpans = value
 				})
 			}
+		case envIgnoreURLs:
+			matchers := configutil.ParseWildcardPatterns(v)
+			updates = append(updates, func(cfg *instrumentationConfig) {
+				cfg.ignoreURLs = matchers
+			})
 		case envRecording:
 			recording, err := strconv.ParseBool(v)
 			if err != nil {
@@ -480,6 +495,11 @@ func (t *Tracer) updateInstrumentationConfig(f func(cfg *instrumentationConfig))
 	}
 }
 
+// GetIgnoreURLs returns the ignored URLs
+func (t *Tracer) GetIgnoreURLs() wildcard.Matchers {
+	return t.instrumentationConfig().ignoreURLs
+}
+
 // instrumentationConfig holds current configuration values, as well as information
 // required to revert from remote to local configuration.
 type instrumentationConfig struct {
@@ -510,4 +530,5 @@ type instrumentationConfigValues struct {
 	stackTraceLimit       int
 	propagateLegacyHeader bool
 	sanitizedFieldNames   wildcard.Matchers
+	ignoreURLs            wildcard.Matchers
 }
