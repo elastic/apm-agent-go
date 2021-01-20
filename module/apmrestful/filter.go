@@ -33,11 +33,13 @@ import (
 // Use WithTracer to specify an alternative tracer.
 func Filter(o ...Option) restful.FilterFunction {
 	opts := options{
-		tracer:         apm.DefaultTracer,
-		requestIgnorer: apmhttp.DynamicServerRequestIgnorer(apm.DefaultTracer),
+		tracer: apm.DefaultTracer,
 	}
 	for _, o := range o {
 		o(&opts)
+	}
+	if opts.requestIgnorer == nil {
+		opts.requestIgnorer = apmhttp.DynamicServerRequestIgnorer(opts.tracer)
 	}
 	return (&filter{
 		tracer:         opts.tracer,

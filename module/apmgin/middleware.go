@@ -45,12 +45,14 @@ func init() {
 // Use WithTracer to specify an alternative tracer.
 func Middleware(engine *gin.Engine, o ...Option) gin.HandlerFunc {
 	m := &middleware{
-		engine:         engine,
-		tracer:         apm.DefaultTracer,
-		requestIgnorer: apmhttp.DynamicServerRequestIgnorer(apm.DefaultTracer),
+		engine: engine,
+		tracer: apm.DefaultTracer,
 	}
 	for _, o := range o {
 		o(m)
+	}
+	if m.requestIgnorer == nil {
+		m.requestIgnorer = apmhttp.DynamicServerRequestIgnorer(m.tracer)
 	}
 	return m.handle
 }

@@ -265,7 +265,7 @@ func initialDisabledMetrics() wildcard.Matchers {
 	return configutil.ParseWildcardPatternsEnv(envDisableMetrics, nil)
 }
 
-func initialIgnoreUrls() wildcard.Matchers {
+func initialIgnoreTransactionUrls() wildcard.Matchers {
 	matchers := configutil.ParseWildcardPatternsEnv(envIgnoreURLs, nil)
 	if len(matchers) == 0 {
 		matchers = configutil.ParseWildcardPatternsEnv(deprecatedEnvIgnoreURLs, nil)
@@ -361,7 +361,7 @@ func (t *Tracer) updateRemoteConfig(logger WarningLogger, old, attrs map[string]
 		case envIgnoreURLs:
 			matchers := configutil.ParseWildcardPatterns(v)
 			updates = append(updates, func(cfg *instrumentationConfig) {
-				cfg.ignoreURLs = matchers
+				cfg.ignoreTransactionURLs = matchers
 			})
 		case envRecording:
 			recording, err := strconv.ParseBool(v)
@@ -495,9 +495,9 @@ func (t *Tracer) updateInstrumentationConfig(f func(cfg *instrumentationConfig))
 	}
 }
 
-// GetIgnoreURLs returns the ignored URLs
-func (t *Tracer) GetIgnoreURLs() wildcard.Matchers {
-	return t.instrumentationConfig().ignoreURLs
+// IgnoredTransactionURLMatchers returns the ignored transaction URLs
+func (t *Tracer) IgnoredTransactionURLMatchers() wildcard.Matchers {
+	return t.instrumentationConfig().ignoreTransactionURLs
 }
 
 // instrumentationConfig holds current configuration values, as well as information
@@ -530,5 +530,5 @@ type instrumentationConfigValues struct {
 	stackTraceLimit       int
 	propagateLegacyHeader bool
 	sanitizedFieldNames   wildcard.Matchers
-	ignoreURLs            wildcard.Matchers
+	ignoreTransactionURLs wildcard.Matchers
 }
