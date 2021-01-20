@@ -7,7 +7,7 @@ require (
 	github.com/onsi/ginkgo v1.8.0 // indirect
 	github.com/onsi/gomega v1.5.0 // indirect
 	github.com/stretchr/testify v1.4.0
-	go.elastic.co/apm v1.9.0
+	go.elastic.co/apm v1.10.0
 )
 
 replace go.elastic.co/apm => ../..
