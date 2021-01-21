@@ -39,7 +39,7 @@ func Filter(o ...Option) restful.FilterFunction {
 		o(&opts)
 	}
 	if opts.requestIgnorer == nil {
-		opts.requestIgnorer = apmhttp.DynamicServerRequestIgnorer(opts.tracer)
+		opts.requestIgnorer = apmhttp.NewDynamicServerRequestIgnorer(opts.tracer)
 	}
 	return (&filter{
 		tracer:         opts.tracer,

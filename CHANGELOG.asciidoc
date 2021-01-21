@@ -12,7 +12,7 @@ endif::[]
 
 [float]
 ===== Features
-- Make TRANSACTION_IGNORE_URLS dynamically configurable: {pull}872[#872]
+* Cool new feature: {pull}2526[#2526]
 
 [float]
 ===== Bug fixes
@@ -22,6 +22,8 @@ endif::[]
 === Unreleased
 
 https://github.com/elastic/apm-agent-go/compare/v1.10.0...master[View commits]
+
+- Make TRANSACTION_IGNORE_URLS dynamically configurable: {pull}872[#872]
 
 
 [[release-notes-1.x]]

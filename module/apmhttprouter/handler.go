@@ -102,7 +102,7 @@ func gatherOptions(o ...Option) options {
 		o(&opts)
 	}
 	if opts.requestIgnorer == nil {
-		opts.requestIgnorer = apmhttp.DynamicServerRequestIgnorer(opts.tracer)
+		opts.requestIgnorer = apmhttp.NewDynamicServerRequestIgnorer(opts.tracer)
 	}
 	if opts.recovery == nil {
 		opts.recovery = apmhttp.NewTraceRecovery(opts.tracer)

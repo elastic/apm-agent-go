@@ -42,7 +42,7 @@ var (
 // comma-separated list of wildcard patterns; requests that match any of the
 // patterns will be ignored.
 //
-// DEPRECATED. Use DynamicServerRequestIgnorer instead
+// DEPRECATED. Use NewDynamicServerRequestIgnorer instead
 func DefaultServerRequestIgnorer() RequestIgnorerFunc {
 	defaultServerRequestIgnorerOnce.Do(func() {
 		matchers := configutil.ParseWildcardPatternsEnv(envIgnoreURLs, nil)
@@ -56,9 +56,9 @@ func DefaultServerRequestIgnorer() RequestIgnorerFunc {
 	return defaultServerRequestIgnorer
 }
 
-// DynamicServerRequestIgnorer returns the RequestIgnorer to use in
+// NewDynamicServerRequestIgnorer returns the RequestIgnorer to use in
 // handlers. The list of wildcard patterns comes from central config
-func DynamicServerRequestIgnorer(t *apm.Tracer) RequestIgnorerFunc {
+func NewDynamicServerRequestIgnorer(t *apm.Tracer) RequestIgnorerFunc {
 	return func(r *http.Request) bool {
 		return t.IgnoredTransactionURL(r.URL)
 	}

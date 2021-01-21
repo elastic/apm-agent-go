@@ -71,7 +71,7 @@ func testServerRequestIgnorer(t *testing.T, ignoreURLs string, r *http.Request, 
 		tracer := newTracer()
 		defer tracer.Close()
 
-		dynamicIgnorer := apmhttp.DynamicServerRequestIgnorer(tracer)
+		dynamicIgnorer := apmhttp.NewDynamicServerRequestIgnorer(tracer)
 		assert.Equal(t, expect, dynamicIgnorer(r))
 	})
 }
@@ -81,7 +81,7 @@ func TestDynamicRequestIgnorer(t *testing.T) {
 	tracer := newTracer()
 	defer tracer.Close()
 
-	dynamicIgnorer := apmhttp.DynamicServerRequestIgnorer(tracer)
+	dynamicIgnorer := apmhttp.NewDynamicServerRequestIgnorer(tracer)
 	assert.Equal(t, false, dynamicIgnorer(r))
 
 	tracer.SetIgnoreTransactionURLs("/fo*")

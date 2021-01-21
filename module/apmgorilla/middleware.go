@@ -82,7 +82,7 @@ func Middleware(o ...Option) mux.MiddlewareFunc {
 		o(&opts)
 	}
 	if opts.requestIgnorer == nil {
-		opts.requestIgnorer = apmhttp.DynamicServerRequestIgnorer(opts.tracer)
+		opts.requestIgnorer = apmhttp.NewDynamicServerRequestIgnorer(opts.tracer)
 	}
 	return func(h http.Handler) http.Handler {
 		return apmhttp.Wrap(

@@ -52,7 +52,7 @@ func Middleware(engine *gin.Engine, o ...Option) gin.HandlerFunc {
 		o(m)
 	}
 	if m.requestIgnorer == nil {
-		m.requestIgnorer = apmhttp.DynamicServerRequestIgnorer(m.tracer)
+		m.requestIgnorer = apmhttp.NewDynamicServerRequestIgnorer(m.tracer)
 	}
 	return m.handle
 }

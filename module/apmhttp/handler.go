@@ -47,7 +47,7 @@ func Wrap(h http.Handler, o ...ServerOption) http.Handler {
 		o(handler)
 	}
 	if handler.requestIgnorer == nil {
-		handler.requestIgnorer = DynamicServerRequestIgnorer(handler.tracer)
+		handler.requestIgnorer = NewDynamicServerRequestIgnorer(handler.tracer)
 	}
 	if handler.recovery == nil {
 		handler.recovery = NewTraceRecovery(handler.tracer)

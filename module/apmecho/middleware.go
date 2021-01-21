@@ -46,7 +46,7 @@ func Middleware(o ...Option) echo.MiddlewareFunc {
 		o(&opts)
 	}
 	if opts.requestIgnorer == nil {
-		opts.requestIgnorer = apmhttp.DynamicServerRequestIgnorer(opts.tracer)
+		opts.requestIgnorer = apmhttp.NewDynamicServerRequestIgnorer(opts.tracer)
 	}
 	return func(h echo.HandlerFunc) echo.HandlerFunc {
 		m := &middleware{
