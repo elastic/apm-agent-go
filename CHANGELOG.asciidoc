@@ -12,7 +12,7 @@ endif::[]
 
 [float]
 ===== Features
-* Cool new feature: {pull}2526[#2526]
+- Make TRANSACTION_IGNORE_URLS dynamically configurable: {pull}872[#872]
 
 [float]
 ===== Bug fixes
