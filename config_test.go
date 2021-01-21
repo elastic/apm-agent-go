@@ -123,8 +123,9 @@ func TestTracerCentralConfigUpdate(t *testing.T) {
 		})
 	})
 	run("transaction_ignore_urls", "*", func(tracer *apmtest.RecordingTracer) bool {
-		matchers := tracer.IgnoredTransactionURLMatchers()
-		return matchers.MatchAny("http://testing.invalid/")
+		u, err := url.Parse("http://testing.invalid/")
+		require.NoError(t, err)
+		return tracer.IgnoredTransactionURL(u)
 	})
 }
 

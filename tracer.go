@@ -247,7 +247,7 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 	opts.sampler = sampler
 	opts.sanitizedFieldNames = initialSanitizedFieldNames()
 	opts.disabledMetrics = initialDisabledMetrics()
-	opts.ignoreTransactionURLs = initialIgnoreTransactionUrls()
+	opts.ignoreTransactionURLs = initialIgnoreTransactionURLs()
 	opts.breakdownMetrics = breakdownMetricsEnabled
 	opts.captureHeaders = captureHeaders
 	opts.captureBody = captureBody

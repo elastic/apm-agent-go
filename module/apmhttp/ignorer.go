@@ -60,8 +60,7 @@ func DefaultServerRequestIgnorer() RequestIgnorerFunc {
 // handlers. The list of wildcard patterns comes from central config
 func DynamicServerRequestIgnorer(t *apm.Tracer) RequestIgnorerFunc {
 	return func(r *http.Request) bool {
-		matchers := t.IgnoredTransactionURLMatchers()
-		return matchers.MatchAny(r.URL.String())
+		return t.IgnoredTransactionURL(r.URL)
 	}
 }
 

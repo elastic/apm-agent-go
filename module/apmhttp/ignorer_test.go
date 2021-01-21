@@ -31,31 +31,31 @@ import (
 	"go.elastic.co/apm/module/apmhttp"
 )
 
-func TestDefaultServerRequestIgnorer(t *testing.T) {
+func TestServerRequestIgnorer(t *testing.T) {
 	r1 := &http.Request{URL: &url.URL{Path: "/foo"}}
 	r2 := &http.Request{URL: &url.URL{Path: "/foo", RawQuery: "bar=baz"}}
 	r3 := &http.Request{URL: &url.URL{Scheme: "http", Host: "testing.invalid", Path: "/foo", RawQuery: "bar=baz"}}
 
-	testDefaultServerRequestIgnorer(t, "", r1, false)
-	testDefaultServerRequestIgnorer(t, "", r2, false)
-	testDefaultServerRequestIgnorer(t, "", r3, false)
-	testDefaultServerRequestIgnorer(t, ",", r1, false) // equivalent to empty
+	testServerRequestIgnorer(t, "", r1, false)
+	testServerRequestIgnorer(t, "", r2, false)
+	testServerRequestIgnorer(t, "", r3, false)
+	testServerRequestIgnorer(t, ",", r1, false) // equivalent to empty
 
-	testDefaultServerRequestIgnorer(t, "*/foo*", r1, true)
-	testDefaultServerRequestIgnorer(t, "*/foo*", r2, true)
-	testDefaultServerRequestIgnorer(t, "*/foo*", r3, true)
-	testDefaultServerRequestIgnorer(t, "*/FOO*", r3, true) // case insensitive by default
+	testServerRequestIgnorer(t, "*/foo*", r1, true)
+	testServerRequestIgnorer(t, "*/foo*", r2, true)
+	testServerRequestIgnorer(t, "*/foo*", r3, true)
+	testServerRequestIgnorer(t, "*/FOO*", r3, true) // case insensitive by default
 
-	testDefaultServerRequestIgnorer(t, "*/foo?bar=baz", r1, false)
-	testDefaultServerRequestIgnorer(t, "*/foo?bar=baz", r2, true)
-	testDefaultServerRequestIgnorer(t, "*/foo?bar=baz", r3, true)
+	testServerRequestIgnorer(t, "*/foo?bar=baz", r1, false)
+	testServerRequestIgnorer(t, "*/foo?bar=baz", r2, true)
+	testServerRequestIgnorer(t, "*/foo?bar=baz", r3, true)
 
-	testDefaultServerRequestIgnorer(t, "http://*", r1, false)
-	testDefaultServerRequestIgnorer(t, "http://*", r2, false)
-	testDefaultServerRequestIgnorer(t, "http://*", r3, true)
+	testServerRequestIgnorer(t, "http://*", r1, false)
+	testServerRequestIgnorer(t, "http://*", r2, false)
+	testServerRequestIgnorer(t, "http://*", r3, true)
 }
 
-func testDefaultServerRequestIgnorer(t *testing.T, ignoreURLs string, r *http.Request, expect bool) {
+func testServerRequestIgnorer(t *testing.T, ignoreURLs string, r *http.Request, expect bool) {
 	testName := fmt.Sprintf("%s_%s", ignoreURLs, r.URL.String())
 	t.Run(testName, func(t *testing.T) {
 		if os.Getenv("_INSIDE_TEST") != "1" {
@@ -65,9 +65,27 @@ func testDefaultServerRequestIgnorer(t *testing.T, ignoreURLs string, r *http.Re
 			assert.NoError(t, cmd.Run())
 			return
 		}
-		ignorer := apmhttp.DefaultServerRequestIgnorer()
-		assert.Equal(t, expect, ignorer(r))
+		defaultIgnorer := apmhttp.DefaultServerRequestIgnorer()
+		assert.Equal(t, expect, defaultIgnorer(r))
+
+		tracer := newTracer()
+		defer tracer.Close()
+
+		dynamicIgnorer := apmhttp.DynamicServerRequestIgnorer(tracer)
+		assert.Equal(t, expect, dynamicIgnorer(r))
 	})
+}
+
+func TestDynamicRequestIgnorer(t *testing.T) {
+	r := &http.Request{URL: &url.URL{Path: "/foo"}}
+	tracer := newTracer()
+	defer tracer.Close()
+
+	dynamicIgnorer := apmhttp.DynamicServerRequestIgnorer(tracer)
+	assert.Equal(t, false, dynamicIgnorer(r))
+
+	tracer.SetIgnoreTransactionURLs("/fo*")
+	assert.Equal(t, true, dynamicIgnorer(r))
 }
 
 func TestFallbackDeprecatedRequestIgnorer(t *testing.T) {

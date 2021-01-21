@@ -18,6 +18,7 @@
 package apm // import "go.elastic.co/apm"
 
 import (
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -265,7 +266,7 @@ func initialDisabledMetrics() wildcard.Matchers {
 	return configutil.ParseWildcardPatternsEnv(envDisableMetrics, nil)
 }
 
-func initialIgnoreTransactionUrls() wildcard.Matchers {
+func initialIgnoreTransactionURLs() wildcard.Matchers {
 	matchers := configutil.ParseWildcardPatternsEnv(envIgnoreURLs, nil)
 	if len(matchers) == 0 {
 		matchers = configutil.ParseWildcardPatternsEnv(deprecatedEnvIgnoreURLs, nil)
@@ -495,9 +496,9 @@ func (t *Tracer) updateInstrumentationConfig(f func(cfg *instrumentationConfig))
 	}
 }
 
-// IgnoredTransactionURLMatchers returns the ignored transaction URLs
-func (t *Tracer) IgnoredTransactionURLMatchers() wildcard.Matchers {
-	return t.instrumentationConfig().ignoreTransactionURLs
+// IgnoredTransactionURL returns whether the given transaction URL should be ignored
+func (t *Tracer) IgnoredTransactionURL(url *url.URL) bool {
+	return t.instrumentationConfig().ignoreTransactionURLs.MatchAny(url.String())
 }
 
 // instrumentationConfig holds current configuration values, as well as information
