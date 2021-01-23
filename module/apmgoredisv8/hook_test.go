@@ -120,14 +120,14 @@ func TestHookTxPipeline(t *testing.T) {
 			})
 
 			require.Len(t, spans, 1)
-			if _, ok := client.(*redis.Client); ok {
-				// *redis.Client wraps queued commands with MULTI/EXEC
-				// in (*redis.Client) processTxPipeline
-				assert.Equal(t, "MULTI, GET, SET, GET, (empty command), EXEC", spans[0].Name)
-			} else {
-				// *redis.ClusterClient and *redis.Ring don't wrap queued commands
-				// with MULTI/EXEC in (*redis.Client) processTxPipeline
+			if _, ok := client.(*redis.Ring); ok {
+				// *redis.Client wraps queued commands without MULTI/EXEC
+				// in (*redis.Ring) processTxPipeline
 				assert.Equal(t, "GET, SET, GET, (empty command)", spans[0].Name)
+			} else {
+				// *redis.ClusterClient and *redis.Client wrap queued commands
+				// with MULTI/EXEC in processTxPipeline
+				assert.Equal(t, "MULTI, GET, SET, GET, (empty command), EXEC", spans[0].Name)
 			}
 			assert.Equal(t, "db", spans[0].Type)
 			assert.Equal(t, "redis", spans[0].Subtype)
