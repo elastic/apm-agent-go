@@ -76,7 +76,6 @@ func testServerRequestIgnorer(t *testing.T, ignoreURLs string, r *http.Request, 
 	})
 }
 
-
 func TestFallbackDeprecatedRequestIgnorer(t *testing.T) {
 	if os.Getenv("_INSIDE_TEST") != "1" {
 		cmd := exec.Command(os.Args[0], "-test.run=^"+regexp.QuoteMeta(t.Name())+"$")
