@@ -121,7 +121,7 @@ func TestHookTxPipeline(t *testing.T) {
 
 			require.Len(t, spans, 1)
 			if _, ok := client.(*redis.Ring); ok {
-				// *redis.Client wraps queued commands without MULTI/EXEC
+				// *redis.Ring does not wrap queued commands with MULTI/EXEC
 				// in (*redis.Ring) processTxPipeline
 				assert.Equal(t, "GET, SET, GET, (empty command)", spans[0].Name)
 			} else {
