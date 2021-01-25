@@ -76,17 +76,6 @@ func testServerRequestIgnorer(t *testing.T, ignoreURLs string, r *http.Request, 
 	})
 }
 
-func TestDynamicRequestIgnorer(t *testing.T) {
-	r := &http.Request{URL: &url.URL{Path: "/foo"}}
-	tracer := newTracer()
-	defer tracer.Close()
-
-	dynamicIgnorer := apmhttp.NewDynamicServerRequestIgnorer(tracer)
-	assert.Equal(t, false, dynamicIgnorer(r))
-
-	tracer.SetIgnoreTransactionURLs("/fo*")
-	assert.Equal(t, true, dynamicIgnorer(r))
-}
 
 func TestFallbackDeprecatedRequestIgnorer(t *testing.T) {
 	if os.Getenv("_INSIDE_TEST") != "1" {
