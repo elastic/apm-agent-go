@@ -18,6 +18,7 @@
 package apm // import "go.elastic.co/apm"
 
 import (
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -53,6 +54,8 @@ const (
 	envAPIBufferSize               = "ELASTIC_APM_API_BUFFER_SIZE"
 	envMetricsBufferSize           = "ELASTIC_APM_METRICS_BUFFER_SIZE"
 	envDisableMetrics              = "ELASTIC_APM_DISABLE_METRICS"
+	envIgnoreURLs                  = "ELASTIC_APM_TRANSACTION_IGNORE_URLS"
+	deprecatedEnvIgnoreURLs        = "ELASTIC_APM_IGNORE_URLS"
 	envGlobalLabels                = "ELASTIC_APM_GLOBAL_LABELS"
 	envStackTraceLimit             = "ELASTIC_APM_STACK_TRACE_LIMIT"
 	envCentralConfig               = "ELASTIC_APM_CENTRAL_CONFIG"
@@ -263,6 +266,14 @@ func initialDisabledMetrics() wildcard.Matchers {
 	return configutil.ParseWildcardPatternsEnv(envDisableMetrics, nil)
 }
 
+func initialIgnoreTransactionURLs() wildcard.Matchers {
+	matchers := configutil.ParseWildcardPatternsEnv(envIgnoreURLs, nil)
+	if len(matchers) == 0 {
+		matchers = configutil.ParseWildcardPatternsEnv(deprecatedEnvIgnoreURLs, nil)
+	}
+	return matchers
+}
+
 func initialStackTraceLimit() (int, error) {
 	value := os.Getenv(envStackTraceLimit)
 	if value == "" {
@@ -348,6 +359,11 @@ func (t *Tracer) updateRemoteConfig(logger WarningLogger, old, attrs map[string]
 					cfg.maxSpans = value
 				})
 			}
+		case envIgnoreURLs:
+			matchers := configutil.ParseWildcardPatterns(v)
+			updates = append(updates, func(cfg *instrumentationConfig) {
+				cfg.ignoreTransactionURLs = matchers
+			})
 		case envRecording:
 			recording, err := strconv.ParseBool(v)
 			if err != nil {
@@ -480,6 +496,11 @@ func (t *Tracer) updateInstrumentationConfig(f func(cfg *instrumentationConfig))
 	}
 }
 
+// IgnoredTransactionURL returns whether the given transaction URL should be ignored
+func (t *Tracer) IgnoredTransactionURL(url *url.URL) bool {
+	return t.instrumentationConfig().ignoreTransactionURLs.MatchAny(url.String())
+}
+
 // instrumentationConfig holds current configuration values, as well as information
 // required to revert from remote to local configuration.
 type instrumentationConfig struct {
@@ -510,4 +531,5 @@ type instrumentationConfigValues struct {
 	stackTraceLimit       int
 	propagateLegacyHeader bool
 	sanitizedFieldNames   wildcard.Matchers
+	ignoreTransactionURLs wildcard.Matchers
 }

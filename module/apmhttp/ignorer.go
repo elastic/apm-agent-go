@@ -22,6 +22,7 @@ import (
 	"regexp"
 	"sync"
 
+	"go.elastic.co/apm"
 	"go.elastic.co/apm/internal/configutil"
 	"go.elastic.co/apm/internal/wildcard"
 )
@@ -40,6 +41,8 @@ var (
 // handlers. If ELASTIC_APM_TRANSACTION_IGNORE_URLS is set, it will be treated as a
 // comma-separated list of wildcard patterns; requests that match any of the
 // patterns will be ignored.
+//
+// DEPRECATED. Use NewDynamicServerRequestIgnorer instead
 func DefaultServerRequestIgnorer() RequestIgnorerFunc {
 	defaultServerRequestIgnorerOnce.Do(func() {
 		matchers := configutil.ParseWildcardPatternsEnv(envIgnoreURLs, nil)
@@ -51,6 +54,14 @@ func DefaultServerRequestIgnorer() RequestIgnorerFunc {
 		}
 	})
 	return defaultServerRequestIgnorer
+}
+
+// NewDynamicServerRequestIgnorer returns the RequestIgnorer to use in
+// handlers. The list of wildcard patterns comes from central config
+func NewDynamicServerRequestIgnorer(t *apm.Tracer) RequestIgnorerFunc {
+	return func(r *http.Request) bool {
+		return t.IgnoredTransactionURL(r.URL)
+	}
 }
 
 // NewRegexpRequestIgnorer returns a RequestIgnorerFunc which matches requests'

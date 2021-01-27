@@ -122,6 +122,11 @@ func TestTracerCentralConfigUpdate(t *testing.T) {
 			return len(log) > 0
 		})
 	})
+	run("transaction_ignore_urls", "*", func(tracer *apmtest.RecordingTracer) bool {
+		u, err := url.Parse("http://testing.invalid/")
+		require.NoError(t, err)
+		return tracer.IgnoredTransactionURL(u)
+	})
 }
 
 func testTracerCentralConfigUpdate(t *testing.T, logger apm.Logger, serverResponse string, isRemote func(*apmtest.RecordingTracer) bool) {

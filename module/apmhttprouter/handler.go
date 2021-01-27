@@ -96,11 +96,13 @@ func wrapHandlerUnknownRoute(h http.Handler, o ...Option) http.Handler {
 
 func gatherOptions(o ...Option) options {
 	opts := options{
-		tracer:         apm.DefaultTracer,
-		requestIgnorer: apmhttp.DefaultServerRequestIgnorer(),
+		tracer: apm.DefaultTracer,
 	}
 	for _, o := range o {
 		o(&opts)
+	}
+	if opts.requestIgnorer == nil {
+		opts.requestIgnorer = apmhttp.NewDynamicServerRequestIgnorer(opts.tracer)
 	}
 	if opts.recovery == nil {
 		opts.recovery = apmhttp.NewTraceRecovery(opts.tracer)

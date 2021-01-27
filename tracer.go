@@ -103,6 +103,7 @@ type TracerOptions struct {
 	sampler               Sampler
 	sanitizedFieldNames   wildcard.Matchers
 	disabledMetrics       wildcard.Matchers
+	ignoreTransactionURLs wildcard.Matchers
 	captureHeaders        bool
 	captureBody           CaptureBodyMode
 	spanFramesMinDuration time.Duration
@@ -246,6 +247,7 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 	opts.sampler = sampler
 	opts.sanitizedFieldNames = initialSanitizedFieldNames()
 	opts.disabledMetrics = initialDisabledMetrics()
+	opts.ignoreTransactionURLs = initialIgnoreTransactionURLs()
 	opts.breakdownMetrics = breakdownMetricsEnabled
 	opts.captureHeaders = captureHeaders
 	opts.captureBody = captureBody
@@ -426,6 +428,9 @@ func newTracer(opts TracerOptions) *Tracer {
 	t.setLocalInstrumentationConfig(envSanitizeFieldNames, func(cfg *instrumentationConfigValues) {
 		cfg.sanitizedFieldNames = opts.sanitizedFieldNames
 	})
+	t.setLocalInstrumentationConfig(envIgnoreURLs, func(cfg *instrumentationConfigValues) {
+		cfg.ignoreTransactionURLs = opts.ignoreTransactionURLs
+	})
 	if apmlog.DefaultLogger != nil {
 		defaultLogLevel := apmlog.DefaultLogger.Level()
 		t.setLocalInstrumentationConfig(apmlog.EnvLogLevel, func(cfg *instrumentationConfigValues) {
@@ -595,6 +600,15 @@ func (t *Tracer) SetSanitizedFieldNames(patterns ...string) error {
 	}
 	t.setLocalInstrumentationConfig(envSanitizeFieldNames, func(cfg *instrumentationConfigValues) {
 		cfg.sanitizedFieldNames = matchers
+	})
+	return nil
+}
+
+// SetIgnoreTransactionURLs sets the wildcard patterns that will be used to
+// ignore transactions with matching URLs.
+func (t *Tracer) SetIgnoreTransactionURLs(pattern string) error {
+	t.setLocalInstrumentationConfig(envIgnoreURLs, func(cfg *instrumentationConfigValues) {
+		cfg.ignoreTransactionURLs = configutil.ParseWildcardPatterns(pattern)
 	})
 	return nil
 }

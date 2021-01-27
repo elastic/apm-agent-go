@@ -39,13 +39,15 @@ func Wrap(h http.Handler, o ...ServerOption) http.Handler {
 		panic("h == nil")
 	}
 	handler := &handler{
-		handler:        h,
-		tracer:         apm.DefaultTracer,
-		requestName:    ServerRequestName,
-		requestIgnorer: DefaultServerRequestIgnorer(),
+		handler:     h,
+		tracer:      apm.DefaultTracer,
+		requestName: ServerRequestName,
 	}
 	for _, o := range o {
 		o(handler)
+	}
+	if handler.requestIgnorer == nil {
+		handler.requestIgnorer = NewDynamicServerRequestIgnorer(handler.tracer)
 	}
 	if handler.recovery == nil {
 		handler.recovery = NewTraceRecovery(handler.tracer)
