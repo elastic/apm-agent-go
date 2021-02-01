@@ -125,15 +125,6 @@ func (w *modelWriter) buildModelTransaction(out *model.Transaction, tx *Transact
 	if sampled {
 		out.Context = td.Context.build()
 	}
-
-	if len(td.sanitizedFieldNames) != 0 && out.Context != nil {
-		if out.Context.Request != nil {
-			sanitizeRequest(out.Context.Request, td.sanitizedFieldNames)
-		}
-		if out.Context.Response != nil {
-			sanitizeResponse(out.Context.Response, td.sanitizedFieldNames)
-		}
-	}
 }
 
 func (w *modelWriter) buildModelSpan(out *model.Span, span *Span, sd *SpanData) {

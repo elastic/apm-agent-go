@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -43,34 +44,46 @@ func TestSanitizeRequestResponse(t *testing.T) {
 		req.AddCookie(c)
 	}
 
-	tx, _, _ := apmtest.WithTransaction(func(ctx context.Context) {
+	tx, _, errors := apmtest.WithTransaction(func(ctx context.Context) {
+		e := apm.CaptureError(ctx, errors.New("boom!"))
+		defer e.Send()
+
 		tx := apm.TransactionFromContext(ctx)
 		tx.Context.SetHTTPRequest(req)
+		e.Context.SetHTTPRequest(req)
 
 		h := make(http.Header)
 		h.Add("Set-Cookie", (&http.Cookie{Name: "foo", Value: "bar"}).String())
 		h.Add("Set-Cookie", (&http.Cookie{Name: "baz", Value: "qux"}).String())
 		tx.Context.SetHTTPResponseHeaders(h)
 		tx.Context.SetHTTPStatusCode(http.StatusTeapot)
+		e.Context.SetHTTPResponseHeaders(h)
+		e.Context.SetHTTPStatusCode(http.StatusTeapot)
 	})
 
-	assert.Equal(t, tx.Context.Request.Cookies, model.Cookies{
-		{Name: "Custom-Credit-Card-Number", Value: "[REDACTED]"},
-		{Name: "secret", Value: "[REDACTED]"},
-		{Name: "sessionid", Value: "[REDACTED]"},
-		{Name: "user_id", Value: "456"},
-	})
-	assert.Equal(t, model.Headers{{
-		Key:    "Authorization",
-		Values: []string{"[REDACTED]"},
-	}}, tx.Context.Request.Headers)
+	checkContext := func(context *model.Context) {
+		assert.Equal(t, context.Request.Cookies, model.Cookies{
+			{Name: "Custom-Credit-Card-Number", Value: "[REDACTED]"},
+			{Name: "secret", Value: "[REDACTED]"},
+			{Name: "sessionid", Value: "[REDACTED]"},
+			{Name: "user_id", Value: "456"},
+		})
+		assert.Equal(t, model.Headers{{
+			Key:    "Authorization",
+			Values: []string{"[REDACTED]"},
+		}}, context.Request.Headers)
 
-	// NOTE: the response includes multiple Set-Cookie headers,
-	// but we only report a single "[REDACTED]" value.
-	assert.Equal(t, model.Headers{{
-		Key:    "Set-Cookie",
-		Values: []string{"[REDACTED]"},
-	}}, tx.Context.Response.Headers)
+		// NOTE: the response includes multiple Set-Cookie headers,
+		// but we only report a single "[REDACTED]" value.
+		assert.Equal(t, model.Headers{{
+			Key:    "Set-Cookie",
+			Values: []string{"[REDACTED]"},
+		}}, context.Response.Headers)
+	}
+	checkContext(tx.Context)
+	for _, e := range errors {
+		checkContext(e.Context)
+	}
 }
 
 func TestSetSanitizedFieldNamesNone(t *testing.T) {
