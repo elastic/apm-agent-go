@@ -22,6 +22,7 @@ import (
 	"net/http"
 
 	"go.elastic.co/apm/internal/apmhttputil"
+	"go.elastic.co/apm/internal/wildcard"
 	"go.elastic.co/apm/model"
 )
 
@@ -29,16 +30,17 @@ import (
 //
 // NOTE this is entirely unrelated to the standard library's context.Context.
 type Context struct {
-	model            model.Context
-	request          model.Request
-	requestBody      model.RequestBody
-	requestSocket    model.RequestSocket
-	response         model.Response
-	user             model.User
-	service          model.Service
-	serviceFramework model.Framework
-	captureHeaders   bool
-	captureBodyMask  CaptureBodyMode
+	model               model.Context
+	request             model.Request
+	requestBody         model.RequestBody
+	requestSocket       model.RequestSocket
+	response            model.Response
+	user                model.User
+	service             model.Service
+	serviceFramework    model.Framework
+	captureHeaders      bool
+	captureBodyMask     CaptureBodyMode
+	sanitizedFieldNames wildcard.Matchers
 }
 
 func (c *Context) build() *model.Context {
@@ -51,6 +53,15 @@ func (c *Context) build() *model.Context {
 	case len(c.model.Custom) != 0:
 	default:
 		return nil
+	}
+	if len(c.sanitizedFieldNames) != 0 {
+		if c.model.Request != nil {
+			sanitizeRequest(c.model.Request, c.sanitizedFieldNames)
+		}
+		if c.model.Response != nil {
+			sanitizeResponse(c.model.Response, c.sanitizedFieldNames)
+		}
+
 	}
 	return &c.model
 }

@@ -23,8 +23,6 @@ import (
 	"math/rand"
 	"sync"
 	"time"
-
-	"go.elastic.co/apm/internal/wildcard"
 )
 
 // StartTransaction returns a new Transaction with the specified
@@ -68,7 +66,7 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 	tx.stackTraceLimit = instrumentationConfig.stackTraceLimit
 	tx.Context.captureHeaders = instrumentationConfig.captureHeaders
 	tx.propagateLegacyHeader = instrumentationConfig.propagateLegacyHeader
-	tx.sanitizedFieldNames = instrumentationConfig.sanitizedFieldNames
+	tx.Context.sanitizedFieldNames = instrumentationConfig.sanitizedFieldNames
 	tx.breakdownMetricsEnabled = t.breakdownMetrics.enabled
 
 	var root bool
@@ -346,7 +344,6 @@ type TransactionData struct {
 	stackTraceLimit         int
 	breakdownMetricsEnabled bool
 	propagateLegacyHeader   bool
-	sanitizedFieldNames     wildcard.Matchers
 	timestamp               time.Time
 
 	mu            sync.Mutex

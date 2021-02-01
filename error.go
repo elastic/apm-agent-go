@@ -148,6 +148,7 @@ func (t *Tracer) newError() *Error {
 	if e.recording {
 		e.Timestamp = time.Now()
 		e.Context.captureHeaders = instrumentationConfig.captureHeaders
+		e.Context.sanitizedFieldNames = instrumentationConfig.sanitizedFieldNames
 		e.stackTraceLimit = instrumentationConfig.stackTraceLimit
 	}
 
