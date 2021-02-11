@@ -17,6 +17,7 @@ pipeline {
     GITHUB_CHECK_ITS_NAME = 'Integration Tests'
     ITS_PIPELINE = 'apm-integration-tests-selector-mbp/master'
     OPBEANS_REPO = 'opbeans-go'
+    SLACK_CHANNEL = '#apm-agent-go'
   }
   options {
     timeout(time: 1, unit: 'HOURS')
@@ -271,6 +272,11 @@ pipeline {
             }
           }
         }
+        stage('Notify') {
+          steps {
+            notifyStatus(slackStatus: 'good', subject: "[${env.REPO}] Release *${env.BRANCH_NAME}* published", body: "Great news, the release has been done successfully. (<${env.RUN_DISPLAY_URL}|Open>).")
+          }
+        }
       }
     }
   }
@@ -326,4 +332,13 @@ def generateStepAndCatchError(version){
 
 def cleanDir(path){
   powershell label: "Clean ${path}", script: "Remove-Item -Recurse -Force ${path}"
+}
+
+def notifyStatus(def args = [:]) {
+  releaseNotification(slackChannel: "${env.SLACK_CHANNEL}",
+                      slackColor: args.slackStatus,
+                      slackCredentialsId: 'jenkins-slack-integration-token',
+                      to: "${env.NOTIFY_TO}",
+                      subject: args.subject,
+                      body: args.body)
 }
