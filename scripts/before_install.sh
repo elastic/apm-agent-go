@@ -33,6 +33,7 @@ if (! go run scripts/mingoversion.go 1.11 &>/dev/null); then
   pin google.golang.org/grpc v1.30.0 https://github.com/grpc/grpc-go
   pin github.com/jinzhu/gorm v1.9.16
   pin github.com/ugorji/go v1.1.10
+  pin github.com/go-chi/chi v1.5.1
 fi
 
 if (! go run scripts/mingoversion.go 1.10 &>/dev/null); then
