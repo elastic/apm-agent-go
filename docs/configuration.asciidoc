@@ -121,7 +121,7 @@ could be observed by an attacker.
 
 [float]
 [[config-api-key]]
-==== `ELASTIC_APM_API_KEY`
+=== `ELASTIC_APM_API_KEY`
 
 [options="header"]
 |============
