@@ -274,7 +274,7 @@ pipeline {
         }
         stage('Notify') {
           steps {
-            notifyStatus(slackStatus: 'good', subject: "[${env.REPO}] Release *${env.BRANCH_NAME}* published", body: "Great news, the release has been done successfully. (<${env.RUN_DISPLAY_URL}|Open>).")
+            notifyStatus(slackStatus: 'good', subject: "[${env.REPO}] Release *${env.BRANCH_NAME}* published", body: "Great news, the release has finished successfully. (<${env.RUN_DISPLAY_URL}|Open>).")
           }
         }
       }
