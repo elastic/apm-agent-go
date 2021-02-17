@@ -118,12 +118,10 @@ func outgoingContextWithTraceContext(
 func setSpanOutcome(span *apm.Span, err error) {
 	statusCode := statusCodeFromError(err)
 
-	// On the client side, all codes except for OK and Unknown are treated
-	// as failures by default, and can be overridden.
+	// On the client side, all codes except for OK are treated as failures
+	// by default, and can be overridden by setting the Outcome explicitly.
 	if span.Outcome == "" {
 		switch statusCode {
-		case codes.Unknown:
-			span.Outcome = "unknown"
 		case codes.OK:
 			span.Outcome = "success"
 		default:

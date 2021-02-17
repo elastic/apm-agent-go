@@ -86,10 +86,10 @@ func NewUnaryServerInterceptor(o ...ServerOption) grpc.UnaryServerInterceptor {
 					panic(r)
 				}
 			}
+			setTransactionResult(tx, err)
 		}()
 
 		resp, err = handler(ctx, req)
-		setTransactionResult(tx, err)
 		return resp, err
 	}
 }
@@ -127,9 +127,14 @@ func setTransactionResult(tx *apm.Transaction, err error) {
 	// except for codes which are not subject to client interpretation.
 	if tx.Outcome == "" {
 		switch statusCode {
-		case codes.Unknown:
-			tx.Outcome = "unknown"
-		case codes.DataLoss, codes.Unavailable, codes.Internal, codes.Unimplemented:
+		case codes.Unknown,
+			codes.DeadlineExceeded,
+			codes.ResourceExhausted,
+			codes.FailedPrecondition,
+			codes.Aborted,
+			codes.Internal,
+			codes.Unavailable,
+			codes.DataLoss:
 			tx.Outcome = "failure"
 		default:
 			tx.Outcome = "success"
