@@ -207,6 +207,6 @@ func TestClientOutcome(t *testing.T) {
 	require.Len(t, spans, 3)
 
 	assert.Equal(t, "success", spans[0].Outcome)
-	assert.Equal(t, "unknown", spans[1].Outcome)
+	assert.Equal(t, "failure", spans[1].Outcome) // unknown error
 	assert.Equal(t, "failure", spans[2].Outcome)
 }

@@ -138,7 +138,7 @@ func testServerTransactionUnknownError(t *testing.T, p testParams) {
 	assert.Equal(t, "/helloworld.Greeter/SayHello", tx.Name)
 	assert.Equal(t, "request", tx.Type)
 	assert.Equal(t, "Unknown", tx.Result)
-	assert.Equal(t, "unknown", tx.Outcome)
+	assert.Equal(t, "failure", tx.Outcome) // unknown error
 }
 
 func testServerTransactionStatusError(t *testing.T, p testParams) {
