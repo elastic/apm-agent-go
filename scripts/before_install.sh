@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euxo pipefail
 
-if (go run scripts/mingoversion.go 1.10 &>/dev/null); then
-  go get -v golang.org/x/lint/golint;
-  go get -v golang.org/x/tools/cmd/goimports;
-  go get -v github.com/elastic/go-licenser;
+if (go run scripts/mingoversion.go 1.12 &>/dev/null); then
+  go install -v golang.org/x/lint/golint
+  go install -v golang.org/x/tools/cmd/goimports
+  go install -v github.com/elastic/go-licenser
 fi
 
 # Pin various dependencies for old Go versions.
