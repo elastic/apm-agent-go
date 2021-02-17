@@ -3,6 +3,7 @@ FROM golang:latest
 ENV GO111MODULE=on
 
 COPY go.mod go.sum /go/src/go.elastic.co/apm/
+COPY internal/apmgodog/go.mod internal/apmgodog/go.sum /go/src/go.elastic.co/apm/internal/apmgodog/
 COPY internal/tracecontexttest/go.mod internal/tracecontexttest/go.sum /go/src/go.elastic.co/apm/internal/tracecontexttest/
 COPY module/apmbeego/go.mod module/apmbeego/go.sum /go/src/go.elastic.co/apm/module/apmbeego/
 COPY module/apmchi/go.mod module/apmchi/go.sum /go/src/go.elastic.co/apm/module/apmchi/
@@ -38,6 +39,7 @@ COPY module/apmzerolog/go.mod module/apmzerolog/go.sum /go/src/go.elastic.co/apm
 COPY scripts/genmod/go.mod scripts/genmod/go.sum /go/src/go.elastic.co/apm/scripts/genmod/
 
 RUN cd /go/src/go.elastic.co/apm && go mod download
+RUN cd /go/src/go.elastic.co/apm/internal/apmgodog && go mod download
 RUN cd /go/src/go.elastic.co/apm/internal/tracecontexttest && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmbeego && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmchi && go mod download

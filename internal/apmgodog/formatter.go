@@ -71,7 +71,7 @@ func Run(t *testing.T, paths []string) {
 
 	godog.RunWithOptions("godog", initContext, godog.Options{
 		Format: "events", // must pick one, this will do
-		Paths:  []string{"."},
+		Paths:  paths,
 		Output: ioutil.Discard,
 	})
 }
