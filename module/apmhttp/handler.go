@@ -74,10 +74,9 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		h.handler.ServeHTTP(w, req)
 		return
 	}
-	tx, req := StartTransaction(h.tracer, h.requestName(req), req)
+	tx, req, body := StartTransaction(h.tracer, h.requestName(req), req)
 	defer tx.End()
 
-	body := h.tracer.CaptureHTTPRequestBody(req)
 	w, resp := WrapResponseWriter(w)
 	defer func() {
 		if v := recover(); v != nil {
@@ -107,7 +106,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 //
 // If the transaction is not ignored, the request will be
 // returned with the transaction added to its context.
-func StartTransaction(tracer *apm.Tracer, name string, req *http.Request) (*apm.Transaction, *http.Request) {
+func StartTransaction(tracer *apm.Tracer, name string, req *http.Request) (*apm.Transaction, *http.Request, *apm.BodyCapturer) {
 	traceContext, ok := getRequestTraceparent(req, ElasticTraceparentHeader)
 	if !ok {
 		traceContext, ok = getRequestTraceparent(req, W3CTraceparentHeader)
@@ -116,9 +115,12 @@ func StartTransaction(tracer *apm.Tracer, name string, req *http.Request) (*apm.
 		traceContext.State, _ = ParseTracestateHeader(req.Header[TracestateHeader]...)
 	}
 	tx := tracer.StartTransactionOptions(name, "request", apm.TransactionOptions{TraceContext: traceContext})
+	bc := tracer.CaptureHTTPRequestBody(req)
 	ctx := apm.ContextWithTransaction(req.Context(), tx)
+	ctx = apm.ContextWithBodyCapturer(ctx, bc)
+	ctx = apm.ContextWithRequest(ctx, req)
 	req = RequestWithContext(ctx, req)
-	return tx, req
+	return tx, req, bc
 }
 
 func getRequestTraceparent(req *http.Request, header string) (apm.TraceContext, bool) {

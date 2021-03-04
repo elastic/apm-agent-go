@@ -17,7 +17,9 @@
 
 package apmcontext
 
-import "context"
+import (
+	"context"
+)
 
 var (
 	// ContextWithSpan takes a context and span and returns a new context
@@ -56,6 +58,8 @@ var (
 
 type spanKey struct{}
 type transactionKey struct{}
+type bodyCapturerKey struct{}
+type requestKey struct{}
 
 // DefaultContextWithSpan is the default value for ContextWithSpan.
 func DefaultContextWithSpan(ctx context.Context, span interface{}) context.Context {
@@ -75,4 +79,30 @@ func DefaultSpanFromContext(ctx context.Context) interface{} {
 // DefaultTransactionFromContext is the default value for TransactionFromContext.
 func DefaultTransactionFromContext(ctx context.Context) interface{} {
 	return ctx.Value(transactionKey{})
+}
+
+// ContextWithBodyCapturer takes a context and request body capturer and returns
+// a new context from which the capturer can be extracted using
+// BodyCapturerFromContext.
+func ContextWithBodyCapturer(ctx context.Context, bc interface{}) context.Context {
+	return context.WithValue(ctx, bodyCapturerKey{}, bc)
+}
+
+// BodyCapturerFromContext returns a request body capturer included in the context
+// using ContextWithBodyCapturer.
+func BodyCapturerFromContext(ctx context.Context) interface{} {
+	return ctx.Value(bodyCapturerKey{})
+}
+
+// ContextWithRequest takes a context and request and returns
+// a new context from which the request can be extracted using
+// RequestFromContext.
+func ContextWithRequest(ctx context.Context, req interface{}) context.Context {
+	return context.WithValue(ctx, requestKey{}, req)
+}
+
+// RequestFromContext returns a request included in the context
+// using ContextWithRequest.
+func RequestFromContext(ctx context.Context) interface{} {
+	return ctx.Value(requestKey{})
 }

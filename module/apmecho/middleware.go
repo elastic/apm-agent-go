@@ -70,10 +70,9 @@ func (m *middleware) handle(c echo.Context) error {
 		return m.handler(c)
 	}
 	name := req.Method + " " + c.Path()
-	tx, req := apmhttp.StartTransaction(m.tracer, name, req)
+	tx, req, body := apmhttp.StartTransaction(m.tracer, name, req)
 	defer tx.End()
 	c.SetRequest(req)
-	body := m.tracer.CaptureHTTPRequestBody(req)
 
 	resp := c.Response()
 	var handlerErr error
