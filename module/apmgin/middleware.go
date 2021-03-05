@@ -99,10 +99,10 @@ func (m *middleware) handle(c *gin.Context) {
 		requestName = apmhttp.UnknownRouteRequestName(c.Request)
 	}
 	tx, req := apmhttp.StartTransaction(m.tracer, requestName, c.Request)
-	c.Request = req
+	defer tx.End()
 	body := m.tracer.CaptureHTTPRequestBody(req)
 	req.WithContext(apm.ContextWithBodyCapturer(req.Context(), body))
-	defer tx.End()
+	c.Request = req
 
 	defer func() {
 		if v := recover(); v != nil {
