@@ -6,5 +6,5 @@
 if test -z "$(go env GOMOD)"; then
     pwd
 else
-    find . -type f -name go.mod \! -path './vendor/*' -exec dirname '{}' \;
+    find . -type f -name go.mod -exec dirname '{}' \;
 fi
