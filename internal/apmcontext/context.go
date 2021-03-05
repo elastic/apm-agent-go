@@ -93,16 +93,3 @@ func ContextWithBodyCapturer(ctx context.Context, bc interface{}) context.Contex
 func BodyCapturerFromContext(ctx context.Context) interface{} {
 	return ctx.Value(bodyCapturerKey{})
 }
-
-// ContextWithRequest takes a context and request and returns
-// a new context from which the request can be extracted using
-// RequestFromContext.
-func ContextWithRequest(ctx context.Context, req interface{}) context.Context {
-	return context.WithValue(ctx, requestKey{}, req)
-}
-
-// RequestFromContext returns a request included in the context
-// using ContextWithRequest.
-func RequestFromContext(ctx context.Context) interface{} {
-	return ctx.Value(requestKey{})
-}

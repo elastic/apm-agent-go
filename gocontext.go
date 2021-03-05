@@ -19,7 +19,6 @@ package apm // import "go.elastic.co/apm"
 
 import (
 	"context"
-	"net/http"
 
 	"go.elastic.co/apm/internal/apmcontext"
 )
@@ -42,12 +41,6 @@ func ContextWithBodyCapturer(parent context.Context, bc *BodyCapturer) context.C
 	return apmcontext.ContextWithBodyCapturer(parent, bc)
 }
 
-// ContextWithRequest returns a copy of parent in which the given
-// request is stored, associated with the key requestKey.
-func ContextWithRequest(parent context.Context, req *http.Request) context.Context {
-	return apmcontext.ContextWithRequest(parent, req)
-}
-
 // SpanFromContext returns the current Span in context, if any. The span must
 // have been added to the context previously using ContextWithSpan, or the
 // top-level StartSpan function.
@@ -66,11 +59,6 @@ func TransactionFromContext(ctx context.Context) *Transaction {
 
 func bodyCapturerFromContext(ctx context.Context) *BodyCapturer {
 	value, _ := apmcontext.BodyCapturerFromContext(ctx).(*BodyCapturer)
-	return value
-}
-
-func requestFromContext(ctx context.Context) *http.Request {
-	value, _ := apmcontext.RequestFromContext(ctx).(*http.Request)
 	return value
 }
 
@@ -155,10 +143,6 @@ func CaptureError(ctx context.Context, err error) *Error {
 		e.Handled = true
 		bc := bodyCapturerFromContext(ctx)
 		if bc != nil {
-			req := requestFromContext(ctx)
-			if req != nil {
-				e.Context.SetHTTPRequest(req)
-			}
 			e.Context.SetHTTPRequestBody(bc)
 			bc.Discard()
 		}
