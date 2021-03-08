@@ -27,6 +27,7 @@ import (
 	"go/types"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -39,7 +40,10 @@ func TestBreakdownMetricsAlignment(t *testing.T) {
 	// of the breakdownMetricsMapEntry are maintained
 	// for both 32-bit and 64-bit systems, since we use
 	// sync/atomic operations on them.
-	t.Run("32-bit", func(t *testing.T) { testBreakdownMetricsAlignment(t, "386") })
+	if runtime.GOOS != "darwin" {
+		// Go 1.15 dropped support for darwin/386
+		t.Run("32-bit", func(t *testing.T) { testBreakdownMetricsAlignment(t, "386") })
+	}
 	t.Run("64-bit", func(t *testing.T) { testBreakdownMetricsAlignment(t, "amd64") })
 }
 
@@ -54,7 +58,7 @@ func testBreakdownMetricsAlignment(t *testing.T, arch string) {
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, "GOARCH="+arch)
 	output, err := cmd.Output()
-	require.NoError(t, err)
+	require.NoError(t, err, string(output))
 	filenames := strings.Fields(string(output[1 : len(output)-2])) // strip "[" and "]"
 
 	fset := token.NewFileSet()
