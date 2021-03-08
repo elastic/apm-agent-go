@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
 set -euxo pipefail
 
-# Install Go using the same travis approach
-echo "Installing ${GO_VERSION} with gimme."
-eval "$(curl -sL https://raw.githubusercontent.com/travis-ci/gimme/master/gimme | GIMME_GO_VERSION=${GO_VERSION} bash)"
-
-go get -v -u github.com/jstemmer/go-junit-report
+source ./scripts/jenkins/setenv.sh
 
 export GOFLAGS='-run=NONE -benchmem -bench=.'
 export OUT_FILE="build/bench.out"
