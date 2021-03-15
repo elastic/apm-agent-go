@@ -21,6 +21,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -52,6 +53,42 @@ func TestAzureCloudMetadata(t *testing.T) {
 			},
 			Account: &model.CloudAccount{
 				ID: "7657426d-c4c3-44ac-88a2-3b2cd59e6dba",
+			},
+		}, out)
+	}
+}
+
+func TestAzureAppServiceCloudMetadata(t *testing.T) {
+	client := &http.Client{Transport: newTargetedRoundTripper("", "testing.invalid")}
+
+	os.Setenv("WEBSITE_OWNER_NAME", "f5940f10-2e30-3e4d-a259-63451ba6dae4+elastic-apm-AustraliaEastwebspace")
+	os.Setenv("WEBSITE_RESOURCE_GROUP", "resource_group")
+	os.Setenv("WEBSITE_SITE_NAME", "site_name")
+	os.Setenv("WEBSITE_INSTANCE_ID", "instance_id")
+	defer func() {
+		os.Unsetenv("WEBSITE_OWNER_NAME")
+		os.Unsetenv("WEBSITE_RESOURCE_GROUP")
+		os.Unsetenv("WEBSITE_SITE_NAME")
+		os.Unsetenv("WEBSITE_INSTANCE_ID")
+	}()
+
+	for _, provider := range []Provider{Auto, Azure} {
+		var out model.Cloud
+		var logger testLogger
+		assert.True(t, provider.getCloudMetadata(context.Background(), client, &logger, &out))
+		assert.Zero(t, logger)
+		assert.Equal(t, model.Cloud{
+			Provider: "azure",
+			Region:   "AustraliaEast",
+			Instance: &model.CloudInstance{
+				ID:   "instance_id",
+				Name: "site_name",
+			},
+			Project: &model.CloudProject{
+				Name: "resource_group",
+			},
+			Account: &model.CloudAccount{
+				ID: "f5940f10-2e30-3e4d-a259-63451ba6dae4",
 			},
 		}, out)
 	}

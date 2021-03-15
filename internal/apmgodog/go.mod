@@ -7,6 +7,7 @@ require (
 	go.elastic.co/apm v1.11.0
 	go.elastic.co/apm/module/apmgrpc v1.11.0
 	go.elastic.co/apm/module/apmhttp v1.11.0
+	go.elastic.co/fastjson v1.1.0
 	google.golang.org/grpc v1.17.0
 )
 

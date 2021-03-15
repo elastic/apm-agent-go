@@ -20,6 +20,8 @@ package apmtest // import "go.elastic.co/apm/apmtest"
 import "os"
 
 func init() {
-	// Disable cloud metadata sniffing by default in tests.
-	os.Setenv("ELASTIC_APM_CLOUD_PROVIDER", "none")
+	if os.Getenv("ELASTIC_APM_CLOUD_PROVIDER") == "" {
+		// Disable cloud metadata sniffing by default in tests.
+		os.Setenv("ELASTIC_APM_CLOUD_PROVIDER", "none")
+	}
 }
