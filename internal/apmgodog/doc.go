@@ -15,12 +15,5 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// +build go1.9
-
-package apmgodog_test
-
-import "testing"
-
-func TestFeatures(t *testing.T) {
-	Run(t, []string{"../.."})
-}
+// Package apmgodog implements the Gherkin feature spec tests.
+package apmgodog

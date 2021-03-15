@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmgodog
+package apmgodog_test
 
 import (
 	"bytes"
