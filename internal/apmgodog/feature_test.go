@@ -17,7 +17,7 @@
 
 // +build go1.9
 
-package apmgodog
+package apmgodog_test
 
 import "testing"
 

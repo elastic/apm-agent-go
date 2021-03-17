@@ -17,10 +17,11 @@
 
 // +build go1.9
 
-package apmgodog
+package apmgodog_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -31,6 +32,7 @@ import (
 	"time"
 
 	"github.com/cucumber/godog"
+	"github.com/cucumber/godog/gherkin"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	pb "google.golang.org/grpc/examples/helloworld/helloworld"
@@ -39,6 +41,7 @@ import (
 
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/apmtest"
+	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/module/apmgrpc"
 	"go.elastic.co/apm/module/apmhttp"
 	"go.elastic.co/apm/transport"
@@ -47,6 +50,7 @@ import (
 type featureContext struct {
 	apiKey      string
 	secretToken string
+	env         []string // for subprocesses
 
 	httpServer  *httptest.Server
 	httpHandler *httpHandler
@@ -58,6 +62,8 @@ type featureContext struct {
 	tracer      *apmtest.RecordingTracer
 	span        *apm.Span
 	transaction *apm.Transaction
+
+	cloud *model.Cloud
 }
 
 // InitContext initialises a godoc.Suite with step definitions.
@@ -98,6 +104,10 @@ func InitContext(s *godog.Suite) {
 		c.grpcClient.Close()
 		c.httpServer.Close()
 	})
+	s.AfterScenario(func(interface{}, error) {
+		c.env = nil
+		c.cloud = nil
+	})
 
 	s.Step("^an agent$", c.anAgent)
 	s.Step("^an api key is not set in the config$", func() error { return nil })
@@ -108,6 +118,7 @@ func InitContext(s *godog.Suite) {
 	s.Step("^an active span$", c.anActiveSpan)
 	s.Step("^an active transaction$", c.anActiveTransaction)
 
+	// Outcome
 	s.Step("^user sets span outcome to '(.*)'$", c.userSetsSpanOutcome)
 	s.Step("^user sets transaction outcome to '(.*)'$", c.userSetsTransactionOutcome)
 	s.Step("^span terminates with outcome '(.*)'$", c.spanTerminatesWithOutcome)
@@ -121,11 +132,84 @@ func InitContext(s *godog.Suite) {
 	s.Step("^transaction outcome is '(.*)'$", c.transactionOutcomeIs)
 	s.Step("^transaction outcome is \"(.*)\"$", c.transactionOutcomeIs)
 
+	// HTTP
 	s.Step("^an HTTP transaction with (.*) response code$", c.anHTTPTransactionWithStatusCode)
 	s.Step("^an HTTP span with (.*) response code$", c.anHTTPSpanWithStatusCode)
 
+	// gRPC
 	s.Step("^a gRPC transaction with '(.*)' status$", c.aGRPCTransactionWithStatusCode)
 	s.Step("^a gRPC span with '(.*)' status$", c.aGRPCSpanWithStatusCode)
+
+	// Cloud metadata
+	s.Step("an instrumented application is configured to collect cloud provider metadata for azure", func() error {
+		return nil
+	})
+	s.Step("the following environment variables are present", func(kv *gherkin.DataTable) error {
+		for _, row := range kv.Rows[1:] {
+			c.env = append(c.env, row.Cells[0].Value+"="+row.Cells[1].Value)
+		}
+		return nil
+	})
+	s.Step("cloud metadata is collected", func() error {
+		_, _, _, cloud, _, err := getSubprocessMetadata(append([]string{
+			"ELASTIC_APM_CLOUD_PROVIDER=auto", // Explicitly enable cloud metadata detection
+			"http_proxy=http://proxy.invalid", // fail all HTTP requests
+		}, c.env...)...)
+		if err != nil {
+			return err
+		}
+		if *cloud != (model.Cloud{}) {
+			c.cloud = cloud
+		}
+		return nil
+	})
+	s.Step("cloud metadata is not null", func() error {
+		if c.cloud == nil {
+			return errors.New("cloud metadata is empty")
+		}
+		return nil
+	})
+	s.Step("cloud metadata is null", func() error {
+		if c.cloud != nil {
+			return fmt.Errorf("cloud metadata is non-empty: %+v", *c.cloud)
+		}
+		return nil
+	})
+	s.Step("cloud metadata '(.*)' is '(.*)'", func(field, expected string) error {
+		var actual string
+		switch field {
+		case "account.id":
+			if c.cloud.Account == nil {
+				return errors.New("cloud.account is nil")
+			}
+			actual = c.cloud.Account.ID
+		case "provider":
+			actual = c.cloud.Provider
+		case "instance.id":
+			if c.cloud.Instance == nil {
+				return errors.New("cloud.instance is nil")
+			}
+			actual = c.cloud.Instance.ID
+		case "instance.name":
+			if c.cloud.Instance == nil {
+				return errors.New("cloud.instance is nil")
+			}
+			actual = c.cloud.Instance.Name
+		case "project.name":
+			if c.cloud.Project == nil {
+				return errors.New("cloud.project is nil")
+			}
+			actual = c.cloud.Project.Name
+		case "region":
+			actual = c.cloud.Region
+		default:
+			return fmt.Errorf("unexpected field %q", field)
+		}
+		if actual != expected {
+			return fmt.Errorf("expected %q to be %q, got %q", field, expected, actual)
+		}
+		return nil
+	})
 }
 
 func (c *featureContext) reset() {
@@ -147,7 +231,7 @@ func (c *featureContext) reset() {
 }
 
 func (c *featureContext) anAgent() error {
-	// No-op; we create the tracer as needed to test steps.
+	// No-op; we create the tracer in the suite setup.
 	return nil
 }
 
