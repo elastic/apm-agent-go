@@ -223,9 +223,9 @@ the MongoDB Go Driver instrumentation.
 
 We support https://grpc.io/[gRPC]
 https://github.com/grpc/grpc-go/releases/tag/v1.3.0[v1.3.0] and greater.
-We provide unary interceptors for both the client and server. The server
-interceptor will create a transaction for each incoming request, and
-the client interceptor will create a span for each outgoing request.
+We provide unary and stream interceptors for both the client and server.
+The server interceptor will create a transaction for each incoming request,
+and the client interceptor will create a span for each outgoing request.
 
 See <<builtin-modules-apmgrpc, module/apmgrpc>> for more information
 about gRPC instrumentation.

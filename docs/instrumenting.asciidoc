@@ -150,9 +150,15 @@ import (
 )
 
 func main() {
-	server := grpc.NewServer(grpc.UnaryInterceptor(apmgrpc.NewUnaryServerInterceptor()))
+	server := grpc.NewServer(
+		grpc.UnaryInterceptor(apmgrpc.NewUnaryServerInterceptor()),
+		grpc.StreamInterceptor(apmgrpc.NewStreamServerInterceptor()),
+	)
 	...
-	conn, err := grpc.Dial(addr, grpc.WithUnaryInterceptor(apmgrpc.NewUnaryClientInterceptor()))
+	conn, err := grpc.Dial(addr,
+		grpc.WithUnaryInterceptor(apmgrpc.NewUnaryClientInterceptor()),
+		gprc.WithStreamInterceptor(apmgrpc.NewStreamClientInterceptor()),
+	)
 	...
 }
 ----
@@ -172,8 +178,11 @@ server := grpc.NewServer(grpc.UnaryInterceptor(
 ...
 ----
 
-There is currently no support for intercepting at the stream level. Please file an issue and/or
-send a pull request if this is something you need.
+Stream interceptors emit transactions and spans that represent the entire stream,
+and not individual messages. For client streams, spans will be ended when the request
+fails; when any of `grpc.ClientStream.RecvMsg`, `grpc.ClientStream.SendMsg`, or
+`grpc.ClientStream.Header` return with an error; or when `grpc.ClientStream.RecvMsg`
+returns for a non-streaming server method.
 
 [[builtin-modules-apmhttp]]
 ==== module/apmhttp
