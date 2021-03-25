@@ -21,20 +21,25 @@ package apmgrpc // import "go.elastic.co/apm/module/apmgrpc"
 
 import (
 	"regexp"
-	"sync"
 
 	"google.golang.org/grpc"
 )
 
 var (
-	defaultServerRequestIgnorerOnce sync.Once
-	defaultServerRequestIgnorer     RequestIgnorerFunc = IgnoreNone
+	defaultServerRequestIgnorer RequestIgnorerFunc = IgnoreNone
+	defaultServerStreamIgnorer  StreamIgnorerFunc  = IgnoreNoneStream
 )
 
-// DefaultServerRequestIgnorer returns the default RequestIgnorer to use in
+// DefaultServerRequestIgnorer returns the default RequestIgnorerFunc to use in
 // handlers.
 func DefaultServerRequestIgnorer() RequestIgnorerFunc {
 	return defaultServerRequestIgnorer
+}
+
+// DefaultServerStreamIgnorer returns the default StreamIgnorerFunc to use in
+// handlers.
+func DefaultServerStreamIgnorer() StreamIgnorerFunc {
+	return defaultServerStreamIgnorer
 }
 
 // NewRegexpRequestIgnorer returns a RequestIgnorerFunc which matches requests'
@@ -52,5 +57,10 @@ func NewRegexpRequestIgnorer(re *regexp.Regexp) RequestIgnorerFunc {
 
 // IgnoreNone is a RequestIgnorerFunc which ignores no requests.
 func IgnoreNone(*grpc.UnaryServerInfo) bool {
+	return false
+}
+
+// IgnoreNoneStream is a StreamIgnorerFunc which ignores no stream requests.
+func IgnoreNoneStream(*grpc.StreamServerInfo) bool {
 	return false
 }

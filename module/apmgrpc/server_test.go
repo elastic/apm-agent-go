@@ -22,6 +22,7 @@ package apmgrpc_test
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"reflect"
 	"strings"
@@ -41,6 +42,7 @@ import (
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/module/apmgrpc"
+	"go.elastic.co/apm/module/apmgrpc/internal/testservice"
 	"go.elastic.co/apm/module/apmhttp"
 	"go.elastic.co/apm/stacktrace"
 	"go.elastic.co/apm/transport/transporttest"
@@ -59,10 +61,10 @@ func TestServerTransaction(t *testing.T) {
 			tracer, transport := transporttest.NewRecorderTracer()
 			defer tracer.Close()
 
-			s, server, addr := newServer(t, tracer)
+			s, server, addr := newGreeterServer(t, tracer)
 			defer s.GracefulStop()
 
-			conn, client := newClient(t, addr)
+			conn, client := newGreeterClient(t, addr)
 			defer conn.Close()
 
 			f(t, testParams{
@@ -174,10 +176,10 @@ func TestServerRecovery(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
-	s, server, addr := newServer(t, tracer, apmgrpc.WithRecovery())
+	s, server, addr := newGreeterServer(t, tracer, apmgrpc.WithRecovery())
 	defer s.GracefulStop()
 
-	conn, client := newClient(t, addr)
+	conn, client := newGreeterClient(t, addr)
 	defer conn.Close()
 
 	server.panic = true
@@ -201,12 +203,12 @@ func TestServerIgnorer(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
-	s, _, addr := newServer(t, tracer, apmgrpc.WithRecovery(), apmgrpc.WithServerRequestIgnorer(func(*grpc.UnaryServerInfo) bool {
+	s, _, addr := newGreeterServer(t, tracer, apmgrpc.WithRecovery(), apmgrpc.WithServerRequestIgnorer(func(*grpc.UnaryServerInfo) bool {
 		return true
 	}))
 	defer s.GracefulStop()
 
-	conn, client := newClient(t, addr)
+	conn, client := newGreeterClient(t, addr)
 	defer conn.Close()
 
 	resp, err := client.SayHello(context.Background(), &pb.HelloRequest{Name: "birita"})
@@ -217,7 +219,42 @@ func TestServerIgnorer(t *testing.T) {
 	assert.Empty(t, transport.Payloads())
 }
 
-func newServer(t *testing.T, tracer *apm.Tracer, opts ...apmgrpc.ServerOption) (*grpc.Server, *helloworldServer, net.Addr) {
+func TestServerStream(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	s, _, addr := newAccumulatorServer(t, tracer, apmgrpc.WithRecovery())
+	defer s.GracefulStop()
+
+	conn, client := newAccumulatorClient(t, addr)
+	defer conn.Close()
+
+	accumulator, err := client.Accumulate(context.Background())
+	require.NoError(t, err)
+
+	var expected int64
+	for i := 0; i < 10; i++ {
+		expected += int64(i)
+		err = accumulator.Send(&testservice.AccumulateRequest{Value: int64(i)})
+		require.NoError(t, err)
+		reply, err := accumulator.Recv()
+		require.NoError(t, err)
+		assert.Equal(t, expected, reply.Value)
+	}
+	err = accumulator.CloseSend()
+	assert.NoError(t, err)
+
+	// Wait for the server to close, ending its transaction.
+	_, err = accumulator.Recv()
+	assert.Equal(t, io.EOF, err)
+
+	// There should be just one transaction for the entire stream.
+	tracer.Flush(nil)
+	transactions := transport.Payloads().Transactions
+	require.Len(t, transactions, 1)
+}
+
+func newGreeterServer(t *testing.T, tracer *apm.Tracer, opts ...apmgrpc.ServerOption) (*grpc.Server, *helloworldServer, net.Addr) {
 	// We always install grpc_recovery first to avoid panics
 	// aborting the test process. We install it before the
 	// apmgrpc interceptor so that apmgrpc can recover panics
@@ -239,13 +276,46 @@ func newServer(t *testing.T, tracer *apm.Tracer, opts ...apmgrpc.ServerOption) (
 	return s, server, lis.Addr()
 }
 
-func newClient(t *testing.T, addr net.Addr) (*grpc.ClientConn, pb.GreeterClient) {
+func newGreeterClient(t *testing.T, addr net.Addr) (*grpc.ClientConn, pb.GreeterClient) {
 	conn, err := grpc.Dial(
 		addr.String(), grpc.WithInsecure(),
 		grpc.WithUnaryInterceptor(apmgrpc.NewUnaryClientInterceptor()),
 	)
 	require.NoError(t, err)
 	return conn, pb.NewGreeterClient(conn)
+}
+
+func newAccumulatorServer(t *testing.T, tracer *apm.Tracer, opts ...apmgrpc.ServerOption) (*grpc.Server, *accumulator, net.Addr) {
+	// We always install grpc_recovery first to avoid panics
+	// aborting the test process. We install it before the
+	// apmgrpc interceptor so that apmgrpc can recover panics
+	// itself if configured to do so.
+	interceptors := []grpc.StreamServerInterceptor{
+		grpc_recovery.StreamServerInterceptor(),
+	}
+	serverOpts := []grpc.ServerOption{}
+	if tracer != nil {
+		opts = append(opts, apmgrpc.WithTracer(tracer))
+		interceptors = append(interceptors, apmgrpc.NewStreamServerInterceptor(opts...))
+	}
+	serverOpts = append(serverOpts, grpc_middleware.WithStreamServerChain(interceptors...))
+
+	s := grpc.NewServer(serverOpts...)
+	accumulator := &accumulator{}
+	testservice.RegisterAccumulatorServer(s, accumulator)
+	lis, err := net.Listen("tcp", "localhost:0")
+	require.NoError(t, err)
+	go s.Serve(lis)
+	return s, accumulator, lis.Addr()
+}
+
+func newAccumulatorClient(t *testing.T, addr net.Addr) (*grpc.ClientConn, testservice.AccumulatorClient) {
+	conn, err := grpc.Dial(
+		addr.String(), grpc.WithInsecure(),
+		grpc.WithStreamInterceptor(apmgrpc.NewStreamClientInterceptor()),
+	)
+	require.NoError(t, err)
+	return conn, testservice.NewAccumulatorClient(conn)
 }
 
 type helloworldServer struct {
@@ -275,4 +345,31 @@ func (s *helloworldServer) SayHello(ctx context.Context, req *pb.HelloRequest) (
 		return nil, s.err
 	}
 	return &pb.HelloReply{Message: "hello, " + req.Name}, nil
+}
+
+type accumulator struct {
+	panic bool
+	err   error
+}
+
+func (a *accumulator) Accumulate(srv testservice.Accumulator_AccumulateServer) error {
+	if a.panic {
+		panic(a.err)
+	}
+	if a.err != nil {
+		return a.err
+	}
+	var reply testservice.AccumulateReply
+	for {
+		req, err := srv.Recv()
+		if err == io.EOF {
+			return nil
+		} else if err != nil {
+			return err
+		}
+		reply.Value += req.Value
+		if err := srv.Send(&reply); err != nil {
+			return err
+		}
+	}
 }
