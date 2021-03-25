@@ -70,7 +70,7 @@ func NewUnaryServerInterceptor(o ...ServerOption) grpc.UnaryServerInterceptor {
 		tx, ctx := startTransaction(ctx, opts.tracer, info.FullMethod)
 		defer tx.End()
 
-		// TODO(axw) define context schema for RPC,
+		// TODO(axw) define span context schema for RPC,
 		// including at least the peer address.
 
 		defer func() {
@@ -128,7 +128,7 @@ func NewStreamServerInterceptor(o ...ServerOption) grpc.StreamServerInterceptor 
 		tx, ctx := startTransaction(ctx, opts.tracer, info.FullMethod)
 		defer tx.End()
 
-		// TODO(axw) define context schema for RPC,
+		// TODO(axw) define span context schema for RPC,
 		// including at least the peer address.
 
 		defer func() {
