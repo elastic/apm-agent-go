@@ -98,6 +98,30 @@ func TestInstrumentUnknownRoute(t *testing.T) {
 	assert.Equal(t, "PUT unknown route", transactions[1].Name)
 }
 
+func TestInstrumentWithPanicPropagation(t *testing.T) {
+	for _, propagate := range []bool{false, true} {
+		t.Run(fmt.Sprint(propagate), func(t *testing.T) {
+			opts := []apmgorilla.Option{
+				apmgorilla.WithTracer(apmtest.DiscardTracer),
+			}
+			assertPanics := assert.NotPanics
+			if propagate {
+				opts = append(opts, apmgorilla.WithPanicPropagation())
+				assertPanics = assert.Panics
+			}
+			r := mux.NewRouter()
+			apmgorilla.Instrument(r, opts...)
+			r.HandleFunc("/", func(http.ResponseWriter, *http.Request) {
+				panic("boom")
+			})
+			assertPanics(t, func() {
+				w := doRequest(r, "GET", "http://server.testing/")
+				assert.Equal(t, http.StatusInternalServerError, w.Code)
+			})
+		})
+	}
+}
+
 func articleHandler(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	w.Write([]byte(fmt.Sprintf("%s:%s", vars["category"], vars["id"])))

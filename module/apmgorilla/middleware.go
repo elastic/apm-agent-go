@@ -84,13 +84,16 @@ func Middleware(o ...Option) mux.MiddlewareFunc {
 	if opts.requestIgnorer == nil {
 		opts.requestIgnorer = apmhttp.NewDynamicServerRequestIgnorer(opts.tracer)
 	}
+	apmhttpOptions := []apmhttp.ServerOption{
+		apmhttp.WithTracer(opts.tracer),
+		apmhttp.WithServerRequestName(routeRequestName),
+		apmhttp.WithServerRequestIgnorer(opts.requestIgnorer),
+	}
+	if opts.panicPropagation {
+		apmhttpOptions = append(apmhttpOptions, apmhttp.WithPanicPropagation())
+	}
 	return func(h http.Handler) http.Handler {
-		return apmhttp.Wrap(
-			h,
-			apmhttp.WithTracer(opts.tracer),
-			apmhttp.WithServerRequestName(routeRequestName),
-			apmhttp.WithServerRequestIgnorer(opts.requestIgnorer),
-		)
+		return apmhttp.Wrap(h, apmhttpOptions...)
 	}
 }
 
@@ -105,8 +108,9 @@ func routeRequestName(req *http.Request) string {
 }
 
 type options struct {
-	tracer         *apm.Tracer
-	requestIgnorer apmhttp.RequestIgnorerFunc
+	tracer           *apm.Tracer
+	requestIgnorer   apmhttp.RequestIgnorerFunc
+	panicPropagation bool
 }
 
 // Option sets options for tracing.
@@ -132,5 +136,14 @@ func WithRequestIgnorer(r apmhttp.RequestIgnorerFunc) Option {
 	}
 	return func(o *options) {
 		o.requestIgnorer = r
+	}
+}
+
+// WithPanicPropagation returns a Option which enable panic propagation.
+// Any panic will be recovered and recorded as an error in a transaction, then
+// panic will be caused again.
+func WithPanicPropagation() Option {
+	return func(o *options) {
+		o.panicPropagation = true
 	}
 }
