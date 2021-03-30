@@ -155,7 +155,7 @@ func (bc *BodyCapturer) setContext(out *model.RequestBody) bool {
 		return true
 	}
 
-	body, n := bc.getBufferTruncated(bc.mu.RLocker())
+	body, n := bc.getBufferTruncated()
 	if n == stringLengthLimit {
 		// There is at least enough data in the buffer
 		// to hit the string length limit, so we don't
@@ -190,9 +190,9 @@ func (bc *BodyCapturer) setContext(out *model.RequestBody) bool {
 	return body != ""
 }
 
-func (bc *BodyCapturer) getBufferTruncated(mu sync.Locker) (string, int) {
-	mu.Lock()
-	defer mu.Unlock()
+func (bc *BodyCapturer) getBufferTruncated() (string, int) {
+	bc.mu.RLock()
+	defer bc.mu.RUnlock()
 	return bc.getBufferTruncatedLocked()
 }
 
