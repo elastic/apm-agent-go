@@ -90,11 +90,15 @@ type bodyCapturerReadCloser struct {
 
 // Close closes the original body.
 func (bc bodyCapturerReadCloser) Close() error {
+	bc.mu.Lock()
+	defer bc.mu.Unlock()
 	return bc.originalBody.Close()
 }
 
 // Read reads from the original body, copying into bc.buffer.
 func (bc bodyCapturerReadCloser) Read(p []byte) (int, error) {
+	bc.mu.Lock()
+	defer bc.mu.Unlock()
 	n, err := bc.originalBody.Read(p)
 	if n > 0 {
 		bc.buffer.Write(p[:n])
@@ -110,6 +114,7 @@ func (bc bodyCapturerReadCloser) Read(p []byte) (int, error) {
 type BodyCapturer struct {
 	captureBody CaptureBodyMode
 
+	mu           sync.RWMutex
 	readbuf      [bytes.MinRead]byte
 	buffer       limitedBuffer
 	request      *http.Request
@@ -125,6 +130,8 @@ func (bc *BodyCapturer) Discard() {
 	if bc == nil {
 		return
 	}
+	bc.mu.Lock()
+	defer bc.mu.Unlock()
 	bc.request.Body = bc.originalBody
 	bodyCapturerPool.Put(bc)
 }
@@ -148,7 +155,7 @@ func (bc *BodyCapturer) setContext(out *model.RequestBody) bool {
 		return true
 	}
 
-	body, n := apmstrings.Truncate(bc.buffer.String(), stringLengthLimit)
+	body, n := bc.getBufferTruncated()
 	if n == stringLengthLimit {
 		// There is at least enough data in the buffer
 		// to hit the string length limit, so we don't
@@ -156,6 +163,9 @@ func (bc *BodyCapturer) setContext(out *model.RequestBody) bool {
 		out.Raw = body
 		return true
 	}
+
+	bc.mu.Lock()
+	defer bc.mu.Unlock()
 
 	// Read the remaining body, limiting to the maximum number of bytes
 	// that could make up the truncation limit. We ignore any errors here,
@@ -175,9 +185,19 @@ func (bc *BodyCapturer) setContext(out *model.RequestBody) bool {
 			break
 		}
 	}
-	body, _ = apmstrings.Truncate(bc.buffer.String(), stringLengthLimit)
+	body, _ = bc.getBufferTruncatedLocked()
 	out.Raw = body
 	return body != ""
+}
+
+func (bc *BodyCapturer) getBufferTruncated() (string, int) {
+	bc.mu.RLock()
+	defer bc.mu.RUnlock()
+	return bc.getBufferTruncatedLocked()
+}
+
+func (bc *BodyCapturer) getBufferTruncatedLocked() (string, int) {
+	return apmstrings.Truncate(bc.buffer.String(), stringLengthLimit)
 }
 
 type limitedBuffer struct {
