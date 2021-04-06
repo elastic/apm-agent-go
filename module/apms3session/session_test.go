@@ -26,9 +26,10 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/stretchr/testify/require"
+	"gotest.tools/assert"
+
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/apmtest"
-	"gotest.tools/assert"
 )
 
 func TestSession(t *testing.T) {
