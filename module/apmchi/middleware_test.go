@@ -24,7 +24,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi"
 	"github.com/stretchr/testify/assert"
 
 	"go.elastic.co/apm/apmtest"

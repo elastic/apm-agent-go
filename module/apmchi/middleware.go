@@ -20,7 +20,7 @@ package apmchi // import "go.elastic.co/apm/module/apmchi"
 import (
 	"net/http"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi"
 
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/module/apmhttp"
