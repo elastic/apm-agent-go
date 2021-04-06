@@ -54,6 +54,8 @@ func WithTracer(t *apm.Tracer) Option {
 	}
 }
 
+// WrapSession wraps the provided s3 session with handlers that hook into the
+// aws sdk's request lifecycle.
 func WrapSession(s *session.Session, opts ...Option) *session.Session {
 	h := &handlers{
 		tracer: apm.DefaultTracer,
