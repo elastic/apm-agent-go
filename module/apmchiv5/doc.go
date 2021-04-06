@@ -15,6 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Package apmchi provides middleware for the Chi router,
+// Package apmchiv5 provides middleware for the v5 Chi router,
 // for tracing HTTP requests.
 package apmchiv5 // import "go.elastic.co/apm/module/apmchiv5"
