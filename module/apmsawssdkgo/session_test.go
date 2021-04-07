@@ -57,7 +57,7 @@ func TestS3(t *testing.T) {
 	require.Len(t, errors, 1)
 
 	span := spans[0]
-	assert.Equal(t, "s3 PutObject BUCKET", span.Name)
+	assert.Equal(t, "S3 PutObject BUCKET", span.Name)
 	assert.Equal(t, spanType, span.Type)
 	assert.Equal(t, spanSubtype, span.Subtype)
 	assert.Equal(t, "PutObject", span.Action)

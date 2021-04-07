@@ -79,7 +79,7 @@ func send(req *request.Request) {
 
 	bucketName := getBucketName(req)
 
-	spanName := spanSubtype + " " + req.Operation.Name + " " + bucketName
+	spanName := req.ClientInfo.ServiceID + " " + req.Operation.Name + " " + bucketName
 	span := tx.StartSpan(spanName, spanType, apm.SpanFromContext(ctx))
 	if !span.Dropped() {
 		ctx = apm.ContextWithSpan(ctx, span)
