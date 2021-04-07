@@ -43,11 +43,11 @@ func init() {
 // aws sdk's request lifecycle.
 func WrapSession(s *session.Session) *session.Session {
 	s.Handlers.Send.PushFrontNamed(request.NamedHandler{
-		Name: "go.elastic.co/apm/module/apms3session/send",
+		Name: "go.elastic.co/apm/module/apmawssdkgo/send",
 		Fn:   send,
 	})
 	s.Handlers.Complete.PushBackNamed(request.NamedHandler{
-		Name: "go.elastic.co/apm/module/apms3session/complete",
+		Name: "go.elastic.co/apm/module/apmawssdkgo/complete",
 		Fn:   complete,
 	})
 
