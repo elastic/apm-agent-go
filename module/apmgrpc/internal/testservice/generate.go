@@ -15,13 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmtest // import "go.elastic.co/apm/apmtest"
+//go:generate protoc --go_out=plugins=grpc:. --go_opt=paths=source_relative testservice.proto
 
-import "os"
-
-func init() {
-	if os.Getenv("ELASTIC_APM_CLOUD_PROVIDER") == "" {
-		// Disable cloud metadata sniffing by default in tests.
-		os.Setenv("ELASTIC_APM_CLOUD_PROVIDER", "none")
-	}
-}
+package testservice

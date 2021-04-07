@@ -22,6 +22,8 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"os"
+	"strings"
 
 	"go.elastic.co/apm/model"
 )
@@ -32,6 +34,12 @@ const (
 
 // See: https://docs.microsoft.com/en-us/azure/virtual-machines/windows/instance-metadata-service
 func getAzureCloudMetadata(ctx context.Context, client *http.Client, out *model.Cloud) error {
+	// First check for Azure App Service environment variables, which can
+	// be done without performing any network requests.
+	if getAzureAppServiceCloudMetadata(ctx, out) {
+		return nil
+	}
+
 	req, err := http.NewRequest("GET", azureMetadataURL, nil)
 	if err != nil {
 		return err
@@ -75,4 +83,47 @@ func getAzureCloudMetadata(ctx context.Context, client *http.Client, out *model.
 		out.Account = &model.CloudAccount{ID: azureMetadata.SubscriptionID}
 	}
 	return nil
+}
+
+func getAzureAppServiceCloudMetadata(ctx context.Context, out *model.Cloud) bool {
+	// WEBSITE_OWNER_NAME has the form:
+	//    {subscription id}+{app service plan resource group}-{region}webspace{.*}
+	websiteOwnerName := os.Getenv("WEBSITE_OWNER_NAME")
+	if websiteOwnerName == "" {
+		return false
+	}
+	websiteInstanceID := os.Getenv("WEBSITE_INSTANCE_ID")
+	if websiteInstanceID == "" {
+		return false
+	}
+	websiteSiteName := os.Getenv("WEBSITE_SITE_NAME")
+	if websiteSiteName == "" {
+		return false
+	}
+	websiteResourceGroup := os.Getenv("WEBSITE_RESOURCE_GROUP")
+	if websiteResourceGroup == "" {
+		return false
+	}
+
+	plus := strings.IndexRune(websiteOwnerName, '+')
+	if plus == -1 {
+		return false
+	}
+	out.Account = &model.CloudAccount{ID: websiteOwnerName[:plus]}
+	websiteOwnerName = websiteOwnerName[plus+1:]
+
+	webspace := strings.LastIndex(websiteOwnerName, "webspace")
+	if webspace == -1 {
+		return false
+	}
+	websiteOwnerName = websiteOwnerName[:webspace]
+
+	hyphen := strings.LastIndex(websiteOwnerName, "-")
+	if hyphen == -1 {
+		return false
+	}
+	out.Region = websiteOwnerName[hyphen+1:]
+	out.Instance = &model.CloudInstance{ID: websiteInstanceID, Name: websiteSiteName}
+	out.Project = &model.CloudProject{Name: websiteResourceGroup}
+	return true
 }

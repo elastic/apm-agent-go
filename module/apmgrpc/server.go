@@ -41,9 +41,9 @@ var (
 // NewUnaryServerInterceptor returns a grpc.UnaryServerInterceptor that
 // traces gRPC requests with the given options.
 //
-// The interceptor will trace transactions with the "grpc" type for each
-// incoming request. The transaction will be added to the context, so
-// server methods can use apm.StartSpan with the provided context.
+// The interceptor will trace transactions with the "request" type for
+// each incoming request. The transaction will be added to the context,
+// so server methods can use apm.StartSpan with the provided context.
 //
 // By default, the interceptor will trace with apm.DefaultTracer,
 // and will not recover any panics. Use WithTracer to specify an
@@ -53,6 +53,7 @@ func NewUnaryServerInterceptor(o ...ServerOption) grpc.UnaryServerInterceptor {
 		tracer:         apm.DefaultTracer,
 		recover:        false,
 		requestIgnorer: DefaultServerRequestIgnorer(),
+		streamIgnorer:  DefaultServerStreamIgnorer(),
 	}
 	for _, o := range o {
 		o(&opts)
@@ -69,7 +70,7 @@ func NewUnaryServerInterceptor(o ...ServerOption) grpc.UnaryServerInterceptor {
 		tx, ctx := startTransaction(ctx, opts.tracer, info.FullMethod)
 		defer tx.End()
 
-		// TODO(axw) define context schema for RPC,
+		// TODO(axw) define span context schema for RPC,
 		// including at least the peer address.
 
 		defer func() {
@@ -91,6 +92,62 @@ func NewUnaryServerInterceptor(o ...ServerOption) grpc.UnaryServerInterceptor {
 
 		resp, err = handler(ctx, req)
 		return resp, err
+	}
+}
+
+// NewStreamServerInterceptor returns a grpc.StreamServerInterceptor that
+// traces gRPC stream requests with the given options.
+//
+// The interceptor will trace transactions with the "request" type for each
+// incoming stream request. The transaction will be added to the context, so
+// server methods can use apm.StartSpan with the provided context.
+//
+// By default, the interceptor will trace with apm.DefaultTracer, and will
+// not recover any panics. Use WithTracer to specify an alternative tracer,
+// and WithRecovery to enable panic recovery.
+func NewStreamServerInterceptor(o ...ServerOption) grpc.StreamServerInterceptor {
+	opts := serverOptions{
+		tracer:        apm.DefaultTracer,
+		recover:       false,
+		streamIgnorer: DefaultServerStreamIgnorer(),
+	}
+	for _, o := range o {
+		o(&opts)
+	}
+
+	return func(
+		srv interface{},
+		stream grpc.ServerStream,
+		info *grpc.StreamServerInfo,
+		handler grpc.StreamHandler,
+	) (err error) {
+		if !opts.tracer.Recording() || opts.streamIgnorer(info) {
+			return handler(srv, stream)
+		}
+		ctx := stream.Context()
+		tx, ctx := startTransaction(ctx, opts.tracer, info.FullMethod)
+		defer tx.End()
+
+		// TODO(axw) define span context schema for RPC,
+		// including at least the peer address.
+
+		defer func() {
+			r := recover()
+			if r != nil {
+				e := opts.tracer.Recovered(r)
+				e.SetTransaction(tx)
+				e.Context.SetFramework("grpc", grpc.Version)
+				e.Handled = opts.recover
+				e.Send()
+				if opts.recover {
+					err = status.Errorf(codes.Internal, "%s", r)
+				} else {
+					panic(r)
+				}
+			}
+			setTransactionResult(tx, err)
+		}()
+		return handler(srv, stream)
 	}
 }
 
@@ -157,6 +214,7 @@ type serverOptions struct {
 	tracer         *apm.Tracer
 	recover        bool
 	requestIgnorer RequestIgnorerFunc
+	streamIgnorer  StreamIgnorerFunc
 }
 
 // ServerOption sets options for server-side tracing.
@@ -199,5 +257,21 @@ func WithServerRequestIgnorer(r RequestIgnorerFunc) ServerOption {
 	}
 	return func(o *serverOptions) {
 		o.requestIgnorer = r
+	}
+}
+
+// StreamIgnorerFunc is the type of a function for use in
+// WithServerStreamIgnorer.
+type StreamIgnorerFunc func(*grpc.StreamServerInfo) bool
+
+// WithServerStreamIgnorer returns a ServerOption which sets s as the
+// function to use to determine whether or not a server stream request
+// should be ignored. If s is nil, all stream requests will be reported.
+func WithServerStreamIgnorer(s StreamIgnorerFunc) ServerOption {
+	if s == nil {
+		s = IgnoreNoneStream
+	}
+	return func(o *serverOptions) {
+		o.streamIgnorer = s
 	}
 }

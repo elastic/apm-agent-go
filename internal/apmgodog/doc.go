@@ -15,13 +15,5 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmtest // import "go.elastic.co/apm/apmtest"
-
-import "os"
-
-func init() {
-	if os.Getenv("ELASTIC_APM_CLOUD_PROVIDER") == "" {
-		// Disable cloud metadata sniffing by default in tests.
-		os.Setenv("ELASTIC_APM_CLOUD_PROVIDER", "none")
-	}
-}
+// Package apmgodog implements the Gherkin feature spec tests.
+package apmgodog

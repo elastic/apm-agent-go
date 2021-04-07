@@ -33,7 +33,7 @@ pipeline {
     issueCommentTrigger('(?i).*(?:jenkins\\W+)?run\\W+(?:the\\W+)?(?:benchmark\\W+)?tests(?:\\W+please)?.*')
   }
   parameters {
-    string(name: 'GO_VERSION', defaultValue: "1.14.2", description: "Go version to use.")
+    string(name: 'GO_VERSION', defaultValue: "1.15.10", description: "Go version to use.")
     booleanParam(name: 'Run_As_Master_Branch', defaultValue: false, description: 'Allow to run any steps on a PR, some steps normally only run on master branch.')
     booleanParam(name: 'test_ci', defaultValue: true, description: 'Enable test')
     booleanParam(name: 'docker_test_ci', defaultValue: true, description: 'Enable run docker tests')
@@ -169,18 +169,16 @@ pipeline {
           agent { label 'windows-2019-immutable' }
           options { skipDefaultCheckout() }
           environment {
-            GOROOT = "c:\\Go"
-            GOPATH = "${env.WORKSPACE}"
-            PATH = "${env.PATH};${env.GOROOT}\\bin;${env.GOPATH}\\bin"
             GO_VERSION = "${params.GO_VERSION}"
           }
           steps {
             withGithubNotify(context: 'Build-Test - Windows') {
               cleanDir("${WORKSPACE}/${BASE_DIR}")
               unstash 'source'
-              dir("${BASE_DIR}"){
-                bat script: 'scripts/jenkins/windows/install-tools.bat', label: 'Install tools'
-                bat script: 'scripts/jenkins/windows/build-test.bat', label: 'Build and test'
+              withGoEnv(version: "${env.GO_VERSION}"){
+                dir("${BASE_DIR}"){
+                  bat script: 'scripts/jenkins/windows/build-test.bat', label: 'Build and test'
+                }
               }
             }
           }
@@ -191,7 +189,7 @@ pipeline {
           }
         }
         stage('OSX') {
-          agent { label 'macosx' }
+          agent { label 'macosx && x86_64' }
           options { skipDefaultCheckout() }
           environment {
             GO_VERSION = "${params.GO_VERSION}"

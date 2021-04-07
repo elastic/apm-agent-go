@@ -20,9 +20,11 @@
 package apmgrpc_test
 
 import (
+	"io"
 	"net"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -34,6 +36,7 @@ import (
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/module/apmgrpc/internal/testservice"
 	"go.elastic.co/apm/module/apmhttp"
 	"go.elastic.co/apm/transport/transporttest"
 )
@@ -55,11 +58,11 @@ func testClientSpan(t *testing.T, traceparentHeaders ...string) {
 
 	serverTracer, serverTransport := transporttest.NewRecorderTracer()
 	defer serverTracer.Close()
-	s, _, addr := newServer(t, serverTracer)
+	s, _, addr := newGreeterServer(t, serverTracer)
 	defer s.GracefulStop()
 	tcpAddr := addr.(*net.TCPAddr)
 
-	conn, client := newClient(t, addr)
+	conn, client := newGreeterClient(t, addr)
 	defer conn.Close()
 	resp, err := client.SayHello(context.Background(), &pb.HelloRequest{Name: "birita"})
 	require.NoError(t, err)
@@ -131,10 +134,10 @@ func testClientSpan(t *testing.T, traceparentHeaders ...string) {
 func TestClientSpanDropped(t *testing.T) {
 	serverTracer := apmtest.NewRecordingTracer()
 	defer serverTracer.Close()
-	s, _, addr := newServer(t, serverTracer.Tracer)
+	s, _, addr := newGreeterServer(t, serverTracer.Tracer)
 	defer s.GracefulStop()
 
-	conn, client := newClient(t, addr)
+	conn, client := newGreeterClient(t, addr)
 	defer conn.Close()
 
 	clientTracer := apmtest.NewRecordingTracer()
@@ -162,10 +165,10 @@ func TestClientSpanDropped(t *testing.T) {
 func TestClientTransactionUnsampled(t *testing.T) {
 	serverTracer := apmtest.NewRecordingTracer()
 	defer serverTracer.Close()
-	s, _, addr := newServer(t, serverTracer.Tracer)
+	s, _, addr := newGreeterServer(t, serverTracer.Tracer)
 	defer s.GracefulStop()
 
-	conn, client := newClient(t, addr)
+	conn, client := newGreeterClient(t, addr)
 	defer conn.Close()
 
 	clientTracer := apmtest.NewRecordingTracer()
@@ -186,10 +189,10 @@ func TestClientTransactionUnsampled(t *testing.T) {
 }
 
 func TestClientOutcome(t *testing.T) {
-	s, helloworldServer, addr := newServer(t, apmtest.DiscardTracer)
+	s, helloworldServer, addr := newGreeterServer(t, apmtest.DiscardTracer)
 	defer s.GracefulStop()
 
-	conn, client := newClient(t, addr)
+	conn, client := newGreeterClient(t, addr)
 	defer conn.Close()
 
 	clientTracer := apmtest.NewRecordingTracer()
@@ -209,4 +212,65 @@ func TestClientOutcome(t *testing.T) {
 	assert.Equal(t, "success", spans[0].Outcome)
 	assert.Equal(t, "failure", spans[1].Outcome) // unknown error
 	assert.Equal(t, "failure", spans[2].Outcome)
+}
+
+func TestStreamClientSpan(t *testing.T) {
+	clientTracer, clientTransport := transporttest.NewRecorderTracer()
+	defer clientTracer.Close()
+
+	serverTracer, serverTransport := transporttest.NewRecorderTracer()
+	defer serverTracer.Close()
+	s, _, addr := newAccumulatorServer(t, serverTracer)
+	defer s.GracefulStop()
+
+	conn, client := newAccumulatorClient(t, addr)
+	defer conn.Close()
+
+	clientTransaction := clientTracer.StartTransaction("name", "type")
+	ctx := apm.ContextWithTransaction(context.Background(), clientTransaction)
+
+	stream, err := client.Accumulate(ctx)
+	require.NoError(t, err)
+	err = stream.Send(&testservice.AccumulateRequest{Value: 123})
+	require.NoError(t, err)
+	reply, err := stream.Recv()
+	require.NoError(t, err)
+	assert.Equal(t, int64(123), reply.Value)
+
+	err = stream.CloseSend()
+	require.NoError(t, err)
+	_, err = stream.Recv()
+	assert.Equal(t, io.EOF, err)
+
+	timeout := time.NewTimer(10 * time.Second)
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer timeout.Stop()
+	defer ticker.Stop()
+	var done bool
+	for !done {
+		select {
+		case <-ticker.C:
+			clientTracer.Flush(nil)
+			if len(clientTransport.Payloads().Spans) > 0 {
+				done = true
+			}
+		case <-timeout.C:
+			t.Fatal("timed out waiting for client span to end")
+		}
+	}
+	clientTransaction.End()
+
+	clientTracer.Flush(nil)
+	clientPayloads := clientTransport.Payloads()
+	require.Len(t, clientPayloads.Transactions, 1)
+	require.Len(t, clientPayloads.Spans, 1)
+	assert.Equal(t, "/go.elastic.co.apm.module.apmgrpc.testservice.Accumulator/Accumulate", clientPayloads.Spans[0].Name)
+	assert.Equal(t, "external", clientPayloads.Spans[0].Type)
+	assert.Equal(t, "grpc", clientPayloads.Spans[0].Subtype)
+
+	serverTracer.Flush(nil)
+	serverPayloads := serverTransport.Payloads()
+	require.Len(t, serverPayloads.Transactions, 1)
+	assert.Equal(t, clientPayloads.Spans[0].ID, serverPayloads.Transactions[0].ParentID)
+	assert.Equal(t, clientPayloads.Spans[0].TraceID, serverPayloads.Transactions[0].TraceID)
 }
