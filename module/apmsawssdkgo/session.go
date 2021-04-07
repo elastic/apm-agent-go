@@ -15,11 +15,14 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apms3session // import "go.elastic.co/apm/module/apms3session"
+package apmawssdkgo // import "go.elastic.co/apm/module/apmawssdkgo"
 
 import (
-	"fmt"
-	"reflect"
+	"bytes"
+	"io"
+	"net/http/httputil"
+	"os"
+	"strings"
 
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/module/apmhttp"
@@ -36,41 +39,16 @@ func init() {
 	)
 }
 
-type handlers struct {
-	tracer *apm.Tracer
-}
-
-// Option sets options for tracing s3 requests.
-type Option func(*handlers)
-
-// WithTracer returns an Option which sets t as the tracer to use for tracing
-// s3 requests.
-func WithTracer(t *apm.Tracer) Option {
-	if t == nil {
-		panic("t == nil")
-	}
-	return func(h *handlers) {
-		h.tracer = t
-	}
-}
-
 // WrapSession wraps the provided s3 session with handlers that hook into the
 // aws sdk's request lifecycle.
-func WrapSession(s *session.Session, opts ...Option) *session.Session {
-	h := &handlers{
-		tracer: apm.DefaultTracer,
-	}
-	for _, o := range opts {
-		o(h)
-	}
-
+func WrapSession(s *session.Session) *session.Session {
 	s.Handlers.Send.PushFrontNamed(request.NamedHandler{
 		Name: "go.elastic.co/apm/module/apms3session/send",
-		Fn:   h.send,
+		Fn:   send,
 	})
 	s.Handlers.Complete.PushBackNamed(request.NamedHandler{
 		Name: "go.elastic.co/apm/module/apms3session/complete",
-		Fn:   h.complete,
+		Fn:   complete,
 	})
 
 	return s
@@ -81,14 +59,12 @@ const (
 	spanSubtype = "s3"
 )
 
-func (h *handlers) send(req *request.Request) {
+func send(req *request.Request) {
 	if req.RetryCount > 0 {
 		return
 	}
 
 	var (
-		bucketName string
-
 		ctx    = req.Context()
 		region = *req.Config.Region
 	)
@@ -98,16 +74,12 @@ func (h *handlers) send(req *request.Request) {
 		return
 	}
 
-	// TODO: All Params structs are required to have a `Bucket` attr. If
-	// there's a better way to get this, I would be overjoyed to avoid
-	// using runtime reflection.
-	params := reflect.ValueOf(req.Params).Elem()
-	if n, ok := params.FieldByName("Bucket").Interface().(*string); ok {
-		bucketName = *n
-	} else {
-		// TODO: How do we want to handle this?
-		fmt.Printf("couldn't reflect Bucket into string %+v\n", req.Params)
+	bucketName := getBucketName(req)
+	byts, err := httputil.DumpRequestOut(req.HTTPRequest, true)
+	if err != nil {
+		panic(err)
 	}
+	io.Copy(os.Stdout, bytes.NewBuffer(byts))
 
 	spanName := spanSubtype + " " + req.Operation.Name + " " + bucketName
 	span := tx.StartSpan(spanName, spanType, apm.SpanFromContext(ctx))
@@ -123,8 +95,6 @@ func (h *handlers) send(req *request.Request) {
 	span.Subtype = spanSubtype
 	span.Action = req.Operation.Name
 
-	destinationAddress := req.ClientInfo.Endpoint
-	span.Context.SetDestinationAddress(destinationAddress, 0)
 	span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
 		Name:     spanSubtype,
 		Resource: bucketName,
@@ -137,7 +107,7 @@ func (h *handlers) send(req *request.Request) {
 	req.SetContext(ctx)
 }
 
-func (h *handlers) complete(req *request.Request) {
+func complete(req *request.Request) {
 	ctx := req.Context()
 	span := apm.SpanFromContext(ctx)
 	if span.Dropped() {
@@ -150,4 +120,8 @@ func (h *handlers) complete(req *request.Request) {
 	if err := req.Error; err != nil {
 		apm.CaptureError(ctx, err).Send()
 	}
+}
+
+func getBucketName(req *request.Request) string {
+	strings.Split(req.HTTPRequest.URL.Path[1:], "/")[0]
 }

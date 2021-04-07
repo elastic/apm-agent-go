@@ -15,20 +15,20 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apms3session // import "go.elastic.co/apm/module/apms3session"
+package apmawssdkgo // import "go.elastic.co/apm/module/apmawssdkgo"
 
 import (
+	"bytes"
 	"context"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"go.elastic.co/apm"
 	"go.elastic.co/apm/apmtest"
 )
 
@@ -39,42 +39,35 @@ func TestSession(t *testing.T) {
 		WithDisableSSL(true).
 		WithCredentials(credentials.AnonymousCredentials)
 
-	tracer := apmtest.NewRecordingTracer()
-	defer tracer.Close()
-
-	tx := tracer.StartTransaction("name", "type")
-	ctx := apm.ContextWithTransaction(context.Background(), tx)
-
 	session := session.Must(session.NewSession(cfg))
-	s3api := s3.New(WrapSession(session, WithTracer(tracer.Tracer)))
 
 	bucketName := "BUCKET"
-	s3api.CreateBucketWithContext(ctx, &s3.CreateBucketInput{
-		Bucket: aws.String(bucketName),
+	uploader := s3manager.NewUploader(WrapSession(session))
+	tx, spans, errors := apmtest.WithTransaction(func(ctx context.Context) {
+		uploader.UploadWithContext(ctx, &s3manager.UploadInput{
+			Bucket: aws.String(bucketName),
+			Key:    aws.String("some key"),
+			Body:   bytes.NewBuffer([]byte("some random body")),
+		})
 	})
 
-	tx.End()
-	tracer.Flush(nil)
+	require.Len(t, spans, 1)
+	require.Len(t, errors, 1)
 
-	payloads := tracer.Payloads()
-	require.Len(t, payloads.Spans, 1)
-
-	span := payloads.Spans[0]
-	assert.Equal(t, "s3 CreateBucket BUCKET", span.Name)
+	span := spans[0]
+	assert.Equal(t, "s3 PutObject BUCKET", span.Name)
 	assert.Equal(t, spanType, span.Type)
 	assert.Equal(t, spanSubtype, span.Subtype)
-	assert.Equal(t, "CreateBucket", span.Action)
+	assert.Equal(t, "PutObject", span.Action)
 
 	service := span.Context.Destination.Service
 	assert.Equal(t, "s3", service.Name)
 	assert.Equal(t, bucketName, service.Resource)
 	assert.Equal(t, spanType, service.Type)
-	assert.Equal(t, "http://s3.us-west-2.amazonaws.com", span.Context.Destination.Address)
+	assert.Equal(t, "s3.us-west-2.amazonaws.com", span.Context.Destination.Address)
 
 	require.NotNil(t, span.Context.Destination.Cloud)
 	assert.Equal(t, region, span.Context.Destination.Cloud.Region)
 
-	require.Len(t, payloads.Transactions, 1)
-	transaction := payloads.Transactions[0]
-	assert.Equal(t, transaction.ID, span.ParentID)
+	assert.Equal(t, tx.ID, span.ParentID)
 }

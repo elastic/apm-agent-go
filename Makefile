@@ -81,4 +81,4 @@ update-licenses:
 	go-licenser $(patsubst %, -exclude %, $(GO_LICENSER_EXCLUDE)) .
 
 model/marshal_fastjson.go: model/model.go
-	model/generate.sh
+	go generate ./model
