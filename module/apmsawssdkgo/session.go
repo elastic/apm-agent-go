@@ -18,10 +18,6 @@
 package apmawssdkgo // import "go.elastic.co/apm/module/apmawssdkgo"
 
 import (
-	"bytes"
-	"io"
-	"net/http/httputil"
-	"os"
 	"strings"
 
 	"go.elastic.co/apm"
@@ -54,13 +50,20 @@ func WrapSession(s *session.Session) *session.Session {
 	return s
 }
 
-const (
-	spanType    = "storage"
-	spanSubtype = "s3"
+var (
+	serviceTypeMap = map[string]string{
+		"s3": "storage",
+	}
 )
 
 func send(req *request.Request) {
 	if req.RetryCount > 0 {
+		return
+	}
+
+	spanSubtype := req.ClientInfo.ServiceName
+	spanType, prs := serviceTypeMap[spanSubtype]
+	if !prs {
 		return
 	}
 
@@ -75,11 +78,6 @@ func send(req *request.Request) {
 	}
 
 	bucketName := getBucketName(req)
-	byts, err := httputil.DumpRequestOut(req.HTTPRequest, true)
-	if err != nil {
-		panic(err)
-	}
-	io.Copy(os.Stdout, bytes.NewBuffer(byts))
 
 	spanName := spanSubtype + " " + req.Operation.Name + " " + bucketName
 	span := tx.StartSpan(spanName, spanType, apm.SpanFromContext(ctx))
@@ -123,5 +121,10 @@ func complete(req *request.Request) {
 }
 
 func getBucketName(req *request.Request) string {
-	return strings.Split(req.HTTPRequest.URL.Path[1:], "/")[0]
+	host := req.HTTPRequest.URL.Host
+	if strings.HasPrefix(host, req.ClientInfo.ServiceName) {
+		return strings.Split(req.HTTPRequest.URL.Path[1:], "/")[0]
+	}
+
+	return strings.Split(req.HTTPRequest.URL.Host, ".")[0]
 }

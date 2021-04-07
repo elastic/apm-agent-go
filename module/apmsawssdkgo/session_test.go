@@ -32,7 +32,7 @@ import (
 	"go.elastic.co/apm/apmtest"
 )
 
-func TestSession(t *testing.T) {
+func TestS3(t *testing.T) {
 	region := "us-west-2"
 	cfg := aws.NewConfig().
 		WithRegion(region).
@@ -40,6 +40,8 @@ func TestSession(t *testing.T) {
 		WithCredentials(credentials.AnonymousCredentials)
 
 	session := session.Must(session.NewSession(cfg))
+	spanSubtype := "s3"
+	spanType := serviceTypeMap[spanSubtype]
 
 	bucketName := "BUCKET"
 	uploader := s3manager.NewUploader(WrapSession(session))
