@@ -123,5 +123,5 @@ func complete(req *request.Request) {
 }
 
 func getBucketName(req *request.Request) string {
-	strings.Split(req.HTTPRequest.URL.Path[1:], "/")[0]
+	return strings.Split(req.HTTPRequest.URL.Path[1:], "/")[0]
 }
