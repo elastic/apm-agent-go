@@ -18,6 +18,10 @@
 package apmawssdkgo // import "go.elastic.co/apm/module/apmawssdkgo"
 
 import (
+	"bytes"
+	"encoding/json"
+	"io"
+	"io/ioutil"
 	"strings"
 
 	"go.elastic.co/apm"
@@ -52,7 +56,8 @@ func WrapSession(s *session.Session) *session.Session {
 
 var (
 	serviceTypeMap = map[string]string{
-		"s3": "storage",
+		"s3":       "storage",
+		"dynamodb": "dynamodb",
 	}
 )
 
@@ -68,8 +73,11 @@ func send(req *request.Request) {
 	}
 
 	var (
-		ctx    = req.Context()
-		region = *req.Config.Region
+		err        error
+		targetName string
+		ctx        = req.Context()
+		region     = *req.Config.Region
+		values     = new(dynamoDBValues)
 	)
 
 	tx := apm.TransactionFromContext(ctx)
@@ -77,9 +85,24 @@ func send(req *request.Request) {
 		return
 	}
 
-	bucketName := getBucketName(req)
+	switch spanSubtype {
+	case "s3":
+		targetName = getBucketName(req)
+	case "dynamodb":
+		// Read the request body to parse out the TableName and
+		// Statement, then supply a new io.ReadCloser with a copy of
+		// the original body to the request.
+		req.HTTPRequest.Body, values, err = getDynamoDBValues(req.HTTPRequest.Body)
+		if err != nil {
+			return
+		}
+		targetName = values.TableName
+	default:
+		// Unsupported type
+		return
+	}
 
-	spanName := req.ClientInfo.ServiceID + " " + req.Operation.Name + " " + bucketName
+	spanName := req.ClientInfo.ServiceID + " " + req.Operation.Name + " " + targetName
 	span := tx.StartSpan(spanName, spanType, apm.SpanFromContext(ctx))
 	if !span.Dropped() {
 		ctx = apm.ContextWithSpan(ctx, span)
@@ -95,12 +118,26 @@ func send(req *request.Request) {
 
 	span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
 		Name:     spanSubtype,
-		Resource: bucketName,
+		Resource: targetName,
 		Type:     spanType,
 	})
 	span.Context.SetDestinationCloud(apm.DestinationCloudSpanContext{
 		Region: region,
 	})
+
+	if spanType == "dynamodb" {
+		dbSpanCtx := apm.DatabaseSpanContext{
+			Instance: region,
+			Type:     spanType,
+			// TODO: What do we put here? Most users will just be
+			// grabbing their environment variables.
+			User: "",
+		}
+		if span.Action == "Query" {
+			dbSpanCtx.Statement = values.KeyConditionExpression
+		}
+		span.Context.SetDatabase(dbSpanCtx)
+	}
 
 	req.SetContext(ctx)
 }
@@ -120,11 +157,29 @@ func complete(req *request.Request) {
 	}
 }
 
+type dynamoDBValues struct {
+	TableName string
+	// KeyConditionExpression is only available on Query operations.
+	KeyConditionExpression string
+}
+
+func getDynamoDBValues(r io.ReadCloser) (io.ReadCloser, *dynamoDBValues, error) {
+	defer r.Close()
+
+	body, err := ioutil.ReadAll(r)
+	if err != nil {
+		return nil, nil, err
+	}
+	b := dynamoDBValues{}
+	json.Unmarshal(body, &b)
+
+	return ioutil.NopCloser(bytes.NewBuffer(body)), &b, nil
+}
+
 func getBucketName(req *request.Request) string {
 	host := req.HTTPRequest.URL.Host
 	if strings.HasPrefix(host, req.ClientInfo.ServiceName) {
 		return strings.Split(req.HTTPRequest.URL.Path[1:], "/")[0]
 	}
-
 	return strings.Split(req.HTTPRequest.URL.Host, ".")[0]
 }

@@ -25,6 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -69,6 +70,66 @@ func TestS3(t *testing.T) {
 	assert.Equal(t, "s3.us-west-2.amazonaws.com", span.Context.Destination.Address)
 
 	require.NotNil(t, span.Context.Destination.Cloud)
+	assert.Equal(t, region, span.Context.Destination.Cloud.Region)
+
+	assert.Equal(t, tx.ID, span.ParentID)
+}
+
+type Item struct {
+	Year   int
+	Title  string
+	Plot   string
+	Rating float64
+}
+
+func TestDynamoDB(t *testing.T) {
+	region := "us-west-2"
+	cfg := aws.NewConfig().
+		WithRegion(region).
+		WithDisableSSL(true).
+		WithCredentials(credentials.AnonymousCredentials)
+
+	spanSubtype := "dynamodb"
+	spanType := serviceTypeMap[spanSubtype]
+
+	session := session.Must(session.NewSession(cfg))
+	wrapped := WrapSession(session)
+	svc := dynamodb.New(wrapped)
+
+	tx, spans, errors := apmtest.WithTransaction(func(ctx context.Context) {
+		input := &dynamodb.QueryInput{
+			ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+				":v1": {
+					S: aws.String("No One You Know"),
+				},
+			},
+			KeyConditionExpression: aws.String("Artist = :v1"),
+			TableName:              aws.String("Music"),
+		}
+		svc.QueryWithContext(ctx, input)
+	})
+
+	require.Len(t, spans, 1)
+	require.Len(t, errors, 1)
+
+	span := spans[0]
+	assert.Equal(t, "DynamoDB Query Music", span.Name)
+	assert.Equal(t, spanType, span.Type)
+	assert.Equal(t, spanSubtype, span.Subtype)
+	assert.Equal(t, "Query", span.Action)
+
+	service := span.Context.Destination.Service
+	assert.Equal(t, "dynamodb", service.Name)
+	assert.Equal(t, spanType, service.Type)
+	assert.Equal(t, "dynamodb.us-west-2.amazonaws.com", span.Context.Destination.Address)
+
+	db := span.Context.Database
+	assert.Equal(t, region, db.Instance)
+	// For a Query operation, check the body to see if it's available there.
+	assert.Equal(t, "Artist = :v1", db.Statement)
+	// assert.Equal(t, "anon", db.User)
+	assert.Equal(t, "dynamodb", db.Type)
+
 	assert.Equal(t, region, span.Context.Destination.Cloud.Region)
 
 	assert.Equal(t, tx.ID, span.ParentID)
