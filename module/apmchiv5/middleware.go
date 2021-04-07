@@ -15,6 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
+// +build go1.14
+
 package apmchiv5 // import "go.elastic.co/apm/module/apmchiv5"
 
 import (
