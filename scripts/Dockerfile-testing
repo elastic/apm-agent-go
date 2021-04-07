@@ -5,6 +5,7 @@ ENV GO111MODULE=on
 COPY go.mod go.sum /go/src/go.elastic.co/apm/
 COPY internal/apmgodog/go.mod internal/apmgodog/go.sum /go/src/go.elastic.co/apm/internal/apmgodog/
 COPY internal/tracecontexttest/go.mod internal/tracecontexttest/go.sum /go/src/go.elastic.co/apm/internal/tracecontexttest/
+COPY module/apmawssdkgo/go.mod module/apmawssdkgo/go.sum /go/src/go.elastic.co/apm/module/apmawssdkgo/
 COPY module/apmbeego/go.mod module/apmbeego/go.sum /go/src/go.elastic.co/apm/module/apmbeego/
 COPY module/apmchi/go.mod module/apmchi/go.sum /go/src/go.elastic.co/apm/module/apmchi/
 COPY module/apmchiv5/go.mod module/apmchiv5/go.sum /go/src/go.elastic.co/apm/module/apmchiv5/
@@ -34,7 +35,6 @@ COPY module/apmot/go.mod module/apmot/go.sum /go/src/go.elastic.co/apm/module/ap
 COPY module/apmprometheus/go.mod module/apmprometheus/go.sum /go/src/go.elastic.co/apm/module/apmprometheus/
 COPY module/apmredigo/go.mod module/apmredigo/go.sum /go/src/go.elastic.co/apm/module/apmredigo/
 COPY module/apmrestful/go.mod module/apmrestful/go.sum /go/src/go.elastic.co/apm/module/apmrestful/
-COPY module/apmsawssdkgo/go.mod module/apmsawssdkgo/go.sum /go/src/go.elastic.co/apm/module/apmsawssdkgo/
 COPY module/apmsql/go.mod module/apmsql/go.sum /go/src/go.elastic.co/apm/module/apmsql/
 COPY module/apmzap/go.mod module/apmzap/go.sum /go/src/go.elastic.co/apm/module/apmzap/
 COPY module/apmzerolog/go.mod module/apmzerolog/go.sum /go/src/go.elastic.co/apm/module/apmzerolog/
@@ -43,6 +43,7 @@ COPY scripts/genmod/go.mod scripts/genmod/go.sum /go/src/go.elastic.co/apm/scrip
 RUN cd /go/src/go.elastic.co/apm && go mod download
 RUN cd /go/src/go.elastic.co/apm/internal/apmgodog && go mod download
 RUN cd /go/src/go.elastic.co/apm/internal/tracecontexttest && go mod download
+RUN cd /go/src/go.elastic.co/apm/module/apmawssdkgo && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmbeego && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmchi && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmchiv5 && go mod download
@@ -72,7 +73,6 @@ RUN cd /go/src/go.elastic.co/apm/module/apmot && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmprometheus && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmredigo && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmrestful && go mod download
-RUN cd /go/src/go.elastic.co/apm/module/apmsawssdkgo && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmsql && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmzap && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmzerolog && go mod download
