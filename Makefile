@@ -5,7 +5,7 @@ GO_LICENSER_EXCLUDE=stacktrace/testdata
 check: precheck check-modules test
 
 .PHONY: precheck
-precheck: check-goimports check-lint check-vet check-dockerfile-testing check-licenses model/marshal_fastjson.go
+precheck: check-goimports check-lint check-vet check-dockerfile-testing check-licenses model/marshal_fastjson.go scripts/Dockerfile-testing
 
 .PHONY: check-goimports
 .PHONY: check-dockerfile-testing
@@ -82,3 +82,6 @@ update-licenses:
 
 model/marshal_fastjson.go: model/model.go
 	go generate ./model
+
+scripts/Dockerfile-testing: $(wildcard module/*)
+	go run ./scripts/gendockerfile.go
