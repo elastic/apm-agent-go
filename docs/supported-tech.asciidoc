@@ -277,3 +277,12 @@ https://github.com/rs/zerolog/releases/tag/v1.12.0[v1.12.0] and greater.
 
 See <<builtin-modules-apmzerolog, module/apmzerolog>> for more information
 about Zerolog integration.
+
+[float]
+[[supported-tech-object-storage]]
+=== Object Storage
+We provide instrumentation for AWS S3. This is usable with
+https://github.com/aws/aws-sdk-go[AWS SDK Go].
+
+See <<builtin-modules-apmawssdkgo, module/apmawssdkgo>> for more information
+about AWS SDK Go instrumentation.
