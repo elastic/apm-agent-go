@@ -84,4 +84,4 @@ model/marshal_fastjson.go: model/model.go
 	go generate ./model
 
 scripts/Dockerfile-testing: $(wildcard module/*)
-	go run ./scripts/gendockerfile.go
+	go generate ./scripts
