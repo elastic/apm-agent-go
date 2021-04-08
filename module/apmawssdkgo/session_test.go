@@ -124,6 +124,11 @@ func TestDynamoDB(t *testing.T) {
 	require.Len(t, errors, 1)
 
 	span := spans[0]
+	err := errors[0]
+
+	assert.Equal(t, tx.ID, err.TransactionID)
+	assert.Equal(t, span.ID, err.ParentID)
+
 	assert.Equal(t, "DynamoDB Query Music", span.Name)
 	assert.Equal(t, spanType, span.Type)
 	assert.Equal(t, spanSubtype, span.Subtype)
@@ -138,7 +143,7 @@ func TestDynamoDB(t *testing.T) {
 	assert.Equal(t, region, db.Instance)
 	// For a Query operation, check the body to see if it's available there.
 	assert.Equal(t, "Artist = :v1", db.Statement)
-	// assert.Equal(t, "anon", db.User)
+	assert.Equal(t, "dynamodb", db.User)
 	assert.Equal(t, "dynamodb", db.Type)
 
 	assert.Equal(t, region, span.Context.Destination.Cloud.Region)
