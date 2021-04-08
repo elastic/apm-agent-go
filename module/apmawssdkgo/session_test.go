@@ -142,7 +142,6 @@ func TestDynamoDB(t *testing.T) {
 	db := span.Context.Database
 	assert.Equal(t, region, db.Instance)
 	assert.Equal(t, "Artist = :v1", db.Statement)
-	assert.Equal(t, "dynamodb", db.User)
 	assert.Equal(t, "dynamodb", db.Type)
 
 	assert.Equal(t, region, span.Context.Destination.Cloud.Region)
