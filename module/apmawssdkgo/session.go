@@ -66,10 +66,7 @@ func send(req *request.Request) {
 		return
 	}
 
-	var (
-		ctx    = req.Context()
-		region = *req.Config.Region
-	)
+	ctx := req.Context()
 
 	tx := apm.TransactionFromContext(ctx)
 	if tx == nil {
@@ -97,9 +94,12 @@ func send(req *request.Request) {
 		Name:     spanSubtype,
 		Resource: bucketName,
 	})
-	span.Context.SetDestinationCloud(apm.DestinationCloudSpanContext{
-		Region: region,
-	})
+
+	if region := req.Config.Region; region != nil {
+		span.Context.SetDestinationCloud(apm.DestinationCloudSpanContext{
+			Region: *region,
+		})
+	}
 
 	req.SetContext(ctx)
 }
