@@ -382,7 +382,7 @@ type DestinationServiceSpanContext struct {
 // DestinationCloudSpanContext holds contextual information about a
 // destination cloud.
 type DestinationCloudSpanContext struct {
-	// Type holds the destination cloud region.
+	// Region holds the destination cloud region.
 	Region string `json:"region,omitempty"`
 }
 
