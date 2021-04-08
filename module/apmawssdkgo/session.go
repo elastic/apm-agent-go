@@ -39,7 +39,8 @@ func init() {
 }
 
 // WrapSession wraps the provided AWS session with handlers that hook into the
-// AWS SDK's request lifecycle.
+// AWS SDK's request lifecycle. Supported services are listed in serviceTypeMap
+// variable below.
 func WrapSession(s *session.Session) *session.Session {
 	s.Handlers.Send.PushFrontNamed(request.NamedHandler{
 		Name: "go.elastic.co/apm/module/apmawssdkgo/send",
@@ -75,7 +76,6 @@ func send(req *request.Request) {
 		err        error
 		targetName string
 		ctx        = req.Context()
-		region     = *req.Config.Region
 		values     = new(dynamoDBValues)
 	)
 
@@ -120,9 +120,14 @@ func send(req *request.Request) {
 		Name:     spanSubtype,
 		Resource: targetName,
 	})
-	span.Context.SetDestinationCloud(apm.DestinationCloudSpanContext{
-		Region: region,
-	})
+
+	var region string
+	if r := req.Config.Region; r != nil {
+		region = *r
+		span.Context.SetDestinationCloud(apm.DestinationCloudSpanContext{
+			Region: region,
+		})
+	}
 
 	if spanType == "dynamodb" {
 		dbSpanCtx := apm.DatabaseSpanContext{
