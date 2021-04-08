@@ -133,9 +133,7 @@ func send(req *request.Request) {
 		dbSpanCtx := apm.DatabaseSpanContext{
 			Instance: region,
 			Type:     spanType,
-			// TODO: What do we put here? Most users will just be
-			// grabbing their environment variables.
-			User: req.ClientInfo.SigningName,
+			User:     req.ClientInfo.SigningName,
 		}
 		if span.Action == "Query" {
 			dbSpanCtx.Statement = values.KeyConditionExpression
