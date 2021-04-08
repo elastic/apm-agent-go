@@ -86,13 +86,6 @@ func TestS3(t *testing.T) {
 	assert.Equal(t, tx.ID, span.ParentID)
 }
 
-type Item struct {
-	Year   int
-	Title  string
-	Plot   string
-	Rating float64
-}
-
 func TestDynamoDB(t *testing.T) {
 	region := "us-west-2"
 	cfg := aws.NewConfig().
