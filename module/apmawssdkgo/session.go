@@ -35,7 +35,8 @@ func init() {
 }
 
 // WrapSession wraps the provided AWS session with handlers that hook into the
-// AWS SDK's request lifecycle.
+// AWS SDK's request lifecycle. Supported services are listed in serviceTypeMap
+// variable below.
 func WrapSession(s *session.Session) *session.Session {
 	s.Handlers.Send.PushFrontNamed(request.NamedHandler{
 		Name: "go.elastic.co/apm/module/apmawssdkgo/send",
