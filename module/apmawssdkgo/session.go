@@ -61,8 +61,8 @@ func send(req *request.Request) {
 	}
 
 	spanSubtype := req.ClientInfo.ServiceName
-	spanType, prs := serviceTypeMap[spanSubtype]
-	if !prs {
+	spanType, ok := serviceTypeMap[spanSubtype]
+	if !ok {
 		return
 	}
 
