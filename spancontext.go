@@ -56,9 +56,6 @@ type DatabaseSpanContext struct {
 
 // DestinationServiceSpanContext holds destination service span span.
 type DestinationServiceSpanContext struct {
-	// Type holds the destination service type.
-	Type string
-
 	// Name holds a name for the destination service, which may be used
 	// for grouping and labeling in service maps.
 	Name string

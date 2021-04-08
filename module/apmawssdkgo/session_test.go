@@ -15,15 +15,20 @@
 // specific language governing permissions and limitations
 // under the License.
 
+// +build go1.13
+
 package apmawssdkgo // import "go.elastic.co/apm/module/apmawssdkgo"
 
 import (
 	"bytes"
 	"context"
+	"net/http"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/client/metadata"
 	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
@@ -35,29 +40,35 @@ import (
 
 func TestS3(t *testing.T) {
 	region := "us-west-2"
+	addr := "s3.testing.invalid"
 	cfg := aws.NewConfig().
+		WithEndpoint(addr).
 		WithRegion(region).
 		WithDisableSSL(true).
 		WithCredentials(credentials.AnonymousCredentials)
 
-	session := session.Must(session.NewSession(cfg))
+	session := WrapSession(session.Must(session.NewSession(cfg)))
 	spanSubtype := "s3"
 	spanType := serviceTypeMap[spanSubtype]
 
 	bucketName := "BUCKET"
-	uploader := s3manager.NewUploader(WrapSession(session))
 	tx, spans, errors := apmtest.WithTransaction(func(ctx context.Context) {
+		uploader := s3manager.NewUploader(session)
 		uploader.UploadWithContext(ctx, &s3manager.UploadInput{
 			Bucket: aws.String(bucketName),
 			Key:    aws.String("some key"),
 			Body:   bytes.NewBuffer([]byte("some random body")),
 		})
 	})
-
-	require.Len(t, spans, 1)
 	require.Len(t, errors, 1)
+	require.Len(t, spans, 1)
 
+	err := errors[0]
 	span := spans[0]
+
+	assert.Equal(t, tx.ID, err.TransactionID)
+	assert.Equal(t, span.ID, err.ParentID)
+
 	assert.Equal(t, "S3 PutObject BUCKET", span.Name)
 	assert.Equal(t, spanType, span.Type)
 	assert.Equal(t, spanSubtype, span.Subtype)
@@ -67,7 +78,7 @@ func TestS3(t *testing.T) {
 	assert.Equal(t, "s3", service.Name)
 	assert.Equal(t, bucketName, service.Resource)
 	assert.Equal(t, spanType, service.Type)
-	assert.Equal(t, "s3.us-west-2.amazonaws.com", span.Context.Destination.Address)
+	assert.Equal(t, addr, span.Context.Destination.Address)
 
 	require.NotNil(t, span.Context.Destination.Cloud)
 	assert.Equal(t, region, span.Context.Destination.Cloud.Region)
@@ -133,4 +144,23 @@ func TestDynamoDB(t *testing.T) {
 	assert.Equal(t, region, span.Context.Destination.Cloud.Region)
 
 	assert.Equal(t, tx.ID, span.ParentID)
+}
+
+// TODO: This isn't an exported function, and should be tested via
+// aws.NewConfig().WithS3ForcePathStyle(), but so far I haven't found an S3
+// request that supports virtual bucket style pathing.
+func TestGetBucketName(t *testing.T) {
+	for _, u := range []string{
+		"https://s3.amazonaws.com/BUCKET/KEY",
+		"https://BUCKET.s3.amazonaws.com/KEY",
+	} {
+		req := &request.Request{
+			ClientInfo: metadata.ClientInfo{ServiceName: "s3"},
+		}
+
+		r, err := http.NewRequest("GET", u, nil)
+		require.NoError(t, err)
+		req.HTTPRequest = r
+		assert.Equal(t, "BUCKET", getBucketName(req))
+	}
 }
