@@ -120,9 +120,9 @@ func send(req *request.Request) {
 		Resource: svc.resource(),
 	})
 
-	if r := req.Config.Region; r != nil {
+	if region := req.Config.Region; region != nil {
 		span.Context.SetDestinationCloud(apm.DestinationCloudSpanContext{
-			Region: *r,
+			Region: *region,
 		})
 	}
 
