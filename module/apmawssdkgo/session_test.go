@@ -22,10 +22,13 @@ package apmawssdkgo // import "go.elastic.co/apm/module/apmawssdkgo"
 import (
 	"bytes"
 	"context"
+	"net/http"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/client/metadata"
 	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/stretchr/testify/assert"
@@ -80,4 +83,23 @@ func TestS3(t *testing.T) {
 	assert.Equal(t, region, span.Context.Destination.Cloud.Region)
 
 	assert.Equal(t, tx.ID, span.ParentID)
+}
+
+// TODO: This isn't an exported function, and should be tested via
+// aws.NewConfig().WithS3ForcePathStyle(), but so far I haven't found an S3
+// request that supports virtual bucket style pathing.
+func TestGetBucketName(t *testing.T) {
+	for _, u := range []string{
+		"https://s3.amazonaws.com/BUCKET/KEY",
+		"https://BUCKET.s3.amazonaws.com/KEY",
+	} {
+		req := &request.Request{
+			ClientInfo: metadata.ClientInfo{ServiceName: "s3"},
+		}
+
+		r, err := http.NewRequest("GET", u, nil)
+		require.NoError(t, err)
+		req.HTTPRequest = r
+		assert.Equal(t, "BUCKET", getBucketName(req))
+	}
 }
