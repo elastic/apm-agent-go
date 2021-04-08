@@ -89,9 +89,9 @@ func send(req *request.Request) {
 
 	var svc service
 	switch spanSubtype {
-	case "s3":
+	case serviceS3:
 		svc = newS3(req)
-	case "dynamodb":
+	case serviceDynamoDB:
 		svc, err = newDynamoDB(req)
 		if err != nil {
 			return
