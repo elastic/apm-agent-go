@@ -42,11 +42,8 @@ func Wrap(h httprouter.Handle, route string, o ...Option) httprouter.Handle {
 			h(w, req, p)
 			return
 		}
-		tx, req := apmhttp.StartTransaction(opts.tracer, req.Method+" "+route, req)
+		tx, body, req := apmhttp.StartTransactionWithBody(opts.tracer, req.Method+" "+route, req)
 		defer tx.End()
-
-		body := opts.tracer.CaptureHTTPRequestBody(req)
-		req.WithContext(apm.ContextWithBodyCapturer(req.Context(), body))
 
 		w, resp := apmhttp.WrapResponseWriter(w)
 		defer func() {

@@ -23,6 +23,8 @@ import (
 	"go.elastic.co/apm/internal/apmcontext"
 )
 
+type bodyCapturerKey struct{}
+
 // ContextWithSpan returns a copy of parent in which the given span
 // is stored, associated with the key ContextSpanKey.
 func ContextWithSpan(parent context.Context, s *Span) context.Context {
@@ -38,7 +40,7 @@ func ContextWithTransaction(parent context.Context, t *Transaction) context.Cont
 // ContextWithBodyCapturer returns a copy of parent in which the given
 // body capturer is stored, associated with the key bodyCapturerKey.
 func ContextWithBodyCapturer(parent context.Context, bc *BodyCapturer) context.Context {
-	return apmcontext.ContextWithBodyCapturer(parent, bc)
+	return context.WithValue(parent, bodyCapturerKey{}, bc)
 }
 
 // SpanFromContext returns the current Span in context, if any. The span must
@@ -58,7 +60,7 @@ func TransactionFromContext(ctx context.Context) *Transaction {
 }
 
 func bodyCapturerFromContext(ctx context.Context) *BodyCapturer {
-	value, _ := apmcontext.BodyCapturerFromContext(ctx).(*BodyCapturer)
+	value, _ := ctx.Value(bodyCapturerKey{}).(*BodyCapturer)
 	return value
 }
 
@@ -143,8 +145,8 @@ func CaptureError(ctx context.Context, err error) *Error {
 		e.Handled = true
 		bc := bodyCapturerFromContext(ctx)
 		if bc != nil {
+			e.Context.SetHTTPRequest(bc.request)
 			e.Context.SetHTTPRequestBody(bc)
-			bc.Discard()
 		}
 		e.SetTransaction(tx)
 		return e

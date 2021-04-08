@@ -18,11 +18,17 @@
 package apmtest // import "go.elastic.co/apm/apmtest"
 
 import (
+	"errors"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/module/apmhttp"
 
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/transport/transporttest"
@@ -134,4 +140,38 @@ func (s *HTTPTestSuite) TestPanicAfterWrite() {
 	e := ps.Errors[0]
 	s.Equal(tx.ID, e.ParentID)
 	s.Equal(resp.StatusCode, e.Context.Response.StatusCode)
+}
+
+// TestCaptureErrorWithRequestBody tests that a CaptureError explicit call
+// inside an HTTP request transaction captures the request body
+func (s *HTTPTestSuite) TestCaptureErrorWithRequestBody() {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+	tracer.SetCaptureBody(apm.CaptureBodyAll)
+
+	mux := http.NewServeMux()
+	mux.Handle("/foo", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		ioutil.ReadAll(req.Body)
+		w.WriteHeader(http.StatusServiceUnavailable)
+		errorMsg := "total explosion"
+		e := apm.CaptureError(req.Context(), errors.New(errorMsg))
+		e.Send()
+		w.Write([]byte(errorMsg))
+	}))
+
+	h := apmhttp.Wrap(mux, apmhttp.WithTracer(tracer))
+	w := httptest.NewRecorder()
+
+	req, _ := http.NewRequest("POST", "http://server.testing/foo", strings.NewReader("foo-body"))
+	req.Header.Set("User-Agent", "apmhttp_test")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.RemoteAddr = "client.testing:1234"
+	h.ServeHTTP(w, req)
+	tracer.Flush(nil)
+
+	payloads := transport.Payloads()
+	tx := payloads.Transactions[0]
+	e := payloads.Errors[0]
+	s.Equal(&model.RequestBody{Raw: "foo-body"}, tx.Context.Request.Body)
+	s.Equal(&model.RequestBody{Raw: "foo-body"}, e.Context.Request.Body)
 }

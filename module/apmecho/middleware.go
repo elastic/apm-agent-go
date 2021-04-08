@@ -70,10 +70,8 @@ func (m *middleware) handle(c echo.Context) error {
 		return m.handler(c)
 	}
 	name := req.Method + " " + c.Path()
-	tx, req := apmhttp.StartTransaction(m.tracer, name, req)
+	tx, body, req := apmhttp.StartTransactionWithBody(m.tracer, name, req)
 	defer tx.End()
-	body := m.tracer.CaptureHTTPRequestBody(req)
-	req.WithContext(apm.ContextWithBodyCapturer(req.Context(), body))
 	c.SetRequest(req)
 
 	resp := c.Response()
