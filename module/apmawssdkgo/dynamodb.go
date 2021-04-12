@@ -18,10 +18,8 @@
 package apmawssdkgo // import "go.elastic.co/apm/module/apmawssdkgo"
 
 import (
-	"bytes"
-	"encoding/json"
-	"io"
-	"io/ioutil"
+	"errors"
+	"reflect"
 
 	"go.elastic.co/apm"
 
@@ -56,7 +54,7 @@ func (d *dynamoDB) setAdditional(span *apm.Span) {
 }
 
 func newDynamoDB(req *request.Request) (*dynamoDB, error) {
-	copyOfBody, values, err := readDynamoDBBody(req.HTTPRequest.Body)
+	values, err := parseDynamoDBParams(req)
 	if err != nil {
 		return nil, err
 	}
@@ -64,23 +62,31 @@ func newDynamoDB(req *request.Request) (*dynamoDB, error) {
 		values.region = *r
 	}
 
-	req.HTTPRequest.Body = copyOfBody
 	values.name = req.ClientInfo.ServiceID + " " + req.Operation.Name + " " + values.TableName
 	return values, nil
 }
 
-// readDynamoDBBody reads the request body to parse out the TableName and
-// KeyConditionExpression, then supply the http.Request with a copy of the
-// original request body.
-func readDynamoDBBody(r io.ReadCloser) (io.ReadCloser, *dynamoDB, error) {
-	defer r.Close()
+// parseDynamoDBParams reads the request Params to parse out the TableName and
+// KeyConditionExpression, if present.
+func parseDynamoDBParams(req *request.Request) (*dynamoDB, error) {
+	b := new(dynamoDB)
 
-	body, err := ioutil.ReadAll(r)
-	if err != nil {
-		return nil, nil, err
+	params := reflect.ValueOf(req.Params).Elem()
+	if v := params.FieldByName("TableName"); v.IsValid() {
+		if n, ok := v.Interface().(*string); ok {
+			b.TableName = *n
+		} else {
+			return nil, errors.New("could not parse TableName")
+		}
+	} else {
+		return nil, errors.New("required field TableName not present")
 	}
-	b := dynamoDB{}
-	json.Unmarshal(body, &b)
 
-	return ioutil.NopCloser(bytes.NewBuffer(body)), &b, nil
+	if v := params.FieldByName("KeyConditionExpression"); v.IsValid() {
+		if n, ok := v.Interface().(*string); ok {
+			b.KeyConditionExpression = *n
+		}
+	}
+
+	return b, nil
 }

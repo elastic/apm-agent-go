@@ -94,6 +94,10 @@ func send(req *request.Request) {
 	case serviceDynamoDB:
 		svc, err = newDynamoDB(req)
 		if err != nil {
+			// The only error case is if TableName is not present
+			// on the struct, but it's a required value.
+			// TODO: How do we handle an error? Or is this being
+			// overly defensive?
 			return
 		}
 	default:
