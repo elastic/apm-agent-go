@@ -56,7 +56,7 @@ const (
 var (
 	serviceTypeMap = map[string]string{
 		serviceS3:       "storage",
-		serviceDynamoDB: "dynamodb",
+		serviceDynamoDB: "db",
 	}
 )
 
