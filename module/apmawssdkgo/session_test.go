@@ -27,6 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -44,8 +45,6 @@ func TestS3(t *testing.T) {
 		WithCredentials(credentials.AnonymousCredentials)
 
 	session := WrapSession(session.Must(session.NewSession(cfg)))
-	spanSubtype := "s3"
-	spanType := serviceTypeMap[spanSubtype]
 
 	// A bucket name in uppercase forces the S3 path style, but lowercase
 	// will use the virtual bucket style. Check that both are properly
@@ -75,14 +74,14 @@ func TestS3(t *testing.T) {
 		assert.Equal(t, span.ID, err.ParentID)
 
 		assert.Equal(t, "S3 PutObject "+tc.bucketName, span.Name)
-		assert.Equal(t, spanType, span.Type)
-		assert.Equal(t, spanSubtype, span.Subtype)
+		assert.Equal(t, "storage", span.Type)
+		assert.Equal(t, "s3", span.Subtype)
 		assert.Equal(t, "PutObject", span.Action)
 
 		service := span.Context.Destination.Service
 		assert.Equal(t, "s3", service.Name)
 		assert.Equal(t, tc.bucketName, service.Resource)
-		assert.Equal(t, spanType, service.Type)
+		assert.Equal(t, "storage", service.Type)
 		assert.Equal(t, tc.addr, span.Context.Destination.Address)
 
 		require.NotNil(t, span.Context.Destination.Cloud)
@@ -90,4 +89,85 @@ func TestS3(t *testing.T) {
 
 		assert.Equal(t, tx.ID, span.ParentID)
 	}
+}
+
+func TestDynamoDB(t *testing.T) {
+	region := "us-west-2"
+	cfg := aws.NewConfig().
+		WithRegion(region).
+		WithDisableSSL(true).
+		WithCredentials(credentials.AnonymousCredentials)
+
+	session := session.Must(session.NewSession(cfg))
+	wrapped := WrapSession(session)
+	svc := dynamodb.New(wrapped)
+
+	for _, tc := range []struct {
+		fn                      func(context.Context)
+		name, action, statement string
+	}{
+		{
+			name:      "DynamoDB Query Music",
+			statement: "Artist = :v1",
+			action:    "Query",
+			fn: func(ctx context.Context) {
+				input := &dynamodb.QueryInput{
+					ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+						":v1": {S: aws.String("No One You Know")},
+					},
+					KeyConditionExpression: aws.String("Artist = :v1"),
+					TableName:              aws.String("Music"),
+				}
+				svc.QueryWithContext(ctx, input)
+			},
+		},
+		{
+			name:      "DynamoDB GetItem Movies",
+			statement: "",
+			action:    "GetItem",
+			fn: func(ctx context.Context) {
+				input := &dynamodb.GetItemInput{
+					TableName: aws.String("Movies"),
+					Key: map[string]*dynamodb.AttributeValue{
+						"Year":  {N: aws.String("2015")},
+						"Title": {S: aws.String("The Big New Movie")},
+					},
+				}
+				svc.GetItemWithContext(ctx, input)
+			},
+		},
+	} {
+		tx, spans, errors := apmtest.WithTransaction(func(ctx context.Context) {
+			tc.fn(ctx)
+		})
+
+		require.Len(t, spans, 1)
+		require.Len(t, errors, 1)
+
+		span := spans[0]
+		err := errors[0]
+
+		assert.Equal(t, tx.ID, err.TransactionID)
+		assert.Equal(t, span.ID, err.ParentID)
+
+		assert.Equal(t, tc.name, span.Name)
+		assert.Equal(t, "db", span.Type)
+		assert.Equal(t, "dynamodb", span.Subtype)
+		assert.Equal(t, tc.action, span.Action)
+
+		service := span.Context.Destination.Service
+		assert.Equal(t, "dynamodb", service.Name)
+		assert.Equal(t, "db", service.Type)
+		assert.Equal(t, "dynamodb.us-west-2.amazonaws.com", span.Context.Destination.Address)
+
+		db := span.Context.Database
+		assert.Equal(t, region, db.Instance)
+		assert.Equal(t, tc.statement, db.Statement)
+		assert.Equal(t, "dynamodb", db.Type)
+
+		assert.Equal(t, region, span.Context.Destination.Cloud.Region)
+
+		assert.Equal(t, tx.ID, span.ParentID)
+	}
+
 }
