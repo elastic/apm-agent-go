@@ -77,11 +77,7 @@ func send(req *request.Request) {
 		return
 	}
 
-	var (
-		err error
-		ctx = req.Context()
-	)
-
+	ctx := req.Context()
 	tx := apm.TransactionFromContext(ctx)
 	if tx == nil {
 		return
@@ -92,14 +88,7 @@ func send(req *request.Request) {
 	case serviceS3:
 		svc = newS3(req)
 	case serviceDynamoDB:
-		svc, err = newDynamoDB(req)
-		if err != nil {
-			// The only error case is if TableName is not present
-			// on the struct, but it's a required value.
-			// TODO: How do we handle an error? Or is this being
-			// overly defensive?
-			return
-		}
+		svc = newDynamoDB(req)
 	default:
 		// Unsupported type
 		return

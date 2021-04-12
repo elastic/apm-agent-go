@@ -18,7 +18,6 @@
 package apmawssdkgo // import "go.elastic.co/apm/module/apmawssdkgo"
 
 import (
-	"errors"
 	"reflect"
 
 	"go.elastic.co/apm"
@@ -53,40 +52,37 @@ func (d *dynamoDB) setAdditional(span *apm.Span) {
 	span.Context.SetDatabase(dbSpanCtx)
 }
 
-func newDynamoDB(req *request.Request) (*dynamoDB, error) {
-	values, err := parseDynamoDBParams(req)
-	if err != nil {
-		return nil, err
-	}
+func newDynamoDB(req *request.Request) *dynamoDB {
+	db := parseDynamoDBParams(req)
+
 	if r := req.Config.Region; r != nil {
-		values.region = *r
+		db.region = *r
 	}
 
-	values.name = req.ClientInfo.ServiceID + " " + req.Operation.Name + " " + values.TableName
-	return values, nil
+	db.name = req.ClientInfo.ServiceID + " " + req.Operation.Name
+	if db.TableName != "" {
+		db.name += " " + db.TableName
+	}
+	return db
 }
 
 // parseDynamoDBParams reads the request Params to parse out the TableName and
 // KeyConditionExpression, if present.
-func parseDynamoDBParams(req *request.Request) (*dynamoDB, error) {
-	b := new(dynamoDB)
+func parseDynamoDBParams(req *request.Request) *dynamoDB {
+	db := new(dynamoDB)
 
 	params := reflect.ValueOf(req.Params).Elem()
 	if v := params.FieldByName("TableName"); v.IsValid() {
-		if n, ok := v.Interface().(*string); ok {
-			b.TableName = *n
-		} else {
-			return nil, errors.New("could not parse TableName")
+		if n, ok := v.Interface().(*string); ok && n != nil {
+			db.TableName = *n
 		}
-	} else {
-		return nil, errors.New("required field TableName not present")
 	}
 
 	if v := params.FieldByName("KeyConditionExpression"); v.IsValid() {
-		if n, ok := v.Interface().(*string); ok {
-			b.KeyConditionExpression = *n
+		if n, ok := v.Interface().(*string); ok && n != nil {
+			db.KeyConditionExpression = *n
 		}
 	}
 
-	return b, nil
+	return db
 }
