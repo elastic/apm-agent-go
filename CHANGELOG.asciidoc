@@ -24,6 +24,8 @@ endif::[]
 https://github.com/elastic/apm-agent-go/compare/v1.11.0...master[View commits]
 
 - module/apmgrpc: fix status code to outcome mapping {pull}902[#(902)]
+- module/apmawssdkgo: add support for instrumenting s3 RPC calls {pull}927[#(927)]
+- module/apmawssdkgo: add support for instrumenting dynamodb RPC calls {pull}928[#(928)]
 
 [[release-notes-1.x]]
 === Go Agent version 1.x

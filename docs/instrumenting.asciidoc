@@ -837,6 +837,14 @@ To create spans for AWS requests, you should wrap the `session.Session` created
 with `session.NewSession` when constructing a client. When executing commands,
 pass in a context containing a transaction.
 
+The following services are supported:
+
+- S3
+- DynamoDB
+
+Passing a `session.Session` wrapped with `apmawssdkgo.WrapSession` to these
+services from the AWS SDK will report spans within the current transaction.
+
 [source,go]
 ----
 import (
