@@ -178,6 +178,9 @@ func (c *Context) SetHTTPRequest(req *http.Request) {
 		HTTPVersion: httpVersion,
 		Cookies:     req.Cookies(),
 	}
+	if c.requestBody.Form == nil && req.Form != nil {
+		c.requestBody.Form = req.Form
+	}
 	c.model.Request = &c.request
 
 	if c.captureHeaders {
