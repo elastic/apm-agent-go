@@ -690,6 +690,18 @@ func (v *DestinationSpanContext) MarshalFastJSON(w *fastjson.Writer) error {
 		}
 		w.String(v.Address)
 	}
+	if v.Cloud != nil {
+		const prefix = ",\"cloud\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		if err := v.Cloud.MarshalFastJSON(w); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
 	if v.Port != 0 {
 		const prefix = ",\"port\":"
 		if first {
@@ -748,6 +760,16 @@ func (v *DestinationServiceSpanContext) MarshalFastJSON(w *fastjson.Writer) erro
 			w.RawString(prefix)
 		}
 		w.String(v.Type)
+	}
+	w.RawByte('}')
+	return nil
+}
+
+func (v *DestinationCloudSpanContext) MarshalFastJSON(w *fastjson.Writer) error {
+	w.RawByte('{')
+	if v.Region != "" {
+		w.RawString("\"region\":")
+		w.String(v.Region)
 	}
 	w.RawByte('}')
 	return nil

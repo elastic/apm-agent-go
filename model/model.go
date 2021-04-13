@@ -360,10 +360,13 @@ type DestinationSpanContext struct {
 
 	// Service holds additional destination service context.
 	Service *DestinationServiceSpanContext `json:"service,omitempty"`
+
+	// Cloud holds additional destination cloud context.
+	Cloud *DestinationCloudSpanContext `json:"cloud,omitempty"`
 }
 
 // DestinationServiceSpanContext holds contextual information about a
-// destination service,.
+// destination service.
 type DestinationServiceSpanContext struct {
 	// Type holds the destination service type.
 	Type string `json:"type,omitempty"`
@@ -374,6 +377,13 @@ type DestinationServiceSpanContext struct {
 	// Resource identifies the destination service
 	// resource, e.g. a URI or message queue name.
 	Resource string `json:"resource,omitempty"`
+}
+
+// DestinationCloudSpanContext holds contextual information about a
+// destination cloud.
+type DestinationCloudSpanContext struct {
+	// Region holds the destination cloud region.
+	Region string `json:"region,omitempty"`
 }
 
 // DatabaseSpanContext holds contextual information for database

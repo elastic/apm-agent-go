@@ -28,6 +28,7 @@ that framework's API. The request context can be used for reporting <<custom-ins
 * <<builtin-modules-apmzerolog>>
 * <<builtin-modules-apmelasticsearch>>
 * <<builtin-modules-apmmongo>>
+* <<builtin-modules-apmawssdkgo>>
 
 [[builtin-modules-apmecho]]
 ==== module/apmecho
@@ -823,5 +824,56 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
 	collection := client.Database("db").Collection("coll")
 	cur, err := collection.Find(req.Context(), bson.D{})
 	...
+}
+----
+
+[[builtin-modules-apmawssdkgo]]
+==== module/apmawssdkgo
+Package apmawssdkgo provides a means of instrumenting the
+https://github.com/aws/aws-sdk-go[AWS SDK Go] session object, so that
+AWS requests are reported as spans within the current transaction.
+
+To create spans for AWS requests, you should wrap the `session.Session` created
+with `session.NewSession` when constructing a client. When executing commands,
+pass in a context containing a transaction.
+
+The following services are supported:
+
+- S3
+- DynamoDB
+
+Passing a `session.Session` wrapped with `apmawssdkgo.WrapSession` to these
+services from the AWS SDK will report spans within the current transaction.
+
+[source,go]
+----
+import (
+	"context"
+	"net/http"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+
+	"go.elastic.co/apm/module/apmawssdkgo"
+)
+
+func main() {
+  session := session.Must(session.NewSession())
+  session = apmawssdkgo.WrapSession(session)
+
+  uploader := s3manager.NewUploader(session)
+  s := &server{uploader}
+  ...
+}
+
+func (s *server) handleRequest(w http.ResponseWriter, req *http.Request) {
+  ctx := req.Context()
+  out, err := s.uploader.UploadWithContext(ctx, &s3manager.UploadInput{
+    Bucket: aws.String("your-bucket"),
+    Key:    aws.String("your-key"),
+    Body:   bytes.NewBuffer([]byte("your-body")),
+  })
+  ...
 }
 ----

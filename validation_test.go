@@ -118,13 +118,18 @@ func TestValidateDatabaseSpanContext(t *testing.T) {
 }
 
 func TestValidateDestinationSpanContext(t *testing.T) {
-	validateSpan(t, func(s *apm.Span) {
-		s.Context.SetDestinationAddress(strings.Repeat("x", 1025), 0)
-		s.Context.SetDestinationService(apm.DestinationServiceSpanContext{
-			Name:     strings.Repeat("x", 1025),
-			Resource: strings.Repeat("x", 1025),
-		})
-	})
+	overlong := strings.Repeat("x", 1025)
+	for _, name := range []string{"", overlong} {
+		for _, resource := range []string{"", overlong} {
+			validateSpan(t, func(s *apm.Span) {
+				s.Context.SetDestinationAddress(overlong, 0)
+				s.Context.SetDestinationService(apm.DestinationServiceSpanContext{
+					Name:     name,
+					Resource: resource,
+				})
+			})
+		}
+	}
 }
 
 func TestValidateContextUser(t *testing.T) {

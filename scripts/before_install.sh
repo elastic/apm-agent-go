@@ -35,6 +35,7 @@ if (! go run scripts/mingoversion.go 1.11 &>/dev/null); then
   pin github.com/ugorji/go v1.1.10
   pin github.com/go-chi/chi v1.5.1
   pin github.com/prometheus/client_golang v1.1.0
+  pin github.com/emicklei/go-restful v2.9.6
 fi
 
 if (! go run scripts/mingoversion.go 1.10 &>/dev/null); then
