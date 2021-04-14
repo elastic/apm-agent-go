@@ -124,17 +124,10 @@ func TestSQS(t *testing.T) {
 			},
 		},
 		{
-			name:     "SQS DELETE from ThatQueue",
-			action:   "delete",
-			resource: "sqs/ThatQueue",
-			ignored:  true,
+			ignored: true,
 			fn: func(ctx context.Context, _ string) {
 				svc.CreateQueueWithContext(ctx, &sqs.CreateQueueInput{
 					QueueName: aws.String("SQS_QUEUE_NAME"),
-					Attributes: map[string]*string{
-						"DelaySeconds":           aws.String("60"),
-						"MessageRetentionPeriod": aws.String("86400"),
-					},
 				})
 			},
 		},
