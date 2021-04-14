@@ -51,12 +51,14 @@ func WrapSession(s *session.Session) *session.Session {
 const (
 	serviceS3       = "s3"
 	serviceDynamoDB = "dynamodb"
+	serviceSQS      = "sqs"
 )
 
 var (
 	serviceTypeMap = map[string]string{
 		serviceS3:       "storage",
 		serviceDynamoDB: "db",
+		serviceSQS:      "messaging",
 	}
 )
 
@@ -83,12 +85,20 @@ func send(req *request.Request) {
 		return
 	}
 
-	var svc service
+	var (
+		svc service
+		err error
+	)
 	switch spanSubtype {
 	case serviceS3:
 		svc = newS3(req)
 	case serviceDynamoDB:
 		svc = newDynamoDB(req)
+	case serviceSQS:
+		if svc, err = newSQS(req); err != nil {
+			// Unsupported method type or queue name.
+			return
+		}
 	default:
 		// Unsupported type
 		return
