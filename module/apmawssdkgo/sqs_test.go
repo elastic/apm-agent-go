@@ -20,7 +20,14 @@
 package apmawssdkgo // import "go.elastic.co/apm/module/apmawssdkgo"
 
 import (
+	"bytes"
 	"context"
+	"io"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
+	"strings"
 	"testing"
 
 	"go.elastic.co/apm/apmtest"
@@ -34,29 +41,19 @@ import (
 )
 
 func TestSQS(t *testing.T) {
-	region := "us-west-2"
-	addr := "sqs.testing.invalid"
-	cfg := aws.NewConfig().
-		WithEndpoint(addr).
-		WithRegion(region).
-		WithDisableSSL(true).
-		WithCredentials(credentials.AnonymousCredentials)
-
-	session := session.Must(session.NewSession(cfg))
-	wrapped := WrapSession(session)
-	svc := sqs.New(wrapped)
 	for _, tc := range []struct {
-		fn                     func(context.Context, string)
-		name, action, resource string
-		queueURL               string
-		ignored                bool
+		fn                                 func(context.Context, *sqs.SQS, string)
+		name, action, resource             string
+		queueURL                           string
+		ignored, hasTraceContext, hasError bool
 	}{
 		{
 			name:     "SQS POLL from MyQueue",
 			action:   "poll",
 			resource: "sqs/MyQueue",
 			queueURL: "https://sqs.testing.invalid/123456789012/MyQueue",
-			fn: func(ctx context.Context, queueURL string) {
+			hasError: true,
+			fn: func(ctx context.Context, svc *sqs.SQS, queueURL string) {
 				svc.ReceiveMessageWithContext(ctx, &sqs.ReceiveMessageInput{
 					QueueUrl: &queueURL,
 					AttributeNames: aws.StringSlice([]string{
@@ -71,11 +68,12 @@ func TestSQS(t *testing.T) {
 			},
 		},
 		{
-			name:     "SQS SEND to OtherQueue",
-			action:   "send",
-			resource: "sqs/OtherQueue",
-			queueURL: "https://sqs.testing.invalid/123456789012/OtherQueue",
-			fn: func(ctx context.Context, queueURL string) {
+			name:            "SQS SEND to OtherQueue",
+			action:          "send",
+			resource:        "sqs/OtherQueue",
+			queueURL:        "https://sqs.testing.invalid/123456789012/OtherQueue",
+			hasTraceContext: true,
+			fn: func(ctx context.Context, svc *sqs.SQS, queueURL string) {
 				svc.SendMessageWithContext(ctx, &sqs.SendMessageInput{
 					QueueUrl: &queueURL,
 					MessageAttributes: map[string]*sqs.MessageAttributeValue{
@@ -89,11 +87,12 @@ func TestSQS(t *testing.T) {
 			},
 		},
 		{
-			name:     "SQS SEND_BATCH to OtherQueue",
-			action:   "send_batch",
-			resource: "sqs/OtherQueue",
-			queueURL: "https://sqs.testing.invalid/123456789012/OtherQueue",
-			fn: func(ctx context.Context, queueURL string) {
+			name:            "SQS SEND_BATCH to OtherQueue",
+			action:          "send_batch",
+			resource:        "sqs/OtherQueue",
+			queueURL:        "https://sqs.testing.invalid/123456789012/OtherQueue",
+			hasTraceContext: true,
+			fn: func(ctx context.Context, svc *sqs.SQS, queueURL string) {
 				svc.SendMessageBatchWithContext(ctx, &sqs.SendMessageBatchInput{
 					QueueUrl: &queueURL,
 					Entries: []*sqs.SendMessageBatchRequestEntry{
@@ -116,7 +115,7 @@ func TestSQS(t *testing.T) {
 			action:   "delete",
 			resource: "sqs/ThatQueue",
 			queueURL: "https://sqs.testing.invalid/123456789012/ThatQueue",
-			fn: func(ctx context.Context, queueURL string) {
+			fn: func(ctx context.Context, svc *sqs.SQS, queueURL string) {
 				svc.DeleteMessageWithContext(ctx, &sqs.DeleteMessageInput{
 					QueueUrl:      &queueURL,
 					ReceiptHandle: aws.String("receiptHandle"),
@@ -125,15 +124,36 @@ func TestSQS(t *testing.T) {
 		},
 		{
 			ignored: true,
-			fn: func(ctx context.Context, _ string) {
+			fn: func(ctx context.Context, svc *sqs.SQS, _ string) {
 				svc.CreateQueueWithContext(ctx, &sqs.CreateQueueInput{
 					QueueName: aws.String("SQS_QUEUE_NAME"),
 				})
 			},
 		},
 	} {
+		buf := new(bytes.Buffer)
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if tc.hasError {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			io.Copy(buf, r.Body)
+		}))
+		defer ts.Close()
+
+		region := "us-west-2"
+		cfg := aws.NewConfig().
+			WithEndpoint(ts.URL).
+			WithRegion(region).
+			WithDisableSSL(true).
+			WithCredentials(credentials.AnonymousCredentials)
+
+		session := session.Must(session.NewSession(cfg))
+		wrapped := WrapSession(session)
+		svc := sqs.New(wrapped)
+
 		tx, spans, errors := apmtest.WithTransaction(func(ctx context.Context) {
-			tc.fn(ctx, tc.queueURL)
+			tc.fn(ctx, svc, tc.queueURL)
 		})
 
 		if tc.ignored {
@@ -142,14 +162,36 @@ func TestSQS(t *testing.T) {
 			return
 		}
 
+		if tc.hasTraceContext {
+			kvs := make(map[string]string)
+			var traceContextPresent bool
+			for _, kvPair := range strings.Split(buf.String(), "&") {
+				kv := strings.Split(kvPair, "=")
+				kvs[kv[0]] = kv[1]
+			}
+			if v, ok := kvs["MessageAttribute.2.Name"]; ok {
+				traceContextPresent = true
+				assert.Equal(t, "traceContext", v)
+				assert.NotEmpty(t, kvs["MessageAttribute.2.Value.StringValue"])
+			}
+			if v, ok := kvs["SendMessageBatchRequestEntry.1.MessageAttribute.2.Name"]; ok {
+				traceContextPresent = true
+				assert.Equal(t, "traceContext", v)
+				assert.NotEmpty(t, kvs["SendMessageBatchRequestEntry.1.MessageAttribute.2.Value.StringValue"])
+			}
+			require.True(t, traceContextPresent)
+		}
+		buf.Reset()
+
 		require.Len(t, spans, 1)
-		require.Len(t, errors, 1)
-
 		span := spans[0]
-		err := errors[0]
 
-		assert.Equal(t, tx.ID, err.TransactionID)
-		assert.Equal(t, span.ID, err.ParentID)
+		if tc.hasError {
+			require.Len(t, errors, 1)
+			err := errors[0]
+			assert.Equal(t, tx.ID, err.TransactionID)
+			assert.Equal(t, span.ID, err.ParentID)
+		}
 
 		assert.Equal(t, tc.name, span.Name)
 		assert.Equal(t, "messaging", span.Type)
@@ -160,7 +202,11 @@ func TestSQS(t *testing.T) {
 		assert.Equal(t, "sqs", service.Name)
 		assert.Equal(t, "messaging", service.Type)
 		assert.Equal(t, tc.resource, service.Resource)
-		assert.Equal(t, "sqs.testing.invalid", span.Context.Destination.Address)
+
+		host, port, err := net.SplitHostPort(ts.URL[7:])
+		require.NoError(t, err)
+		assert.Equal(t, host, span.Context.Destination.Address)
+		assert.Equal(t, port, strconv.Itoa(span.Context.Destination.Port))
 
 		assert.Equal(t, region, span.Context.Destination.Cloud.Region)
 

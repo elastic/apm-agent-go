@@ -22,8 +22,11 @@ import (
 	"strings"
 
 	"go.elastic.co/apm"
+	"go.elastic.co/apm/module/apmhttp"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/service/sqs"
 )
 
 var (
@@ -71,6 +74,45 @@ func (s *apmSQS) resource() string { return s.resourceName }
 func (s *apmSQS) setAdditional(span *apm.Span) {
 	span.Action = s.opName
 	// TODO(stn): record `context.message.queue.name`
+}
+
+// addMessageAttributes adds message attributes to `SendMessage` and
+// `SendMessageBatch` RPC calls. Other SQS RPC calls are ignored.
+func addMessageAttributes(req *request.Request, span *apm.Span) {
+	switch req.Operation.Name {
+	case "SendMessage", "SendMessageBatch":
+		break
+	default:
+		return
+
+	}
+
+	traceContext := span.TraceContext()
+	msgAttr := &sqs.MessageAttributeValue{
+		DataType:    aws.String("String"),
+		StringValue: aws.String(apmhttp.FormatTraceparentHeader(traceContext)),
+	}
+
+	if req.Operation.Name == "SendMessage" {
+		input, ok := req.Params.(*sqs.SendMessageInput)
+		if !ok {
+			return
+		}
+		input.MessageAttributes["traceContext"] = msgAttr
+	} else if req.Operation.Name == "SendMessageBatch" {
+		input, ok := req.Params.(*sqs.SendMessageBatchInput)
+		if !ok {
+			return
+		}
+		for _, entry := range input.Entries {
+			entry.MessageAttributes["traceContext"] = msgAttr
+		}
+	}
+}
+
+func supportedSQSMethod(req *request.Request) bool {
+	_, ok := operationName[req.Operation.Name]
+	return ok
 }
 
 func operationDirection(operationName string) string {

@@ -36,6 +36,10 @@ func init() {
 // AWS SDK's request lifecycle. Supported services are listed in serviceTypeMap
 // variable below.
 func WrapSession(s *session.Session) *session.Session {
+	s.Handlers.Build.PushFrontNamed(request.NamedHandler{
+		Name: "go.elastic.co/apm/module/apmawssdkgo/build",
+		Fn:   build,
+	})
 	s.Handlers.Send.PushFrontNamed(request.NamedHandler{
 		Name: "go.elastic.co/apm/module/apmawssdkgo/send",
 		Fn:   send,
@@ -68,13 +72,49 @@ type service interface {
 	setAdditional(*apm.Span)
 }
 
+func build(req *request.Request) {
+	spanSubtype := req.ClientInfo.ServiceName
+	spanType, ok := serviceTypeMap[spanSubtype]
+	if !ok {
+		return
+	}
+
+	if spanSubtype == serviceSQS && !supportedSQSMethod(req) {
+		// Unsupported SQS method type.
+		return
+	}
+
+	ctx := req.Context()
+	tx := apm.TransactionFromContext(ctx)
+	if tx == nil {
+		return
+	}
+
+	// The span name is added in the `send()` function, after other
+	// handlers have generated the necessary information on the request.
+	span := tx.StartSpan("", spanType, apm.SpanFromContext(ctx))
+	if !span.Dropped() {
+		ctx = apm.ContextWithSpan(ctx, span)
+		defer req.SetContext(ctx)
+	} else {
+		span.End()
+		span = nil
+		return
+	}
+
+	if req.ClientInfo.ServiceName != serviceSQS {
+		return
+	}
+	addMessageAttributes(req, span)
+}
+
 func send(req *request.Request) {
 	if req.RetryCount > 0 {
 		return
 	}
 
 	spanSubtype := req.ClientInfo.ServiceName
-	spanType, ok := serviceTypeMap[spanSubtype]
+	_, ok := serviceTypeMap[spanSubtype]
 	if !ok {
 		return
 	}
@@ -104,7 +144,7 @@ func send(req *request.Request) {
 		return
 	}
 
-	span := tx.StartSpan(svc.spanName(), spanType, apm.SpanFromContext(ctx))
+	span := apm.SpanFromContext(ctx)
 	if !span.Dropped() {
 		ctx = apm.ContextWithSpan(ctx, span)
 		req.HTTPRequest = apmhttp.RequestWithContext(ctx, req.HTTPRequest)
@@ -115,6 +155,7 @@ func send(req *request.Request) {
 		return
 	}
 
+	span.Name = svc.spanName()
 	span.Subtype = spanSubtype
 	span.Action = req.Operation.Name
 
