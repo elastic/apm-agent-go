@@ -841,6 +841,7 @@ The following services are supported:
 
 - S3
 - DynamoDB
+- SQS
 
 Passing a `session.Session` wrapped with `apmawssdkgo.WrapSession` to these
 services from the AWS SDK will report spans within the current transaction.
