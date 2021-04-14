@@ -18,8 +18,6 @@
 package apmtest // import "go.elastic.co/apm/apmtest"
 
 import (
-	"errors"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -27,10 +25,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"go.elastic.co/apm/model"
-	"go.elastic.co/apm/module/apmhttp"
-
 	"go.elastic.co/apm"
+	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/transport/transporttest"
 )
 
@@ -44,6 +40,7 @@ type HTTPTestSuite struct {
 	//   GET /implicit_write (no explicit write on the response)
 	//   GET /panic_before_write (panic without writing response)
 	//   GET /panic_after_write (panic after writing response)
+	//	 POST /explicit_error_capture (explicit CaptureError call)
 	//
 	Handler http.Handler
 
@@ -142,36 +139,24 @@ func (s *HTTPTestSuite) TestPanicAfterWrite() {
 	s.Equal(resp.StatusCode, e.Context.Response.StatusCode)
 }
 
-// TestCaptureErrorWithRequestBody tests that a CaptureError explicit call
+// TestExplicitErrorCapture tests that a CaptureError explicit call
 // inside an HTTP request transaction captures the request body
-func (s *HTTPTestSuite) TestCaptureErrorWithRequestBody() {
-	tracer, transport := transporttest.NewRecorderTracer()
-	defer tracer.Close()
-	tracer.SetCaptureBody(apm.CaptureBodyAll)
+func (s *HTTPTestSuite) TestExplicitErrorCapture() {
+	resp, err := http.Post(
+		s.server.URL+"/explicit_error_capture",
+		"application/x-www-form-urlencoded",
+		strings.NewReader("body"),
+	)
+	require.NoError(s.T(), err)
+	defer resp.Body.Close()
+	s.Equal(http.StatusServiceUnavailable, resp.StatusCode)
 
-	mux := http.NewServeMux()
-	mux.Handle("/foo", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		ioutil.ReadAll(req.Body)
-		w.WriteHeader(http.StatusServiceUnavailable)
-		errorMsg := "total explosion"
-		e := apm.CaptureError(req.Context(), errors.New(errorMsg))
-		e.Send()
-		w.Write([]byte(errorMsg))
-	}))
+	s.Tracer.Flush(nil)
+	ps := s.Recorder.Payloads()
+	require.Len(s.T(), ps.Transactions, 1)
 
-	h := apmhttp.Wrap(mux, apmhttp.WithTracer(tracer))
-	w := httptest.NewRecorder()
-
-	req, _ := http.NewRequest("POST", "http://server.testing/foo", strings.NewReader("foo-body"))
-	req.Header.Set("User-Agent", "apmhttp_test")
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.RemoteAddr = "client.testing:1234"
-	h.ServeHTTP(w, req)
-	tracer.Flush(nil)
-
-	payloads := transport.Payloads()
-	tx := payloads.Transactions[0]
-	e := payloads.Errors[0]
-	s.Equal(&model.RequestBody{Raw: "foo-body"}, tx.Context.Request.Body)
-	s.Equal(&model.RequestBody{Raw: "foo-body"}, e.Context.Request.Body)
+	tx := ps.Transactions[0]
+	e := ps.Errors[0]
+	s.Equal(&model.RequestBody{Raw: "body"}, tx.Context.Request.Body)
+	s.Equal(&model.RequestBody{Raw: "body"}, e.Context.Request.Body)
 }

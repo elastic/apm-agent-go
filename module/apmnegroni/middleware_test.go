@@ -18,6 +18,8 @@
 package apmnegroni_test
 
 import (
+	"errors"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -37,6 +39,7 @@ import (
 
 func TestMiddlewareHTTPSuite(t *testing.T) {
 	tracer, recorder := transporttest.NewRecorderTracer()
+	tracer.SetCaptureBody(apm.CaptureBodyAll)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/implicit_write", func(w http.ResponseWriter, req *http.Request) {})
 	mux.HandleFunc("/panic_before_write", func(w http.ResponseWriter, req *http.Request) {
@@ -45,6 +48,13 @@ func TestMiddlewareHTTPSuite(t *testing.T) {
 	mux.HandleFunc("/panic_after_write", func(w http.ResponseWriter, req *http.Request) {
 		w.Write([]byte("hello, world"))
 		panic("boom")
+	})
+	mux.HandleFunc("/explicit_error_capture", func(w http.ResponseWriter, req *http.Request) {
+		ioutil.ReadAll(req.Body)
+		w.WriteHeader(http.StatusServiceUnavailable)
+		e := apm.CaptureError(req.Context(), errors.New("total explosion"))
+		e.Send()
+		w.Write([]byte(e.Error()))
 	})
 
 	n := negroni.New()

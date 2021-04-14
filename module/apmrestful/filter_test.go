@@ -18,6 +18,8 @@
 package apmrestful_test
 
 import (
+	"errors"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -38,8 +40,9 @@ import (
 
 func TestHandlerHTTPSuite(t *testing.T) {
 	tracer, recorder := transporttest.NewRecorderTracer()
+	tracer.SetCaptureBody(apm.CaptureBodyAll)
 	var ws restful.WebService
-	ws.Path("/").Consumes(restful.MIME_JSON, restful.MIME_XML).Produces(restful.MIME_JSON, restful.MIME_XML)
+	ws.Path("/").Consumes(restful.MIME_JSON, restful.MIME_XML, "application/x-www-form-urlencoded").Produces(restful.MIME_JSON, restful.MIME_XML)
 	ws.Route(ws.GET("/implicit_write").To(func(req *restful.Request, resp *restful.Response) {}))
 	ws.Route(ws.GET("/panic_before_write").To(func(req *restful.Request, resp *restful.Response) {
 		panic("boom")
@@ -47,6 +50,13 @@ func TestHandlerHTTPSuite(t *testing.T) {
 	ws.Route(ws.GET("/panic_after_write").To(func(req *restful.Request, resp *restful.Response) {
 		resp.Write([]byte("hello, world"))
 		panic("boom")
+	}))
+	ws.Route(ws.POST("/explicit_error_capture").To(func(req *restful.Request, resp *restful.Response) {
+		ioutil.ReadAll(req.Request.Body)
+		e := apm.CaptureError(req.Request.Context(), errors.New("total explosion"))
+		e.Send()
+		resp.WriteHeader(http.StatusServiceUnavailable)
+		resp.Write([]byte(e.Error()))
 	}))
 	container := restful.NewContainer()
 	container.Add(&ws)
