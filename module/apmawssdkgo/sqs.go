@@ -27,7 +27,7 @@ import (
 )
 
 var (
-	sqsErrMethodNotSupported = errors.New("method not supported")
+	errSQSMethodNotSupported = errors.New("method not supported")
 	operationName            = map[string]string{
 		"SendMessage":        "send",
 		"SendMessageBatch":   "send_batch",
@@ -44,7 +44,7 @@ type apmSQS struct {
 func newSQS(req *request.Request) (*apmSQS, error) {
 	opName, ok := operationName[req.Operation.Name]
 	if !ok {
-		return nil, sqsErrMethodNotSupported
+		return nil, errSQSMethodNotSupported
 	}
 	name := req.ClientInfo.ServiceID + " " + strings.ToUpper(opName)
 	resourceName := serviceSQS
