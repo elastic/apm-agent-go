@@ -70,6 +70,7 @@ func (s *apmSQS) resource() string { return s.resourceName }
 
 func (s *apmSQS) setAdditional(span *apm.Span) {
 	span.Action = s.opName
+	// TODO(stn): record `context.message.queue.name`
 }
 
 func operationDirection(operationName string) string {
