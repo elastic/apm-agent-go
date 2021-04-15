@@ -118,7 +118,6 @@ func StartTransaction(tracer *apm.Tracer, name string, req *http.Request) (*apm.
 		traceContext.State, _ = ParseTracestateHeader(req.Header[TracestateHeader]...)
 	}
 	tx := tracer.StartTransactionOptions(name, "request", apm.TransactionOptions{TraceContext: traceContext})
-	tx.Context.SetHTTPRequest(req)
 	ctx := apm.ContextWithTransaction(req.Context(), tx)
 	req = RequestWithContext(ctx, req)
 	return tx, req
@@ -132,7 +131,9 @@ func StartTransaction(tracer *apm.Tracer, name string, req *http.Request) (*apm.
 func StartTransactionWithBody(tracer *apm.Tracer, name string, req *http.Request) (*apm.Transaction, *apm.BodyCapturer, *http.Request) {
 	tx, req := StartTransaction(tracer, name, req)
 	bc := tracer.CaptureHTTPRequestBody(req)
-	req = RequestWithContext(apm.ContextWithBodyCapturer(req.Context(), bc), req)
+	if bc != nil {
+		req = RequestWithContext(apm.ContextWithBodyCapturer(req.Context(), bc), req)
+	}
 	return tx, bc, req
 }
 

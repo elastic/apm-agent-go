@@ -49,7 +49,6 @@ func init() {
 
 func TestMiddlewareHTTPSuite(t *testing.T) {
 	tracer, recorder := transporttest.NewRecorderTracer()
-	tracer.SetCaptureBody(apm.CaptureBodyAll)
 	e := gin.New()
 	e.Use(apmgin.Middleware(e, apmgin.WithTracer(tracer)))
 	e.GET("/implicit_write", func(c *gin.Context) {})

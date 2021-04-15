@@ -39,7 +39,6 @@ import (
 
 func TestRouterHTTPSuite(t *testing.T) {
 	tracer, recorder := transporttest.NewRecorderTracer()
-	tracer.SetCaptureBody(apm.CaptureBodyAll)
 	router := apmhttprouter.New(apmhttprouter.WithTracer(tracer))
 	router.GET("/implicit_write", func(http.ResponseWriter, *http.Request, httprouter.Params) {})
 	router.GET("/panic_before_write", func(http.ResponseWriter, *http.Request, httprouter.Params) {

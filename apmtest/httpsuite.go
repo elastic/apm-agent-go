@@ -142,6 +142,7 @@ func (s *HTTPTestSuite) TestPanicAfterWrite() {
 // TestExplicitErrorCapture tests that a CaptureError explicit call
 // inside an HTTP request transaction captures the request body
 func (s *HTTPTestSuite) TestExplicitErrorCapture() {
+	s.Tracer.SetCaptureBody(apm.CaptureBodyAll)
 	resp, err := http.Post(
 		s.server.URL+"/explicit_error_capture",
 		"application/x-www-form-urlencoded",

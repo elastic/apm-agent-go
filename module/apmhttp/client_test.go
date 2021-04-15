@@ -383,37 +383,3 @@ type RoundTripFunc func(*http.Request) (*http.Response, error)
 func (f RoundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
 }
-
-// TestCaptureErrorWithRequestBody tests that a CaptureError explicit call
-// inside an HTTP request transaction captures the request body
-func TestCaptureErrorWithRequestBody(t *testing.T) {
-	tracer, transport := transporttest.NewRecorderTracer()
-	defer tracer.Close()
-	tracer.SetCaptureBody(apm.CaptureBodyAll)
-
-	mux := http.NewServeMux()
-	mux.Handle("/foo", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		ioutil.ReadAll(req.Body)
-		w.WriteHeader(http.StatusServiceUnavailable)
-		errorMsg := "total explosion"
-		e := apm.CaptureError(req.Context(), errors.New(errorMsg))
-		e.Send()
-		w.Write([]byte(errorMsg))
-	}))
-
-	h := apmhttp.Wrap(mux, apmhttp.WithTracer(tracer))
-	w := httptest.NewRecorder()
-
-	req, _ := http.NewRequest("POST", "http://server.testing/foo", strings.NewReader("foo-body"))
-	req.Header.Set("User-Agent", "apmhttp_test")
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.RemoteAddr = "client.testing:1234"
-	h.ServeHTTP(w, req)
-	tracer.Flush(nil)
-
-	payloads := transport.Payloads()
-	tx := payloads.Transactions[0]
-	e := payloads.Errors[0]
-	assert.Equal(t, &model.RequestBody{Raw: "foo-body"}, tx.Context.Request.Body)
-	assert.Equal(t, &model.RequestBody{Raw: "foo-body"}, e.Context.Request.Body)
-}

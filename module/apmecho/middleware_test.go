@@ -40,7 +40,6 @@ import (
 
 func TestMiddlewareHTTPSuite(t *testing.T) {
 	tracer, recorder := transporttest.NewRecorderTracer()
-	tracer.SetCaptureBody(apm.CaptureBodyAll)
 	e := echo.New()
 	e.Use(apmecho.Middleware(apmecho.WithTracer(tracer)))
 	e.GET("/implicit_write", func(c echo.Context) error { return nil })

@@ -136,15 +136,15 @@ func (bc *BodyCapturer) Discard() {
 	bodyCapturerPool.Put(bc)
 }
 
-func (bc *BodyCapturer) setContext(out *model.RequestBody) bool {
-	if bc.request.PostForm != nil {
+func (bc *BodyCapturer) setContext(out *model.RequestBody, req *http.Request) bool {
+	if req.PostForm != nil {
 		// We must copy the map in case we need to
 		// sanitize the values. Ideally we should only
 		// copy if sanitization is necessary, but body
 		// capture shouldn't typically be enabled so
 		// we don't currently optimize this.
-		postForm := make(url.Values, len(bc.request.PostForm))
-		for k, v := range bc.request.PostForm {
+		postForm := make(url.Values, len(req.PostForm))
+		for k, v := range req.PostForm {
 			vcopy := make([]string, len(v))
 			for i := range vcopy {
 				vcopy[i] = truncateString(v[i])

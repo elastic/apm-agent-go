@@ -44,7 +44,6 @@ import (
 
 func TestHandlerHTTPSuite(t *testing.T) {
 	tracer, recorder := transporttest.NewRecorderTracer()
-	tracer.SetCaptureBody(apm.CaptureBodyAll)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/implicit_write", func(w http.ResponseWriter, req *http.Request) {})
 	mux.HandleFunc("/panic_before_write", func(w http.ResponseWriter, req *http.Request) {

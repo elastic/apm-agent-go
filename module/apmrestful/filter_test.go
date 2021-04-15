@@ -40,7 +40,6 @@ import (
 
 func TestHandlerHTTPSuite(t *testing.T) {
 	tracer, recorder := transporttest.NewRecorderTracer()
-	tracer.SetCaptureBody(apm.CaptureBodyAll)
 	var ws restful.WebService
 	ws.Path("/").Consumes(restful.MIME_JSON, restful.MIME_XML, "application/x-www-form-urlencoded").Produces(restful.MIME_JSON, restful.MIME_XML)
 	ws.Route(ws.GET("/implicit_write").To(func(req *restful.Request, resp *restful.Response) {}))
