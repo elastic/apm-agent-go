@@ -20,20 +20,19 @@
 package apmawssdkgo // import "go.elastic.co/apm/module/apmawssdkgo"
 
 import (
-	"bytes"
 	"context"
-	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
-	"strings"
 	"testing"
 
 	"go.elastic.co/apm/apmtest"
+	"go.elastic.co/apm/module/apmhttp"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/stretchr/testify/assert"
@@ -131,13 +130,11 @@ func TestSQS(t *testing.T) {
 			},
 		},
 	} {
-		buf := new(bytes.Buffer)
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if tc.hasError {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
-			io.Copy(buf, r.Body)
 		}))
 		defer ts.Close()
 
@@ -150,6 +147,13 @@ func TestSQS(t *testing.T) {
 
 		session := session.Must(session.NewSession(cfg))
 		wrapped := WrapSession(session)
+		if tc.hasTraceContext {
+			wrapped.Handlers.Build.PushBackNamed(request.NamedHandler{
+				Name: "spy_message_attrs_added",
+				Fn:   testTracingAttributes(t),
+			})
+		}
+
 		svc := sqs.New(wrapped)
 
 		tx, spans, errors := apmtest.WithTransaction(func(ctx context.Context) {
@@ -161,27 +165,6 @@ func TestSQS(t *testing.T) {
 			require.Len(t, errors, 0)
 			return
 		}
-
-		if tc.hasTraceContext {
-			kvs := make(map[string]string)
-			var traceContextPresent bool
-			for _, kvPair := range strings.Split(buf.String(), "&") {
-				kv := strings.Split(kvPair, "=")
-				kvs[kv[0]] = kv[1]
-			}
-			if v, ok := kvs["MessageAttribute.2.Name"]; ok {
-				traceContextPresent = true
-				assert.Equal(t, "traceContext", v)
-				assert.NotEmpty(t, kvs["MessageAttribute.2.Value.StringValue"])
-			}
-			if v, ok := kvs["SendMessageBatchRequestEntry.1.MessageAttribute.2.Name"]; ok {
-				traceContextPresent = true
-				assert.Equal(t, "traceContext", v)
-				assert.NotEmpty(t, kvs["SendMessageBatchRequestEntry.1.MessageAttribute.2.Value.StringValue"])
-			}
-			require.True(t, traceContextPresent)
-		}
-		buf.Reset()
 
 		require.Len(t, spans, 1)
 		span := spans[0]
@@ -211,5 +194,28 @@ func TestSQS(t *testing.T) {
 		assert.Equal(t, region, span.Context.Destination.Cloud.Region)
 
 		assert.Equal(t, tx.ID, span.ParentID)
+	}
+}
+
+func testTracingAttributes(t *testing.T) func(*request.Request) {
+	return func(req *request.Request) {
+		testAttrs := func(t *testing.T, attrs map[string]*sqs.MessageAttributeValue) {
+			assert.Contains(t, attrs, apmhttp.W3CTraceparentHeader)
+			assert.Contains(t, attrs, apmhttp.ElasticTraceparentHeader)
+			assert.Contains(t, attrs, apmhttp.TracestateHeader)
+		}
+		if req.Operation.Name == "SendMessage" {
+			input, ok := req.Params.(*sqs.SendMessageInput)
+			require.True(t, ok)
+			testAttrs(t, input.MessageAttributes)
+		} else if req.Operation.Name == "SendMessageBatch" {
+			input, ok := req.Params.(*sqs.SendMessageBatchInput)
+			require.True(t, ok)
+			for _, entry := range input.Entries {
+				testAttrs(t, entry.MessageAttributes)
+			}
+		} else {
+			t.Fail()
+		}
 	}
 }

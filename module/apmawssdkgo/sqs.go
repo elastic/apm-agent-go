@@ -78,7 +78,7 @@ func (s *apmSQS) setAdditional(span *apm.Span) {
 
 // addMessageAttributes adds message attributes to `SendMessage` and
 // `SendMessageBatch` RPC calls. Other SQS RPC calls are ignored.
-func addMessageAttributes(req *request.Request, span *apm.Span) {
+func addMessageAttributes(req *request.Request, span *apm.Span, propagateLegacyHeader bool) {
 	switch req.Operation.Name {
 	case "SendMessage", "SendMessageBatch":
 		break
@@ -92,20 +92,38 @@ func addMessageAttributes(req *request.Request, span *apm.Span) {
 		DataType:    aws.String("String"),
 		StringValue: aws.String(apmhttp.FormatTraceparentHeader(traceContext)),
 	}
-
+	tracestate := traceContext.State.String()
 	if req.Operation.Name == "SendMessage" {
 		input, ok := req.Params.(*sqs.SendMessageInput)
 		if !ok {
 			return
 		}
-		input.MessageAttributes["traceContext"] = msgAttr
+		setTracingAttributes(input.MessageAttributes, msgAttr, tracestate, propagateLegacyHeader)
 	} else if req.Operation.Name == "SendMessageBatch" {
 		input, ok := req.Params.(*sqs.SendMessageBatchInput)
 		if !ok {
 			return
 		}
 		for _, entry := range input.Entries {
-			entry.MessageAttributes["traceContext"] = msgAttr
+			setTracingAttributes(entry.MessageAttributes, msgAttr, tracestate, propagateLegacyHeader)
+		}
+	}
+}
+
+func setTracingAttributes(
+	attrs map[string]*sqs.MessageAttributeValue,
+	value *sqs.MessageAttributeValue,
+	tracestate string,
+	propagateLegacyHeader bool,
+) {
+	attrs[apmhttp.W3CTraceparentHeader] = value
+	if propagateLegacyHeader {
+		attrs[apmhttp.ElasticTraceparentHeader] = value
+	}
+	if tracestate != "" {
+		attrs[apmhttp.TracestateHeader] = &sqs.MessageAttributeValue{
+			DataType:    aws.String("String"),
+			StringValue: aws.String(tracestate),
 		}
 	}
 }

@@ -105,7 +105,7 @@ func build(req *request.Request) {
 	if req.ClientInfo.ServiceName != serviceSQS {
 		return
 	}
-	addMessageAttributes(req, span)
+	addMessageAttributes(req, span, tx.ShouldPropagateLegacyHeader())
 }
 
 func send(req *request.Request) {
