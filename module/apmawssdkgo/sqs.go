@@ -30,8 +30,8 @@ import (
 )
 
 var (
-	errSQSMethodNotSupported = errors.New("method not supported")
-	operationName            = map[string]string{
+	errMethodNotSupported = errors.New("method not supported")
+	operationName         = map[string]string{
 		"SendMessage":        "send",
 		"SendMessageBatch":   "send_batch",
 		"DeleteMessage":      "delete",
@@ -47,7 +47,7 @@ type apmSQS struct {
 func newSQS(req *request.Request) (*apmSQS, error) {
 	opName, ok := operationName[req.Operation.Name]
 	if !ok {
-		return nil, errSQSMethodNotSupported
+		return nil, errMethodNotSupported
 	}
 	name := req.ClientInfo.ServiceID + " " + strings.ToUpper(opName)
 	resourceName := serviceSQS
@@ -76,9 +76,9 @@ func (s *apmSQS) setAdditional(span *apm.Span) {
 	// TODO(stn): record `context.message.queue.name`
 }
 
-// addMessageAttributes adds message attributes to `SendMessage` and
+// addMessageAttributesSQS adds message attributes to `SendMessage` and
 // `SendMessageBatch` RPC calls. Other SQS RPC calls are ignored.
-func addMessageAttributes(req *request.Request, span *apm.Span, propagateLegacyHeader bool) {
+func addMessageAttributesSQS(req *request.Request, span *apm.Span, propagateLegacyHeader bool) {
 	switch req.Operation.Name {
 	case "SendMessage", "SendMessageBatch":
 		break
