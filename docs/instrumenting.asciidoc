@@ -35,8 +35,8 @@ that framework's API. The request context can be used for reporting <<custom-ins
 Packages apmecho and apmechov4 provide middleware for the https://github.com/labstack/echo[Echo]
 web framework, versions 3.x and 4.x respectively.
 
-If you are using Echo 4.x (`github.com/labstack/echo/v4`), then you should use `module/apmechov4`.
-For the older Echo 3.x versions (`github.com/labstack/echo`), you should use `module/apmecho`.
+If you are using Echo 4.x (`github.com/labstack/echo/v4`), then use `module/apmechov4`.
+For the older Echo 3.x versions (`github.com/labstack/echo`), use `module/apmecho`.
 
 For each request, a transaction is stored in the request context, which can be obtained via
 https://godoc.org/github.com/labstack/echo#Context[echo.Context]`.Request().Context()` in your handler.
@@ -164,7 +164,7 @@ func main() {
 }
 ----
 
-The server interceptor can optionally be made to recover panics, in the same way as
+The server interceptor can optionally be made to recover panics in the same way as
 https://github.com/grpc-ecosystem/go-grpc-middleware/tree/master/recovery[grpc_recovery].
 The apmgrpc server interceptor will always send panics it observes as errors to the Elastic APM server.
 If you want to recover panics but also want to continue using grpc_recovery, then you should ensure
@@ -210,12 +210,9 @@ The apmhttp handler will recover panics and send them to Elastic APM.
 Package apmhttp also provides functions for instrumenting an `http.Client` or `http.RoundTripper`
 such that outgoing requests are traced as spans, if the request context includes a transaction.
 When performing the request, the enclosing context should be propagated by using
-https://golang.org/pkg/net/http/#Request.WithContext[http.Request.WithContext], or a helper
-such as those provided by https://golang.org/x/net/context/ctxhttp.
+https://golang.org/pkg/net/http/#Request.WithContext[http.Request.WithContext], or a helper provided by https://golang.org/x/net/context/ctxhttp.
 
-Client spans are not ended until the response body is fully consumed or closed. If you fail to
-do either of these, then the span will not be sent. You should always close the response body
-anyway, to ensure HTTP connections can be reused; see https://golang.org/pkg/net/http/#Client.Do.
+Client spans are not ended until the response body is fully consumed or closed. The span will not be sent if these are not done. Close the response body to ensure HTTP connections can be reused; see https://golang.org/pkg/net/http/#Client.Do.
 
 [source,go]
 ----
@@ -273,9 +270,8 @@ func main() {
 
 https://github.com/julienschmidt/httprouter/pull/139[httprouter does not provide a means of obtaining the matched route], hence the route must be passed into the wrapper.
 
-Alternatively you can use the apmhttprouter.Router type, which wraps httprouter.Router,
-providing the same API and instrumenting added routes. To use this wrapper type, you
-should rewrite your use of `httprouter.New` to `apmhttprouter.New`; the returned type
+Alternatively, use the apmhttprouter.Router type, which wraps httprouter.Router,
+providing the same API and instrumenting added routes. To use this wrapper type, rewrite your use of `httprouter.New` to `apmhttprouter.New`; the returned type
 is `*apmhttprouter.Router`, and not `*httprouter.Router`.
 
 [source,go]
@@ -344,7 +340,7 @@ lambda.Start.
 Package apmsql provides a means of wrapping `database/sql` drivers so that queries and other
 executions are reported as spans within the current transaction.
 
-To trace SQL queries, you should register drivers using apmsql.Register and obtain connections
+To trace SQL queries, register drivers using apmsql.Register and obtain connections
 with apmsql.Open. The parameters are exactly the same as if you were to call sql.Register
 and sql.Open respectively.
 
@@ -476,7 +472,7 @@ func main() {
 Package apmgocql provides a means of instrumenting https://github.com/gocql/gocql[gocql] so
 that queries are reported as spans within the current transaction.
 
-To report `gocql` queries, you can construct an `apmgocql.Observer` and assign it to
+To report `gocql` queries, construct an `apmgocql.Observer` and assign it to
 the `QueryObserver` and `BatchObserver` fields of `gocql.ClusterConfig`, or install it
 into a specific `gocql.Query` or `gocql.Batch` via their `Observer` methods.
 
@@ -509,7 +505,7 @@ func main() {
 Package apmredigo provides a means of instrumenting https://github.com/gomodule/redigo[Redigo]
 so that Redis commands are reported as spans within the current transaction.
 
-To report Redis commands, you can use the top-level `Do` or `DoWithTimeout` functions.
+To report Redis commands, use the top-level `Do` or `DoWithTimeout` functions.
 These functions have the same signature as the `redis.Conn` equivalents apart from an
 initial `context.Context` parameter. If the context passed in contains a sampled
 transaction, a span will be reported for the Redis command.
@@ -549,7 +545,7 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
 Package apmgoredis provides a means of instrumenting https://github.com/go-redis/redis[go-redis/redis]
 so that Redis commands are reported as spans within the current transaction.
 
-To report Redis commands, you can use the top-level `Wrap` function to wrap a
+To report Redis commands, use the top-level `Wrap` function to wrap a
 `redis.Client`, `redis.ClusterClient`, or `redis.Ring`. Initially, the wrapped
 client will be associated with the background context; its `WithContext` method
 may be used to obtain a shallow copy with another context. For example, in an
@@ -768,7 +764,7 @@ of Elasticsearch clients, such as https://github.com/elastic/go-elasticsearch[go
 and https://github.com/olivere/elastic[olivere/elastic], so that Elasticsearch
 requests are reported as spans within the current transaction.
 
-To create spans for an Elasticsearch request, you should wrap the client's HTTP
+To create spans for an Elasticsearch request, wrap the client's HTTP
 transport using the `WrapRoundTripper` function, and then associate the request
 with a context containing a transaction.
 
@@ -798,7 +794,7 @@ Package apmmongo provides a means of instrumenting the
 https://github.com/mongodb/mongo-go-driver[MongoDB Go Driver], so that MongoDB
 commands are reported as spans within the current transaction.
 
-To create spans for MongoDB commands, you should pass in a `CommandMonitor` created
+To create spans for MongoDB commands, pass in a `CommandMonitor` created
 with `apmmongo.CommandMonitor` as an option when constructing a client, and then when
 executing commands, pass in a context containing a transaction.
 
