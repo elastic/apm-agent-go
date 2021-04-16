@@ -1,19 +1,19 @@
 [[opentracing]]
 == OpenTracing API
 
-The Elastic APM Go agent provides an implementation of the https://opentracing.io[OpenTracing API],
+The Elastic APM Go {agent} provides an implementation of the https://opentracing.io[OpenTracing API],
 building on top of the core Elastic APM API.
 
 Spans created through the OpenTracing API will be translated to Elastic APM transactions or spans.
-Root spans, and spans created with a remote span context, will be translated to Elastic APM
-transactions; all others will be created as Elastic APM spans.
+Root spans and spans created with a remote span context, will be translated to Elastic APM
+transactions. All others will be created as Elastic APM spans.
 
 [float]
 [[opentracing-init]]
 === Initializing the tracer
 
 The OpenTracing API implementation is implemented as a bridge on top of the core Elastic APM API.
-To initialize the OpenTracing tracer implementation, you must first import the `apmot` package:
+To initialize the OpenTracing tracer implementation, import the `apmot` package first:
 
 [source,go]
 ----
@@ -23,7 +23,7 @@ import (
 ----
 
 The apmot package exports a function, "New", which returns an implementation of the
-`opentracing.Tracer` interface. If you simply call `apmot.New()` without any arguments,
+`opentracing.Tracer` interface. If you call `apmot.New()` without any arguments,
 the returned tracer will wrap `apm.DefaultTracer`. If you wish to use a different
 `apm.Tracer`, then you can pass it with `apmot.New(apmot.WithTracer(t))`.
 
@@ -32,7 +32,7 @@ the returned tracer will wrap `apm.DefaultTracer`. If you wish to use a differen
 otTracer := apmot.New()
 ----
 
-Once you have obtained an `opentracing.Tracer`, you can use the standard OpenTracing API
+Once you have obtained an `opentracing.Tracer`, use the standard OpenTracing API
 to report spans to Elastic APM. Please refer to https://github.com/opentracing/opentracing-go[opentracing-go]
 for documentation on the OpenTracing Go API.
 
@@ -102,8 +102,8 @@ The following tags are relevant only to root or service-entry spans, which are
 translated to Elastic APM transactions:
 
 - `user.id` - sets the user ID, which appears in the "User" tab in the transaction details in the Elastic APM app
-- `user.email` - sets the user email, appears in the "User" tab in the transaction details in the Elastic APM app
-- `user.username` - sets the user name, appears in the "User" tab in the transaction details in the Elastic APM app
+- `user.email` - sets the user email which appears in the "User" tab in the transaction details in the Elastic APM app
+- `user.username` - sets the user name which appears in the "User" tab in the transaction details in the Elastic APM app
 - `result` - sets the result of the transaction. If `result` is _not_ specified, but `error` tag is set to `true`,
              then the transaction result will be set to "error"
 
