@@ -6,7 +6,7 @@ chain, potentially crossing between goroutines and between processes. For server
 each request contains an independent context object, which allows adding values specific to that particular
 request.
 
-When you start a transaction, you can add it to a context object using
+When you start a transaction, add it to a context object using
 <<apm-context-with-transaction, apm.ContextWithTransaction>>. This context object can be
 later passed to <<apm-transaction-from-context, apm.TransactionFromContext>> to obtain
 the transaction, or into <<apm-start-span, apm.StartSpan>> to start a span.
@@ -83,7 +83,7 @@ func getList(ctx context.Context) (
 }
 ----
 
-Contexts can have deadlines associated, and can be explicitly canceled. In some cases you may
+Contexts can have deadlines associated and can be explicitly canceled. In some cases you may
 wish to propagate the trace context (parent transaction/span) to some code without propagating
 the cancellation. For example, an HTTP request's context will be canceled when the client's
 connection closes. You may want to perform some operation in the request handler without it
