@@ -1,7 +1,7 @@
 [[metrics]]
 == Metrics
 
-The Go agent periodically gathers and reports metrics. You can control how
+The Go agent periodically gathers and reports metrics. Control how
 often metrics are reported with the <<config-metrics-interval>> configuration,
 and disable metrics with <<config-disable-metrics>>.
 
@@ -60,7 +60,7 @@ type: long
 
 format: bytes
 
-Actual free memory in bytes. It is calculated based on the OS.
+The actual memory free in bytes. It is calculated based on the OS.
 On Linux it consists of the free memory plus caches and buffers.
 On OSX it is a sum of free memory and the inactive memory.
 On Windows, this value does not include memory consumed by system caches and buffers.
@@ -81,7 +81,7 @@ The total virtual memory the process has.
 [[metrics-golang]]
 === Go runtime metrics
 
-The Go agent reports various Go runtime metrics.
+The Go {agent} reports various Go runtime metrics.
 
 NOTE: As of now, there are no built-in visualizations for these metrics,
 so you will need to create custom Kibana dashboards for them.
@@ -91,7 +91,7 @@ so you will need to create custom Kibana dashboards for them.
 --
 type: long
 
-Number of goroutines that currently exist.
+The number of goroutines that currently exist.
 --
 
 
@@ -100,7 +100,7 @@ Number of goroutines that currently exist.
 --
 type: long
 
-Number of mallocs.
+The number of mallocs.
 --
 
 
@@ -109,7 +109,7 @@ Number of mallocs.
 --
 type: long
 
-Number of frees.
+The number of frees.
 --
 
 
@@ -118,7 +118,7 @@ Number of frees.
 --
 type: long
 
-Total number of allocated objects.
+The total number of allocated objects.
 --
 
 
@@ -216,7 +216,7 @@ Bytes released to the OS.
 --
 type: long
 
-Total garbage collection duration in nanoseconds.
+The total garbage collection duration in nanoseconds.
 --
 
 
@@ -225,7 +225,7 @@ Total garbage collection duration in nanoseconds.
 --
 type: long
 
-Total number of garbage collections.
+The total number of garbage collections.
 --
 
 
@@ -279,10 +279,10 @@ type: long
 format: count (delta)
 
 The number of transactions for which breakdown metrics (`span.self_time`) have been created.
-As the Go agent tracks the breakdown for both sampled and non-sampled transactions, this
+As the Go {agent} tracks the breakdown for both sampled and non-sampled transactions, this
 metric is equivalent to `transaction.duration.count`
 
-You can filter and group by these dimensions:
+Filter and group by these dimensions:
 
 * `transaction.name`: The name of the transaction
 * `transaction.type`: The type of the transaction, for example `request`
@@ -301,7 +301,7 @@ Fields:
 * `sum.us`: The sum of all span self-times in microseconds since the last report (the delta)
 * `count`: The count of all span self-times since the last report (the delta)
 
-You can filter and group by these dimensions:
+Filter and group by these dimensions:
 
 * `transaction.name`: The name of the transaction
 * `transaction.type`: The type of the transaction, for example `request`
