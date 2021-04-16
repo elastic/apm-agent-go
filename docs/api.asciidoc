@@ -1,7 +1,7 @@
 [[api]]
 == API Documentation
 
-Below we cover the most commonly used parts of the API.
+Below are most commonly used parts of the API.
 
 The Go agent is documented using standard godoc. For complete documentation,
 refer to the documentation at https://godoc.org/go.elastic.co/apm/[godoc.org/go.elastic.co/apm],
@@ -11,11 +11,11 @@ or by using the "godoc" tool.
 [[tracer-api]]
 === Tracer API
 
-The initial point of contact your application will have with the Go agent
+The initial point of contact your application will have with the Go {agent}
 is the `apm.Tracer` type, which provides methods for reporting
 transactions and errors.
 
-To make instrumentation simpler the Go agent provides a pre-initialized
+To make instrumentation simpler, the Go agent provides a pre-initialized
 tracer, `apm.DefaultTracer`. This tracer is always initialized and
 available for use. This tracer is configured with environment variables;
 see <<configuration>> for details.
@@ -42,9 +42,9 @@ func main() {
 [[tracer-api-start-transaction]]
 ==== `func (*Tracer) StartTransaction(name, type string) *Transaction`
 
-StartTransaction returns a new Transaction with the specified name and type,
-and with the start time set to the current time.. If you need to set the
-timestamp or set the parent <<trace-context, trace context>>, you should use
+StartTransaction returns a new transaction with the specified name and type,
+and with the start time set to the current time. To set the
+timestamp or the parent <<trace-context, trace context>>, use
 <<tracer-api-start-transaction-options, Tracer.StartTransactionOptions>>.
 
 This method should be called at the beginning of a transaction such as a web
@@ -57,7 +57,7 @@ transaction := apm.DefaultTracer.StartTransaction("GET /", "request")
 
 Transactions will be grouped by type and name in the Elastic APM app.
 
-After starting a transaction, you can record a result and add context to
+After starting a transaction, record a result and add context to
 further describe the transaction.
 
 [source,go]
@@ -90,12 +90,12 @@ transaction := apm.DefaultTracer.StartTransactionOptions("GET /", "request", opt
 ==== `func (*Transaction) End()`
 
 End enqueues the transaction for sending to the Elastic APM server.
-The Transaction must not be modified after this, but it may still
+The transaction must not be modified after this, but it may still
 be used for starting spans.
 
-The transaction's duration will be calculated as the amount of time
+The duration of the transaction will be calculated as the amount of time
 elapsed since the transaction was started until this call. To override
-this behaviour, the transaction's `Duration` field may be set before
+this behavior, the transaction's `Duration` field may be set before
 calling End.
 
 [source,go]
@@ -113,13 +113,13 @@ TraceContext returns the transaction's <<trace-context, trace context>>.
 [[transaction-ensureparent]]
 ==== `func (*Transaction) EnsureParent() SpanID`
 
-EnsureParent returns the transaction's parent span ID, generating and recording one if
+EnsureParent returns the transactions parent span ID, generating and recording one if
 it did not previously have one.
 
 EnsureParent enables correlation with spans created by the JavaScript Real User Monitoring
-(RUM) agent for the initial page load. If your backend service generates the HTML page
+(RUM) {agent} for the initial page load. If your backend service generates the HTML page
 dynamically, you can inject the trace and parent span ID into the page in order to initialize
-the JavaScript RUM agent, such that the web browser's page load appears as the root of the
+the JavaScript RUM agent, such that the web browsers page load appears as the root of the
 trace.
 
 [source,go]
@@ -207,7 +207,7 @@ For a more in-depth example, see <<log-correlation-manual-unstructured>>.
 [[span-api]]
 === Spans
 
-To describe an activity within a transaction, we create spans. The Go agent
+To describe an activity within a transaction, we create spans. The Go {agent}
 has built-in support for generating spans for some activities, such as
 database queries. You can use the API to report spans specific to your
 application.
@@ -218,7 +218,7 @@ application.
 
 StartSpan starts and returns a new Span within the transaction, with the specified name,
 type, and optional parent span, and with the start time set to the current time.
-If you need to set the timestamp or parent <<trace-context, trace context>>, you should
+If you need to set the timestamp or parent <<trace-context, trace context>>,
 use <<transaction-start-span-options, Transaction.StartSpanOptions>>.
 
 If the span type contains two dots, they are assumed to separate the span type, subtype,
@@ -226,8 +226,7 @@ and action; a single dot separates span type and subtype, and the action will no
 
 If the transaction is sampled, then the span's ID will be set, and its stacktrace will
 be set if the tracer is configured accordingly. If the transaction is not sampled, then
-the returned span will be silently discarded when its End method is called. You can
-avoid any unnecessary computation for these dropped spans by calling the <<span-dropped, Dropped>>
+the returned span will be silently discarded when its End method is called. Avoid any unnecessary computation for these dropped spans by calling the <<span-dropped, Dropped>>
 method.
 
 As a convenience, it is valid to create a span on a nil Transaction; the resulting span
@@ -299,7 +298,7 @@ TraceContext returns the span's <<trace-context, trace context>>.
 [[apm-context-with-span]]
 ==== `func ContextWithSpan(context.Context, *Span) context.Context`
 
-ContextWithSpan adds the span to the context, and returns the resulting context.
+ContextWithSpan adds the span to the context and returns the resulting context.
 
 The span can be retrieved using <<apm-span-from-context, apm.SpanFromContext>>.
 The context may also be passed into <<apm-start-span, apm.StartSpan>>, which uses
@@ -319,8 +318,8 @@ does not contain a span.
 [[context-api]]
 === Context
 
-When reporting transactions and errors you can provide context to describe
-those events. Built-in instrumentation will typically provide some context,
+Use context to describe transaction reporting and errors.
+ Built-in instrumentation will typically provide some context,
 e.g. the URL and remote address for an HTTP request. You can also provide
 custom context and tags.
 
@@ -405,7 +404,7 @@ and reporting an "exception" (either a panic or an error in Go parlance).
 [[tracer-new-error]]
 ==== `func (*Tracer) NewError(error) *Error`
 
-NewError returns a new Error with details taken from err.
+NewError returns a new error with details taken from err.
 
 The exception message will be set to `err.Error()`. The exception module and type will be set
 to the package and type name of the cause of the error, respectively, where the cause has the
@@ -460,7 +459,7 @@ This can be used in your application for correlation.
 [[tracer-new-error-log]]
 ==== `func (*Tracer) NewErrorLog(ErrorLogRecord) *Error`
 
-NewErrorLog returns a new Error for the given ErrorLogRecord:
+NewErrorLog returns a new error for the given ErrorLogRecord:
 
 [source,go]
 ----
@@ -494,7 +493,7 @@ type ErrorLogRecord struct {
 }
 ----
 
-The resulting Error's log stacktrace will not be set. Call the SetStacktrace method to set it, if desired.
+The resulting error log stacktrace will not be set. Call the SetStacktrace method to set it, if desired.
 
 [source,go]
 ----
@@ -515,7 +514,7 @@ SetTransaction associates the error with the given transaction.
 [[error-set-span]]
 ==== `func (*Error) SetSpan(*Span)`
 
-SetSpan associates the error with the given span, and the span's transaction. When calling SetSpan,
+SetSpan associates the error with the given span, and the spans transaction. When calling SetSpan,
 it is not necessary to also call SetTransaction.
 
 [float]
@@ -528,8 +527,8 @@ Send enqueues the error for sending to the Elastic APM server.
 [[tracer-recovered]]
 ==== `func (*Tracer) Recovered(interface{}) *Error`
 
-Recovered returns an Error from the recovered value, optionally associating it with a transaction.
-The error is not sent; it is the responsibility of the caller to set the error's context as desired,
+Recovered returns an error from the recovered value, optionally associating it with a transaction.
+The error is not sent. It is the caller's responsibility to set the errors context as desired,
 and then call its `Send` method.
 
 [source,go]
@@ -549,7 +548,7 @@ defer func() {
 [[apm-captureerror]]
 ==== `func CaptureError(context.Context, error) *Error`
 
-CaptureError returns a new Error related to the sampled transaction and span present in the context,
+CaptureError returns a new error related to the sampled transaction and span present in the context,
 if any, and sets its exception details using the given error. The Error.Handled field will be set to
 true, and a stacktrace set.
 
