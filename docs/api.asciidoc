@@ -93,7 +93,7 @@ End enqueues the transaction for sending to the Elastic APM server.
 The transaction must not be modified after this, but it may still
 be used for starting spans.
 
-The duration of the transaction will be calculated as the amount of time
+The duration of the transaction is calculated as the amount of time
 elapsed since the transaction was started until this call. To override
 this behavior, the transaction's `Duration` field may be set before
 calling End.
