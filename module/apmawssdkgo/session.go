@@ -56,6 +56,7 @@ const (
 	serviceS3       = "s3"
 	serviceDynamoDB = "dynamodb"
 	serviceSQS      = "sqs"
+	serviceSNS      = "sns"
 )
 
 var (
@@ -63,6 +64,7 @@ var (
 		serviceS3:       "storage",
 		serviceDynamoDB: "db",
 		serviceSQS:      "messaging",
+		serviceSNS:      "messaging",
 	}
 )
 
@@ -79,8 +81,10 @@ func build(req *request.Request) {
 		return
 	}
 
+	if spanSubtype == serviceSNS && !supportedSNSMethod(req) {
+		return
+	}
 	if spanSubtype == serviceSQS && !supportedSQSMethod(req) {
-		// Unsupported SQS method type.
 		return
 	}
 
@@ -102,10 +106,14 @@ func build(req *request.Request) {
 		return
 	}
 
-	if req.ClientInfo.ServiceName != serviceSQS {
+	switch spanSubtype {
+	case serviceSQS:
+		addMessageAttributesSQS(req, span, tx.ShouldPropagateLegacyHeader())
+	case serviceSNS:
+		addMessageAttributesSNS(req, span, tx.ShouldPropagateLegacyHeader())
+	default:
 		return
 	}
-	addMessageAttributes(req, span, tx.ShouldPropagateLegacyHeader())
 }
 
 func send(req *request.Request) {
@@ -136,6 +144,11 @@ func send(req *request.Request) {
 		svc = newDynamoDB(req)
 	case serviceSQS:
 		if svc, err = newSQS(req); err != nil {
+			// Unsupported method type or queue name.
+			return
+		}
+	case serviceSNS:
+		if svc, err = newSNS(req); err != nil {
 			// Unsupported method type or queue name.
 			return
 		}
