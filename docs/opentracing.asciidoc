@@ -1,7 +1,7 @@
 [[opentracing]]
 == OpenTracing API
 
-The Elastic APM Go {agent} provides an implementation of the https://opentracing.io[OpenTracing API],
+The Elastic APM Go agent provides an implementation of the https://opentracing.io[OpenTracing API],
 building on top of the core Elastic APM API.
 
 Spans created through the OpenTracing API will be translated to Elastic APM transactions or spans.
