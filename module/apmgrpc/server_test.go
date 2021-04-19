@@ -20,11 +20,15 @@
 package apmgrpc_test
 
 import (
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -35,6 +39,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 	pb "google.golang.org/grpc/examples/helloworld/helloworld"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -68,11 +73,12 @@ func TestServerTransaction(t *testing.T) {
 			defer conn.Close()
 
 			f(t, testParams{
-				server:    server,
-				conn:      conn,
-				client:    client,
-				tracer:    tracer,
-				transport: transport,
+				server:     server,
+				serverAddr: addr,
+				conn:       conn,
+				client:     client,
+				tracer:     tracer,
+				transport:  transport,
 			})
 		}
 	}
@@ -83,11 +89,12 @@ func TestServerTransaction(t *testing.T) {
 }
 
 type testParams struct {
-	server    *helloworldServer
-	conn      *grpc.ClientConn
-	client    pb.GreeterClient
-	tracer    *apm.Tracer
-	transport *transporttest.RecorderTransport
+	server     *helloworldServer
+	serverAddr net.Addr
+	conn       *grpc.ClientConn
+	client     pb.GreeterClient
+	tracer     *apm.Tracer
+	transport  *transporttest.RecorderTransport
 }
 
 func testServerTransactionHappy(t *testing.T, p testParams) {
@@ -119,6 +126,36 @@ func testServerTransactionHappy(t *testing.T, p testParams) {
 				Framework: &model.Framework{
 					Name:    "grpc",
 					Version: grpc.Version,
+				},
+			},
+			Request: &model.Request{
+				Method:      "POST",
+				HTTPVersion: "2.0",
+				URL: model.URL{
+					Full:     fmt.Sprintf("http://%s%s", p.serverAddr, "/helloworld.Greeter/SayHello"),
+					Protocol: "http",
+					Hostname: p.serverAddr.(*net.TCPAddr).IP.String(),
+					Port:     strconv.Itoa(p.serverAddr.(*net.TCPAddr).Port),
+					Path:     "/helloworld.Greeter/SayHello",
+				},
+				Headers: model.Headers{{
+					Key:    ":authority",
+					Values: []string{p.serverAddr.String()},
+				}, {
+					Key:    "content-type",
+					Values: []string{"application/grpc"},
+				}, {
+					Key:    strings.ToLower(headers[i]), // traceparent
+					Values: []string{traceparentValue},
+				}, {
+					Key:    "user-agent",
+					Values: []string{"apmgrpc_test grpc-go/" + grpc.Version},
+				}},
+				Socket: &model.RequestSocket{
+					// Server is listening on loopback, so the client
+					// should have the same IP address. RemoteAddress
+					// does not record the port.
+					RemoteAddress: p.serverAddr.(*net.TCPAddr).IP.String(),
 				},
 			},
 			Custom: model.IfaceMap{{
@@ -254,7 +291,63 @@ func TestServerStream(t *testing.T) {
 	require.Len(t, transactions, 1)
 }
 
+func TestServerTLS(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	httpServer := httptest.NewTLSServer(nil)
+	defer httpServer.Close()
+	tlsClientConfig := httpServer.Client().Transport.(*http.Transport).TLSClientConfig
+
+	s, _, addr := newGreeterServerTLS(t, tracer, httpServer.TLS)
+	defer s.GracefulStop()
+
+	conn, client := newGreeterClientTLS(t, addr, tlsClientConfig)
+	defer conn.Close()
+
+	resp, err := client.SayHello(context.Background(), &pb.HelloRequest{Name: "birita"})
+	require.NoError(t, err)
+	assert.Equal(t, resp, &pb.HelloReply{Message: "hello, birita"})
+
+	tracer.Flush(nil)
+	payloads := transport.Payloads()
+
+	tx := payloads.Transactions[0]
+	assert.Equal(t, &model.Request{
+		Method:      "POST",
+		HTTPVersion: "2.0",
+		URL: model.URL{
+			Full:     fmt.Sprintf("https://%s%s", addr, "/helloworld.Greeter/SayHello"),
+			Protocol: "https",
+			Hostname: addr.(*net.TCPAddr).IP.String(),
+			Port:     strconv.Itoa(addr.(*net.TCPAddr).Port),
+			Path:     "/helloworld.Greeter/SayHello",
+		},
+		Headers: model.Headers{{
+			Key:    ":authority",
+			Values: []string{addr.String()},
+		}, {
+			Key:    "content-type",
+			Values: []string{"application/grpc"},
+		}, {
+			Key:    "user-agent",
+			Values: []string{"grpc-go/" + grpc.Version},
+		}},
+		Socket: &model.RequestSocket{
+			Encrypted: true,
+			// Server is listening on loopback, so the client
+			// should have the same IP address. RemoteAddress
+			// does not record the port.
+			RemoteAddress: addr.(*net.TCPAddr).IP.String(),
+		},
+	}, tx.Context.Request)
+}
+
 func newGreeterServer(t *testing.T, tracer *apm.Tracer, opts ...apmgrpc.ServerOption) (*grpc.Server, *helloworldServer, net.Addr) {
+	return newGreeterServerTLS(t, tracer, nil, opts...)
+}
+
+func newGreeterServerTLS(t *testing.T, tracer *apm.Tracer, tlsConfig *tls.Config, opts ...apmgrpc.ServerOption) (*grpc.Server, *helloworldServer, net.Addr) {
 	// We always install grpc_recovery first to avoid panics
 	// aborting the test process. We install it before the
 	// apmgrpc interceptor so that apmgrpc can recover panics
@@ -266,6 +359,9 @@ func newGreeterServer(t *testing.T, tracer *apm.Tracer, opts ...apmgrpc.ServerOp
 		interceptors = append(interceptors, apmgrpc.NewUnaryServerInterceptor(opts...))
 	}
 	serverOpts = append(serverOpts, grpc_middleware.WithUnaryServerChain(interceptors...))
+	if tlsConfig != nil {
+		serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(tlsConfig)))
+	}
 
 	s := grpc.NewServer(serverOpts...)
 	server := &helloworldServer{}
@@ -279,6 +375,17 @@ func newGreeterServer(t *testing.T, tracer *apm.Tracer, opts ...apmgrpc.ServerOp
 func newGreeterClient(t *testing.T, addr net.Addr) (*grpc.ClientConn, pb.GreeterClient) {
 	conn, err := grpc.Dial(
 		addr.String(), grpc.WithInsecure(),
+		grpc.WithUnaryInterceptor(apmgrpc.NewUnaryClientInterceptor()),
+		grpc.WithUserAgent("apmgrpc_test"),
+	)
+	require.NoError(t, err)
+	return conn, pb.NewGreeterClient(conn)
+}
+
+func newGreeterClientTLS(t *testing.T, addr net.Addr, tlsConfig *tls.Config) (*grpc.ClientConn, pb.GreeterClient) {
+	conn, err := grpc.Dial(
+		addr.String(),
+		grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),
 		grpc.WithUnaryInterceptor(apmgrpc.NewUnaryClientInterceptor()),
 	)
 	require.NoError(t, err)

@@ -21,11 +21,14 @@ package apmgrpc // import "go.elastic.co/apm/module/apmgrpc"
 
 import (
 	"net"
+	"net/http"
+	"net/url"
 	"sync"
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 
@@ -52,23 +55,34 @@ func NewUnaryClientInterceptor(o ...ClientOption) grpc.UnaryClientInterceptor {
 		invoker grpc.UnaryInvoker,
 		opts ...grpc.CallOption,
 	) error {
-		var peer peer.Peer // maybe set after call if span != nil
+		var peer peer.Peer     // maybe set after call if span != nil
+		var header metadata.MD // maybe set after call if span != nil
 		span, ctx := startSpan(ctx, method)
 		if span != nil {
 			defer span.End()
-			opts = append(opts, grpc.Peer(&peer))
+			opts = append(opts, grpc.Peer(&peer), grpc.Header(&header))
 		}
 		err := invoker(ctx, method, req, resp, cc, opts...)
 		if span != nil {
 			setSpanOutcome(span, err)
+			url := url.URL{Scheme: "http", Path: method}
+			if _, ok := peer.AuthInfo.(credentials.TLSInfo); ok {
+				url.Scheme = "https"
+			}
 			if peer.Addr != nil {
-				if tcpAddr, ok := peer.Addr.(*net.TCPAddr); ok {
-					span.Context.SetDestinationAddress(tcpAddr.IP.String(), tcpAddr.Port)
-				}
-				addrString := peer.Addr.String()
+				url.Host = peer.Addr.String()
+			}
+			span.Context.SetHTTPRequest(&http.Request{
+				URL:        &url,
+				Method:     "POST", // method is always POST
+				ProtoMajor: 2,
+				ProtoMinor: 0,
+				Header:     http.Header(header),
+			})
+			if url.Host != "" {
 				span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
-					Name:     addrString,
-					Resource: addrString,
+					Name:     url.Host,
+					Resource: url.Host,
 				})
 			}
 		}
