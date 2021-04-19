@@ -150,7 +150,7 @@ func TestSQS(t *testing.T) {
 		if tc.hasTraceContext {
 			wrapped.Handlers.Build.PushBackNamed(request.NamedHandler{
 				Name: "spy_message_attrs_added",
-				Fn:   testTracingAttributes(t),
+				Fn:   testTracingAttributesSQS(t),
 			})
 		}
 
@@ -197,7 +197,7 @@ func TestSQS(t *testing.T) {
 	}
 }
 
-func testTracingAttributes(t *testing.T) func(*request.Request) {
+func testTracingAttributesSQS(t *testing.T) func(*request.Request) {
 	return func(req *request.Request) {
 		testAttrs := func(t *testing.T, attrs map[string]*sqs.MessageAttributeValue) {
 			assert.Contains(t, attrs, apmhttp.W3CTraceparentHeader)
