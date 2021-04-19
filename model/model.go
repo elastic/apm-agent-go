@@ -341,6 +341,9 @@ type SpanContext struct {
 	// operation spans.
 	Database *DatabaseSpanContext `json:"db,omitempty"`
 
+	// Message holds contextual information for message operation spans.
+	Message *MessageSpanContext `json:"message,omitempty"`
+
 	// HTTP holds contextual information for HTTP client request spans.
 	HTTP *HTTPSpanContext `json:"http,omitempty"`
 
@@ -384,6 +387,18 @@ type DestinationServiceSpanContext struct {
 type DestinationCloudSpanContext struct {
 	// Region holds the destination cloud region.
 	Region string `json:"region,omitempty"`
+}
+
+// MessageSpanContext holds contextual information about a message.
+type MessageSpanContext struct {
+	// Queue holds the destination cloud region.
+	Queue *MessageQueueSpanContext `json:"queue,omitempty"`
+}
+
+// MessageQueueSpanContext holds contextual information about a message queue.
+type MessageQueueSpanContext struct {
+	// Name holds the message queue name.
+	Name string `json:"name,omitempty"`
 }
 
 // DatabaseSpanContext holds contextual information for database

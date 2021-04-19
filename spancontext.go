@@ -33,6 +33,7 @@ type SpanContext struct {
 	destination          model.DestinationSpanContext
 	destinationService   model.DestinationServiceSpanContext
 	destinationCloud     model.DestinationCloudSpanContext
+	message              model.MessageSpanContext
 	databaseRowsAffected int64
 	database             model.DatabaseSpanContext
 	http                 model.HTTPSpanContext
@@ -68,8 +69,14 @@ type DestinationServiceSpanContext struct {
 // DestinationCloudSpanContext holds contextual information about a
 // destination cloud.
 type DestinationCloudSpanContext struct {
-	// Type holds the destination cloud region.
+	// Region holds the destination cloud region.
 	Region string
+}
+
+// MessageSpanContext holds contextual information about a message.
+type MessageSpanContext struct {
+	// QueueName holds the message queue name.
+	QueueName string
 }
 
 func (c *SpanContext) build() *model.SpanContext {
@@ -194,6 +201,19 @@ func (c *SpanContext) SetDestinationAddress(addr string, port int) {
 		c.destination.Port = port
 		c.model.Destination = &c.destination
 	}
+}
+
+// SetMessage sets the message info in the context.
+//
+// message.Name is required. If it is empty, then SetMessage is a no-op.
+func (c *SpanContext) SetMessage(message MessageSpanContext) {
+	if message.QueueName == "" {
+		return
+	}
+	c.message.Queue = &model.MessageQueueSpanContext{
+		Name: truncateString(message.QueueName),
+	}
+	c.model.Message = &c.message
 }
 
 // SetDestinationService sets the destination service info in the context.

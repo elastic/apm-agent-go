@@ -660,6 +660,18 @@ func (v *SpanContext) MarshalFastJSON(w *fastjson.Writer) error {
 			firstErr = err
 		}
 	}
+	if v.Message != nil {
+		const prefix = ",\"message\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		if err := v.Message.MarshalFastJSON(w); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
 	if !v.Tags.isZero() {
 		const prefix = ",\"tags\":"
 		if first {
@@ -770,6 +782,29 @@ func (v *DestinationCloudSpanContext) MarshalFastJSON(w *fastjson.Writer) error 
 	if v.Region != "" {
 		w.RawString("\"region\":")
 		w.String(v.Region)
+	}
+	w.RawByte('}')
+	return nil
+}
+
+func (v *MessageSpanContext) MarshalFastJSON(w *fastjson.Writer) error {
+	var firstErr error
+	w.RawByte('{')
+	if v.Queue != nil {
+		w.RawString("\"queue\":")
+		if err := v.Queue.MarshalFastJSON(w); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	w.RawByte('}')
+	return firstErr
+}
+
+func (v *MessageQueueSpanContext) MarshalFastJSON(w *fastjson.Writer) error {
+	w.RawByte('{')
+	if v.Name != "" {
+		w.RawString("\"name\":")
+		w.String(v.Name)
 	}
 	w.RawByte('}')
 	return nil
