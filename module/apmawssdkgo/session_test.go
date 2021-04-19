@@ -22,17 +22,21 @@ package apmawssdkgo // import "go.elastic.co/apm/module/apmawssdkgo"
 import (
 	"bytes"
 	"context"
+	"net/http"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"go.elastic.co/apm"
 	"go.elastic.co/apm/apmtest"
+	"go.elastic.co/apm/model"
 )
 
 func TestS3(t *testing.T) {
@@ -170,4 +174,86 @@ func TestDynamoDB(t *testing.T) {
 		assert.Equal(t, tx.ID, span.ParentID)
 	}
 
+}
+
+func TestMetrics(t *testing.T) {
+	region := "us-west-2"
+	addr := "s3.testing.invalid"
+	cfg := aws.NewConfig().
+		WithEndpoint(addr).
+		WithRegion(region).
+		WithDisableSSL(true).
+		WithCredentials(credentials.AnonymousCredentials)
+
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+	tx := tracer.StartTransaction("test_transaction", "test")
+	ctx := apm.ContextWithTransaction(context.Background(), tx)
+
+	session := session.Must(session.NewSession(cfg))
+	session = WrapSession(session, WithTracer(tracer.Tracer))
+	svc := dynamodb.New(session)
+	var req *request.Request
+
+	input := &dynamodb.QueryInput{
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":v1": {S: aws.String("No One You Know")},
+		},
+		KeyConditionExpression: aws.String("Artist = :v1"),
+		TableName:              aws.String("Music"),
+	}
+
+	req, _ = svc.QueryRequest(input)
+	req.SetContext(ctx)
+	wrapper.build(req)
+	wrapper.send(req)
+
+	tracer.SendMetrics(nil)
+	metrics := tracer.Payloads().Metrics
+	assert.NotEmpty(t, metrics)
+	samples := metrics[len(metrics)-1].Samples
+	assert.Contains(t, samples, "apmawssdkgo_in_flight_requests")
+	assert.Equal(t, float64(1), samples["apmawssdkgo_in_flight_requests"].Value)
+	labels := model.StringMap{
+		{Key: "rpc", Value: "Query"},
+		{Key: "service", Value: "dynamodb"},
+	}
+	assert.Equal(t, labels, metrics[len(metrics)-1].Labels)
+
+	resp := &http.Response{
+		Status:        "200 OK",
+		StatusCode:    200,
+		Proto:         "HTTP/1.0",
+		ContentLength: 16,
+		Header:        make(http.Header),
+	}
+
+	resp.Header.Add("sample", "key")
+	req.HTTPResponse = resp
+
+	wrapper.complete(req)
+
+	tracer.SendMetrics(nil)
+	metrics = tracer.Payloads().Metrics
+	assert.NotEmpty(t, metrics)
+	samples = metrics[len(metrics)-1].Samples
+
+	assert.Contains(t, samples, "apmawssdkgo_in_flight_requests")
+	assert.Equal(t, float64(0), samples["apmawssdkgo_in_flight_requests"].Value)
+
+	byteMetrics := metrics[len(metrics)-2]
+	labels = model.StringMap{
+		{Key: "code", Value: "200"},
+		{Key: "rpc", Value: "Query"},
+		{Key: "service", Value: "dynamodb"},
+	}
+	assert.Equal(t, labels, byteMetrics.Labels)
+
+	byteSamples := byteMetrics.Samples
+
+	assert.Contains(t, byteSamples, "apmawssdkgo_http_received_bytes_total")
+	assert.Greater(t, byteSamples["apmawssdkgo_http_received_bytes_total"].Value, float64(0))
+
+	assert.Contains(t, byteSamples, "apmawssdkgo_http_sent_bytes_total")
+	assert.Greater(t, byteSamples["apmawssdkgo_http_sent_bytes_total"].Value, float64(0))
 }

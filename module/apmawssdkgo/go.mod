@@ -4,9 +4,11 @@ go 1.15
 
 require (
 	github.com/aws/aws-sdk-go v1.38.14
+	github.com/prometheus/client_golang v1.10.0
 	github.com/stretchr/testify v1.7.0
 	go.elastic.co/apm v1.11.0
 	go.elastic.co/apm/module/apmhttp v1.11.0
+	go.elastic.co/apm/module/apmprometheus v1.11.0
 )
 
 replace go.elastic.co/apm => ../..
