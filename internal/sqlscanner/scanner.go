@@ -107,10 +107,17 @@ func (s *Scanner) scan() Token {
 		}
 		return OTHER
 	case '/':
-		if next, ok := s.peek(); ok && next == '*' {
-			// /* comment */
-			s.next()
-			return s.scanBracketedComment()
+		if next, ok := s.peek(); ok {
+			switch next {
+			case '*':
+				// /* comment */
+				s.next()
+				return s.scanBracketedComment()
+			case '/':
+				// // comment
+				s.next()
+				return s.scanSimpleComment()
+			}
 		}
 		return OTHER
 	case '.':
