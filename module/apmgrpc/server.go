@@ -20,12 +20,17 @@
 package apmgrpc // import "go.elastic.co/apm/module/apmgrpc"
 
 import (
+	"crypto/tls"
+	"net/http"
+	"net/url"
 	"strings"
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 
 	"go.elastic.co/apm"
@@ -153,7 +158,8 @@ func NewStreamServerInterceptor(o ...ServerOption) grpc.StreamServerInterceptor 
 
 func startTransaction(ctx context.Context, tracer *apm.Tracer, name string) (*apm.Transaction, context.Context) {
 	var opts apm.TransactionOptions
-	if md, ok := metadata.FromIncomingContext(ctx); ok {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if ok {
 		traceContext, ok := getIncomingMetadataTraceContext(md, elasticTraceparentHeader)
 		if !ok {
 			traceContext, _ = getIncomingMetadataTraceContext(md, w3cTraceparentHeader)
@@ -162,6 +168,35 @@ func startTransaction(ctx context.Context, tracer *apm.Tracer, name string) (*ap
 	}
 	tx := tracer.StartTransactionOptions(name, "request", opts)
 	tx.Context.SetFramework("grpc", grpc.Version)
+	if peer, ok := peer.FromContext(ctx); ok {
+		// Set underlying HTTP/2.0 request context.
+		//
+		// https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md
+		var tlsConnectionState *tls.ConnectionState
+		var peerAddr string
+		var authority string
+		url := url.URL{Scheme: "http", Path: name}
+		if info, ok := peer.AuthInfo.(credentials.TLSInfo); ok {
+			url.Scheme = "https"
+			tlsConnectionState = &info.State
+		}
+		if peer.Addr != nil {
+			peerAddr = peer.Addr.String()
+		}
+		if values := md.Get(":authority"); len(values) > 0 {
+			authority = values[0]
+		}
+		tx.Context.SetHTTPRequest(&http.Request{
+			URL:        &url,
+			Method:     "POST", // method is always POST
+			ProtoMajor: 2,
+			ProtoMinor: 0,
+			Header:     http.Header(md),
+			Host:       authority,
+			RemoteAddr: peerAddr,
+			TLS:        tlsConnectionState,
+		})
+	}
 	return tx, apm.ContextWithTransaction(ctx, tx)
 }
 
