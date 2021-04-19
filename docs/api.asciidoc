@@ -207,7 +207,7 @@ For a more in-depth example, see <<log-correlation-manual-unstructured>>.
 [[span-api]]
 === Spans
 
-To describe an activity within a transaction, we create spans. The Go {agent}
+To describe an activity within a transaction, we create spans. The Go agent
 has built-in support for generating spans for some activities, such as
 database queries. You can use the API to report spans specific to your
 application.
