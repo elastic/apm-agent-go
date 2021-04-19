@@ -81,7 +81,7 @@ The total virtual memory the process has.
 [[metrics-golang]]
 === Go runtime metrics
 
-The Go {agent} reports various Go runtime metrics.
+The Go agent reports various Go runtime metrics.
 
 NOTE: As of now, there are no built-in visualizations for these metrics,
 so you will need to create custom Kibana dashboards for them.
