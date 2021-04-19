@@ -2,7 +2,7 @@
 == Troubleshooting
 
 Is something not working as expected?
-Don't worry if you can't figure out what the problem is, we’re here to help!
+Don't worry if you can't figure out what the problem is; we’re here to help!
 First, ensure your app is compatible with the {agent}s <<supported-tech,supported technologies>>.
 
 If you're an existing Elastic customer with a support contract, please create a ticket in the
