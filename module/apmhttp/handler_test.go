@@ -19,6 +19,7 @@ package apmhttp_test
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -51,6 +52,13 @@ func TestHandlerHTTPSuite(t *testing.T) {
 	mux.HandleFunc("/panic_after_write", func(w http.ResponseWriter, req *http.Request) {
 		w.Write([]byte("hello, world"))
 		panic("boom")
+	})
+	mux.HandleFunc("/explicit_error_capture", func(w http.ResponseWriter, req *http.Request) {
+		ioutil.ReadAll(req.Body)
+		w.WriteHeader(http.StatusServiceUnavailable)
+		e := apm.CaptureError(req.Context(), errors.New("total explosion"))
+		e.Send()
+		w.Write([]byte(e.Error()))
 	})
 	suite.Run(t, &apmtest.HTTPTestSuite{
 		Handler:  apmhttp.Wrap(mux, apmhttp.WithTracer(tracer)),

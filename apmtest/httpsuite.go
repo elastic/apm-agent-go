@@ -20,11 +20,13 @@ package apmtest // import "go.elastic.co/apm/apmtest"
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"go.elastic.co/apm"
+	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/transport/transporttest"
 )
 
@@ -38,6 +40,7 @@ type HTTPTestSuite struct {
 	//   GET /implicit_write (no explicit write on the response)
 	//   GET /panic_before_write (panic without writing response)
 	//   GET /panic_after_write (panic after writing response)
+	//	 POST /explicit_error_capture (explicit CaptureError call)
 	//
 	Handler http.Handler
 
@@ -134,4 +137,27 @@ func (s *HTTPTestSuite) TestPanicAfterWrite() {
 	e := ps.Errors[0]
 	s.Equal(tx.ID, e.ParentID)
 	s.Equal(resp.StatusCode, e.Context.Response.StatusCode)
+}
+
+// TestExplicitErrorCapture tests that a CaptureError explicit call
+// inside an HTTP request transaction captures the request body
+func (s *HTTPTestSuite) TestExplicitErrorCapture() {
+	s.Tracer.SetCaptureBody(apm.CaptureBodyAll)
+	resp, err := http.Post(
+		s.server.URL+"/explicit_error_capture",
+		"application/x-www-form-urlencoded",
+		strings.NewReader("body"),
+	)
+	require.NoError(s.T(), err)
+	defer resp.Body.Close()
+	s.Equal(http.StatusServiceUnavailable, resp.StatusCode)
+
+	s.Tracer.Flush(nil)
+	ps := s.Recorder.Payloads()
+	require.Len(s.T(), ps.Transactions, 1)
+
+	tx := ps.Transactions[0]
+	e := ps.Errors[0]
+	s.Equal(&model.RequestBody{Raw: "body"}, tx.Context.Request.Body)
+	s.Equal(&model.RequestBody{Raw: "body"}, e.Context.Request.Body)
 }

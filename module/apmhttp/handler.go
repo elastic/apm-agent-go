@@ -74,11 +74,11 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		h.handler.ServeHTTP(w, req)
 		return
 	}
-	tx, req := StartTransaction(h.tracer, h.requestName(req), req)
+	tx, body, req := StartTransactionWithBody(h.tracer, h.requestName(req), req)
 	defer tx.End()
 
-	body := h.tracer.CaptureHTTPRequestBody(req)
 	w, resp := WrapResponseWriter(w)
+
 	defer func() {
 		if v := recover(); v != nil {
 			if h.panicPropagation {
@@ -107,6 +107,8 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 //
 // If the transaction is not ignored, the request will be
 // returned with the transaction added to its context.
+//
+// DEPRECATED. Use StartTransactionWithBody instead.
 func StartTransaction(tracer *apm.Tracer, name string, req *http.Request) (*apm.Transaction, *http.Request) {
 	traceContext, ok := getRequestTraceparent(req, ElasticTraceparentHeader)
 	if !ok {
@@ -119,6 +121,20 @@ func StartTransaction(tracer *apm.Tracer, name string, req *http.Request) (*apm.
 	ctx := apm.ContextWithTransaction(req.Context(), tx)
 	req = RequestWithContext(ctx, req)
 	return tx, req
+}
+
+// StartTransactionWithBody returns a new Transaction with name,
+// created with tracer, and taking trace context from req.
+//
+// If the transaction is not ignored, the request and the request body
+// capturer will be returned with the transaction added to its context.
+func StartTransactionWithBody(tracer *apm.Tracer, name string, req *http.Request) (*apm.Transaction, *apm.BodyCapturer, *http.Request) {
+	tx, req := StartTransaction(tracer, name, req)
+	bc := tracer.CaptureHTTPRequestBody(req)
+	if bc != nil {
+		req = RequestWithContext(apm.ContextWithBodyCapturer(req.Context(), bc), req)
+	}
+	return tx, bc, req
 }
 
 func getRequestTraceparent(req *http.Request, header string) (apm.TraceContext, bool) {

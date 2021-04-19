@@ -21,9 +21,12 @@ package apmechov4_test
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"go.elastic.co/apm"
 
 	"github.com/labstack/echo/v4"
 	"github.com/pkg/errors"
@@ -46,6 +49,12 @@ func TestMiddlewareHTTPSuite(t *testing.T) {
 	e.GET("/panic_after_write", func(c echo.Context) error {
 		c.String(200, "hello, world")
 		panic("boom")
+	})
+	e.POST("/explicit_error_capture", func(c echo.Context) error {
+		ioutil.ReadAll(c.Request().Body)
+		e := apm.CaptureError(c.Request().Context(), errors.New("total explosion"))
+		e.Send()
+		return c.String(503, e.Error())
 	})
 	suite.Run(t, &apmtest.HTTPTestSuite{
 		Handler:  e,

@@ -64,10 +64,9 @@ func (f *filter) filter(req *restful.Request, resp *restful.Response, chain *res
 	} else {
 		name = apmhttp.UnknownRouteRequestName(req.Request)
 	}
-	tx, httpRequest := apmhttp.StartTransaction(f.tracer, name, req.Request)
+	tx, body, httpRequest := apmhttp.StartTransactionWithBody(f.tracer, name, req.Request)
 	defer tx.End()
 	req.Request = httpRequest
-	body := f.tracer.CaptureHTTPRequestBody(httpRequest)
 
 	const frameworkName = "go-restful"
 	const frameworkVersion = ""

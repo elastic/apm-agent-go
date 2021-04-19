@@ -98,11 +98,10 @@ func (m *middleware) handle(c *gin.Context) {
 	} else {
 		requestName = apmhttp.UnknownRouteRequestName(c.Request)
 	}
-	tx, req := apmhttp.StartTransaction(m.tracer, requestName, c.Request)
-	c.Request = req
+	tx, body, req := apmhttp.StartTransactionWithBody(m.tracer, requestName, c.Request)
 	defer tx.End()
+	c.Request = req
 
-	body := m.tracer.CaptureHTTPRequestBody(c.Request)
 	defer func() {
 		if v := recover(); v != nil {
 			if !c.Writer.Written() {

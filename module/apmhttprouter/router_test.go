@@ -18,9 +18,13 @@
 package apmhttprouter_test
 
 import (
+	"errors"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"go.elastic.co/apm"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/stretchr/testify/assert"
@@ -43,6 +47,13 @@ func TestRouterHTTPSuite(t *testing.T) {
 	router.GET("/panic_after_write", func(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 		w.Write([]byte("hello, world"))
 		panic("boom")
+	})
+	router.POST("/explicit_error_capture", func(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+		ioutil.ReadAll(req.Body)
+		w.WriteHeader(http.StatusServiceUnavailable)
+		e := apm.CaptureError(req.Context(), errors.New("total explosion"))
+		e.Send()
+		w.Write([]byte(e.Error()))
 	})
 	suite.Run(t, &apmtest.HTTPTestSuite{
 		Handler:  router,

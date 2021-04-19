@@ -17,7 +17,9 @@
 
 package apmcontext
 
-import "context"
+import (
+	"context"
+)
 
 var (
 	// ContextWithSpan takes a context and span and returns a new context

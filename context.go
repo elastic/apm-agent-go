@@ -32,6 +32,7 @@ import (
 type Context struct {
 	model               model.Context
 	request             model.Request
+	httpRequest         *http.Request
 	requestBody         model.RequestBody
 	requestSocket       model.RequestSocket
 	response            model.Response
@@ -171,6 +172,8 @@ func (c *Context) SetHTTPRequest(req *http.Request) {
 		httpVersion = fmt.Sprintf("%d.%d", req.ProtoMajor, req.ProtoMinor)
 	}
 
+	c.httpRequest = req
+
 	c.request = model.Request{
 		Body:        c.request.Body,
 		URL:         apmhttputil.RequestURL(req),
@@ -216,7 +219,7 @@ func (c *Context) SetHTTPRequestBody(bc *BodyCapturer) {
 	if bc == nil || bc.captureBody&c.captureBodyMask == 0 {
 		return
 	}
-	if bc.setContext(&c.requestBody) {
+	if bc.setContext(&c.requestBody, c.httpRequest) {
 		c.request.Body = &c.requestBody
 	}
 }
