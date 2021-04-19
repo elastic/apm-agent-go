@@ -1,7 +1,7 @@
 [[api]]
 == API Documentation
 
-Below are most commonly used parts of the API.
+Below are the most commonly used parts of the API.
 
 The Go agent is documented using standard godoc. For complete documentation,
 refer to the documentation at https://godoc.org/go.elastic.co/apm/[godoc.org/go.elastic.co/apm],
