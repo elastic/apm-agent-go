@@ -11,7 +11,7 @@ or by using the "godoc" tool.
 [[tracer-api]]
 === Tracer API
 
-The initial point of contact your application will have with the Go {agent}
+The initial point of contact your application will have with the Go agent
 is the `apm.Tracer` type, which provides methods for reporting
 transactions and errors.
 
