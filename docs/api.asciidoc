@@ -513,7 +513,7 @@ SetTransaction associates the error with the given transaction.
 [[error-set-span]]
 ==== `func (*Error) SetSpan(*Span)`
 
-SetSpan associates the error with the given span, and the spans transaction. When calling SetSpan,
+SetSpan associates the error and the transaction of the given span.
 it is not necessary to also call SetTransaction.
 
 [float]
