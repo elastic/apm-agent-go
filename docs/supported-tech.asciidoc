@@ -292,7 +292,7 @@ about Zerolog integration.
 === Object Storage
 
 [float]
-=== Amazon S3
+==== Amazon S3
 We provide instrumentation for AWS S3. This is usable with
 https://github.com/aws/aws-sdk-go[AWS SDK Go].
 
@@ -304,7 +304,7 @@ about AWS SDK Go instrumentation.
 === Messaging Systems
 
 [float]
-=== Amazon SQS
+==== Amazon SQS
 We provide instrumentation for AWS SQS. This is usable with
 https://github.com/aws/aws-sdk-go[AWS SDK Go].
 
@@ -312,7 +312,7 @@ See <<builtin-modules-apmawssdkgo, module/apmawssdkgo>> for more information
 about AWS SDK Go instrumentation.
 
 [float]
-=== Amazon SNS
+==== Amazon SNS
 We provide instrumentation for AWS SNS. This is usable with
 https://github.com/aws/aws-sdk-go[AWS SDK Go].
 
