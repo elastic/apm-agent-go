@@ -317,7 +317,7 @@ does not contain a span.
 [[context-api]]
 === Context
 
-Use context to describe transaction reporting and errors.
+You can add additional context to describe any transaction reporting and error events.
  Built-in instrumentation will typically provide some context,
 e.g. the URL and remote address for an HTTP request. You can also provide
 custom context and tags.
