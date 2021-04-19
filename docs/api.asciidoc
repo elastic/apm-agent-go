@@ -113,8 +113,7 @@ TraceContext returns the transaction's <<trace-context, trace context>>.
 [[transaction-ensureparent]]
 ==== `func (*Transaction) EnsureParent() SpanID`
 
-EnsureParent returns the transactions parent span ID, generating and recording one if
-it did not previously have one.
+EnsureParent generates and records the transaction parent span ID if it did not previously have one.
 
 EnsureParent enables correlation with spans created by the JavaScript Real User Monitoring
 (RUM) {agent} for the initial page load. If your backend service generates the HTML page
