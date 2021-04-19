@@ -29,6 +29,7 @@ https://github.com/elastic/apm-agent-go/compare/v1.11.0...master[View commits]
 - SpanContext.SetDestinationService is a no-op if either Name or Resource is empty {pull}931[#(931)]
 - module/apmawssdkgo: add support for instrumenting sqs RPC calls {pull}933[#(933)]
 - module/apmgrpc: record underlying HTTP/2 context {pull}904[#(904)]
+- Parse "//" comments in SQL/CQL {pull}937[#(937)]
 
 [[release-notes-1.x]]
 === Go Agent version 1.x

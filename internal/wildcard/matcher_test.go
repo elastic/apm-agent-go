@@ -18,13 +18,44 @@
 package wildcard
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestWildcardSpec(t *testing.T) {
+	// {name -> {pattern -> {input -> match?}}}
+	var tests map[string]map[string]map[string]bool
+
+	data, err := ioutil.ReadFile("../testdata/json-specs/wildcard_matcher_tests.json")
+	require.NoError(t, err)
+	err = json.Unmarshal(data, &tests)
+	require.NoError(t, err)
+
+	for name, patterns := range tests {
+		t.Run(name, func(t *testing.T) {
+			for pattern, inputs := range patterns {
+				origPattern := pattern
+				caseSensitivity := CaseInsensitive
+				if strings.HasPrefix(pattern, "(?-i)") {
+					caseSensitivity = CaseSensitive
+					pattern = pattern[len("(?-i)"):]
+				}
+				matcher := NewMatcher(pattern, caseSensitivity)
+				for input, expectMatch := range inputs {
+					match := matcher.Match(input)
+					assert.Equal(t, expectMatch, match, "Match(%q, %q)", origPattern, input)
+				}
+			}
+		})
+	}
+}
 
 func TestWildcardStartsWith(t *testing.T) {
 	mS := NewMatcher("foo*", CaseSensitive)
