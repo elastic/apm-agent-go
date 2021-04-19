@@ -5,7 +5,7 @@ The Elastic APM Go {agent} provides an implementation of the https://opentracing
 building on top of the core Elastic APM API.
 
 Spans created through the OpenTracing API will be translated to Elastic APM transactions or spans.
-Root spans and spans created with a remote span context, will be translated to Elastic APM
+Root spans and spans created with a remote span context, are translated to Elastic APM
 transactions. All others will be created as Elastic APM spans.
 
 [float]
