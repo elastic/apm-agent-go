@@ -22,6 +22,7 @@ package apmgrpc_test
 import (
 	"io"
 	"net"
+	"net/url"
 	"os"
 	"testing"
 	"time"
@@ -89,15 +90,24 @@ func testClientSpan(t *testing.T, traceparentHeaders ...string) {
 	assert.Equal(t, "/helloworld.Greeter/SayHello", clientSpans[0].Name)
 	assert.Equal(t, "external", clientSpans[0].Type)
 	assert.Equal(t, "grpc", clientSpans[0].Subtype)
-	assert.Equal(t, &model.DestinationSpanContext{
-		Address: tcpAddr.IP.String(),
-		Port:    tcpAddr.Port,
-		Service: &model.DestinationServiceSpanContext{
-			Type:     "external",
-			Name:     tcpAddr.String(),
-			Resource: tcpAddr.String(),
+	assert.Equal(t, &model.SpanContext{
+		HTTP: &model.HTTPSpanContext{
+			URL: &url.URL{
+				Scheme: "http",
+				Host:   tcpAddr.String(),
+				Path:   "/helloworld.Greeter/SayHello",
+			},
 		},
-	}, clientSpans[0].Context.Destination)
+		Destination: &model.DestinationSpanContext{
+			Address: tcpAddr.IP.String(),
+			Port:    tcpAddr.Port,
+			Service: &model.DestinationServiceSpanContext{
+				Type:     "external",
+				Name:     tcpAddr.String(),
+				Resource: tcpAddr.String(),
+			},
+		},
+	}, clientSpans[0].Context)
 
 	serverTracer.Flush(nil)
 	serverTransactions := serverTransport.Payloads().Transactions

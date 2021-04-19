@@ -36,7 +36,7 @@ type test struct {
 
 func TestQuerySignature(t *testing.T) {
 	var tests []test
-	data, err := ioutil.ReadFile("testdata/signature_tests.json")
+	data, err := ioutil.ReadFile("../../internal/testdata/json-specs/sql_signature_examples.json")
 	require.NoError(t, err)
 	err = json.Unmarshal(data, &tests)
 	require.NoError(t, err)
