@@ -14,3 +14,5 @@ require (
 replace go.elastic.co/apm => ../..
 
 replace go.elastic.co/apm/module/apmhttp => ../apmhttp
+
+replace go.elastic.co/apm/module/apmprometheus => ../apmprometheus
