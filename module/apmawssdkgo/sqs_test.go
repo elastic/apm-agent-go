@@ -42,16 +42,17 @@ import (
 func TestSQS(t *testing.T) {
 	for _, tc := range []struct {
 		fn                                 func(context.Context, *sqs.SQS, string)
-		name, action, resource             string
+		name, action, resource, queueName  string
 		queueURL                           string
 		ignored, hasTraceContext, hasError bool
 	}{
 		{
-			name:     "SQS POLL from MyQueue",
-			action:   "poll",
-			resource: "sqs/MyQueue",
-			queueURL: "https://sqs.testing.invalid/123456789012/MyQueue",
-			hasError: true,
+			name:      "SQS POLL from MyQueue",
+			action:    "poll",
+			resource:  "sqs/MyQueue",
+			queueName: "MyQueue",
+			queueURL:  "https://sqs.testing.invalid/123456789012/MyQueue",
+			hasError:  true,
 			fn: func(ctx context.Context, svc *sqs.SQS, queueURL string) {
 				svc.ReceiveMessageWithContext(ctx, &sqs.ReceiveMessageInput{
 					QueueUrl: &queueURL,
@@ -70,6 +71,7 @@ func TestSQS(t *testing.T) {
 			name:            "SQS SEND to OtherQueue",
 			action:          "send",
 			resource:        "sqs/OtherQueue",
+			queueName:       "OtherQueue",
 			queueURL:        "https://sqs.testing.invalid/123456789012/OtherQueue",
 			hasTraceContext: true,
 			fn: func(ctx context.Context, svc *sqs.SQS, queueURL string) {
@@ -89,6 +91,7 @@ func TestSQS(t *testing.T) {
 			name:            "SQS SEND_BATCH to OtherQueue",
 			action:          "send_batch",
 			resource:        "sqs/OtherQueue",
+			queueName:       "OtherQueue",
 			queueURL:        "https://sqs.testing.invalid/123456789012/OtherQueue",
 			hasTraceContext: true,
 			fn: func(ctx context.Context, svc *sqs.SQS, queueURL string) {
@@ -110,10 +113,11 @@ func TestSQS(t *testing.T) {
 			},
 		},
 		{
-			name:     "SQS DELETE from ThatQueue",
-			action:   "delete",
-			resource: "sqs/ThatQueue",
-			queueURL: "https://sqs.testing.invalid/123456789012/ThatQueue",
+			name:      "SQS DELETE from ThatQueue",
+			action:    "delete",
+			resource:  "sqs/ThatQueue",
+			queueName: "ThatQueue",
+			queueURL:  "https://sqs.testing.invalid/123456789012/ThatQueue",
 			fn: func(ctx context.Context, svc *sqs.SQS, queueURL string) {
 				svc.DeleteMessageWithContext(ctx, &sqs.DeleteMessageInput{
 					QueueUrl:      &queueURL,
@@ -185,6 +189,9 @@ func TestSQS(t *testing.T) {
 		assert.Equal(t, "sqs", service.Name)
 		assert.Equal(t, "messaging", service.Type)
 		assert.Equal(t, tc.resource, service.Resource)
+
+		queue := span.Context.Message.Queue
+		assert.Equal(t, tc.queueName, queue.Name)
 
 		host, port, err := net.SplitHostPort(ts.URL[7:])
 		require.NoError(t, err)

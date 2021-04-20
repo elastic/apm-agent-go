@@ -29,7 +29,7 @@ import (
 )
 
 type apmSNS struct {
-	name, opName, resourceName string
+	name, opName, resourceName, topicName string
 }
 
 func newSNS(req *request.Request) (*apmSNS, error) {
@@ -49,6 +49,7 @@ func newSNS(req *request.Request) (*apmSNS, error) {
 		name:         name,
 		opName:       "publish",
 		resourceName: resourceName,
+		topicName:    topicName,
 	}
 
 	return s, nil
@@ -60,6 +61,14 @@ func (s *apmSNS) resource() string { return s.resourceName }
 
 func (s *apmSNS) setAdditional(span *apm.Span) {
 	span.Action = s.opName
+	// According to the spec:
+	// Wherever the broker terminology uses "topic", this field will
+	// contain the topic name.
+	if s.topicName != "" {
+		span.Context.SetMessage(apm.MessageSpanContext{
+			QueueName: s.topicName,
+		})
+	}
 }
 
 func getTopicName(req *request.Request) string {

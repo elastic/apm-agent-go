@@ -41,7 +41,7 @@ var (
 )
 
 type apmSQS struct {
-	name, opName, resourceName string
+	name, opName, resourceName, queueName string
 }
 
 func newSQS(req *request.Request) (*apmSQS, error) {
@@ -62,6 +62,7 @@ func newSQS(req *request.Request) (*apmSQS, error) {
 		name:         name,
 		opName:       opName,
 		resourceName: resourceName,
+		queueName:    queueName,
 	}
 
 	return s, nil
@@ -73,7 +74,11 @@ func (s *apmSQS) resource() string { return s.resourceName }
 
 func (s *apmSQS) setAdditional(span *apm.Span) {
 	span.Action = s.opName
-	// TODO(stn): record `context.message.queue.name`
+	if s.queueName != "" {
+		span.Context.SetMessage(apm.MessageSpanContext{
+			QueueName: s.queueName,
+		})
+	}
 }
 
 // addMessageAttributesSQS adds message attributes to `SendMessage` and

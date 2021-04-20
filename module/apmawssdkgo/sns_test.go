@@ -42,13 +42,14 @@ import (
 func TestSNS(t *testing.T) {
 	for _, tc := range []struct {
 		fn                                 func(context.Context, *sns.SNS)
-		name, action, resource             string
+		name, action, resource, topicName  string
 		ignored, hasTraceContext, hasError bool
 	}{
 		{
 			name:            "SNS PUBLISH myTopic",
 			action:          "publish",
 			resource:        "sns/myTopic",
+			topicName:       "myTopic",
 			hasError:        true,
 			hasTraceContext: true,
 			fn: func(ctx context.Context, svc *sns.SNS) {
@@ -62,6 +63,7 @@ func TestSNS(t *testing.T) {
 			name:            "SNS PUBLISH myTopic",
 			action:          "publish",
 			resource:        "sns/myTopic",
+			topicName:       "myTopic",
 			hasTraceContext: true,
 			fn: func(ctx context.Context, svc *sns.SNS) {
 				svc.PublishWithContext(ctx, &sns.PublishInput{
@@ -137,6 +139,9 @@ func TestSNS(t *testing.T) {
 		assert.Equal(t, "sns", service.Name)
 		assert.Equal(t, "messaging", service.Type)
 		assert.Equal(t, tc.resource, service.Resource)
+
+		queue := span.Context.Message.Queue
+		assert.Equal(t, tc.topicName, queue.Name)
 
 		host, port, err := net.SplitHostPort(ts.URL[7:])
 		require.NoError(t, err)
