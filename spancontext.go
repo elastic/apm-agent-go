@@ -82,6 +82,7 @@ type MessageSpanContext struct {
 func (c *SpanContext) build() *model.SpanContext {
 	switch {
 	case len(c.model.Tags) != 0:
+	case c.model.Message != nil:
 	case c.model.Database != nil:
 	case c.model.HTTP != nil:
 	case c.model.Destination != nil:
