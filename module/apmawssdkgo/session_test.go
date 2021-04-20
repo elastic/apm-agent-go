@@ -177,6 +177,11 @@ func TestDynamoDB(t *testing.T) {
 }
 
 func TestMetrics(t *testing.T) {
+	// Reset counters
+	inflight.Reset()
+	sentBytes.Reset()
+	receivedBytes.Reset()
+
 	region := "us-west-2"
 	addr := "s3.testing.invalid"
 	cfg := aws.NewConfig().
@@ -205,8 +210,8 @@ func TestMetrics(t *testing.T) {
 
 	req, _ = svc.QueryRequest(input)
 	req.SetContext(ctx)
-	wrapper.build(req)
-	wrapper.send(req)
+	build(req)
+	send(req)
 
 	tracer.SendMetrics(nil)
 	metrics := tracer.Payloads().Metrics
@@ -231,7 +236,7 @@ func TestMetrics(t *testing.T) {
 	resp.Header.Add("sample", "key")
 	req.HTTPResponse = resp
 
-	wrapper.complete(req)
+	complete(req)
 
 	tracer.SendMetrics(nil)
 	metrics = tracer.Payloads().Metrics
@@ -241,6 +246,10 @@ func TestMetrics(t *testing.T) {
 	assert.Contains(t, samples, "apmawssdkgo_in_flight_requests")
 	assert.Equal(t, float64(0), samples["apmawssdkgo_in_flight_requests"].Value)
 
+	// for i, m := range metrics {
+	// 	fmt.Println(i)
+	// 	fmt.Printf("%+v\n", m)
+	// }
 	byteMetrics := metrics[len(metrics)-2]
 	labels = model.StringMap{
 		{Key: "code", Value: "200"},

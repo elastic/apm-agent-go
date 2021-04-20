@@ -36,82 +36,73 @@ func init() {
 	)
 }
 
-// This is a weird way to grab the *awsWrapper without exporting it. We don't
-// want to export it, but we also can't return it as an argument since the
-// linter doesn't like that.
-var wrapper *awsWrapper
+var (
+	inflight = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: "apmawssdkgo",
+		Name:      "in_flight_requests",
+		Help:      "A gauge of in-flight AWS RPC calls, partitioned by service and rpc.",
+	},
+		[]string{"service", "rpc"},
+	)
+	receivedBytes = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "apmawssdkgo",
+			Name:      "http_received_bytes_total",
+			Help:      "A counter for the total requests bytes sent to AWS, partitioned by service, rpc, and code.",
+		},
+		[]string{"service", "rpc", "code"},
+	)
+	sentBytes = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "apmawssdkgo",
+			Name:      "http_sent_bytes_total",
+			Help:      "A counter for the total response bytes read from AWS, partitioned by service, rpc, and code.",
+		},
+		[]string{"service", "rpc", "code"},
+	)
+)
 
 // WrapSession wraps the provided AWS session with handlers that hook into the
 // AWS SDK's request lifecycle. Supported services are listed in serviceTypeMap
 // variable below.
 func WrapSession(s *session.Session, opts ...Option) *session.Session {
-	wrapper = &awsWrapper{
+	cfg := &config{
 		tracer:   apm.DefaultTracer,
 		registry: prometheus.NewRegistry(),
-		inflight: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Namespace: "apmawssdkgo",
-			Name:      "in_flight_requests",
-			Help:      "A gauge of in-flight AWS RPC calls, partitioned by service and rpc.",
-		},
-			[]string{"service", "rpc"},
-		),
-		receivedBytes: prometheus.NewCounterVec(
-			prometheus.CounterOpts{
-				Namespace: "apmawssdkgo",
-				Name:      "http_received_bytes_total",
-				Help:      "A counter for the total requests bytes sent to AWS, partitioned by service, rpc, and code.",
-			},
-			[]string{"service", "rpc", "code"},
-		),
-		sentBytes: prometheus.NewCounterVec(
-			prometheus.CounterOpts{
-				Namespace: "apmawssdkgo",
-				Name:      "http_sent_bytes_total",
-				Help:      "A counter for the total response bytes read from AWS, partitioned by service, rpc, and code.",
-			},
-			[]string{"service", "rpc", "code"},
-		),
 	}
 
 	for _, o := range opts {
-		o(wrapper)
+		o(cfg)
 	}
 
 	// Record our metrics using client_golang, and have apmprometheus
 	// convert them for us.
-	wrapper.registry.MustRegister(
-		wrapper.inflight,
-		wrapper.receivedBytes,
-		wrapper.sentBytes,
-	)
-	wrapper.tracer.RegisterMetricsGatherer(apmprometheus.Wrap(wrapper.registry))
+	cfg.registry.MustRegister(inflight, receivedBytes, sentBytes)
+	cfg.tracer.RegisterMetricsGatherer(apmprometheus.Wrap(cfg.registry))
 
 	s.Handlers.Build.PushFrontNamed(request.NamedHandler{
 		Name: "go.elastic.co/apm/module/apmawssdkgo/build",
-		Fn:   wrapper.build,
+		Fn:   build,
 	})
 	s.Handlers.Send.PushFrontNamed(request.NamedHandler{
 		Name: "go.elastic.co/apm/module/apmawssdkgo/send",
-		Fn:   wrapper.send,
+		Fn:   send,
 	})
 	s.Handlers.Complete.PushBackNamed(request.NamedHandler{
 		Name: "go.elastic.co/apm/module/apmawssdkgo/complete",
-		Fn:   wrapper.complete,
+		Fn:   complete,
 	})
 
 	return s
 }
 
-type awsWrapper struct {
-	tracer        *apm.Tracer
-	registry      *prometheus.Registry
-	inflight      *prometheus.GaugeVec
-	receivedBytes *prometheus.CounterVec
-	sentBytes     *prometheus.CounterVec
+type config struct {
+	tracer   *apm.Tracer
+	registry *prometheus.Registry
 }
 
 // Option sets options for tracing server requests.
-type Option func(*awsWrapper)
+type Option func(*config)
 
 // WithTracer returns a Option which sets t as the tracer to use for tracing
 // requests made with the AWS SDK.
@@ -119,8 +110,8 @@ func WithTracer(t *apm.Tracer) Option {
 	if t == nil {
 		panic("t == nil")
 	}
-	return func(w *awsWrapper) {
-		w.tracer = t
+	return func(c *config) {
+		c.tracer = t
 	}
 }
 
@@ -132,8 +123,8 @@ func WithRegistry(r *prometheus.Registry) Option {
 	if r == nil {
 		panic("r == nil")
 	}
-	return func(w *awsWrapper) {
-		w.registry = r
+	return func(c *config) {
+		c.registry = r
 	}
 }
 
@@ -159,7 +150,7 @@ type service interface {
 	setAdditional(*apm.Span)
 }
 
-func (w *awsWrapper) build(req *request.Request) {
+func build(req *request.Request) {
 	spanSubtype := req.ClientInfo.ServiceName
 	spanType, ok := serviceTypeMap[spanSubtype]
 	if !ok {
@@ -201,7 +192,7 @@ func (w *awsWrapper) build(req *request.Request) {
 	}
 }
 
-func (w *awsWrapper) send(req *request.Request) {
+func send(req *request.Request) {
 	if req.RetryCount > 0 {
 		return
 	}
@@ -271,11 +262,11 @@ func (w *awsWrapper) send(req *request.Request) {
 	svc.setAdditional(span)
 
 	req.SetContext(ctx)
-	w.inflight.WithLabelValues(spanSubtype, req.Operation.Name).Inc()
+	inflight.WithLabelValues(spanSubtype, req.Operation.Name).Inc()
 }
 
-func (w *awsWrapper) complete(req *request.Request) {
-	w.inflight.WithLabelValues(req.ClientInfo.ServiceName, req.Operation.Name).Dec()
+func complete(req *request.Request) {
+	inflight.WithLabelValues(req.ClientInfo.ServiceName, req.Operation.Name).Dec()
 
 	ctx := req.Context()
 	span := apm.SpanFromContext(ctx)
@@ -288,13 +279,13 @@ func (w *awsWrapper) complete(req *request.Request) {
 	service := req.ClientInfo.ServiceName
 	operationName := req.Operation.Name
 
-	w.sentBytes.WithLabelValues(
+	sentBytes.WithLabelValues(
 		service,
 		operationName,
 		code,
 	).Add(float64(requestSize(req)))
 
-	w.receivedBytes.WithLabelValues(
+	receivedBytes.WithLabelValues(
 		service,
 		operationName,
 		code,
