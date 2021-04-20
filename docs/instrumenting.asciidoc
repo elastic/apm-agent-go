@@ -35,7 +35,7 @@ that framework's API. The request context can be used for reporting <<custom-ins
 Packages apmecho and apmechov4 provide middleware for the https://github.com/labstack/echo[Echo]
 web framework, versions 3.x and 4.x respectively.
 
-If you are using Echo 4.x (`github.com/labstack/echo/v4`), then use `module/apmechov4`.
+If you are using Echo 4.x (`github.com/labstack/echo/v4`), use `module/apmechov4`.
 For the older Echo 3.x versions (`github.com/labstack/echo`), use `module/apmecho`.
 
 For each request, a transaction is stored in the request context, which can be obtained via
@@ -164,7 +164,7 @@ func main() {
 }
 ----
 
-The server interceptor can optionally be made to recover panics in the same way as
+The server interceptor can optionally be made to recover panics, in the same way as
 https://github.com/grpc-ecosystem/go-grpc-middleware/tree/master/recovery[grpc_recovery].
 The apmgrpc server interceptor will always send panics it observes as errors to the Elastic APM server.
 If you want to recover panics but also want to continue using grpc_recovery, then you should ensure
@@ -210,9 +210,11 @@ The apmhttp handler will recover panics and send them to Elastic APM.
 Package apmhttp also provides functions for instrumenting an `http.Client` or `http.RoundTripper`
 such that outgoing requests are traced as spans, if the request context includes a transaction.
 When performing the request, the enclosing context should be propagated by using
-https://golang.org/pkg/net/http/#Request.WithContext[http.Request.WithContext], or a helper provided by https://golang.org/x/net/context/ctxhttp.
+https://golang.org/pkg/net/http/#Request.WithContext[http.Request.WithContext], or a helper, such as those provided by https://golang.org/x/net/context/ctxhttp.
 
-Client spans are not ended until the response body is fully consumed or closed. The span will not be sent if these are not done. Close the response body to ensure HTTP connections can be reused; see https://golang.org/pkg/net/http/#Client.Do.
+Client spans are not ended until the response body is fully consumed or closed.
+Failure to do either of these will result in the span not being sent.
+Always close the response body to ensure HTTP connections can be reused; see https://golang.org/pkg/net/http/#Client.Do[`func (*Client) Do`].
 
 [source,go]
 ----
@@ -270,7 +272,7 @@ func main() {
 
 https://github.com/julienschmidt/httprouter/pull/139[httprouter does not provide a means of obtaining the matched route], hence the route must be passed into the wrapper.
 
-Alternatively, use the apmhttprouter.Router type, which wraps httprouter.Router,
+Alternatively, use the `apmhttprouter.Router` type, which wraps `httprouter.Router`,
 providing the same API and instrumenting added routes. To use this wrapper type, rewrite your use of `httprouter.New` to `apmhttprouter.New`; the returned type
 is `*apmhttprouter.Router`, and not `*httprouter.Router`.
 

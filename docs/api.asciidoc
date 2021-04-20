@@ -42,8 +42,8 @@ func main() {
 [[tracer-api-start-transaction]]
 ==== `func (*Tracer) StartTransaction(name, type string) *Transaction`
 
-StartTransaction returns a new transaction with the specified name and type,
-and with the start time set to the current time. To set the
+StartTransaction returns a new Transaction with the specified name and type,
+and with the start time set to the current time. If you need to set the
 timestamp or the parent <<trace-context, trace context>>, use
 <<tracer-api-start-transaction-options, Tracer.StartTransactionOptions>>.
 
@@ -57,7 +57,7 @@ transaction := apm.DefaultTracer.StartTransaction("GET /", "request")
 
 Transactions will be grouped by type and name in the Elastic APM app.
 
-After starting a transaction, record a result and add context to
+After starting a transaction, you can record a result and add context to
 further describe the transaction.
 
 [source,go]
@@ -93,8 +93,8 @@ End enqueues the transaction for sending to the Elastic APM server.
 The transaction must not be modified after this, but it may still
 be used for starting spans.
 
-The duration of the transaction is calculated as the amount of time
-elapsed since the transaction was started until this call. To override
+The transaction's duration is calculated as the amount of time
+elapsed between the start of the transaction and this call. To override
 this behavior, the transaction's `Duration` field may be set before
 calling End.
 
@@ -113,12 +113,15 @@ TraceContext returns the transaction's <<trace-context, trace context>>.
 [[transaction-ensureparent]]
 ==== `func (*Transaction) EnsureParent() SpanID`
 
+EnsureParent returns the transaction's parent span ID--generating and recording one if
+it did not previously have one.
+
 EnsureParent generates and records the transaction parent span ID if it did not previously have one.
 
 EnsureParent enables correlation with spans created by the JavaScript Real User Monitoring
-(RUM) {agent} for the initial page load. If your backend service generates the HTML page
+(RUM) agent for the initial page load. If your backend service generates the HTML page
 dynamically, you can inject the trace and parent span ID into the page in order to initialize
-the JavaScript RUM agent, such that the web browsers page load appears as the root of the
+the JavaScript RUM agent, such that the web browser's page load appears as the root of the
 trace.
 
 [source,go]
@@ -317,10 +320,9 @@ does not contain a span.
 [[context-api]]
 === Context
 
-You can add additional context to describe any transaction reporting and error events.
- Built-in instrumentation will typically provide some context,
-e.g. the URL and remote address for an HTTP request. You can also provide
-custom context and tags.
+Built-in instrumentation will typically provide some context when reporting transaction and error events,
+like the URL and remote address for an HTTP request.
+You can add additional context with custom context and tags.
 
 [float]
 [[context-set-tag]]
@@ -403,7 +405,7 @@ and reporting an "exception" (either a panic or an error in Go parlance).
 [[tracer-new-error]]
 ==== `func (*Tracer) NewError(error) *Error`
 
-NewError returns a new error with details taken from err.
+NewError returns a new Error with details taken from err.
 
 The exception message will be set to `err.Error()`. The exception module and type will be set
 to the package and type name of the cause of the error, respectively, where the cause has the
@@ -458,7 +460,7 @@ This can be used in your application for correlation.
 [[tracer-new-error-log]]
 ==== `func (*Tracer) NewErrorLog(ErrorLogRecord) *Error`
 
-NewErrorLog returns a new error for the given ErrorLogRecord:
+NewErrorLog returns a new Error for the given ErrorLogRecord:
 
 [source,go]
 ----
@@ -492,7 +494,7 @@ type ErrorLogRecord struct {
 }
 ----
 
-The resulting error log stacktrace will not be set. Call the SetStacktrace method to set it, if desired.
+The resulting Error's log stacktrace will not be set. If desired, call the SetStacktrace method to set it.
 
 [source,go]
 ----
@@ -513,7 +515,7 @@ SetTransaction associates the error with the given transaction.
 [[error-set-span]]
 ==== `func (*Error) SetSpan(*Span)`
 
-SetSpan associates the error and the transaction of the given span.
+SetSpan associates the error with the given span and the span's transaction. When calling SetSpan,
 it is not necessary to also call SetTransaction.
 
 [float]
@@ -526,8 +528,8 @@ Send enqueues the error for sending to the Elastic APM server.
 [[tracer-recovered]]
 ==== `func (*Tracer) Recovered(interface{}) *Error`
 
-Recovered returns an error from the recovered value, optionally associating it with a transaction.
-The error is not sent. It is the caller's responsibility to set the errors context as desired,
+Recovered returns an Error from the recovered value, optionally associating it with a transaction.
+The error is not sent; it is the caller's responsibility to set the errors context as desired,
 and then call its `Send` method.
 
 [source,go]

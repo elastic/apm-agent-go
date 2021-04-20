@@ -1,7 +1,7 @@
 [[configuration]]
 == Configuration
 
-Adapt the Elastic APM GO {agent} by one of the following methods, in descending order of precedence: 
+Adapt the Elastic APM Go agent to your needs with one of the following methods--in descending order of precedence:
 
  1. {apm-app-ref}/agent-configuration.html[APM Agent Configuration via Kibana]
  (supported options are marked with <<dynamic-configuration, image:./images/dynamic-config.svg[] >>)
@@ -16,7 +16,7 @@ via either the Tracer Config API or environment variables.
 
 // tag::setup-config[]
 To simplify development and testing,
-the {agent} defaults to sending data to the Elastic APM Server at `http://localhost:8200`.
+the agent defaults to sending data to the Elastic APM Server at `http://localhost:8200`.
 To send data to an alternative location, you must configure
 <<config-server-url, ELASTIC_APM_SERVER_URL>>. Depending on the configuration
 of your server, you may also need to set <<config-api-key, ELASTIC_APM_API_KEY>>,
@@ -83,9 +83,9 @@ NOTE: We use the power-of-two sizing convention, e.g. 1KB = 1024B.
 | `ELASTIC_APM_SERVER_URL` | `http://localhost:8200` | `http://localhost:8200`
 |============
 
-The URL for your Elastic APM server. The server supports both HTTP and HTTPS.
+The URL for your Elastic APM Server. The Server supports both HTTP and HTTPS.
 If you use HTTPS, then you may need to configure your client machines so
-that the server certificate can be verified. Disable certificate
+that the server certificate can be verified. You can disable certificate
 verification with <<config-verify-server-cert>>.
 
 [float]
@@ -98,7 +98,7 @@ verification with <<config-verify-server-cert>>.
 | `ELASTIC_APM_SERVER_TIMEOUT` | `30s`   | `30s`
 |============
 
-The timeout for requests made to your Elastic APM server. Tiemouts will be disable when this is set to zero or a negative value. 
+The timeout for requests made to your Elastic APM Server. Timeouts will be disabled when set to zero or a negative value.
 
 [float]
 [[config-secret-token]]
@@ -110,10 +110,10 @@ The timeout for requests made to your Elastic APM server. Tiemouts will be disab
 | `ELASTIC_APM_SECRET_TOKEN` |         | "A random string"
 |============
 
-This string is used to ensure that only your {agent}s can send data to your APM server.
+This string is used to ensure that only your agents can send data to your APM server.
 Both the agents and the APM server have to be configured with the same secret token.
 
-WARNING: The Secret token is sent as plain-text in every request to the server, so you
+WARNING: The secret token is sent as plain-text in every request to the server, so you
 should also secure your communications using HTTPS. Unless you do so, your secret token
 could be observed by an attacker.
 
@@ -127,11 +127,8 @@ could be observed by an attacker.
 | `ELASTIC_APM_API_KEY` |         | "A base64-encoded string"
 |============
 
-This base64-encoded string is used to ensure that only your {agent}s can send data to your APM server.
-The API key must be created using the APM server command line tool. Please see the APM server
-documentation for details on how to do that.
-
-NOTE: This feature is fully supported in the APM Server versions >= 7.6.
+This base64-encoded string is used to ensure that only your agents can send data to your APM server.
+The API key must be created using the APM Server {apm-server-ref-v}/api-key.html[command line tool].
 
 WARNING: The API Key is sent as plain-text in every request to the server, so you should also secure
 your communications using HTTPS. Unless you do so, your API Key could be observed by an attacker.
@@ -203,7 +200,7 @@ NOTE: This feature is fully supported in the APM Server versions >= 7.5.
 The name of the environment this service is deployed in, e.g. "production" or "staging".
 
 Environments allow you to easily filter data on a global level in the APM app.
-It's important to be consistent when naming environments across {agent}s.
+It's important to be consistent when naming environments across agents.
 See {apm-app-ref}/filters.html#environment-selector[environment selector] in the APM app for more information.
 
 NOTE: This feature is fully supported in the APM app in Kibana versions >= 7.2.
@@ -381,7 +378,7 @@ to the APM server.
 |============
 
 The maximum number of bytes of uncompressed, encoded events to store in memory
-while the {agent} is busy. When the {agent} is able to, it will transfer buffered
+while the agent is busy. When the agent is able to, it will transfer buffered
 data to the request buffer, and start streaming it to the server. If the buffer
 fills up, new events will start replacing older ones.
 
@@ -416,7 +413,7 @@ for such edge cases.
 | `ELASTIC_APM_SPAN_FRAMES_MIN_DURATION` | `5ms`
 |============
 
-The APM {agent} will collect a stack trace for every recorded span whose duration
+The APM agent will collect a stack trace for every recorded span whose duration
 exceeds this configured value. While this is very helpful to find the exact
 place in your code that causes the span, collecting this stack trace does have
 some processing and storage overhead.
@@ -521,7 +518,7 @@ certificate via the `ELASTIC_APM_SERVER_CERT` configuration.
 | `ELASTIC_APM_VERIFY_SERVER_CERT`  | `true`
 |============
 
-By default, the agent verifies the servers certificate if you use an
+By default, the agent verifies the server's certificate if you use an
 HTTPS connection to the APM server. Verification can be disabled by
 changing this setting to `false`. This setting is ignored when
 `ELASTIC_APM_SERVER_CERT` is set.
@@ -536,7 +533,7 @@ changing this setting to `false`. This setting is ignored when
 | `ELASTIC_APM_LOG_FILE` |
 |============
 
-`ELASTIC_APM_LOG_FILE` specifies the output file for the {agent}'s default, internal
+`ELASTIC_APM_LOG_FILE` specifies the output file for the agent's default, internal
 logger. The file will be created, or truncated if it exists when the process starts.
 By default, logging is disabled. You must specify `ELASTIC_APM_LOG_FILE` to enable
 it. This environment variable will be ignored if a logger is configured programatically.
@@ -571,7 +568,7 @@ This environment variable will be ignored if a logger is configured programatica
 | `ELASTIC_APM_CENTRAL_CONFIG` | `true`
 |============
 
-Activate APM Agent Configuration via Kibana. By default the {agent} will poll the server
+Activate APM Agent Configuration via Kibana. By default the agent will poll the server
 for agent configuration changes. This can be disabled by changing the setting to `false`.
 
 NOTE: This feature requires APM Server v7.3 or later and that the APM Server is configured with `kibana.enabled: true`.
@@ -584,7 +581,7 @@ NOTE: This feature requires APM Server v7.3 or later and that the APM Server is 
 | `ELASTIC_APM_USE_ELASTIC_TRACEPARENT_HEADER` | `true`
 |============
 
-To enable {apm-overview-ref-v}/distributed-tracing.html[distributed tracing], the {agent}
+To enable {apm-overview-ref-v}/distributed-tracing.html[distributed tracing], the agent
 adds trace context headers to outgoing HTTP requests made with <<builtin-modules-apmhttp>>.
 These headers (`traceparent` and `tracestate`) are defined in the
 https://www.w3.org/TR/trace-context-1/[W3C Trace Context] specification.
@@ -603,7 +600,7 @@ for backwards compatibility with older versions of Elastic APM agents.
 |============
 
 This config value allows you to specify which cloud provider should be assumed
-for metadata collection. By default, the {agent} will use trial and error to
+for metadata collection. By default, the agent will use trial and error to
 automatically collect the cloud metadata.
 
 Valid options are `"none"`, `"auto"`, `"aws"`, `"gcp"`, and `"azure"`

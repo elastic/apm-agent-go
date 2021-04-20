@@ -33,13 +33,13 @@ tx.Result = "HTTP 2xx"
 tx.Context.SetLabel("region", "us-east-1")
 ----
 
-The {agent} supports sampling transactions: non-sampled transactions will be still be
+The agent supports sampling transactions: non-sampled transactions will be still be
 reported, but with limited context and without any spans. To determine whether a
-transaction is sampled, use the `Transaction.Sampled` method; if it's returned false,
+transaction is sampled, use the `Transaction.Sampled` method; if it returns false,
 you should avoid unnecessary storage or processing required for setting transaction
 context.
 
-Once you have started a transaction, include it in a `context` object for
+Once you have started a transaction, you can include it in a `context` object for
 propagating throughout the application. See <<custom-instrumentation-propagation, context propagation>>
 for more details.
 
@@ -72,7 +72,7 @@ the `Span.Dropped` method.
 ==== Panic recovery and errors
 
 To recover panics and report them along with your transaction, use the
-<<tracer-recovered, Tracer.Recovered>> method in a recovery function. These also methods for reporting
+<<tracer-recovered, Tracer.Recovered>> method in a recovery function. There are also methods for reporting
 non-panic errors: <<tracer-new-error, Tracer.NewError>>, <<tracer-new-error-log, Tracer.NewErrorLog>>, and
 <<apm-captureerror, apm.CaptureError>>.
 

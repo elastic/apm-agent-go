@@ -13,7 +13,7 @@ transactions. All others will be created as Elastic APM spans.
 === Initializing the tracer
 
 The OpenTracing API implementation is implemented as a bridge on top of the core Elastic APM API.
-To initialize the OpenTracing tracer implementation, import the `apmot` package first:
+To initialize the OpenTracing tracer implementation, you must first import the `apmot` package:
 
 [source,go]
 ----

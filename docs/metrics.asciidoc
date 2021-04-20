@@ -15,8 +15,8 @@ on your hosts.
 
 As of Elastic Stack version 6.6, these metrics will be visualized in the APM app.
 
-In some cases data from multiple nodes will be combined. As of Elastic Stack version 7.5, 
-you will be able to set a unique name for each node to avoid this problem. 
+In some cases data from multiple nodes will be combined. As of Elastic Stack version 7.5,
+you will be able to set a unique name for each node to avoid this problem.
 Otherwise, data will be aggregated separately based on container ID or host name.
 
 *`system.cpu.total.norm.pct`*::
@@ -60,7 +60,7 @@ type: long
 
 format: bytes
 
-The actual memory free in bytes. It is calculated based on the OS.
+The actual memory in bytes. It is calculated based on the OS.
 On Linux it consists of the free memory plus caches and buffers.
 On OSX it is a sum of free memory and the inactive memory.
 On Windows, this value does not include memory consumed by system caches and buffers.
