@@ -318,9 +318,10 @@ does not contain a span.
 [[context-api]]
 === Context
 
-Built-in instrumentation will typically provide some context when reporting transaction and error events,
-like the URL and remote address for an HTTP request.
-You can add additional context with custom context and tags.
+When reporting transactions and errors you can provide context to describe
+those events. Built-in instrumentation will typically provide some context,
+e.g. the URL and remote address for an HTTP request. You can also provide
+custom context and tags.
 
 [float]
 [[context-set-tag]]
