@@ -282,7 +282,7 @@ The number of transactions for which breakdown metrics (`span.self_time`) have b
 As the Go agent tracks the breakdown for both sampled and non-sampled transactions, this
 metric is equivalent to `transaction.duration.count`
 
-Filter and group by these dimensions:
+You can filter and group by these dimensions:
 
 * `transaction.name`: The name of the transaction
 * `transaction.type`: The type of the transaction, for example `request`

@@ -98,7 +98,8 @@ verification with <<config-verify-server-cert>>.
 | `ELASTIC_APM_SERVER_TIMEOUT` | `30s`   | `30s`
 |============
 
-The timeout for requests made to your Elastic APM Server. Timeouts will be disabled when set to zero or a negative value.
+The timeout for requests made to your Elastic APM server. When set to zero
+or a negative value, timeouts will be disabled.
 
 [float]
 [[config-secret-token]]
@@ -534,7 +535,7 @@ changing this setting to `false`. This setting is ignored when
 |============
 
 `ELASTIC_APM_LOG_FILE` specifies the output file for the agent's default, internal
-logger. The file will be created, or truncated if it exists when the process starts.
+logger. The file will be created, or truncated if it exists, when the process starts.
 By default, logging is disabled. You must specify `ELASTIC_APM_LOG_FILE` to enable
 it. This environment variable will be ignored if a logger is configured programatically.
 
