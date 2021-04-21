@@ -246,7 +246,7 @@ minimized, but the agent will continue to poll the server for configuration chan
 | `ELASTIC_APM_GLOBAL_LABELS` |         | `dept=engineering,rack=number8`
 |============
 
-Labels added to all events with the format key=value[,key=value[,...]].
+Labels are added to all events. The format for labels is: `key=value[,key=value[,...]]`.
 Any labels set by application via the API will override global labels with the same keys.
 
 This option requires APM Server 7.2 or greater, and will have no effect when using older
