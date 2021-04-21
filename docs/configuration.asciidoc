@@ -1,7 +1,7 @@
 [[configuration]]
 == Configuration
 
-Adapt the Elastic APM Go agent to your needs with one of the following methods--in descending order of precedence:
+Adapt the Elastic APM Go agent to your needs with one of the following methods--listed in descending order of precedence:
 
  1. {apm-app-ref}/agent-configuration.html[APM Agent Configuration via Kibana]
  (supported options are marked with <<dynamic-configuration, image:./images/dynamic-config.svg[] >>)
@@ -321,7 +321,7 @@ For transactions that are HTTP requests, the Go agent can optionally capture the
 
 Possible values: `errors`, `transactions`, `all`, `off`.
 
-WARNING: Request bodies often contain sensitive values like passwords, credit card numbers, etc.
+WARNING: Request bodies often contain sensitive values like passwords, credit card numbers, and so on.
 If your service handles data like this, enable this feature with care.
 
 [float]
@@ -552,7 +552,7 @@ respectively.
 | `ELASTIC_APM_LOG_LEVEL` | `"error"`
 |============
 
-`ELASTIC_APM_LOG_LEVEL` specifies the log-level for the agent's default, internal
+`ELASTIC_APM_LOG_LEVEL` specifies the log level for the agent's default, internal
 logger. The only two levels used by the logger are "error" and "debug". By default,
 logging is disabled. You must specify `ELASTIC_APM_LOG_FILE` to enable it.
 

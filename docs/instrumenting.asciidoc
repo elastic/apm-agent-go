@@ -213,7 +213,7 @@ When performing the request, the enclosing context should be propagated by using
 https://golang.org/pkg/net/http/#Request.WithContext[http.Request.WithContext], or a helper, such as those provided by https://golang.org/x/net/context/ctxhttp.
 
 Client spans are not ended until the response body is fully consumed or closed.
-Failure to do either of these will result in the span not being sent.
+If you fail to do either, the span will not be sent.
 Always close the response body to ensure HTTP connections can be reused; see https://golang.org/pkg/net/http/#Client.Do[`func (*Client) Do`].
 
 [source,go]

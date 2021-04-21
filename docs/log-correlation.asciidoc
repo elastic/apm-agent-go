@@ -68,8 +68,8 @@ For correlating unstructured logs (e.g. basic printf-style logging, like the sta
 `log` package), then you will need to need to include the trace IDs in your log message. Then,
 extract them using Filebeat.
 
-If you already have a transaction and/or span object, then use the
-<<transaction-tracecontext, Transaction.TraceContext>> and <<span-tracecontext, Span.TraceContext>>
+If you already have a transaction or span object, use the
+<<transaction-tracecontext, Transaction.TraceContext>> or <<span-tracecontext, Span.TraceContext>>
 methods. The trace, transaction, and span ID types all provide `String` methods that yield
 their canonical hex-encoded string representation.
 
@@ -94,9 +94,9 @@ This would print a log message along the lines of:
 
     2019/09/17 14:48:02 ERROR [trace.id=cd04f33b9c0c35ae8abe77e799f126b7 transaction.id=cd04f33b9c0c35ae span.id=960834f4538880a4] an error occurred
 
-For the log correlation to work, the trace IDs must be extracted from the log message and
+For log correlation to work, the trace IDs must be extracted from the log message and
 stored in separate fields in the Elasticsearch document. This can be achieved by
-{filebeat-ref}/configuring-ingest-node.html[parsing the data using an ingest node], in particular
+{filebeat-ref}/configuring-ingest-node.html[using an ingest pipeline to parse the data], in particular
 by using {ref}/grok-processor.html[the grok processor].
 
 [source,json]

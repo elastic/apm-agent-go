@@ -1,7 +1,7 @@
 [[api]]
 == API Documentation
 
-Below are the most commonly used parts of the API.
+This section describes the most commonly used parts of the API.
 
 The Go agent is documented using standard godoc. For complete documentation,
 refer to the documentation at https://godoc.org/go.elastic.co/apm/[godoc.org/go.elastic.co/apm],
@@ -116,8 +116,6 @@ TraceContext returns the transaction's <<trace-context, trace context>>.
 EnsureParent returns the transaction's parent span ID--generating and recording one if
 it did not previously have one.
 
-EnsureParent generates and records the transaction parent span ID if it did not previously have one.
-
 EnsureParent enables correlation with spans created by the JavaScript Real User Monitoring
 (RUM) agent for the initial page load. If your backend service generates the HTML page
 dynamically, you can inject the trace and parent span ID into the page in order to initialize
@@ -228,7 +226,7 @@ and action; a single dot separates span type and subtype, and the action will no
 
 If the transaction is sampled, then the span's ID will be set, and its stacktrace will
 be set if the tracer is configured accordingly. If the transaction is not sampled, then
-the returned span will be silently discarded when its End method is called. Avoid any unnecessary computation for these dropped spans by calling the <<span-dropped, Dropped>>
+the returned span will be silently discarded when its End method is called. To avoid any unnecessary computation for these dropped spans, call the <<span-dropped, Dropped>>
 method.
 
 As a convenience, it is valid to create a span on a nil Transaction; the resulting span
@@ -494,7 +492,7 @@ type ErrorLogRecord struct {
 }
 ----
 
-The resulting Error's log stacktrace will not be set. If desired, call the SetStacktrace method to set it.
+The resulting Error's log stacktrace will not be set. Call the SetStacktrace method to set it.
 
 [source,go]
 ----
@@ -529,7 +527,7 @@ Send enqueues the error for sending to the Elastic APM server.
 ==== `func (*Tracer) Recovered(interface{}) *Error`
 
 Recovered returns an Error from the recovered value, optionally associating it with a transaction.
-The error is not sent; it is the caller's responsibility to set the errors context as desired,
+The error is not sent; it is the caller's responsibility to set the error's context,
 and then call its `Send` method.
 
 [source,go]
