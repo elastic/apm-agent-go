@@ -301,7 +301,7 @@ Fields:
 * `sum.us`: The sum of all span self-times in microseconds since the last report (the delta)
 * `count`: The count of all span self-times since the last report (the delta)
 
-Filter and group by these dimensions:
+You can filter and group by these dimensions:
 
 * `transaction.name`: The name of the transaction
 * `transaction.type`: The type of the transaction, for example `request`
