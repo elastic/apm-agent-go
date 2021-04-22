@@ -137,7 +137,7 @@ func (bc *BodyCapturer) Discard() {
 }
 
 func (bc *BodyCapturer) setContext(out *model.RequestBody, req *http.Request) bool {
-	if req.PostForm != nil {
+	if req != nil && req.PostForm != nil {
 		// We must copy the map in case we need to
 		// sanitize the values. Ideally we should only
 		// copy if sanitization is necessary, but body
