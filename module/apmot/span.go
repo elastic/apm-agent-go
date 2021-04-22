@@ -148,8 +148,10 @@ func (s *otSpan) setSpanContext() {
 		component       string
 		httpURL         string
 		httpMethod      string
+		httpHost        string
 		haveDBContext   bool
 		haveHTTPContext bool
+		haveHTTPHostTag bool
 	)
 	for k, v := range s.tags {
 		switch k {
@@ -173,6 +175,10 @@ func (s *otSpan) setSpanContext() {
 		case "http.method":
 			haveHTTPContext = true
 			httpMethod = stringify(v)
+		case "http.host":
+			haveHTTPContext = true
+			haveHTTPHostTag = true
+			httpHost = stringify(v)
 
 		// Elastic APM-specific tags:
 		case "type":
@@ -190,12 +196,19 @@ func (s *otSpan) setSpanContext() {
 		}
 		url, err := url.Parse(httpURL)
 		if err == nil {
-			var req http.Request
-			req.ProtoMajor = 1 // Assume HTTP/1.1
-			req.ProtoMinor = 1
-			req.Method = httpMethod
-			req.URL = url
-			s.span.Context.SetHTTPRequest(&req)
+			// handles the case where the url.Host hasn't been set.
+			// Tries obtaining the host value from the "http.host" tag.
+			// If not found, or if the url.Host has a value, it won't
+			// mutate the existing host.
+			if url.Host == "" && haveHTTPHostTag {
+				url.Host = httpHost
+			}
+			s.span.Context.SetHTTPRequest(&http.Request{
+				ProtoMinor: 1,
+				ProtoMajor: 1,
+				Method:     httpMethod,
+				URL:        url,
+			})
 		}
 	case haveDBContext:
 		if s.span.Type == "" {
