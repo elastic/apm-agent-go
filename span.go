@@ -319,8 +319,10 @@ func (s *Span) End() {
 }
 
 // ParentID returns the ID of the span's parent span or transaction.
-// If Span is nil or has been ended, a zero (invalid) SpanID is returned.
 func (s *Span) ParentID() SpanID {
+	if s == nil {
+		return SpanID{}
+	}
 	return s.parentID
 }
 

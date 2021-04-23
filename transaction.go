@@ -74,7 +74,6 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 		tx.traceContext.Trace = opts.TraceContext.Trace
 		tx.traceContext.Options = opts.TraceContext.Options
 		if opts.TraceContext.Span.Validate() == nil {
-			tx.parentSpan = opts.TraceContext.Span
 			tx.parentID = opts.TraceContext.Span
 		}
 		if opts.TransactionID.Validate() == nil {
@@ -225,21 +224,24 @@ func (tx *Transaction) EnsureParent() SpanID {
 		return SpanID{}
 	}
 
-	tx.TransactionData.mu.Lock()
-	defer tx.TransactionData.mu.Unlock()
-	if tx.parentSpan.isZero() {
-		// parentSpan can only be zero if tx is a root transaction
+	if tx.parentID.isZero() {
+		// parentID can only be zero if tx is a root transaction
 		// for which GenerateParentTraceContext() has not previously
 		// been called. Reuse the latter half of the trace ID for
 		// the parent span ID; the first half is used for the
 		// transaction ID.
-		copy(tx.parentSpan[:], tx.traceContext.Trace[8:])
+		copy(tx.parentID[:], tx.traceContext.Trace[8:])
 	}
-	return tx.parentSpan
+	return tx.parentID
 }
 
 // ParentID returns the ID of the transaction's Parent or a zero (invalid) SpanID.
 func (tx *Transaction) ParentID() SpanID {
+	if tx == nil {
+		return SpanID{}
+	}
+	tx.mu.RLock()
+	defer tx.mu.RUnlock()
 	return tx.parentID
 }
 
@@ -359,9 +361,6 @@ type TransactionData struct {
 	childrenTimer childrenTimer
 	spanTimings   spanTimingsMap
 	rand          *rand.Rand // for ID generation
-	// parentSpan holds the transaction's parent ID. It is protected by
-	// mu, since it can be updated by calling EnsureParent.
-	parentSpan SpanID
 }
 
 // reset resets the TransactionData back to its zero state and places it back

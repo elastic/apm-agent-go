@@ -156,7 +156,7 @@ See the {apm-rum-ref}/index.html[JavaScript RUM agent documentation] for more in
 [[transaction-parentid]]
 ==== `func (*Transaction) ParentID() SpanID`
 
-ParentID returns the ID of the transaction's Parent or a zero (invalid) SpanID.
+ParentID returns the ID of the transaction's parent, or a zero (invalid) SpanID if the transaction has no parent.
 
 [float]
 [[apm-context-with-transaction]]
@@ -323,8 +323,7 @@ does not contain a span.
 [[span-parentid]]
 ==== `func (*Span) ParentID() SpanID`
 
-ParentID returns the ID of the span's parent span or transaction.
-If Span is nil or has been ended, a zero (invalid) SpanID is returned.
+ParentID returns the ID of the span's parent.
 
 // -------------------------------------------------------------------------------------------------
 

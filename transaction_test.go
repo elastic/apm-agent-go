@@ -148,10 +148,9 @@ func TestTransactionParentID(t *testing.T) {
 	tx := tracer.StartTransaction("name", "type")
 	traceContext := tx.TraceContext()
 
-	// Top level tx has no parent.
+	// root tx has no parent.
 	parentSpan := tx.ParentID()
 	assert.Zero(t, parentSpan)
-	assert.NotEqual(t, traceContext.Span, parentSpan)
 
 	// Create a child transaction with the TraceContext from the parent.
 	txChild := tracer.StartTransactionOptions("child", "type", apm.TransactionOptions{
@@ -183,6 +182,30 @@ func TestTransactionParentID(t *testing.T) {
 
 	// Parent transaction has a zero ParentID.
 	assert.Zero(t, payloads.Transactions[1].ParentID)
+}
+
+func TestTransactionParentIDWithEnsureParent(t *testing.T) {
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+
+	tx := tracer.StartTransaction("name", "type")
+
+	rootParentIDEmpty := tx.ParentID()
+	assert.Zero(t, rootParentIDEmpty)
+
+	ensureParentResult := tx.EnsureParent()
+	assert.NotZero(t, ensureParentResult)
+
+	rootParentIDNotEmpty := tx.ParentID()
+	assert.Equal(t, ensureParentResult, rootParentIDNotEmpty)
+
+	tx.End()
+
+	tracer.Flush(nil)
+	payloads := tracer.Payloads()
+	require.Len(t, payloads.Transactions, 1)
+
+	assert.Equal(t, model.SpanID(rootParentIDNotEmpty), payloads.Transactions[0].ParentID)
 }
 
 func TestTransactionContextNotSampled(t *testing.T) {

@@ -113,7 +113,7 @@ func (w *modelWriter) buildModelTransaction(out *model.Transaction, tx *Transact
 		out.SampleRate = &tx.traceContext.State.sampleRate
 	}
 
-	out.ParentID = model.SpanID(td.parentSpan)
+	out.ParentID = model.SpanID(tx.parentID)
 	out.Name = truncateString(td.Name)
 	out.Type = truncateString(td.Type)
 	out.Result = truncateString(td.Result)
