@@ -205,7 +205,6 @@ func (t *Tracer) startSpan(name, spanType string, transactionID SpanID, opts Spa
 	span.Name = name
 	span.traceContext = opts.Parent
 	span.parentID = opts.Parent.Span
-	span.SpanData.parentID = opts.Parent.Span
 	span.transactionID = transactionID
 	span.timestamp = opts.Start
 	span.Type = spanType
@@ -380,7 +379,6 @@ func (s *Span) ended() bool {
 // When a span is ended or discarded, its SpanData field will be set
 // to nil.
 type SpanData struct {
-	parentID               SpanID
 	stackFramesMinDuration time.Duration
 	stackTraceLimit        int
 	timestamp              time.Time

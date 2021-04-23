@@ -136,7 +136,7 @@ func (w *modelWriter) buildModelSpan(out *model.Span, span *Span, sd *SpanData) 
 		out.SampleRate = &span.traceContext.State.sampleRate
 	}
 
-	out.ParentID = model.SpanID(sd.parentID)
+	out.ParentID = model.SpanID(span.parentID)
 	out.Name = truncateString(sd.Name)
 	out.Type = truncateString(sd.Type)
 	out.Subtype = truncateString(sd.Subtype)
