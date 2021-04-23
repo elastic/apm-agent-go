@@ -141,6 +141,34 @@ func TestTransactionEnsureParent(t *testing.T) {
 	assert.Equal(t, model.SpanID(parentSpan), payloads.Transactions[0].ParentID)
 }
 
+func TestTransactionParentID(t *testing.T) {
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+
+	tx := tracer.StartTransaction("name", "type")
+	traceContext := tx.TraceContext()
+
+	parentSpan := tx.ParentID()
+	assert.NotZero(t, parentSpan)
+	assert.NotEqual(t, traceContext.Span, parentSpan)
+
+	// ParentID is idempotent.
+	parentSpan2 := tx.ParentID()
+	assert.Equal(t, parentSpan, parentSpan2)
+
+	tx.End()
+
+	// For an ended transaction, ParentID will return a zero value
+	// even if the transaction had a parent at the time it was ended.
+	parentSpan3 := tx.ParentID()
+	assert.Zero(t, parentSpan3)
+
+	tracer.Flush(nil)
+	payloads := tracer.Payloads()
+	require.Len(t, payloads.Transactions, 1)
+	assert.Equal(t, model.SpanID(parentSpan), payloads.Transactions[0].ParentID)
+}
+
 func TestTransactionContextNotSampled(t *testing.T) {
 	tracer := apmtest.NewRecordingTracer()
 	defer tracer.Close()

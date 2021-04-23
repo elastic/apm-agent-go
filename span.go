@@ -316,6 +316,15 @@ func (s *Span) End() {
 	s.SpanData = nil
 }
 
+// ParentID returns the span's Parent ID as SpanID.
+// If Span is nil or has been ended, a zero (invalid) SpanID is returned.
+func (s *Span) ParentID() SpanID {
+	if s.SpanData == nil || s.parentID.isZero() {
+		return SpanID{}
+	}
+	return s.parentID
+}
+
 // reportSelfTime reports the span's self-time to its transaction, and informs
 // the parent that it has ended in order for the parent to later calculate its
 // own self-time.

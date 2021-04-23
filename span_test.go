@@ -87,6 +87,33 @@ func TestTracerStartSpan(t *testing.T) {
 	assert.Equal(t, 1, payloads.Transactions[0].SpanCount.Started)
 }
 
+func TestSpanParentID(t *testing.T) {
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+
+	tx := tracer.StartTransaction("name", "type")
+	span := tx.StartSpan("name", "type", nil)
+	traceContext := tx.TraceContext()
+	parentID := span.ParentID()
+
+	span.End()
+	emptyParentID := span.ParentID()
+
+	tx.End()
+	// Assert that the parentID is not empty when the span hasn't been ended.
+	// And that the Span's parentID equals the traceContext Span.
+	assert.NotEqual(t, parentID, apm.SpanID{})
+	assert.Equal(t, traceContext.Span, parentID)
+
+	// Assert that the parentID is empty once the span has ended.
+	assert.Zero(t, emptyParentID)
+
+	tracer.Flush(nil)
+	payloads := tracer.Payloads()
+	require.Len(t, payloads.Spans, 1)
+	assert.Equal(t, model.SpanID(parentID), payloads.Spans[0].ParentID)
+}
+
 func TestSpanTiming(t *testing.T) {
 	var spanStart, spanEnd time.Time
 	txStart := time.Now()
