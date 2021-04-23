@@ -15,15 +15,21 @@
 // specific language governing permissions and limitations
 // under the License.
 
+// +build go1.13
+
 package apmawssdkgo // import "go.elastic.co/apm/module/apmawssdkgo"
 
 import (
+	"strconv"
+
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/module/apmhttp"
+	"go.elastic.co/apm/module/apmprometheus"
 	"go.elastic.co/apm/stacktrace"
 
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 func init() {
@@ -32,10 +38,50 @@ func init() {
 	)
 }
 
+var (
+	inflight = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: "apmawssdkgo",
+		Name:      "in_flight_requests",
+		Help:      "A gauge of in-flight AWS RPC calls, partitioned by service and rpc.",
+	},
+		[]string{"service", "rpc"},
+	)
+	receivedBytes = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "apmawssdkgo",
+			Name:      "http_received_bytes_total",
+			Help:      "A counter for the total requests bytes sent to AWS, partitioned by service, rpc, and code.",
+		},
+		[]string{"service", "rpc", "code"},
+	)
+	sentBytes = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "apmawssdkgo",
+			Name:      "http_sent_bytes_total",
+			Help:      "A counter for the total response bytes read from AWS, partitioned by service, rpc, and code.",
+		},
+		[]string{"service", "rpc", "code"},
+	)
+)
+
 // WrapSession wraps the provided AWS session with handlers that hook into the
 // AWS SDK's request lifecycle. Supported services are listed in serviceTypeMap
 // variable below.
-func WrapSession(s *session.Session) *session.Session {
+func WrapSession(s *session.Session, opts ...Option) *session.Session {
+	cfg := &config{
+		tracer:   apm.DefaultTracer,
+		registry: prometheus.NewRegistry(),
+	}
+
+	for _, o := range opts {
+		o(cfg)
+	}
+
+	// Record our metrics using client_golang, and have apmprometheus
+	// convert them for us.
+	cfg.registry.MustRegister(inflight, receivedBytes, sentBytes)
+	cfg.tracer.RegisterMetricsGatherer(apmprometheus.Wrap(cfg.registry))
+
 	s.Handlers.Build.PushFrontNamed(request.NamedHandler{
 		Name: "go.elastic.co/apm/module/apmawssdkgo/build",
 		Fn:   build,
@@ -50,6 +96,38 @@ func WrapSession(s *session.Session) *session.Session {
 	})
 
 	return s
+}
+
+type config struct {
+	tracer   *apm.Tracer
+	registry *prometheus.Registry
+}
+
+// Option sets options for tracing server requests.
+type Option func(*config)
+
+// WithTracer returns a Option which sets t as the tracer to use for tracing
+// requests made with the AWS SDK.
+func WithTracer(t *apm.Tracer) Option {
+	if t == nil {
+		panic("t == nil")
+	}
+	return func(c *config) {
+		c.tracer = t
+	}
+}
+
+// WithRegistry returns an Option which sets r as the prometheus.Registry to
+// use when recording AWS SDK metrics. If no registry is supplied, a new one
+// will be instantiated.Metrics will be reported to the APM server regardless
+// of the prometheus.Registry supplied.
+func WithRegistry(r *prometheus.Registry) Option {
+	if r == nil {
+		panic("r == nil")
+	}
+	return func(c *config) {
+		c.registry = r
+	}
 }
 
 const (
@@ -186,9 +264,12 @@ func send(req *request.Request) {
 	svc.setAdditional(span)
 
 	req.SetContext(ctx)
+	inflight.WithLabelValues(spanSubtype, req.Operation.Name).Inc()
 }
 
 func complete(req *request.Request) {
+	inflight.WithLabelValues(req.ClientInfo.ServiceName, req.Operation.Name).Dec()
+
 	ctx := req.Context()
 	span := apm.SpanFromContext(ctx)
 	if span.Dropped() {
@@ -196,9 +277,71 @@ func complete(req *request.Request) {
 	}
 	defer span.End()
 
+	code := strconv.Itoa(req.HTTPResponse.StatusCode)
+	service := req.ClientInfo.ServiceName
+	operationName := req.Operation.Name
+
+	sentBytes.WithLabelValues(
+		service,
+		operationName,
+		code,
+	).Add(float64(requestSize(req)))
+
+	receivedBytes.WithLabelValues(
+		service,
+		operationName,
+		code,
+	).Add(float64(responseSize(req)))
+
 	span.Context.SetHTTPStatusCode(req.HTTPResponse.StatusCode)
 
 	if err := req.Error; err != nil {
 		apm.CaptureError(ctx, err).Send()
 	}
+}
+
+func requestSize(req *request.Request) int {
+	var (
+		r = req.HTTPRequest
+		s = 0
+	)
+	if r.URL != nil {
+		s += len(r.URL.String())
+	}
+
+	s += len(r.Method)
+	s += len(r.Proto)
+	for name, values := range r.Header {
+		s += len(name)
+		for _, value := range values {
+			s += len(value)
+		}
+	}
+	s += len(r.Host)
+
+	if r.ContentLength != -1 {
+		s += int(r.ContentLength)
+	}
+	return s
+}
+
+func responseSize(req *request.Request) int {
+	var (
+		r = req.HTTPResponse
+		s = 0
+	)
+
+	s += len(r.Status)
+	s += len(r.Proto)
+	for name, values := range r.Header {
+		s += len(name)
+		for _, value := range values {
+			s += len(value)
+		}
+	}
+
+	if r.ContentLength != -1 {
+		s += int(r.ContentLength)
+	}
+	return s
 }
