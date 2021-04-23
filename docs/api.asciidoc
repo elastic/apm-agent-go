@@ -156,33 +156,7 @@ See the {apm-rum-ref}/index.html[JavaScript RUM agent documentation] for more in
 [[transaction-parentid]]
 ==== `func (*Transaction) ParentID() SpanID`
 
-ParentID returns the transaction's Parent ID generating a parent span ID if one has
-not already been set and tx has not been ended.
-If tx is nil or has been ended, a zero (invalid) SpanID is returned.
-
-Internally calls `Transaction.EnsureParent()`.
-
-[source,go]
-----
-// TraceContext returns a map[string]interface{} containing the trace
-// context of the transaction and span contained in ctx, if any.
-func TraceContext(ctx context.Context) map[string]interface{} {
-	tx := apm.TransactionFromContext(ctx)
-	if tx == nil {
-		return nil
-	}
-	traceContext := tx.TraceContext()
-	fields := map[string]interface{}{
-		"trace_id":              traceContext.Trace,
-		"transaction_id":        traceContext.Span,
-		"transaction_parent_id": tx.ParentID(),
-	}
-	if span := apm.SpanFromContext(ctx); span != nil {
-		fields["span_id"] = span.ParentID()
-	}
-	return fields
-}
-----
+ParentID returns the ID of the transaction's Parent or a zero (invalid) SpanID.
 
 [float]
 [[apm-context-with-transaction]]
@@ -349,30 +323,8 @@ does not contain a span.
 [[span-parentid]]
 ==== `func (*Span) ParentID() SpanID`
 
-ParentID returns the span's Parent ID generating a parent span ID if one has
-not already been set and tx has not been ended.
-If tx is nil or has been ended, a zero (invalid) SpanID is returned.
-
-[source,go]
-----
-// TraceContext returns a map[string]interface{} containing the trace
-// context of the transaction and span contained in ctx, if any.
-func TraceContext(ctx context.Context) map[string]interface{} {
-	tx := apm.TransactionFromContext(ctx)
-	if tx == nil {
-		return nil
-	}
-	traceContext := tx.TraceContext()
-	fields := map[string]interface{}{
-		"trace_id":       traceContext.Trace,
-		"transaction_id": traceContext.Span,
-	}
-	if span := apm.SpanFromContext(ctx); span != nil {
-		fields["span_id"] = span.ParentID()
-	}
-	return fields
-}
-----
+ParentID returns the ID of the span's parent span or transaction.
+If Span is nil or has been ended, a zero (invalid) SpanID is returned.
 
 // -------------------------------------------------------------------------------------------------
 

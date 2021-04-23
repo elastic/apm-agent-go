@@ -75,6 +75,7 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 		tx.traceContext.Options = opts.TraceContext.Options
 		if opts.TraceContext.Span.Validate() == nil {
 			tx.parentSpan = opts.TraceContext.Span
+			tx.parentID = opts.TraceContext.Span
 		}
 		if opts.TransactionID.Validate() == nil {
 			tx.traceContext.Span = opts.TransactionID
@@ -162,6 +163,7 @@ type TransactionOptions struct {
 type Transaction struct {
 	tracer       *Tracer
 	traceContext TraceContext
+	parentID     SpanID
 
 	mu sync.RWMutex
 
@@ -236,13 +238,9 @@ func (tx *Transaction) EnsureParent() SpanID {
 	return tx.parentSpan
 }
 
-// ParentID returns the transaction's Parent ID generating a parent
-// span ID if one has not already been set and tx has not been ended.
-// If tx is nil or has been ended, a zero (invalid) SpanID is returned.
-//
-// Internally calls `Transaction.EnsureParent()`.
+// ParentID returns the ID of the transaction's Parent or a zero (invalid) SpanID.
 func (tx *Transaction) ParentID() SpanID {
-	return tx.EnsureParent()
+	return tx.parentID
 }
 
 // Discard discards a previously started transaction.

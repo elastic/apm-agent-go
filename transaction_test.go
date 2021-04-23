@@ -148,25 +148,41 @@ func TestTransactionParentID(t *testing.T) {
 	tx := tracer.StartTransaction("name", "type")
 	traceContext := tx.TraceContext()
 
+	// Top level tx has no parent.
 	parentSpan := tx.ParentID()
-	assert.NotZero(t, parentSpan)
+	assert.Zero(t, parentSpan)
 	assert.NotEqual(t, traceContext.Span, parentSpan)
 
-	// ParentID is idempotent.
-	parentSpan2 := tx.ParentID()
-	assert.Equal(t, parentSpan, parentSpan2)
+	// Create a child transaction with the TraceContext from the parent.
+	txChild := tracer.StartTransactionOptions("child", "type", apm.TransactionOptions{
+		TraceContext: tx.TraceContext(),
+	})
 
+	// Assert that the Parent ID isn't zero and matches the parent ID.
+	// Parent TX ID
+	parentTxID := traceContext.Span
+	childSpanParentID := txChild.ParentID()
+	assert.NotZero(t, childSpanParentID)
+	assert.Equal(t, parentTxID, childSpanParentID)
+
+	txChild.End()
 	tx.End()
 
-	// For an ended transaction, ParentID will return a zero value
-	// even if the transaction had a parent at the time it was ended.
-	parentSpan3 := tx.ParentID()
-	assert.Zero(t, parentSpan3)
+	// Assert that we can obtain the parent ID even after the transaction
+	// has ended.
+	assert.NotZero(t, txChild.ParentID())
 
 	tracer.Flush(nil)
 	payloads := tracer.Payloads()
-	require.Len(t, payloads.Transactions, 1)
-	assert.Equal(t, model.SpanID(parentSpan), payloads.Transactions[0].ParentID)
+	require.Len(t, payloads.Transactions, 2)
+
+	// First recorded transaction Parent ID matches the child's Parent ID
+	assert.Equal(t, model.SpanID(childSpanParentID), payloads.Transactions[0].ParentID)
+	// First recorded transaction Parent ID matches the parent transaction ID.
+	assert.Equal(t, model.SpanID(parentTxID), payloads.Transactions[0].ParentID)
+
+	// Parent transaction has a zero ParentID.
+	assert.Zero(t, payloads.Transactions[1].ParentID)
 }
 
 func TestTransactionContextNotSampled(t *testing.T) {

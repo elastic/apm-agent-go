@@ -97,16 +97,15 @@ func TestSpanParentID(t *testing.T) {
 	parentID := span.ParentID()
 
 	span.End()
-	emptyParentID := span.ParentID()
-
 	tx.End()
 	// Assert that the parentID is not empty when the span hasn't been ended.
 	// And that the Span's parentID equals the traceContext Span.
 	assert.NotEqual(t, parentID, apm.SpanID{})
 	assert.Equal(t, traceContext.Span, parentID)
 
-	// Assert that the parentID is empty once the span has ended.
-	assert.Zero(t, emptyParentID)
+	// Assert that the parentID is not empty after the span has ended.
+	assert.NotZero(t, span.ParentID())
+	assert.Equal(t, traceContext.Span, span.ParentID())
 
 	tracer.Flush(nil)
 	payloads := tracer.Payloads()

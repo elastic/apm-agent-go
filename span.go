@@ -205,6 +205,7 @@ func (t *Tracer) startSpan(name, spanType string, transactionID SpanID, opts Spa
 	span.Name = name
 	span.traceContext = opts.Parent
 	span.parentID = opts.Parent.Span
+	span.SpanData.parentID = opts.Parent.Span
 	span.transactionID = transactionID
 	span.timestamp = opts.Start
 	span.Type = spanType
@@ -234,6 +235,7 @@ type Span struct {
 	parent        *Span
 	traceContext  TraceContext
 	transactionID SpanID
+	parentID      SpanID
 
 	mu sync.RWMutex
 
@@ -316,12 +318,9 @@ func (s *Span) End() {
 	s.SpanData = nil
 }
 
-// ParentID returns the span's Parent ID as SpanID.
+// ParentID returns the ID of the span's parent span or transaction.
 // If Span is nil or has been ended, a zero (invalid) SpanID is returned.
 func (s *Span) ParentID() SpanID {
-	if s.SpanData == nil || s.parentID.isZero() {
-		return SpanID{}
-	}
 	return s.parentID
 }
 
