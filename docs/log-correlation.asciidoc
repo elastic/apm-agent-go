@@ -1,16 +1,16 @@
 [[log-correlation]]
 == Log Correlation
 
-The Go agent provides integrations for popular logging frameworks, which take care of
-injecting trace ID fields into your application's log records. You can find a list of
+The Go agent provides integrations for popular logging frameworks that
+inject trace ID fields into the application's log records. You can find a list of
 the supported logging frameworks under <<supported-tech-logging, supported technologies>>.
 
 If your favorite logging framework is not already supported, there are two other options:
 
-* Open a feature request, or contribute code, for additional support, as described in <<contributing>>.
+* Open a feature request, or contribute code, for additional support as described in <<contributing>>.
 * Manually inject trace IDs into log records, as described below in <<log-correlation-manual>>.
 
-Regardless of how you integrate APM with logging, you can use {filebeat-ref}[Filebeat] to
+Regardless of how you integrate APM with logging, use {filebeat-ref}[Filebeat] to
 send your logs to Elasticsearch, in order to correlate your traces and logs and link from
 APM to the {observability-guide}/monitor-logs.html[Logs app].
 
@@ -57,7 +57,7 @@ if tx != nil {
 }
 ----
 
-You can follow this article in order to ingest JSON-encoded logs with Filebeat:
+Follow this article to ingest JSON-encoded logs with Filebeat:
 {blog-ref}how-to-instrument-your-go-app-with-the-elastic-apm-go-agent#logs[How to instrument your Go app with the Elastic APM Go agent].
 
 [float]
@@ -65,11 +65,11 @@ You can follow this article in order to ingest JSON-encoded logs with Filebeat:
 ==== Manual log correlation (unstructured)
 
 For correlating unstructured logs (e.g. basic printf-style logging, like the standard library's
-`log` package), then you will need to need to include the trace IDs in your log message, and then
+`log` package), then you will need to need to include the trace IDs in your log message. Then,
 extract them using Filebeat.
 
-If you already have a transaction and/or span object, then you can use the
-<<transaction-tracecontext, Transaction.TraceContext>> and <<span-tracecontext, Span.TraceContext>>
+If you already have a transaction or span object, use the
+<<transaction-tracecontext, Transaction.TraceContext>> or <<span-tracecontext, Span.TraceContext>>
 methods. The trace, transaction, and span ID types all provide `String` methods that yield
 their canonical hex-encoded string representation.
 
@@ -96,7 +96,7 @@ This would print a log message along the lines of:
 
 For log correlation to work, the trace IDs must be extracted from the log message and
 stored in separate fields in the Elasticsearch document. This can be achieved by
-{filebeat-ref}/configuring-ingest-node.html[parsing the data by using ingest node], in particular
+{filebeat-ref}/configuring-ingest-node.html[using an ingest pipeline to parse the data], in particular
 by using {ref}/grok-processor.html[the grok processor].
 
 [source,json]

@@ -1,7 +1,7 @@
 [[api]]
 == API Documentation
 
-Below we cover the most commonly used parts of the API.
+This section describes the most commonly used parts of the API.
 
 The Go agent is documented using standard godoc. For complete documentation,
 refer to the documentation at https://godoc.org/go.elastic.co/apm/[godoc.org/go.elastic.co/apm],
@@ -15,7 +15,7 @@ The initial point of contact your application will have with the Go agent
 is the `apm.Tracer` type, which provides methods for reporting
 transactions and errors.
 
-To make instrumentation simpler the Go agent provides a pre-initialized
+To make instrumentation simpler, the Go agent provides a pre-initialized
 tracer, `apm.DefaultTracer`. This tracer is always initialized and
 available for use. This tracer is configured with environment variables;
 see <<configuration>> for details.
@@ -43,8 +43,8 @@ func main() {
 ==== `func (*Tracer) StartTransaction(name, type string) *Transaction`
 
 StartTransaction returns a new Transaction with the specified name and type,
-and with the start time set to the current time.. If you need to set the
-timestamp or set the parent <<trace-context, trace context>>, you should use
+and with the start time set to the current time. If you need to set the
+timestamp or the parent <<trace-context, trace context>>, use
 <<tracer-api-start-transaction-options, Tracer.StartTransactionOptions>>.
 
 This method should be called at the beginning of a transaction such as a web
@@ -90,12 +90,12 @@ transaction := apm.DefaultTracer.StartTransactionOptions("GET /", "request", opt
 ==== `func (*Transaction) End()`
 
 End enqueues the transaction for sending to the Elastic APM server.
-The Transaction must not be modified after this, but it may still
+The transaction must not be modified after this, but it may still
 be used for starting spans.
 
-The transaction's duration will be calculated as the amount of time
-elapsed since the transaction was started until this call. To override
-this behaviour, the transaction's `Duration` field may be set before
+The transaction's duration is calculated as the amount of time
+elapsed between the start of the transaction and this call. To override
+this behavior, the transaction's `Duration` field may be set before
 calling End.
 
 [source,go]
@@ -113,7 +113,7 @@ TraceContext returns the transaction's <<trace-context, trace context>>.
 [[transaction-ensureparent]]
 ==== `func (*Transaction) EnsureParent() SpanID`
 
-EnsureParent returns the transaction's parent span ID, generating and recording one if
+EnsureParent returns the transaction's parent span ID--generating and recording one if
 it did not previously have one.
 
 EnsureParent enables correlation with spans created by the JavaScript Real User Monitoring
@@ -224,7 +224,7 @@ application.
 
 StartSpan starts and returns a new Span within the transaction, with the specified name,
 type, and optional parent span, and with the start time set to the current time.
-If you need to set the timestamp or parent <<trace-context, trace context>>, you should
+If you need to set the timestamp or parent <<trace-context, trace context>>,
 use <<transaction-start-span-options, Transaction.StartSpanOptions>>.
 
 If the span type contains two dots, they are assumed to separate the span type, subtype,
@@ -232,8 +232,7 @@ and action; a single dot separates span type and subtype, and the action will no
 
 If the transaction is sampled, then the span's ID will be set, and its stacktrace will
 be set if the tracer is configured accordingly. If the transaction is not sampled, then
-the returned span will be silently discarded when its End method is called. You can
-avoid any unnecessary computation for these dropped spans by calling the <<span-dropped, Dropped>>
+the returned span will be silently discarded when its End method is called. To avoid any unnecessary computation for these dropped spans, call the <<span-dropped, Dropped>>
 method.
 
 As a convenience, it is valid to create a span on a nil Transaction; the resulting span
@@ -305,7 +304,7 @@ TraceContext returns the span's <<trace-context, trace context>>.
 [[apm-context-with-span]]
 ==== `func ContextWithSpan(context.Context, *Span) context.Context`
 
-ContextWithSpan adds the span to the context, and returns the resulting context.
+ContextWithSpan adds the span to the context and returns the resulting context.
 
 The span can be retrieved using <<apm-span-from-context, apm.SpanFromContext>>.
 The context may also be passed into <<apm-start-span, apm.StartSpan>>, which uses
@@ -506,7 +505,7 @@ type ErrorLogRecord struct {
 }
 ----
 
-The resulting Error's log stacktrace will not be set. Call the SetStacktrace method to set it, if desired.
+The resulting Error's log stacktrace will not be set. Call the SetStacktrace method to set it.
 
 [source,go]
 ----
@@ -527,7 +526,7 @@ SetTransaction associates the error with the given transaction.
 [[error-set-span]]
 ==== `func (*Error) SetSpan(*Span)`
 
-SetSpan associates the error with the given span, and the span's transaction. When calling SetSpan,
+SetSpan associates the error with the given span and the span's transaction. When calling SetSpan,
 it is not necessary to also call SetTransaction.
 
 [float]
@@ -541,7 +540,7 @@ Send enqueues the error for sending to the Elastic APM server.
 ==== `func (*Tracer) Recovered(interface{}) *Error`
 
 Recovered returns an Error from the recovered value, optionally associating it with a transaction.
-The error is not sent; it is the responsibility of the caller to set the error's context as desired,
+The error is not sent; it is the caller's responsibility to set the error's context,
 and then call its `Send` method.
 
 [source,go]
@@ -561,7 +560,7 @@ defer func() {
 [[apm-captureerror]]
 ==== `func CaptureError(context.Context, error) *Error`
 
-CaptureError returns a new Error related to the sampled transaction and span present in the context,
+CaptureError returns a new error related to the sampled transaction and span present in the context,
 if any, and sets its exception details using the given error. The Error.Handled field will be set to
 true, and a stacktrace set.
 
