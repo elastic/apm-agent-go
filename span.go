@@ -234,6 +234,7 @@ type Span struct {
 	parent        *Span
 	traceContext  TraceContext
 	transactionID SpanID
+	parentID      SpanID
 
 	mu sync.RWMutex
 
@@ -316,6 +317,14 @@ func (s *Span) End() {
 	s.SpanData = nil
 }
 
+// ParentID returns the ID of the span's parent span or transaction.
+func (s *Span) ParentID() SpanID {
+	if s == nil {
+		return SpanID{}
+	}
+	return s.parentID
+}
+
 // reportSelfTime reports the span's self-time to its transaction, and informs
 // the parent that it has ended in order for the parent to later calculate its
 // own self-time.
@@ -370,7 +379,6 @@ func (s *Span) ended() bool {
 // When a span is ended or discarded, its SpanData field will be set
 // to nil.
 type SpanData struct {
-	parentID               SpanID
 	stackFramesMinDuration time.Duration
 	stackTraceLimit        int
 	timestamp              time.Time

@@ -195,6 +195,56 @@ func TestHTTPSpan(t *testing.T) {
 	}, modelSpan.Context)
 }
 
+// This test case has been added according to the user data provided in:
+// https://github.com/elastic/apm-agent-go/issues/917.
+func TestHTTPSpanTraefik(t *testing.T) {
+	tracer, apmtracer, recorder := newTestTracer()
+	defer apmtracer.Close()
+
+	txSpan := tracer.StartSpan("tx")
+	span := tracer.StartSpan("child", opentracing.ChildOf(txSpan.Context()), opentracing.Tags{
+		"http.host":        "202.1.1.1:5000",
+		"http.status.code": "200",
+		"span.kind":        "client",
+		"service.name":     "api@internal",
+		"router.name":      "api@internal",
+	})
+	ext.HTTPMethod.Set(span, "GET")
+	ext.HTTPUrl.Set(span, "http:///api/overview")
+	span.Finish()
+	txSpan.Finish()
+
+	apmtracer.Flush(nil)
+
+	payloads := recorder.Payloads()
+	require.Len(t, payloads.Spans, 1)
+
+	url, err := url.Parse("http://202.1.1.1:5000/api/overview")
+	require.NoError(t, err)
+
+	modelSpan := payloads.Spans[0]
+	assert.Equal(t, "external", modelSpan.Type)
+	assert.Equal(t, "http", modelSpan.Subtype)
+	assert.Equal(t, &model.SpanContext{
+		HTTP: &model.HTTPSpanContext{URL: url},
+		Destination: &model.DestinationSpanContext{
+			Address: "202.1.1.1",
+			Port:    5000,
+			Service: &model.DestinationServiceSpanContext{
+				Type:     "external",
+				Name:     "http://202.1.1.1:5000",
+				Resource: "202.1.1.1:5000",
+			},
+		},
+		Tags: model.IfaceMap{
+			{Key: "http_status_code", Value: "200"},
+			{Key: "router_name", Value: "api@internal"},
+			{Key: "service_name", Value: "api@internal"},
+			{Key: "span_kind", Value: "client"},
+		},
+	}, modelSpan.Context)
+}
+
 func TestStartSpanRemoteParent(t *testing.T) {
 	tracer1, apmtracer1, recorder1 := newTestTracer()
 	defer apmtracer1.Close()

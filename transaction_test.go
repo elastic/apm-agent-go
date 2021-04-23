@@ -141,6 +141,73 @@ func TestTransactionEnsureParent(t *testing.T) {
 	assert.Equal(t, model.SpanID(parentSpan), payloads.Transactions[0].ParentID)
 }
 
+func TestTransactionParentID(t *testing.T) {
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+
+	tx := tracer.StartTransaction("name", "type")
+	traceContext := tx.TraceContext()
+
+	// root tx has no parent.
+	parentSpan := tx.ParentID()
+	assert.Zero(t, parentSpan)
+
+	// Create a child transaction with the TraceContext from the parent.
+	txChild := tracer.StartTransactionOptions("child", "type", apm.TransactionOptions{
+		TraceContext: tx.TraceContext(),
+	})
+
+	// Assert that the Parent ID isn't zero and matches the parent ID.
+	// Parent TX ID
+	parentTxID := traceContext.Span
+	childSpanParentID := txChild.ParentID()
+	assert.NotZero(t, childSpanParentID)
+	assert.Equal(t, parentTxID, childSpanParentID)
+
+	txChild.End()
+	tx.End()
+
+	// Assert that we can obtain the parent ID even after the transaction
+	// has ended.
+	assert.NotZero(t, txChild.ParentID())
+
+	tracer.Flush(nil)
+	payloads := tracer.Payloads()
+	require.Len(t, payloads.Transactions, 2)
+
+	// First recorded transaction Parent ID matches the child's Parent ID
+	assert.Equal(t, model.SpanID(childSpanParentID), payloads.Transactions[0].ParentID)
+	// First recorded transaction Parent ID matches the parent transaction ID.
+	assert.Equal(t, model.SpanID(parentTxID), payloads.Transactions[0].ParentID)
+
+	// Parent transaction has a zero ParentID.
+	assert.Zero(t, payloads.Transactions[1].ParentID)
+}
+
+func TestTransactionParentIDWithEnsureParent(t *testing.T) {
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+
+	tx := tracer.StartTransaction("name", "type")
+
+	rootParentIDEmpty := tx.ParentID()
+	assert.Zero(t, rootParentIDEmpty)
+
+	ensureParentResult := tx.EnsureParent()
+	assert.NotZero(t, ensureParentResult)
+
+	rootParentIDNotEmpty := tx.ParentID()
+	assert.Equal(t, ensureParentResult, rootParentIDNotEmpty)
+
+	tx.End()
+
+	tracer.Flush(nil)
+	payloads := tracer.Payloads()
+	require.Len(t, payloads.Transactions, 1)
+
+	assert.Equal(t, model.SpanID(rootParentIDNotEmpty), payloads.Transactions[0].ParentID)
+}
+
 func TestTransactionContextNotSampled(t *testing.T) {
 	tracer := apmtest.NewRecordingTracer()
 	defer tracer.Close()
