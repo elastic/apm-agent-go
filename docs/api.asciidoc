@@ -153,6 +153,12 @@ func initialPageHandler(w http.ResponseWriter, req *http.Request) {
 See the {apm-rum-ref}/index.html[JavaScript RUM agent documentation] for more information.
 
 [float]
+[[transaction-parentid]]
+==== `func (*Transaction) ParentID() SpanID`
+
+ParentID returns the ID of the transaction's parent, or a zero (invalid) SpanID if the transaction has no parent.
+
+[float]
 [[apm-context-with-transaction]]
 ==== `func ContextWithTransaction(context.Context, *Transaction) context.Context`
 
@@ -312,6 +318,12 @@ SpanFromContext under the covers to create another span as a child of the span.
 SpanFromContext returns a span previously stored in the context using
 <<apm-context-with-span, apm.ContextWithSpan>>, or nil if the context
 does not contain a span.
+
+[float]
+[[span-parentid]]
+==== `func (*Span) ParentID() SpanID`
+
+ParentID returns the ID of the span's parent.
 
 // -------------------------------------------------------------------------------------------------
 
