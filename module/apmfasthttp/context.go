@@ -25,7 +25,7 @@ func setRequestContext(tx *Transaction, ctx *fasthttp.RequestCtx) error {
 	return nil
 }
 
-func setResponseContext(tx *Transaction) error { // nolint:unparam
+func setResponseContext(tx *Transaction) error {
 	statusCode := tx.httpCtx.Response.Header.StatusCode()
 
 	tx.tx.Result = apmhttp.StatusCodeResult(statusCode)
@@ -37,8 +37,8 @@ func setResponseContext(tx *Transaction) error { // nolint:unparam
 	resetHTTPMap(headers)
 
 	tx.httpCtx.Response.Header.VisitAll(func(k, v []byte) {
-		sk := strconv.B2S(k)
-		sv := strconv.B2S(v)
+		sk := string(k)
+		sv := string(v)
 
 		headers.Set(sk, sv)
 	})

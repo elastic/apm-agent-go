@@ -1,22 +1,18 @@
 package apmfasthttp
 
 import (
-	"fmt"
 	"sync"
 
-	"github.com/savsgio/gotils/bytes"
 	"go.elastic.co/apm"
 )
 
-var (
-	TxKey = fmt.Sprintf("__apmTxKey::%s__", bytes.Rand(make([]byte, 5)))
+const TxKey = "apmfasthttp_transaction"
 
-	transactionPool = sync.Pool{
-		New: func() interface{} {
-			return new(Transaction)
-		},
-	}
-)
+var transactionPool = sync.Pool{
+	New: func() interface{} {
+		return new(Transaction)
+	},
+}
 
 func acquireTransaction() *Transaction {
 	return transactionPool.Get().(*Transaction)
