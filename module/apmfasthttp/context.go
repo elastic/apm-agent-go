@@ -3,7 +3,6 @@ package apmfasthttp
 import (
 	"strings"
 
-	"github.com/savsgio/gotils/strconv"
 	"github.com/valyala/fasthttp"
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/module/apmhttp"
@@ -63,7 +62,7 @@ func StartTransaction(tracer *apm.Tracer, name string, ctx *fasthttp.RequestCtx)
 	}
 
 	if ok {
-		tracestateHeader := strconv.B2S(ctx.Request.Header.Peek(apmhttp.TracestateHeader))
+		tracestateHeader := string(ctx.Request.Header.Peek(apmhttp.TracestateHeader))
 		traceContext.State, _ = apmhttp.ParseTracestateHeader(strings.Split(tracestateHeader, ",")...)
 	}
 

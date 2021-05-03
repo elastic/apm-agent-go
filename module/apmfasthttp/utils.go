@@ -42,20 +42,25 @@ func resetHTTPMap(m map[string][]string) {
 func requestCtxToRequest(ctx *fasthttp.RequestCtx, req *http.Request, httpBody *netHTTPBody) error {
 	body := ctx.Request.Body()
 
-	req.Method = string(ctx.Method())
+	req.Method = string(ctx.Request.Header.Method())
 	req.Proto = "HTTP/1.1"
 	req.ProtoMajor = 1
 	req.ProtoMinor = 1
-	req.RequestURI = string(ctx.RequestURI())
+	req.RequestURI = string(ctx.Request.Header.RequestURI())
 	req.ContentLength = int64(len(body))
-	req.Host = string(ctx.Host())
+	req.Host = string(ctx.Request.URI().Host())
 	req.RemoteAddr = ctx.RemoteAddr().String()
 	req.TLS = ctx.TLSConnectionState()
 
 	httpBody.b = append(httpBody.b[:0], body...)
 	req.Body = httpBody
 
-	req.Header = make(http.Header)
+	if req.Header == nil {
+		req.Header = make(http.Header)
+	} else if len(req.Header) > 0 {
+		resetHTTPMap(req.Header)
+	}
+
 	ctx.Request.Header.VisitAll(func(k, v []byte) {
 		sk := string(k)
 		sv := string(v)
