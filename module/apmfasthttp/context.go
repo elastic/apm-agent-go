@@ -1,12 +1,25 @@
 package apmfasthttp
 
 import (
+	"context"
 	"strings"
 
 	"github.com/valyala/fasthttp"
 	"go.elastic.co/apm"
+	"go.elastic.co/apm/internal/apmcontext"
 	"go.elastic.co/apm/module/apmhttp"
 )
+
+func init() {
+	origTransactionFromContext := apmcontext.TransactionFromContext
+	apmcontext.TransactionFromContext = func(ctx context.Context) interface{} {
+		if tx, ok := ctx.Value(TxKey).(*Transaction); ok {
+			return tx
+		}
+
+		return origTransactionFromContext(ctx)
+	}
+}
 
 func setRequestContext(tx *Transaction, ctx *fasthttp.RequestCtx) error {
 	req := &tx.req
