@@ -97,6 +97,8 @@ func Middleware(o ...Option) mux.MiddlewareFunc {
 	}
 }
 
+// RouteRequestName returns the gorilla/mux route that the request matched,
+// or "<METHOD> unknown route" if no route has been matched.
 func RouteRequestName(req *http.Request) string {
 	if route := mux.CurrentRoute(req); route != nil {
 		tpl, err := route.GetPathTemplate()
