@@ -86,7 +86,7 @@ func Middleware(o ...Option) mux.MiddlewareFunc {
 	}
 	apmhttpOptions := []apmhttp.ServerOption{
 		apmhttp.WithTracer(opts.tracer),
-		apmhttp.WithServerRequestName(routeRequestName),
+		ServerRequestName(),
 		apmhttp.WithServerRequestIgnorer(opts.requestIgnorer),
 	}
 	if opts.panicPropagation {
@@ -146,4 +146,9 @@ func WithPanicPropagation() Option {
 	return func(o *options) {
 		o.panicPropagation = true
 	}
+}
+
+// ServerRequestName returns a ServerOption to resolve gorilla routes
+func ServerRequestName() apmhttp.ServerOption {
+	return apmhttp.WithServerRequestName(routeRequestName)
 }
