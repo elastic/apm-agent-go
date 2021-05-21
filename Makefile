@@ -5,7 +5,7 @@ GO_LICENSER_EXCLUDE=stacktrace/testdata
 check: precheck check-modules test
 
 .PHONY: precheck
-precheck: check-goimports check-lint check-vet check-dockerfile-testing check-licenses model/marshal_fastjson.go scripts/Dockerfile-testing
+precheck: check-goimports check-lint check-vanity-import check-vet check-dockerfile-testing check-licenses model/marshal_fastjson.go scripts/Dockerfile-testing
 
 .PHONY: check-goimports
 .PHONY: check-dockerfile-testing
@@ -85,3 +85,7 @@ model/marshal_fastjson.go: model/model.go
 
 scripts/Dockerfile-testing: $(wildcard module/*)
 	go generate ./scripts
+
+.PHONY: check-vanity-import
+check-vanity-import:
+	@if [[ $(porto -l . | wc -c) -ne 0 ]]; then echo "Vanity imports are not up to date" ; exit 1 ; fi

@@ -24,4 +24,5 @@ import (
 	_ "golang.org/x/tools/cmd/goimports"
 
 	_ "github.com/elastic/go-licenser"
+	_ "github.com/jcchavezs/porto"
 )
