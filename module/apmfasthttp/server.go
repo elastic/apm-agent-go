@@ -48,7 +48,7 @@ func (h *apmHandler) handler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	tx, err := StartTransaction(h.tracer, h.requestName(ctx), ctx)
+	tx, bc, err := StartTransactionWithBody(h.tracer, h.requestName(ctx), ctx)
 	if err != nil {
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 
@@ -67,11 +67,11 @@ func (h *apmHandler) handler(ctx *fasthttp.RequestCtx) {
 				ctx.Response.Header.SetStatusCode(fasthttp.StatusInternalServerError)
 			}
 
-			h.recovery(ctx, tx, err)
+			h.recovery(ctx, tx, bc, err)
 		}
 	}()
 
-	ctx.SetUserValue(TxKey, tx)
+	ctx.SetUserValue(txKey, NewTxCloser(ctx, tx, bc))
 
 	h.requestHandler(ctx)
 }

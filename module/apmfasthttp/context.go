@@ -2,9 +2,11 @@ package apmfasthttp
 
 import (
 	"context"
+	"net/http"
 	"strings"
 
 	"github.com/valyala/fasthttp"
+	"github.com/valyala/fasthttp/fasthttpadaptor"
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/internal/apmcontext"
 	"go.elastic.co/apm/module/apmhttp"
@@ -13,62 +15,61 @@ import (
 func init() {
 	origTransactionFromContext := apmcontext.TransactionFromContext
 	apmcontext.TransactionFromContext = func(ctx context.Context) interface{} {
-		if tx, ok := ctx.Value(TxKey).(*Transaction); ok {
-			return tx
+		if tx, ok := ctx.Value(txKey).(*TxCloser); ok {
+			return tx.Tx()
 		}
 
 		return origTransactionFromContext(ctx)
 	}
 }
 
-func setRequestContext(tx *Transaction, ctx *fasthttp.RequestCtx) error {
-	req := &tx.req
-
-	if err := requestCtxToRequest(ctx, req, &tx.httpBody); err != nil {
-		return err
+func setRequestContext(ctx *fasthttp.RequestCtx, tracer *apm.Tracer, tx *apm.Transaction) (*apm.BodyCapturer, error) {
+	req := new(http.Request)
+	if err := fasthttpadaptor.ConvertRequest(ctx, req, true); err != nil {
+		return nil, err
 	}
 
-	bc := tx.tracer.CaptureHTTPRequestBody(req)
+	bc := tracer.CaptureHTTPRequestBody(req)
+	tx.Context.SetHTTPRequest(req)
+	tx.Context.SetHTTPRequestBody(bc)
 
-	tx.body = bc
-	tx.tx.Context.SetHTTPRequest(req)
-	tx.tx.Context.SetHTTPRequestBody(bc)
-
-	return nil
+	return bc, nil
 }
 
-func setResponseContext(tx *Transaction) error {
-	statusCode := tx.httpCtx.Response.Header.StatusCode()
+func setResponseContext(ctx *fasthttp.RequestCtx, tx *apm.Transaction, bc *apm.BodyCapturer) error {
+	statusCode := ctx.Response.Header.StatusCode()
 
-	tx.tx.Result = apmhttp.StatusCodeResult(statusCode)
-	if !tx.tx.Sampled() {
+	tx.Result = apmhttp.StatusCodeResult(statusCode)
+	if !tx.Sampled() {
 		return nil
 	}
 
-	headers := tx.req.Header
-	resetHTTPMap(headers)
-
-	tx.httpCtx.Response.Header.VisitAll(func(k, v []byte) {
+	headers := make(http.Header)
+	ctx.Response.Header.VisitAll(func(k, v []byte) {
 		sk := string(k)
 		sv := string(v)
 
 		headers.Set(sk, sv)
 	})
 
-	tx.tx.Context.SetHTTPResponseHeaders(headers)
-	tx.tx.Context.SetHTTPStatusCode(statusCode)
+	tx.Context.SetHTTPResponseHeaders(headers)
+	tx.Context.SetHTTPStatusCode(statusCode)
 
-	tx.body.Discard()
+	if bc != nil {
+		bc.Discard()
+	}
 
 	return nil
 }
 
-// StartTransaction returns a new Transaction with name,
+// StartTransactionWithBody returns a new Transaction with name,
 // created with tracer, and taking trace context from ctx.
 //
 // If the transaction is not ignored, the request and the request body
 // capturer will be returned with the transaction added to its context.
-func StartTransaction(tracer *apm.Tracer, name string, ctx *fasthttp.RequestCtx) (*Transaction, error) {
+func StartTransactionWithBody(
+	tracer *apm.Tracer, name string, ctx *fasthttp.RequestCtx,
+) (*apm.Transaction, *apm.BodyCapturer, error) {
 	traceContext, ok := getRequestTraceparent(ctx, apmhttp.ElasticTraceparentHeader)
 	if !ok {
 		traceContext, ok = getRequestTraceparent(ctx, apmhttp.W3CTraceparentHeader)
@@ -79,25 +80,14 @@ func StartTransaction(tracer *apm.Tracer, name string, ctx *fasthttp.RequestCtx)
 		traceContext.State, _ = apmhttp.ParseTracestateHeader(strings.Split(tracestateHeader, ",")...)
 	}
 
-	tx := acquireTransaction()
-	tx.tracer = tracer
-	tx.tx = tracer.StartTransactionOptions(name, "request", apm.TransactionOptions{TraceContext: traceContext})
-	tx.httpCtx = ctx
+	tx := tracer.StartTransactionOptions(name, "request", apm.TransactionOptions{TraceContext: traceContext})
 
-	if err := setRequestContext(tx, ctx); err != nil {
-		tx.Close()
+	bc, err := setRequestContext(ctx, tracer, tx)
+	if err != nil {
+		tx.End()
 
-		return nil, err
+		return nil, nil, err
 	}
 
-	return tx, nil
-}
-
-// GetTransaction returns the transaction from the given ctx, if exist.
-func GetTransaction(ctx *fasthttp.RequestCtx) *Transaction {
-	if tx, ok := ctx.UserValue(TxKey).(*Transaction); ok {
-		return tx
-	}
-
-	return nil
+	return tx, bc, nil
 }
