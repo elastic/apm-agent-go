@@ -37,7 +37,7 @@ if (! go run scripts/mingoversion.go 1.11 &>/dev/null); then
   pin github.com/prometheus/client_golang v1.1.0
   pin github.com/emicklei/go-restful v2.9.6
   pin github.com/go-sql-driver/mysql v1.6.0
-  pin github.com/golang/net fe42d452be8f
+  pin golang.org/x/net fe42d452be8f https://github.com/golang/net
 fi
 
 if (! go run scripts/mingoversion.go 1.10 &>/dev/null); then
