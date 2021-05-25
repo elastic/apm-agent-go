@@ -41,7 +41,7 @@ fi
 
 if (! go run scripts/mingoversion.go 1.10 &>/dev/null); then
   pin github.com/gocql/gocql 16cf9ea1b3e2
-  pin github.com/go-sql-driver/mysql v1.4.1
+  pin github.com/go-sql-driver/mysql v1.6.0
   pin github.com/labstack/echo v4.1.9
   pin github.com/lib/pq v1.0.0
 fi
