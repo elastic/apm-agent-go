@@ -5,7 +5,7 @@ require (
 	github.com/elastic/go-licenser v0.3.1
 	github.com/elastic/go-sysinfo v1.1.1
 	github.com/google/go-cmp v0.3.1
-	github.com/jcchavezs/porto v0.0.0-20210521080734-0f6b9acc5aaf
+	github.com/jcchavezs/porto v0.1.0
 	github.com/pkg/errors v0.8.1
 	github.com/santhosh-tekuri/jsonschema v1.2.4
 	github.com/stretchr/testify v1.6.1

@@ -17,7 +17,7 @@
 
 // +build tools
 
-package apm
+package apm // import "go.elastic.co/apm"
 
 import (
 	_ "golang.org/x/lint/golint"

@@ -12,6 +12,7 @@ precheck: check-goimports check-lint check-vanity-import check-vet check-dockerf
 .PHONY: check-lint
 .PHONY: check-licenses
 .PHONY: check-modules
+.PHONY: check-vanity-import
 ifeq ($(shell go run ./scripts/mingoversion.go -print 1.12),true)
 check-goimports:
 	sh scripts/check_goimports.sh
@@ -27,12 +28,16 @@ check-licenses:
 
 check-modules:
 	go run scripts/genmod/main.go -check .
+
+check-vanity-import:
+	@if [[ $(porto --skip-files ".*\\.pb\\.go$" -l . | wc -c) -ne 0 ]]; then echo "Vanity imports are not up to date" ; exit 1 ; fi
 else
 check-goimports:
 check-dockerfile-testing:
 check-lint:
 check-licenses:
 check-modules:
+check-vanity-import:
 endif
 
 .PHONY: check-vet
@@ -85,7 +90,3 @@ model/marshal_fastjson.go: model/model.go
 
 scripts/Dockerfile-testing: $(wildcard module/*)
 	go generate ./scripts
-
-.PHONY: check-vanity-import
-check-vanity-import:
-	@if [[ $(porto -l . | wc -c) -ne 0 ]]; then echo "Vanity imports are not up to date" ; exit 1 ; fi
