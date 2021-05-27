@@ -5,7 +5,7 @@ if (go run scripts/mingoversion.go 1.12 &>/dev/null); then
   go install -v golang.org/x/lint/golint
   go install -v golang.org/x/tools/cmd/goimports
   go install -v github.com/elastic/go-licenser
-  go get -v github.com/jcchavezs/porto
+  go install -v github.com/jcchavezs/porto
 fi
 
 # Pin various dependencies for old Go versions.
