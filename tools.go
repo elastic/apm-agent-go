@@ -17,11 +17,12 @@
 
 // +build tools
 
-package apm
+package apm // import "go.elastic.co/apm"
 
 import (
 	_ "golang.org/x/lint/golint"
 	_ "golang.org/x/tools/cmd/goimports"
 
 	_ "github.com/elastic/go-licenser"
+	_ "github.com/jcchavezs/porto"
 )
