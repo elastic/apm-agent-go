@@ -68,7 +68,7 @@ func TestHarness(t *testing.T) {
 		harness.CheckInject(true),
 		harness.UseProbe(harnessAPIProbe{}),
 		func(s *harness.APICheckSuite) {
-			suite.Run(t, harnessSuiteWrapper{s})
+			suite.Run(t, &harnessSuiteWrapper{s})
 			done = true
 			panic("done") // prevent suite.Run(t, s)
 		},
