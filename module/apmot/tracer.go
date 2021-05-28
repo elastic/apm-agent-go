@@ -152,7 +152,7 @@ func (t *otTracer) Extract(format interface{}, carrier interface{}) (opentracing
 				case apmhttp.W3CTraceparentHeader:
 					traceparentHeaderValue = val
 				case apmhttp.ElasticTraceparentHeader:
-					// The W3C header value always trumps the ElastiC one,
+					// The W3C header value always trumps the Elastic one,
 					// hence we only set the value if not set already.
 					if traceparentHeaderValue == "" {
 						traceparentHeaderValue = val
