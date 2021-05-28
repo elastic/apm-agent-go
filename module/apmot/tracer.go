@@ -141,20 +141,19 @@ func (t *otTracer) Extract(format interface{}, carrier interface{}) (opentracing
 		var tracestateHeaderValues []string
 		switch carrier := carrier.(type) {
 		case opentracing.HTTPHeadersCarrier:
-			traceparentHeaderValue = http.Header(carrier).Get(apmhttp.ElasticTraceparentHeader)
+			traceparentHeaderValue = http.Header(carrier).Get(apmhttp.W3CTraceparentHeader)
 			if traceparentHeaderValue == "" {
-				traceparentHeaderValue = http.Header(carrier).Get(apmhttp.W3CTraceparentHeader)
+				traceparentHeaderValue = http.Header(carrier).Get(apmhttp.ElasticTraceparentHeader)
 			}
 			tracestateHeaderValues = http.Header(carrier)[apmhttp.TracestateHeader]
 		case opentracing.TextMapReader:
 			carrier.ForeachKey(func(key, val string) error {
 				switch textproto.CanonicalMIMEHeaderKey(key) {
-				case apmhttp.ElasticTraceparentHeader:
-					traceparentHeaderValue = val
 				case apmhttp.W3CTraceparentHeader:
-					// The Elastic header value always trumps the W3C one,
-					// to ensure backwards compatibility, hence we only set
-					// the value if not set already.
+					traceparentHeaderValue = val
+				case apmhttp.ElasticTraceparentHeader:
+					// The W3C header value always trumps the Elastic one,
+					// hence we only set the value if not set already.
 					if traceparentHeaderValue == "" {
 						traceparentHeaderValue = val
 					}
