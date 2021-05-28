@@ -30,7 +30,7 @@ check-modules:
 	go run scripts/genmod/main.go -check .
 
 check-vanity-import:
-	@if [[ $(porto --skip-files ".*\\.pb\\.go$" -l . | wc -c) -ne 0 ]]; then echo "Vanity imports are not up to date" ; exit 1 ; fi
+	sh scripts/check_vanity.sh
 else
 check-goimports:
 check-dockerfile-testing:
