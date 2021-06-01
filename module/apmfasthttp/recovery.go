@@ -18,11 +18,10 @@ func NewTraceRecovery(t *apm.Tracer) RecoveryFunc {
 	}
 
 	return func(ctx *fasthttp.RequestCtx, tx *apm.Transaction, bc *apm.BodyCapturer, recovered interface{}) {
-		e := t.Recovered(recovered)
-		e.SetTransaction(tx)
-
 		_ = setResponseContext(ctx, tx, bc)
 
+		e := t.Recovered(recovered)
+		e.SetTransaction(tx)
 		e.Send()
 	}
 }
