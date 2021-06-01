@@ -160,9 +160,9 @@ func startTransaction(ctx context.Context, tracer *apm.Tracer, name string) (*ap
 	var opts apm.TransactionOptions
 	md, ok := metadata.FromIncomingContext(ctx)
 	if ok {
-		traceContext, ok := getIncomingMetadataTraceContext(md, elasticTraceparentHeader)
+		traceContext, ok := getIncomingMetadataTraceContext(md, w3cTraceparentHeader)
 		if !ok {
-			traceContext, _ = getIncomingMetadataTraceContext(md, w3cTraceparentHeader)
+			traceContext, _ = getIncomingMetadataTraceContext(md, elasticTraceparentHeader)
 		}
 		opts.TraceContext = traceContext
 	}

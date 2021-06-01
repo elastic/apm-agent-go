@@ -5,8 +5,8 @@ require (
 	github.com/jackc/pgx/v4 v4.9.0
 	github.com/lib/pq v1.3.0
 	github.com/mattn/go-sqlite3 v1.10.0
-	github.com/stretchr/testify v1.5.1
-	go.elastic.co/apm v1.11.0
+	github.com/stretchr/testify v1.6.1
+	go.elastic.co/apm v1.12.0
 )
 
 replace go.elastic.co/apm => ../..

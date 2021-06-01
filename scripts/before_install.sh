@@ -5,6 +5,7 @@ if (go run scripts/mingoversion.go 1.12 &>/dev/null); then
   go install -v golang.org/x/lint/golint
   go install -v golang.org/x/tools/cmd/goimports
   go install -v github.com/elastic/go-licenser
+  go install -v github.com/jcchavezs/porto
 fi
 
 # Pin various dependencies for old Go versions.
@@ -36,11 +37,12 @@ if (! go run scripts/mingoversion.go 1.11 &>/dev/null); then
   pin github.com/go-chi/chi v1.5.1
   pin github.com/prometheus/client_golang v1.1.0
   pin github.com/emicklei/go-restful v2.9.6
+  pin github.com/go-sql-driver/mysql v1.4.1
+  pin golang.org/x/net 5f58ad60dda6 https://github.com/golang/net
 fi
 
 if (! go run scripts/mingoversion.go 1.10 &>/dev/null); then
   pin github.com/gocql/gocql 16cf9ea1b3e2
-  pin github.com/go-sql-driver/mysql v1.4.1
   pin github.com/labstack/echo v4.1.9
   pin github.com/lib/pq v1.0.0
 fi

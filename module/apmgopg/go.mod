@@ -5,9 +5,9 @@ require (
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/onsi/ginkgo v1.8.0 // indirect
 	github.com/onsi/gomega v1.5.0 // indirect
-	github.com/stretchr/testify v1.5.1
-	go.elastic.co/apm v1.11.0
-	go.elastic.co/apm/module/apmsql v1.11.0
+	github.com/stretchr/testify v1.6.1
+	go.elastic.co/apm v1.12.0
+	go.elastic.co/apm/module/apmsql v1.12.0
 	mellium.im/sasl v0.2.1 // indirect
 )
 

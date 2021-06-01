@@ -6,11 +6,11 @@ require (
 	github.com/mattn/go-colorable v0.0.9 // indirect
 	github.com/mattn/go-isatty v0.0.4 // indirect
 	github.com/pkg/errors v0.8.1
-	github.com/stretchr/testify v1.4.0
+	github.com/stretchr/testify v1.6.1
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v0.0.0-20170224212429-dcecefd839c4 // indirect
-	go.elastic.co/apm v1.11.0
-	go.elastic.co/apm/module/apmhttp v1.11.0
+	go.elastic.co/apm v1.12.0
+	go.elastic.co/apm/module/apmhttp v1.12.0
 	golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413 // indirect
 )
 

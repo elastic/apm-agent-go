@@ -110,9 +110,9 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 //
 // DEPRECATED. Use StartTransactionWithBody instead.
 func StartTransaction(tracer *apm.Tracer, name string, req *http.Request) (*apm.Transaction, *http.Request) {
-	traceContext, ok := getRequestTraceparent(req, ElasticTraceparentHeader)
+	traceContext, ok := getRequestTraceparent(req, W3CTraceparentHeader)
 	if !ok {
-		traceContext, ok = getRequestTraceparent(req, W3CTraceparentHeader)
+		traceContext, ok = getRequestTraceparent(req, ElasticTraceparentHeader)
 	}
 	if ok {
 		traceContext.State, _ = ParseTracestateHeader(req.Header[TracestateHeader]...)
