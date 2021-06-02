@@ -42,6 +42,7 @@ func getRequestTraceparent(ctx *fasthttp.RequestCtx, header string) (apm.TraceCo
 func NewDynamicServerRequestIgnorer(t *apm.Tracer) RequestIgnorerFunc {
 	return func(ctx *fasthttp.RequestCtx) bool {
 		uri := string(ctx.Request.URI().RequestURI())
+
 		u, err := url.ParseRequestURI(uri)
 		if err != nil {
 			return true
