@@ -29,7 +29,7 @@ import (
 // By default, the returned RequestHandler will use apm.DefaultTracer.
 // Use WithTracer to specify an alternative tracer.
 //
-// By default, the returned Handler will recover panics, reporting
+// By default, the returned RequestHandler will recover panics, reporting
 // them to the configured tracer. To override this behaviour, use
 // WithRecovery.
 func Wrap(handler fasthttp.RequestHandler, options ...ServerOption) fasthttp.RequestHandler {
@@ -94,7 +94,7 @@ func (h *apmHandler) handler(ctx *fasthttp.RequestCtx) {
 	h.requestHandler(ctx)
 }
 
-// WithTracer returns a Option which sets t as the tracer
+// WithTracer returns a ServerOption which sets t as the tracer
 // to use for tracing server requests.
 func WithTracer(t *apm.Tracer) ServerOption {
 	if t == nil {
@@ -106,7 +106,7 @@ func WithTracer(t *apm.Tracer) ServerOption {
 	}
 }
 
-// WithServerRequestName returns a Option which sets fn as the function
+// WithServerRequestName returns a ServerOption which sets fn as the function
 // to use to obtain the transaction name for the given server request.
 func WithServerRequestName(fn RequestNameFunc) ServerOption {
 	if fn == nil {
@@ -118,7 +118,7 @@ func WithServerRequestName(fn RequestNameFunc) ServerOption {
 	}
 }
 
-// WithServerRequestIgnorer returns a Option which sets fn as the
+// WithServerRequestIgnorer returns a ServerOption which sets fn as the
 // function to use to determine whether or not a server request should
 // be ignored. If request ignorer is nil, all requests will be reported.
 func WithServerRequestIgnorer(fn RequestIgnorerFunc) ServerOption {
