@@ -42,7 +42,7 @@ type TxCloser struct {
 	bc  *apm.BodyCapturer
 }
 
-// Option sets options for tracing server requests.
+// ServerOption sets options for tracing server requests.
 type ServerOption func(*apmHandler)
 
 // RequestNameFunc is the type of a function for use in
