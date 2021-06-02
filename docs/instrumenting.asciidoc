@@ -5,12 +5,13 @@ For each server instrumentation module, a transaction is reported for each handl
 request. The transaction will be stored in the request context, which can be obtained through
 that framework's API. The request context can be used for reporting <<custom-instrumentation-spans, custom spans>>.
 
+* <<builtin-modules-apmhttp>>
+* <<builtin-modules-apmfasthttp>>
 * <<builtin-modules-apmecho>>
 * <<builtin-modules-apmgin>>
 * <<builtin-modules-apmbeego>>
 * <<builtin-modules-apmgorilla>>
 * <<builtin-modules-apmgrpc>>
-* <<builtin-modules-apmhttp>>
 * <<builtin-modules-apmhttprouter>>
 * <<builtin-modules-apmnegroni>>
 * <<builtin-modules-apmlambda>>
@@ -29,6 +30,88 @@ that framework's API. The request context can be used for reporting <<custom-ins
 * <<builtin-modules-apmelasticsearch>>
 * <<builtin-modules-apmmongo>>
 * <<builtin-modules-apmawssdkgo>>
+
+[[builtin-modules-apmhttp]]
+==== module/apmhttp
+Package apmhttp provides a low-level `net/http` middleware handler. Other web middleware should
+typically be based off this.
+
+For each request, a transaction is stored in the request context, which can be obtained via
+https://golang.org/pkg/net/http/#Request.Context[http.Request.Context] in your handler.
+
+[source,go]
+----
+import (
+	"go.elastic.co/apm/module/apmhttp"
+)
+
+func main() {
+	var myHandler http.Handler = ...
+	tracedHandler := apmhttp.Wrap(myHandler)
+}
+----
+
+The apmhttp handler will recover panics and send them to Elastic APM.
+
+Package apmhttp also provides functions for instrumenting an `http.Client` or `http.RoundTripper`
+such that outgoing requests are traced as spans, if the request context includes a transaction.
+When performing the request, the enclosing context should be propagated by using
+https://golang.org/pkg/net/http/#Request.WithContext[http.Request.WithContext], or a helper, such as those provided by https://golang.org/x/net/context/ctxhttp.
+
+Client spans are not ended until the response body is fully consumed or closed.
+If you fail to do either, the span will not be sent.
+Always close the response body to ensure HTTP connections can be reused; see https://golang.org/pkg/net/http/#Client.Do[`func (*Client) Do`].
+
+[source,go]
+----
+import (
+	"net/http"
+
+	"golang.org/x/net/context/ctxhttp"
+
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/module/apmhttp"
+)
+
+var tracingClient = apmhttp.WrapClient(http.DefaultClient)
+
+func serverHandler(w http.ResponseWriter, req *http.Request) {
+	// Propagate the transaction context contained in req.Context().
+	resp, err := ctxhttp.Get(req.Context(), tracingClient, "http://backend.local/foo")
+	if err != nil {
+		apm.CaptureError(req.Context(), err).Send()
+		http.Error(w, "failed to query backend", 500)
+		return
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	...
+}
+
+func main() {
+	http.ListenAndServe(":8080", apmhttp.Wrap(http.HandlerFunc(serverHandler)))
+}
+----
+
+[[builtin-modules-apmfasthttp]]
+==== module/apmfasthttp
+Package apmfasthttp provides a low-level https://github.com/valyala/fasthttp[valyala/fasthttp] middleware request handler. Other web middleware should typically be based off this.
+
+For each request, a transaction is stored in the request context, which can be obtained via
+https://pkg.go.dev/github.com/valyala/fasthttp#RequestCtx[fasthttp.RequestCtx] in your handler.
+
+[source,go]
+----
+import (
+	"go.elastic.co/apm/module/apmfasthttp"
+)
+
+func main() {
+	var myHandler fasthttp.RequestHandler = ...
+	tracedHandler := apmfasthttp.Wrap(myHandler)
+}
+----
+
+The apmfasthttp handler will recover panics and send them to Elastic APM.
 
 [[builtin-modules-apmecho]]
 ==== module/apmecho
@@ -184,67 +267,6 @@ and not individual messages. For client streams, spans will be ended when the re
 fails; when any of `grpc.ClientStream.RecvMsg`, `grpc.ClientStream.SendMsg`, or
 `grpc.ClientStream.Header` return with an error; or when `grpc.ClientStream.RecvMsg`
 returns for a non-streaming server method.
-
-[[builtin-modules-apmhttp]]
-==== module/apmhttp
-Package apmhttp provides a low-level `net/http` middleware handler. Other web middleware should
-typically be based off this.
-
-For each request, a transaction is stored in the request context, which can be obtained via
-https://golang.org/pkg/net/http/#Request.Context[http.Request.Context] in your handler.
-
-[source,go]
-----
-import (
-	"go.elastic.co/apm/module/apmhttp"
-)
-
-func main() {
-	var myHandler http.Handler = ...
-	tracedHandler := apmhttp.Wrap(myHandler)
-}
-----
-
-The apmhttp handler will recover panics and send them to Elastic APM.
-
-Package apmhttp also provides functions for instrumenting an `http.Client` or `http.RoundTripper`
-such that outgoing requests are traced as spans, if the request context includes a transaction.
-When performing the request, the enclosing context should be propagated by using
-https://golang.org/pkg/net/http/#Request.WithContext[http.Request.WithContext], or a helper, such as those provided by https://golang.org/x/net/context/ctxhttp.
-
-Client spans are not ended until the response body is fully consumed or closed.
-If you fail to do either, the span will not be sent.
-Always close the response body to ensure HTTP connections can be reused; see https://golang.org/pkg/net/http/#Client.Do[`func (*Client) Do`].
-
-[source,go]
-----
-import (
-	"net/http"
-
-	"golang.org/x/net/context/ctxhttp"
-
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/module/apmhttp"
-)
-
-var tracingClient = apmhttp.WrapClient(http.DefaultClient)
-
-func serverHandler(w http.ResponseWriter, req *http.Request) {
-	// Propagate the transaction context contained in req.Context().
-	resp, err := ctxhttp.Get(req.Context(), tracingClient, "http://backend.local/foo")
-	if err != nil {
-		apm.CaptureError(req.Context(), err).Send()
-		http.Error(w, "failed to query backend", 500)
-		return
-	}
-	body, err := ioutil.ReadAll(resp.Body)
-	...
-}
-
-func main() {
-	http.ListenAndServe(":8080", apmhttp.Wrap(http.HandlerFunc(serverHandler)))
-}
-----
 
 [[builtin-modules-apmhttprouter]]
 ==== module/apmhttprouter
