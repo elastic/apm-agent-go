@@ -19,7 +19,6 @@ package apmrestfulv3_test
 
 import (
 	"errors"
-	"go.elastic.co/apm/module/apmrestfulv3"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -35,6 +34,7 @@ import (
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/module/apmrestfulv3"
 	"go.elastic.co/apm/transport/transporttest"
 )
 
