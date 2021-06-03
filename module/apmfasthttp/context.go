@@ -33,11 +33,20 @@ import (
 func init() {
 	origTransactionFromContext := apmcontext.TransactionFromContext
 	apmcontext.TransactionFromContext = func(ctx context.Context) interface{} {
-		if tx, ok := ctx.Value(txKey).(*TxCloser); ok {
-			return tx.Tx()
+		if tx, ok := ctx.Value(txKey).(*txCloser); ok {
+			return tx.tx
 		}
 
 		return origTransactionFromContext(ctx)
+	}
+
+	origBodyCapturerFromContext := apmcontext.BodyCapturerFromContext
+	apmcontext.BodyCapturerFromContext = func(ctx context.Context) interface{} {
+		if tx, ok := ctx.Value(txKey).(*txCloser); ok {
+			return tx.bc
+		}
+
+		return origBodyCapturerFromContext(ctx)
 	}
 }
 
@@ -106,6 +115,8 @@ func StartTransactionWithBody(
 
 		return nil, nil, err
 	}
+
+	ctx.SetUserValue(txKey, newTxCloser(ctx, tx, bc))
 
 	return tx, bc, nil
 }

@@ -89,8 +89,6 @@ func (h *apmHandler) handler(ctx *fasthttp.RequestCtx) {
 		}
 	}()
 
-	ctx.SetUserValue(txKey, NewTxCloser(ctx, tx, bc))
-
 	h.requestHandler(ctx)
 }
 
