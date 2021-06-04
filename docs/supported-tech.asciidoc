@@ -32,6 +32,15 @@ package. Regardless of the framework, we create a transaction for each incoming
 request, and name the transaction after the registered route.
 
 [float]
+==== fasthttp
+
+We support https://github.com/valyala/fasthttp[valyala/fasthttp],
+https://github.com/valyala/fasthttp/releases/tag/v1.26.0[v1.26.0] and greater.
+
+See <<builtin-modules-apmfasthttp, module/apmfasthttp>> for more information
+about fasthttp instrumentation.
+
+[float]
 ==== httprouter
 
 https://github.com/julienschmidt/httprouter[julienschmidt/httprouter] does

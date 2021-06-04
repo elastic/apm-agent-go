@@ -13,6 +13,7 @@ COPY module/apmecho/go.mod module/apmecho/go.sum /go/src/go.elastic.co/apm/modul
 COPY module/apmechov4/go.mod module/apmechov4/go.sum /go/src/go.elastic.co/apm/module/apmechov4/
 COPY module/apmelasticsearch/go.mod module/apmelasticsearch/go.sum /go/src/go.elastic.co/apm/module/apmelasticsearch/
 COPY module/apmelasticsearch/internal/integration/go.mod module/apmelasticsearch/internal/integration/go.sum /go/src/go.elastic.co/apm/module/apmelasticsearch/internal/integration/
+COPY module/apmfasthttp/go.mod module/apmfasthttp/go.sum /go/src/go.elastic.co/apm/module/apmfasthttp/
 COPY module/apmgin/go.mod module/apmgin/go.sum /go/src/go.elastic.co/apm/module/apmgin/
 COPY module/apmgocql/go.mod module/apmgocql/go.sum /go/src/go.elastic.co/apm/module/apmgocql/
 COPY module/apmgokit/go.mod module/apmgokit/go.sum /go/src/go.elastic.co/apm/module/apmgokit/
@@ -52,6 +53,7 @@ RUN cd /go/src/go.elastic.co/apm/module/apmecho && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmechov4 && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmelasticsearch && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmelasticsearch/internal/integration && go mod download
+RUN cd /go/src/go.elastic.co/apm/module/apmfasthttp && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmgin && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmgocql && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmgokit && go mod download
