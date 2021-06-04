@@ -33,7 +33,7 @@ request, and name the transaction after the registered route.
 [float]
 ==== fasthttp
 
-We support the https://github.com/valyala/fasthttp[valyala/fasthttp],
+We support https://github.com/valyala/fasthttp[valyala/fasthttp],
 https://github.com/valyala/fasthttp/releases/tag/v1.26.0[v1.26.0] and greater.
 
 See <<builtin-modules-apmfasthttp, module/apmfasthttp>> for more information
