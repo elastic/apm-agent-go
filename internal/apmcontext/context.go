@@ -40,7 +40,7 @@ var (
 	ContextWithTransaction = DefaultContextWithTransaction
 
 	// ContextWithBodyCapturer takes a context and body capturer and returns
-	// a new context from which the transaction can be extracted using
+	// a new context from which the body capturer can be extracted using
 	// BodyCapturerFromContext.
 	//
 	// ContextWithBodyCapturer is used by apm.ContextWithBodyCapturer.
