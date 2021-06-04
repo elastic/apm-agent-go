@@ -28,7 +28,8 @@ dependencies.
 === Web Frameworks
 
 We support several third-party web frameworks, as well as Go's standard `net/http`
-package. Regardless of the framework, we create a transaction for each incoming.
+package. Regardless of the framework, we create a transaction for each incoming
+request, and name the transaction after the registered route.
 
 [float]
 ==== fasthttp
