@@ -57,6 +57,9 @@ func TransactionFromContext(ctx context.Context) *Transaction {
 	return value
 }
 
+// BodyCapturerFromContext returns the BodyCapturer in context, if any.
+// The body capturer must have been added to the context previously using
+// ContextWithBodyCapturer.
 func BodyCapturerFromContext(ctx context.Context) *BodyCapturer {
 	value, _ := apmcontext.BodyCapturerFromContext(ctx).(*BodyCapturer)
 	return value
