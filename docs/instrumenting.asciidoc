@@ -106,7 +106,10 @@ import (
 )
 
 func main() {
-	var myHandler fasthttp.RequestHandler = ...
+	var myHandler fasthttp.RequestHandler = func(ctx *fasthttp.RequestCtx) {
+		apmCtx := apm.TransactionFromContext(ctx)
+		// ...
+	}
 	tracedHandler := apmfasthttp.Wrap(myHandler)
 }
 ----
