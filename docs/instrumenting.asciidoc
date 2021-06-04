@@ -97,7 +97,7 @@ func main() {
 Package apmfasthttp provides a low-level https://github.com/valyala/fasthttp[valyala/fasthttp] middleware request handler. Other fasthttp-based web middleware should typically be based off this.
 
 For each request, a transaction is stored in the request context, which can be obtained via
-https://pkg.go.dev/github.com/valyala/fasthttp#RequestCtx[fasthttp.RequestCtx] in your handler.
+https://pkg.go.dev/github.com/valyala/fasthttp#RequestCtx[fasthttp.RequestCtx] in your handler using `apm.TransactionFromContext`.
 
 [source,go]
 ----
