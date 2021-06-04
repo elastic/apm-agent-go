@@ -15,8 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// +build go1.12
-
 // Package apmfasthttp provides a tracing middleware fasthttp.RequestHandler for
 // servers.
 package apmfasthttp // import "go.elastic.co/apm/module/apmfasthttp"
