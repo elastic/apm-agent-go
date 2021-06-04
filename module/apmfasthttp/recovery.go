@@ -15,6 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
+// +build go1.12
+
 package apmfasthttp // import "go.elastic.co/apm/module/apmfasthttp"
 
 import (
