@@ -15,6 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmfasthttp
+package apmfasthttp // import "go.elastic.co/apm/module/apmfasthttp"
 
 const txKey = "apmfasthttp_transaction"
