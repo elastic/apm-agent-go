@@ -25,8 +25,7 @@ import (
 	"go.elastic.co/apm"
 )
 
-// APM is the atreugo APM instance for create the middleware
-// and the panic view.
+// APM is a factory for creating the middleware and panic view.
 type APM struct {
 	tracer           *apm.Tracer
 	requestName      RequestNameFunc

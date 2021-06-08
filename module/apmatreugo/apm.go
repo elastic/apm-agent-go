@@ -27,6 +27,7 @@ import (
 	"go.elastic.co/apm/module/apmfasthttp"
 )
 
+// New returns an APM factory instance.
 func New(options ...Option) *APM {
 	a := new(APM)
 
@@ -61,6 +62,7 @@ func New(options ...Option) *APM {
 	return a
 }
 
+// Middleware returns a middleware.
 func (a *APM) Middleware() atreugo.Middleware {
 	return func(ctx *atreugo.RequestCtx) error {
 		if !a.tracer.Recording() || a.requestIgnorer(ctx) {
@@ -76,6 +78,7 @@ func (a *APM) Middleware() atreugo.Middleware {
 	}
 }
 
+// PanicView returns a panic view.
 func (a *APM) PanicView() atreugo.PanicView {
 	return func(ctx *atreugo.RequestCtx, err interface{}) {
 		if a.panicPropagation {
