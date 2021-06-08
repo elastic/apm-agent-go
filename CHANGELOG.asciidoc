@@ -24,6 +24,7 @@ endif::[]
 https://github.com/elastic/apm-agent-go/compare/v1.12.0...master[View commits]
 
 - Prefer w3c traceparent header over legacy elastic-apm-traceparent {pull}963[#(963)]
+- Context.SetUsername now takes precedence over HTTP user info from Context.SetHTTPRequest {pull}973[#(973)]
 
 [[release-notes-1.x]]
 === Go Agent version 1.x
