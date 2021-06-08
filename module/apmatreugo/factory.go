@@ -69,10 +69,12 @@ func (f *Factory) Middleware() atreugo.Middleware {
 			return ctx.Next()
 		}
 
-		_, _, err := apmfasthttp.StartTransactionWithBody(f.tracer, f.requestName(ctx), ctx.RequestCtx)
+		tx, _, err := apmfasthttp.StartTransactionWithBody(f.tracer, f.requestName(ctx), ctx.RequestCtx)
 		if err != nil {
 			return ctx.ErrorResponse(err, fasthttp.StatusInternalServerError)
 		}
+
+		tx.Context.SetFramework("atreugo", "v11")
 
 		return ctx.Next()
 	}
