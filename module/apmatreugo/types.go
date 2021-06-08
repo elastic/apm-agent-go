@@ -25,8 +25,8 @@ import (
 	"go.elastic.co/apm"
 )
 
-// APM is a factory for creating the middleware and panic view.
-type APM struct {
+// Factory is a factory to create the tracing middleware and panic view.
+type Factory struct {
 	tracer           *apm.Tracer
 	requestName      RequestNameFunc
 	requestIgnorer   RequestIgnorerFunc
@@ -35,7 +35,7 @@ type APM struct {
 }
 
 // Option sets options for tracing requests.
-type Option func(*APM)
+type Option func(*Factory)
 
 // RequestNameFunc is the type of a function for use in
 // WithServerRequestName.

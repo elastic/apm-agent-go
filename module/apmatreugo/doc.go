@@ -15,6 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Package apmatreugo provides a tracing middleware and a panic view for
-// atreugo server.
+// Package apmatreugo provides a factory to create the tracing middleware
+// and panic view for atreugo server.
 package apmatreugo // import "go.elastic.co/apm/module/apmatreugo"
