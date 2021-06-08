@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// +build go1.14
+// +build go1.11
 
 package apmrestfulv3 // import "go.elastic.co/apm/module/apmrestfulv3"
 
