@@ -159,7 +159,8 @@ func (c *Context) SetFramework(name, version string) {
 // If the request contains HTTP Basic Authentication, the username
 // from that will be recorded in the context. Otherwise, if the
 // request contains user info in the URL (i.e. a client-side URL),
-// that will be used.
+// that will be used. An explicit call to SetUsername always takes
+// precedence.
 func (c *Context) SetHTTPRequest(req *http.Request) {
 	// Special cases to avoid calling into fmt.Sprintf in most cases.
 	var httpVersion string
@@ -203,13 +204,15 @@ func (c *Context) SetHTTPRequest(req *http.Request) {
 		c.request.Socket = &c.requestSocket
 	}
 
-	username, _, ok := req.BasicAuth()
-	if !ok && req.URL.User != nil {
-		username = req.URL.User.Username()
-	}
-	c.user.Username = truncateString(username)
-	if c.user.Username != "" {
-		c.model.User = &c.user
+	if c.model.User == nil {
+		username, _, ok := req.BasicAuth()
+		if !ok && req.URL.User != nil {
+			username = req.URL.User.Username()
+		}
+		c.user.Username = truncateString(username)
+		if c.user.Username != "" {
+			c.model.User = &c.user
+		}
 	}
 }
 

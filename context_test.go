@@ -19,6 +19,8 @@ package apm_test
 
 import (
 	"context"
+	"net/http"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -117,6 +119,18 @@ func TestContextCustom(t *testing.T) {
 		{Key: "string", Value: "string"},
 		{Key: "struct", Value: map[string]interface{}{"Field": "foo"}},
 	}, tx.Context.Custom)
+}
+
+func TestContextSetUsernamePrecedence(t *testing.T) {
+	tx := testSendTransaction(t, func(tx *apm.Transaction) {
+		tx.Context.SetUsername("frieda")
+		req, _ := http.NewRequest("GET", "/", nil)
+		req.URL.User = url.User("fred")
+		tx.Context.SetHTTPRequest(req)
+	})
+	require.NotNil(t, tx.Context)
+	require.NotNil(t, "", tx.Context.User)
+	assert.Equal(t, "frieda", tx.Context.User.Username)
 }
 
 func testSendTransaction(t *testing.T, f func(tx *apm.Transaction)) model.Transaction {
