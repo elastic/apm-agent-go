@@ -7,6 +7,7 @@ that framework's API. The request context can be used for reporting <<custom-ins
 
 * <<builtin-modules-apmhttp>>
 * <<builtin-modules-apmfasthttp>>
+* <<builtin-modules-apmatreugo>>
 * <<builtin-modules-apmecho>>
 * <<builtin-modules-apmgin>>
 * <<builtin-modules-apmbeego>>
@@ -115,6 +116,36 @@ func main() {
 ----
 
 The apmfasthttp handler will recover panics and send them to Elastic APM.
+
+[[builtin-modules-apmatreugo]]
+==== module/apmatreugo
+Package apmatreugo provides the middleware and panic view for the https://github.com/savsgio/atreugo[savsgio/atreugo]
+web middleware.
+
+For each request, a transaction is stored in the request context, which can be obtained via
+https://pkg.go.dev/github.com/savsgio/atreugo/v11#RequestCtx[atreugo.RequestCtx] in your handler using `apm.TransactionFromContext`.
+
+[source,go]
+----
+import (
+	"github.com/savsgio/atreugo/v11"
+
+	"go.elastic.co/apm/module/apmatreugo"
+)
+
+func main() {
+	apmFactory := apmatreugo.New()
+
+	s := atreugo.New(atreugo.Config{
+		Addr:      ":8000",
+		PanicView: apmFactory.PanicView(),
+	})
+
+	s.UseBefore(apmFactory.Middleware())
+}
+----
+
+The apmatreugo panic view will recover panics and send them to Elastic APM.
 
 [[builtin-modules-apmecho]]
 ==== module/apmecho

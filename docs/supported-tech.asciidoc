@@ -41,6 +41,15 @@ See <<builtin-modules-apmfasthttp, module/apmfasthttp>> for more information
 about fasthttp instrumentation.
 
 [float]
+==== atreugo
+
+We support https://github.com/savsgio/atreugo[savsgio/atreugo],
+https://github.com/savsgio/atreugo/releases/tag/v11.7.2[v11.7.2] and greater.
+
+See <<builtin-modules-apmatreugo, module/apmatreugo>> for more information
+about atreugo instrumentation.
+
+[float]
 ==== httprouter
 
 https://github.com/julienschmidt/httprouter[julienschmidt/httprouter] does
