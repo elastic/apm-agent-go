@@ -102,6 +102,8 @@ https://pkg.go.dev/github.com/valyala/fasthttp#RequestCtx[fasthttp.RequestCtx] i
 [source,go]
 ----
 import (
+	"github.com/valyala/fasthttp"
+
 	"go.elastic.co/apm/module/apmfasthttp"
 )
 
