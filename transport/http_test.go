@@ -314,25 +314,50 @@ func TestHTTPTransportV2NotFound(t *testing.T) {
 	assert.EqualError(t, err, fmt.Sprintf("request failed with 404 Not Found: %s/intake/v2/events not found (requires APM Server 6.5.0 or newer)", server.URL))
 }
 
-//func TestHTTPCACert(t *testing.T) {
-//	var h recordingHandler
-//	server := httptest.NewUnstartedServer(&h)
-//	server.Config.ErrorLog = log.New(ioutil.Discard, "", 0)
-//	server.StartTLS()
-//	defer server.Close()
-//	defer patchEnv("ELASTIC_APM_SERVER_URL", server.URL)()
-//
-//	p := strings.NewReader("")
-//
-//	newTransport := func() *transport.HTTPTransport {
-//		transport, err := transport.NewHTTPTransport()
-//		require.NoError(t, err)
-//		return transport
-//	}
-//	transport := newTransport()
-//	err := transport.SendStream(context.Background(), p)
-//	assert.Error(t, err)
-//}
+func TestHTTPCACert(t *testing.T) {
+	var h recordingHandler
+	server := httptest.NewUnstartedServer(&h)
+	server.Config.ErrorLog = log.New(ioutil.Discard, "", 0)
+	server.StartTLS()
+	defer server.Close()
+	defer patchEnv("ELASTIC_APM_SERVER_URL", server.URL)()
+
+	p := strings.NewReader("")
+
+	newTransport := func() *transport.HTTPTransport {
+		trans, err := transport.NewHTTPTransport()
+		require.NoError(t, err)
+		return trans
+	}
+
+	// SendStream should fail, because we haven't told the client about
+	// the server certificate, nor disabled certificate verification.
+	trans := newTransport()
+	err := trans.SendStream(context.Background(), p)
+	assert.Error(t, err)
+
+	// Set a certificate that doesn't match, SendStream should still fail
+	defer patchEnv("ELASTIC_APM_SERVER_CA_CERT_FILE", "./testdata/cert.pem")()
+	trans = newTransport()
+	err = trans.SendStream(context.Background(), p)
+	assert.Error(t, err)
+
+	f, err := ioutil.TempFile("", "apm-test-2")
+	require.NoError(t, err)
+	defer os.Remove(f.Name())
+	defer f.Close()
+	defer patchEnv("ELASTIC_APM_SERVER_CA_CERT_FILE", f.Name())()
+
+	err = pem.Encode(f, &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: server.TLS.Certificates[0].Certificate[0],
+	})
+	require.NoError(t, err)
+
+	trans = newTransport()
+	err = trans.SendStream(context.Background(), p)
+	assert.NoError(t, err)
+}
 
 func TestHTTPTransportServerCert(t *testing.T) {
 	var h recordingHandler
