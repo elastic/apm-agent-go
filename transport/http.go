@@ -59,6 +59,7 @@ const (
 	envServerTimeout    = "ELASTIC_APM_SERVER_TIMEOUT"
 	envServerCert       = "ELASTIC_APM_SERVER_CERT"
 	envVerifyServerCert = "ELASTIC_APM_VERIFY_SERVER_CERT"
+	envCACert           = "ELASTIC_APM_SERVER_CA_CERT_FILE"
 )
 
 var (
@@ -143,6 +144,22 @@ func NewHTTPTransport() (*HTTPTransport, error) {
 			return verifyPeerCertificate(rawCerts, serverCert)
 		}
 	}
+
+	caCertPath := os.Getenv(envCACert)
+	if caCertPath != "" {
+		rootCAs, err := x509.SystemCertPool()
+		if err != nil || rootCAs == nil {
+			rootCAs = x509.NewCertPool()
+		}
+		additionalCerts, err := ioutil.ReadFile(caCertPath)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to load root CA file from %s", caCertPath)
+		}
+		// TODO: could return an error or a log if no additional certs are loaded
+		rootCAs.AppendCertsFromPEM(additionalCerts)
+		tlsConfig.RootCAs = rootCAs
+	}
+
 
 	client := &http.Client{
 		Timeout: serverTimeout,

@@ -314,6 +314,26 @@ func TestHTTPTransportV2NotFound(t *testing.T) {
 	assert.EqualError(t, err, fmt.Sprintf("request failed with 404 Not Found: %s/intake/v2/events not found (requires APM Server 6.5.0 or newer)", server.URL))
 }
 
+//func TestHTTPCACert(t *testing.T) {
+//	var h recordingHandler
+//	server := httptest.NewUnstartedServer(&h)
+//	server.Config.ErrorLog = log.New(ioutil.Discard, "", 0)
+//	server.StartTLS()
+//	defer server.Close()
+//	defer patchEnv("ELASTIC_APM_SERVER_URL", server.URL)()
+//
+//	p := strings.NewReader("")
+//
+//	newTransport := func() *transport.HTTPTransport {
+//		transport, err := transport.NewHTTPTransport()
+//		require.NoError(t, err)
+//		return transport
+//	}
+//	transport := newTransport()
+//	err := transport.SendStream(context.Background(), p)
+//	assert.Error(t, err)
+//}
+
 func TestHTTPTransportServerCert(t *testing.T) {
 	var h recordingHandler
 	server := httptest.NewUnstartedServer(&h)
