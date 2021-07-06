@@ -18,6 +18,7 @@ pipeline {
     ITS_PIPELINE = 'apm-integration-tests-selector-mbp/master'
     OPBEANS_REPO = 'opbeans-go'
     SLACK_CHANNEL = '#apm-agent-go'
+    GO_VERSION = "${params.GO_VERSION}"
   }
   options {
     timeout(time: 1, unit: 'HOURS')
@@ -43,7 +44,6 @@ pipeline {
     stage('Initializing'){
       options { skipDefaultCheckout() }
       environment {
-        GO_VERSION = "${params.GO_VERSION}"
         PATH = "${env.PATH}:${env.WORKSPACE}/bin"
       }
       stages {
@@ -112,9 +112,11 @@ pipeline {
             withGithubNotify(context: 'Coverage') {
               deleteDir()
               unstash 'source'
-              dir("${BASE_DIR}"){
-                sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
-                sh script: './scripts/jenkins/docker-test.sh', label: 'Docker tests'
+              withGoEnv(version: "${env.GO_VERSION}"){
+                dir("${BASE_DIR}"){
+                  sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
+                  sh script: './scripts/jenkins/docker-test.sh', label: 'Docker tests'
+                }
               }
             }
           }
@@ -149,10 +151,12 @@ pipeline {
             withGithubNotify(context: 'Benchmark', tab: 'tests') {
               deleteDir()
               unstash 'source'
-              dir("${BASE_DIR}"){
-                sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
-                sh script: './scripts/jenkins/bench.sh', label: 'Benchmarking'
-                sendBenchmarks(file: 'build/bench.out', index: 'benchmark-go')
+              withGoEnv(version: "${env.GO_VERSION}"){
+                dir("${BASE_DIR}"){
+                  sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
+                  sh script: './scripts/jenkins/bench.sh', label: 'Benchmarking'
+                  sendBenchmarks(file: 'build/bench.out', index: 'benchmark-go')
+                }
               }
             }
           }
@@ -168,9 +172,6 @@ pipeline {
         stage('Windows') {
           agent { label 'windows-2019-immutable' }
           options { skipDefaultCheckout() }
-          environment {
-            GO_VERSION = "${params.GO_VERSION}"
-          }
           steps {
             withGithubNotify(context: 'Build-Test - Windows') {
               cleanDir("${WORKSPACE}/${BASE_DIR}")
@@ -192,7 +193,6 @@ pipeline {
           agent { label 'macosx && x86_64' }
           options { skipDefaultCheckout() }
           environment {
-            GO_VERSION = "${params.GO_VERSION}"
             PATH = "${env.PATH}:${env.WORKSPACE}/bin"
           }
           steps {
@@ -204,13 +204,15 @@ pipeline {
                   sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
                 }
               }
-              retry(3) {
-                dir("${BASE_DIR}"){
-                  sh script: './scripts/jenkins/build.sh', label: 'Build'
+              withGoEnv(version: "${env.GO_VERSION}"){
+                retry(3) {
+                  dir("${BASE_DIR}"){
+                    sh script: './scripts/jenkins/build.sh', label: 'Build'
+                  }
                 }
-              }
-              dir("${BASE_DIR}"){
-                sh script: './scripts/jenkins/test.sh', label: 'Test'
+                dir("${BASE_DIR}"){
+                  sh script: './scripts/jenkins/test.sh', label: 'Test'
+                }
               }
             }
           }
@@ -255,7 +257,6 @@ pipeline {
         stage('Opbeans') {
           environment {
             REPO_NAME = "${OPBEANS_REPO}"
-            GO_VERSION = "${params.GO_VERSION}"
           }
           steps {
             deleteDir()
@@ -290,7 +291,7 @@ def generateStep(version){
     node('linux && immutable'){
       try {
         echo "${version}"
-        withEnv(["GO_VERSION=${version}"]) {
+        withGoEnv(version: "${version}"){
           // Another retry in case there are any environmental issues
           // See https://issuetracker.google.com/issues/146072599 for more context
           retry(3) {
