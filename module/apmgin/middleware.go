@@ -63,11 +63,7 @@ type middleware struct {
 	requestIgnorer apmhttp.RequestIgnorerFunc
 
 	setRouteMapOnce sync.Once
-	routeMap        map[string]map[string]routeInfo
-}
-
-type routeInfo struct {
-	transactionName string // e.g. "GET /foo"
+	routeMap        map[string]struct{}
 }
 
 func (m *middleware) handle(c *gin.Context) {
@@ -77,27 +73,17 @@ func (m *middleware) handle(c *gin.Context) {
 	}
 	m.setRouteMapOnce.Do(func() {
 		routes := m.engine.Routes()
-		rm := make(map[string]map[string]routeInfo)
+		m.routeMap = map[string]struct{}{}
 		for _, r := range routes {
-			mm := rm[r.Method]
-			if mm == nil {
-				mm = make(map[string]routeInfo)
-				rm[r.Method] = mm
-			}
-			mm[r.Handler] = routeInfo{
-				transactionName: r.Method + " " + r.Path,
-			}
+			m.routeMap[r.Method+" "+r.Path] = struct{}{}
 		}
-		m.routeMap = rm
 	})
 
-	var requestName string
-	handlerName := c.HandlerName()
-	if routeInfo, ok := m.routeMap[c.Request.Method][handlerName]; ok {
-		requestName = routeInfo.transactionName
-	} else {
+	requestName := c.Request.Method + " " + c.FullPath()
+	if _, ok := m.routeMap[requestName]; !ok {
 		requestName = apmhttp.UnknownRouteRequestName(c.Request)
 	}
+
 	tx, body, req := apmhttp.StartTransactionWithBody(m.tracer, requestName, c.Request)
 	defer tx.End()
 	c.Request = req

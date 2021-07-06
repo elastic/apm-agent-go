@@ -70,6 +70,50 @@ func TestMiddlewareHTTPSuite(t *testing.T) {
 	})
 }
 
+func TestMiddlewareMultipleSameHandler(t *testing.T) {
+	debugOutput.Reset()
+
+	do := func(url, method, targetTransactionName string) {
+		tracer, transport := transporttest.NewRecorderTracer()
+		defer tracer.Close()
+
+		e := gin.New()
+		e.Use(apmgin.Middleware(e, apmgin.WithTracer(tracer)))
+		e.GET("/admin/hello/:name", handleHello)
+		e.GET("/consumer/hello/:name", handleHello)
+
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest(method, url, nil)
+		req.Header.Set("User-Agent", "apmgin_test")
+		req.RemoteAddr = "client.testing:1234"
+		e.ServeHTTP(w, req)
+		tracer.Flush(nil)
+
+		payloads := transport.Payloads()
+		transaction := payloads.Transactions[0]
+		assert.Equal(t, targetTransactionName, transaction.Name)
+	}
+
+	for _, tc := range []struct {
+		url             string
+		method          string
+		transactionName string
+	}{
+		{
+			url:             "http://server.testing/admin/hello/isbel",
+			method:          "GET",
+			transactionName: "GET /admin/hello/:name",
+		},
+		{
+			url:             "http://server.testing/consumer/hello/isbel",
+			method:          "GET",
+			transactionName: "GET /consumer/hello/:name",
+		},
+	} {
+		do(tc.url, tc.method, tc.transactionName)
+	}
+}
+
 func TestMiddleware(t *testing.T) {
 	debugOutput.Reset()
 	tracer, transport := transporttest.NewRecorderTracer()
