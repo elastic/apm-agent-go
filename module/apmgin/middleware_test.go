@@ -23,6 +23,8 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
+	"strings"
 	"testing"
 
 	"go.elastic.co/apm"
@@ -71,6 +73,13 @@ func TestMiddlewareHTTPSuite(t *testing.T) {
 }
 
 func TestMiddlewareMultipleSameHandler(t *testing.T) {
+	runtimeVersion := runtime.Version()
+	switch {
+	case strings.HasPrefix(runtimeVersion, "go1.8"),
+		strings.HasPrefix(runtimeVersion, "go1.9"):
+		t.Skipf("Go %s implementation is broken", runtimeVersion)
+	}
+
 	debugOutput.Reset()
 
 	do := func(url, method, targetTransactionName string) {
