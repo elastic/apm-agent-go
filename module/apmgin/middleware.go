@@ -18,10 +18,8 @@
 package apmgin // import "go.elastic.co/apm/module/apmgin"
 
 import (
-	"net/http"
-	"sync"
-
 	"github.com/gin-gonic/gin"
+	"net/http"
 
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/module/apmhttp"
@@ -61,9 +59,6 @@ type middleware struct {
 	engine         *gin.Engine
 	tracer         *apm.Tracer
 	requestIgnorer apmhttp.RequestIgnorerFunc
-
-	setRouteMapOnce sync.Once
-	routeMap        map[string]struct{}
 }
 
 func (m *middleware) handle(c *gin.Context) {
@@ -72,17 +67,10 @@ func (m *middleware) handle(c *gin.Context) {
 		return
 	}
 
-	m.setRouteMapOnce.Do(func() {
-		routes := m.engine.Routes()
-
-		m.routeMap = make(map[string]struct{}, len(routes))
-		for _, r := range routes {
-			m.routeMap[r.Method+" "+r.Path] = struct{}{}
-		}
-	})
-
-	requestName := c.Request.Method + " " + c.FullPath()
-	if _, ok := m.routeMap[requestName]; !ok {
+	var requestName string
+	if fullPath := c.FullPath(); fullPath != "" {
+		requestName = c.Request.Method + " " + fullPath
+	} else {
 		requestName = apmhttp.UnknownRouteRequestName(c.Request)
 	}
 
