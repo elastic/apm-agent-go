@@ -324,29 +324,18 @@ func TestHTTPTransportCACert(t *testing.T) {
 
 	p := strings.NewReader("")
 
-	newTransport := func(assertFunc func(err error)) *transport.HTTPTransport {
-		trans, err := transport.NewHTTPTransport()
-		assertFunc(err)
-		return trans
-	}
-
-	assertNoError := func(err error) {
-		require.NoError(t, err)
-	}
-
-	assertError := func(err error) {
-		require.Error(t, err)
-	}
-
 	// SendStream should fail, because we haven't told the client about
 	// the server certificate, nor disabled certificate verification.
-	trans := newTransport(assertNoError)
-	err := trans.SendStream(context.Background(), p)
+	trans, err := transport.NewHTTPTransport()
+	assert.NoError(t, err)
+	assert.NotNil(t, trans)
+	err = trans.SendStream(context.Background(), p)
 	assert.Error(t, err)
 
 	// Set the env var to a file that doesn't exist, should get an error
 	defer patchEnv("ELASTIC_APM_SERVER_CA_CERT_FILE", "./testdata/file_that_doesnt_exist.pem")()
-	trans = newTransport(assertError)
+	trans, err = transport.NewHTTPTransport()
+	assert.Error(t, err)
 	assert.Nil(t, trans)
 
 	// Set the env var to a file that has no cert, should get an error
@@ -355,12 +344,15 @@ func TestHTTPTransportCACert(t *testing.T) {
 	defer os.Remove(f.Name())
 	defer f.Close()
 	defer patchEnv("ELASTIC_APM_SERVER_CA_CERT_FILE", f.Name())()
-	trans = newTransport(assertError)
+	trans, err = transport.NewHTTPTransport()
+	assert.Error(t, err)
 	assert.Nil(t, trans)
 
 	// Set a certificate that doesn't match, SendStream should still fail
 	defer patchEnv("ELASTIC_APM_SERVER_CA_CERT_FILE", "./testdata/cert.pem")()
-	trans = newTransport(assertNoError)
+	trans, err = transport.NewHTTPTransport()
+	assert.NoError(t, err)
+	assert.NotNil(t, trans)
 	err = trans.SendStream(context.Background(), p)
 	assert.Error(t, err)
 
@@ -376,7 +368,9 @@ func TestHTTPTransportCACert(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	trans = newTransport(assertNoError)
+	trans, err = transport.NewHTTPTransport()
+	assert.NoError(t, err)
+	assert.NotNil(t, trans)
 	err = trans.SendStream(context.Background(), p)
 	assert.NoError(t, err)
 }
