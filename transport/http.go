@@ -147,16 +147,14 @@ func NewHTTPTransport() (*HTTPTransport, error) {
 
 	caCertPath := os.Getenv(envCACert)
 	if caCertPath != "" {
-		rootCAs, err := x509.SystemCertPool()
-		if err != nil || rootCAs == nil {
-			rootCAs = x509.NewCertPool()
-		}
+		rootCAs := x509.NewCertPool()
 		additionalCerts, err := ioutil.ReadFile(caCertPath)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to load root CA file from %s", caCertPath)
 		}
-		// TODO: could return an error or a log if no additional certs are loaded
-		rootCAs.AppendCertsFromPEM(additionalCerts)
+		if !rootCAs.AppendCertsFromPEM(additionalCerts) {
+			return nil, fmt.Errorf("failed to load CA certs from %s", caCertPath)
+		}
 		tlsConfig.RootCAs = rootCAs
 	}
 
