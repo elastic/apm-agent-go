@@ -71,9 +71,11 @@ func (m *middleware) handle(c *gin.Context) {
 		c.Next()
 		return
 	}
+
 	m.setRouteMapOnce.Do(func() {
 		routes := m.engine.Routes()
-		m.routeMap = map[string]struct{}{}
+
+		m.routeMap = make(map[string]struct{}, len(routes))
 		for _, r := range routes {
 			m.routeMap[r.Method+" "+r.Path] = struct{}{}
 		}
