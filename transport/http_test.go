@@ -356,6 +356,7 @@ func TestHTTPTransportCACert(t *testing.T) {
 	defer f.Close()
 	defer patchEnv("ELASTIC_APM_SERVER_CA_CERT_FILE", f.Name())()
 	trans = newTransport(assertError)
+	assert.Nil(t, trans)
 
 	// Set a certificate that doesn't match, SendStream should still fail
 	defer patchEnv("ELASTIC_APM_SERVER_CA_CERT_FILE", "./testdata/cert.pem")()
