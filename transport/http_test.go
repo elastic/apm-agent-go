@@ -314,6 +314,67 @@ func TestHTTPTransportV2NotFound(t *testing.T) {
 	assert.EqualError(t, err, fmt.Sprintf("request failed with 404 Not Found: %s/intake/v2/events not found (requires APM Server 6.5.0 or newer)", server.URL))
 }
 
+func TestHTTPTransportCACert(t *testing.T) {
+	var h recordingHandler
+	server := httptest.NewUnstartedServer(&h)
+	server.Config.ErrorLog = log.New(ioutil.Discard, "", 0)
+	server.StartTLS()
+	defer server.Close()
+	defer patchEnv("ELASTIC_APM_SERVER_URL", server.URL)()
+
+	p := strings.NewReader("")
+
+	// SendStream should fail, because we haven't told the client about
+	// the server certificate, nor disabled certificate verification.
+	trans, err := transport.NewHTTPTransport()
+	assert.NoError(t, err)
+	assert.NotNil(t, trans)
+	err = trans.SendStream(context.Background(), p)
+	assert.Error(t, err)
+
+	// Set the env var to a file that doesn't exist, should get an error
+	defer patchEnv("ELASTIC_APM_SERVER_CA_CERT_FILE", "./testdata/file_that_doesnt_exist.pem")()
+	trans, err = transport.NewHTTPTransport()
+	assert.Error(t, err)
+	assert.Nil(t, trans)
+
+	// Set the env var to a file that has no cert, should get an error
+	f, err := ioutil.TempFile("", "apm-test-1")
+	require.NoError(t, err)
+	defer os.Remove(f.Name())
+	defer f.Close()
+	defer patchEnv("ELASTIC_APM_SERVER_CA_CERT_FILE", f.Name())()
+	trans, err = transport.NewHTTPTransport()
+	assert.Error(t, err)
+	assert.Nil(t, trans)
+
+	// Set a certificate that doesn't match, SendStream should still fail
+	defer patchEnv("ELASTIC_APM_SERVER_CA_CERT_FILE", "./testdata/cert.pem")()
+	trans, err = transport.NewHTTPTransport()
+	assert.NoError(t, err)
+	assert.NotNil(t, trans)
+	err = trans.SendStream(context.Background(), p)
+	assert.Error(t, err)
+
+	f, err = ioutil.TempFile("", "apm-test-2")
+	require.NoError(t, err)
+	defer os.Remove(f.Name())
+	defer f.Close()
+	defer patchEnv("ELASTIC_APM_SERVER_CA_CERT_FILE", f.Name())()
+
+	err = pem.Encode(f, &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: server.TLS.Certificates[0].Certificate[0],
+	})
+	require.NoError(t, err)
+
+	trans, err = transport.NewHTTPTransport()
+	assert.NoError(t, err)
+	assert.NotNil(t, trans)
+	err = trans.SendStream(context.Background(), p)
+	assert.NoError(t, err)
+}
+
 func TestHTTPTransportServerCert(t *testing.T) {
 	var h recordingHandler
 	server := httptest.NewUnstartedServer(&h)
@@ -349,7 +410,7 @@ func TestHTTPTransportServerCert(t *testing.T) {
 	defer patchEnv("ELASTIC_APM_SERVER_CERT", f.Name())()
 
 	// Reconfigure the transport so that it knows about the
-	// CA certificate. We avoid using server.Client here, as
+	// server certificate. We avoid using server.Client here, as
 	// it is not available in older versions of Go.
 	err = pem.Encode(f, &pem.Block{
 		Type:  "CERTIFICATE",
