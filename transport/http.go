@@ -158,7 +158,6 @@ func NewHTTPTransport() (*HTTPTransport, error) {
 		tlsConfig.RootCAs = rootCAs
 	}
 
-
 	client := &http.Client{
 		Timeout: serverTimeout,
 		Transport: &http.Transport{
