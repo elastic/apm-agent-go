@@ -35,7 +35,6 @@ type middleware struct {
 func (m *middleware) getRequestName(c *gin.Context) string {
 	if fullPath := c.FullPath(); fullPath != "" {
 		return c.Request.Method + " " + fullPath
-	} else {
-		return apmhttp.UnknownRouteRequestName(c.Request)
 	}
+	return apmhttp.UnknownRouteRequestName(c.Request)
 }
