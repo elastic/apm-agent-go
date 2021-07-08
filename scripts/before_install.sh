@@ -1,13 +1,6 @@
 #!/usr/bin/env bash
 set -euxo pipefail
 
-if (go run scripts/mingoversion.go 1.12 &>/dev/null); then
-  go install -v golang.org/x/lint/golint
-  go install -v golang.org/x/tools/cmd/goimports
-  go install -v github.com/elastic/go-licenser
-  go install -v github.com/jcchavezs/porto
-fi
-
 if (go run scripts/mingoversion.go 1.11 &>/dev/null); then
   exit
 fi

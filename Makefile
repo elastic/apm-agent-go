@@ -24,7 +24,7 @@ check-lint:
 	sh scripts/check_lint.sh
 
 check-licenses:
-	go-licenser -d $(patsubst %,-exclude %,$(GO_LICENSER_EXCLUDE)) .
+	go run github.com/elastic/go-licenser -d $(patsubst %,-exclude %,$(GO_LICENSER_EXCLUDE)) .
 
 check-modules:
 	go run scripts/genmod/main.go -check .
