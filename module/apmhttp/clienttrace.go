@@ -86,7 +86,11 @@ func withClientTrace(ctx context.Context, tx *apm.Transaction, parent *apm.Span)
 		},
 
 		TLSHandshakeDone: func(_ tls.ConnectionState, _ error) {
-			r.TLS.End()
+			// It is possible for TLSHandshakeDone to be called even if
+			// TLSHandshakeStart has not, in case a timeout occurs first.
+			if r.TLS != nil {
+				r.TLS.End()
+			}
 		},
 
 		GotFirstResponseByte: func() {
