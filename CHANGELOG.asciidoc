@@ -21,7 +21,25 @@ endif::[]
 [[unreleased]]
 === Unreleased
 
-https://github.com/elastic/apm-agent-go/compare/v1.11.0...master[View commits]
+https://github.com/elastic/apm-agent-go/compare/v1.13.0...master[View commits]
+
+[[release-notes-1.x]]
+=== Go Agent version 1.x
+
+[[release-notes-1.13.0]]
+==== 1.13.0 - 2021/07/29
+
+- prefer w3c traceparent header over legacy elastic-apm-traceparent {pull}963[#(963)]
+- add support for go-restful v3 {pull}968[#(968)]
+- add fasthttp support {pull}957[#(957)]
+- context.SetUsername takes precedence over http user info {pull}957[#(973)]
+- support multiple routes using the same handler {pull}983[#(983)]
+- add apm-server CA cert functionality {pull}982[#(982)]
+- module/apmgin: fix support for Go 1.8-1.9 {pull}948[#(984)]
+- module/apmhttp: fix panic in WithClientTrace {pull}989[#(989)]
+
+[[release-notes-1.12.0]]
+==== 1.12.0 - 2021/05/25
 
 - module/apmgrpc: fix status code to outcome mapping {pull}902[#(902)]
 - module/apmawssdkgo: add support for instrumenting s3 RPC calls {pull}927[#(927)]
@@ -35,8 +53,7 @@ https://github.com/elastic/apm-agent-go/compare/v1.11.0...master[View commits]
 - module/apmot: handle http.host tag as url.Host {pull}954[#(954)]
 - apm: add add ParentID methods to Span and Transaction {pull}956[#(956)]
 
-[[release-notes-1.x]]
-=== Go Agent version 1.x
+https://github.com/elastic/apm-agent-go/releases/tag/v1.12.0[View release]
 
 [[release-notes-1.11.0]]
 ==== 1.11.0 - 2021/02/01
