@@ -4,8 +4,8 @@ require (
 	github.com/gin-gonic/gin v1.7.2
 	github.com/pkg/errors v0.8.1
 	github.com/stretchr/testify v1.6.1
-	go.elastic.co/apm v1.12.0
-	go.elastic.co/apm/module/apmhttp v1.12.0
+	go.elastic.co/apm v1.13.0
+	go.elastic.co/apm/module/apmhttp v1.13.0
 )
 
 replace go.elastic.co/apm => ../..
