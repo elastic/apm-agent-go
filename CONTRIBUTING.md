@@ -84,11 +84,18 @@ adequately cover the code using `go test -cover`.
 1. Merge changes into github.com/elastic/apm-agent-go@master
 1. Create tags: vN.N.N, and module/$MODULE/vN.N.N for each instrumentation module
 
+  ```
 	scripts/tagversion.sh
+  ```
+
+  Execute the output manually in your terminal. Note: The script assumes
+  `upstream` is the name of the upstream remote.
 
 1. Create release on GitHub
 
-	hub release -d vN.N.N
+  ```
+  gh release create vN.N.N
+  ```
 
 1. Reset the latest major branch (1.x, 2.x etc) to point to the new release tag, e.g. git branch -f N.x vN.n.n
 1. Update the latest major branch on upstream with `git push upstream <major_branch>`
