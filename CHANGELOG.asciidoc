@@ -23,6 +23,8 @@ endif::[]
 
 https://github.com/elastic/apm-agent-go/compare/v1.13.0...master[View commits]
 
+- Fix concurrency bugs in breakdown metrics and module/apmhttp.WithClientTrace {pull}997[#(997)]
+
 [[release-notes-1.x]]
 === Go Agent version 1.x
 

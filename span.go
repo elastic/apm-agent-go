@@ -77,6 +77,12 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 	}
 	transactionID := tx.traceContext.Span
 
+	// Lock the parent first to avoid deadlocks in breakdown metrics calculation.
+	if opts.parent != nil {
+		opts.parent.mu.Lock()
+		defer opts.parent.mu.Unlock()
+	}
+
 	// Prevent tx from being ended while we're starting a span.
 	tx.mu.RLock()
 	defer tx.mu.RUnlock()
@@ -117,8 +123,6 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 
 	if tx.breakdownMetricsEnabled {
 		if span.parent != nil {
-			span.parent.mu.Lock()
-			defer span.parent.mu.Unlock()
 			if !span.parent.ended() {
 				span.parent.childrenTimer.childStarted(span.timestamp)
 			}
@@ -334,6 +338,13 @@ func (s *Span) ParentID() SpanID {
 func (s *Span) reportSelfTime() {
 	endTime := s.timestamp.Add(s.Duration)
 
+	// If this span has a parent span, lock it before proceeding to
+	// prevent deadlocking when concurrently ending parent and child.
+	if s.parent != nil {
+		s.parent.mu.Lock()
+		defer s.parent.mu.Unlock()
+	}
+
 	// TODO(axw) try to find a way to not lock the transaction when
 	// ending every span. We already lock them when starting spans.
 	s.tx.mu.RLock()
@@ -345,11 +356,9 @@ func (s *Span) reportSelfTime() {
 	s.tx.TransactionData.mu.Lock()
 	defer s.tx.TransactionData.mu.Unlock()
 	if s.parent != nil {
-		s.parent.mu.Lock()
 		if !s.parent.ended() {
 			s.parent.childrenTimer.childEnded(endTime)
 		}
-		s.parent.mu.Unlock()
 	} else {
 		s.tx.childrenTimer.childEnded(endTime)
 	}

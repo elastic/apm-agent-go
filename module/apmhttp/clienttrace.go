@@ -45,7 +45,8 @@ type requestTracer struct {
 	Request,
 	Response *apm.Span
 
-	mu       sync.RWMutex
+	mu       sync.Mutex
+	ended    bool
 	Connects map[connectKey]*apm.Span
 }
 
@@ -56,52 +57,92 @@ func withClientTrace(ctx context.Context, tx *apm.Transaction, parent *apm.Span)
 
 	return httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{
 		DNSStart: func(i httptrace.DNSStartInfo) {
-			r.DNS = tx.StartSpan(fmt.Sprintf("DNS %s", i.Host), "external.http.dns", parent)
+			r.mu.Lock()
+			defer r.mu.Unlock()
+			if !r.ended {
+				r.DNS = tx.StartSpan(fmt.Sprintf("DNS %s", i.Host), "external.http.dns", parent)
+			}
 		},
 
 		DNSDone: func(i httptrace.DNSDoneInfo) {
-			r.DNS.End()
+			r.mu.Lock()
+			defer r.mu.Unlock()
+			if r.DNS != nil {
+				r.DNS.End()
+				r.DNS = nil
+			}
 		},
 
 		ConnectStart: func(network, addr string) {
-			span := tx.StartSpan(fmt.Sprintf("Connect %s", addr), "external.http.connect", parent)
 			r.mu.Lock()
-			r.Connects[connectKey{network: network, addr: addr}] = span
-			r.mu.Unlock()
+			defer r.mu.Unlock()
+			if !r.ended {
+				key := connectKey{network: network, addr: addr}
+				span := tx.StartSpan(fmt.Sprintf("Connect %s", addr), "external.http.connect", parent)
+				r.Connects[key] = span
+			}
 		},
 
 		ConnectDone: func(network, addr string, err error) {
-			r.mu.RLock()
-			span := r.Connects[connectKey{network: network, addr: addr}]
-			r.mu.RUnlock()
-			span.End()
+			r.mu.Lock()
+			defer r.mu.Unlock()
+			key := connectKey{network: network, addr: addr}
+			if span, ok := r.Connects[key]; ok {
+				delete(r.Connects, key)
+				if err != nil {
+					span.Outcome = "failure"
+				}
+				span.End()
+			}
 		},
 
 		GotConn: func(info httptrace.GotConnInfo) {
-			r.Request = tx.StartSpan("Request", "external.http.request", parent)
+			r.mu.Lock()
+			defer r.mu.Unlock()
+			if !r.ended {
+				r.Request = tx.StartSpan("Request", "external.http.request", parent)
+			}
 		},
 
 		TLSHandshakeStart: func() {
-			r.TLS = tx.StartSpan("TLS", "external.http.tls", parent)
+			r.mu.Lock()
+			defer r.mu.Unlock()
+			if !r.ended {
+				r.TLS = tx.StartSpan("TLS", "external.http.tls", parent)
+			}
 		},
 
 		TLSHandshakeDone: func(_ tls.ConnectionState, _ error) {
 			// It is possible for TLSHandshakeDone to be called even if
 			// TLSHandshakeStart has not, in case a timeout occurs first.
+			r.mu.Lock()
+			defer r.mu.Unlock()
 			if r.TLS != nil {
 				r.TLS.End()
+				r.TLS = nil
 			}
 		},
 
 		GotFirstResponseByte: func() {
-			r.Request.End()
-			r.Response = tx.StartSpan("Response", "external.http.response", parent)
+			r.mu.Lock()
+			defer r.mu.Unlock()
+			if r.Request != nil {
+				r.Request.End()
+				r.Request = nil
+			}
+			if !r.ended {
+				r.Response = tx.StartSpan("Response", "external.http.response", parent)
+			}
 		},
 	}), &r
 }
 
 func (r *requestTracer) end() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	if r.Response != nil {
 		r.Response.End()
+		r.Response = nil
 	}
+	r.ended = true
 }
