@@ -6,7 +6,7 @@ require (
 	github.com/lib/pq v1.3.0
 	github.com/mattn/go-sqlite3 v1.10.0
 	github.com/stretchr/testify v1.6.1
-	go.elastic.co/apm v1.13.0
+	go.elastic.co/apm v1.13.1
 )
 
 replace go.elastic.co/apm => ../..

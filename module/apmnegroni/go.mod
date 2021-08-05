@@ -5,8 +5,8 @@ go 1.13
 require (
 	github.com/stretchr/testify v1.6.1
 	github.com/urfave/negroni v1.0.0
-	go.elastic.co/apm v1.13.0
-	go.elastic.co/apm/module/apmhttp v1.13.0
+	go.elastic.co/apm v1.13.1
+	go.elastic.co/apm/module/apmhttp v1.13.1
 )
 
 replace go.elastic.co/apm => ../..
