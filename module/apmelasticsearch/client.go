@@ -74,6 +74,12 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 		return r.r.RoundTrip(req)
 	}
 
+	headerValue := apmhttp.FormatTraceparentHeader(tx.TraceContext())
+	req.Header.Set(apmhttp.W3CTraceparentHeader, headerValue)
+	if tx.ShouldPropagateLegacyHeader() {
+		req.Header.Set(apmhttp.ElasticTraceparentHeader, headerValue)
+	}
+
 	statement, req := captureSearchStatement(req)
 	username, _, _ := req.BasicAuth()
 	ctx = apm.ContextWithSpan(ctx, span)

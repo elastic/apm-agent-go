@@ -37,6 +37,7 @@ import (
 	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/module/apmelasticsearch"
+	"go.elastic.co/apm/module/apmhttp"
 )
 
 func TestWrapRoundTripper(t *testing.T) {
@@ -301,6 +302,28 @@ func TestDestination(t *testing.T) {
 	test("http://127.0.0.1:9200/_search", "127.0.0.1", 9200)
 	test("http://[2001:db8::1]:9200/_search", "2001:db8::1", 9200)
 	test("http://[2001:db8::1]:80/_search", "2001:db8::1", 80)
+}
+
+func TestTraceparentHeader(t *testing.T) {
+	headers := make(map[string]string)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		for k, vs := range req.Header {
+			headers[k] = strings.Join(vs, " ")
+		}
+	}))
+	defer server.Close()
+	client := &http.Client{Transport: apmelasticsearch.WrapRoundTripper(http.DefaultTransport)}
+
+	req, err := http.NewRequest("GET", server.URL, nil)
+	require.NoError(t, err)
+
+	_, _, _ = apmtest.WithTransaction(func(ctx context.Context) {
+		_, err := client.Do(req.WithContext(ctx))
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, headers, apmhttp.ElasticTraceparentHeader)
+	assert.Contains(t, headers, apmhttp.W3CTraceparentHeader)
 }
 
 type readCloser struct {
