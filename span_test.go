@@ -163,6 +163,72 @@ func TestSpanType(t *testing.T) {
 	check(spans[3], "type", "subtype", "action.figure")
 }
 
+func TestStartExitSpan(t *testing.T) {
+	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+		span, _ := apm.StartExitSpan(ctx, "name", "type")
+		assert.True(t, span.IsExitSpan())
+		span.End()
+	})
+	require.Len(t, spans, 1)
+	assert.Equal(t, spans[0].Context.Destination.Service.Resource, "type")
+
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+
+	tx := tracer.StartTransaction("name", "type")
+	span := tx.StartExitSpan("name", "type", nil)
+	assert.True(t, span.IsExitSpan())
+	// when the parent span is an exit span, any children should be noops.
+	span2 := tx.StartSpan("name", "type", span)
+	assert.True(t, span2.Dropped())
+	span.End()
+	span2.End()
+
+	// when a span has the correct fields set to qualify as an exit span,
+	// it should be considered as such.
+	span = tx.StartSpan("name", "type", nil)
+	assert.False(t, span.IsExitSpan())
+	span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
+		Resource: "my-resource",
+	})
+	assert.True(t, span.IsExitSpan())
+	span2 = tx.StartSpan("name", "type", span)
+	assert.True(t, span2.Dropped())
+	span.End()
+	span2.End()
+
+	span = tx.StartSpan("name", "type", nil)
+	assert.False(t, span.IsExitSpan())
+	span.Context.SetMessage(apm.MessageSpanContext{
+		QueueName: "my-queue",
+	})
+	assert.True(t, span.IsExitSpan())
+	span2 = tx.StartSpan("name", "type", span)
+	assert.True(t, span2.Dropped())
+	span.End()
+	span2.End()
+
+	span = tx.StartSpan("name", "type", nil)
+	assert.False(t, span.IsExitSpan())
+	span.Context.SetDatabase(apm.DatabaseSpanContext{
+		Instance: "my-instance",
+	})
+	assert.True(t, span.IsExitSpan())
+	span2 = tx.StartSpan("name", "type", span)
+	assert.True(t, span2.Dropped())
+	span.End()
+	span2.End()
+
+	span = tx.StartSpan("name", "type", nil)
+	assert.False(t, span.IsExitSpan())
+	span.Context.SetHTTPStatusCode(200)
+	assert.True(t, span.IsExitSpan())
+	span2 = tx.StartSpan("name", "type", span)
+	assert.True(t, span2.Dropped())
+	span.End()
+	span2.End()
+}
+
 func TestTracerStartSpanIDSpecified(t *testing.T) {
 	spanID := apm.SpanID{0, 1, 2, 3, 4, 5, 6, 7}
 	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {

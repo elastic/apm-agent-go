@@ -24,6 +24,7 @@ import (
 	"sync"
 	"time"
 
+	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/stacktrace"
 )
 
@@ -54,6 +55,24 @@ func (tx *Transaction) StartSpan(name, spanType string, parent *Span) *Span {
 	})
 }
 
+// StartExitSpan starts an exit span. If the provided parent is already an exit
+// span, this function returns a dropped span.
+func (tx *Transaction) StartExitSpan(name, spanType string, parent *Span) *Span {
+	span := tx.StartSpan(name, spanType, parent)
+	if span.Dropped() {
+		return span
+	}
+	span.exit = true
+	resource := spanType
+	if resource == "" {
+		resource = name
+	}
+	span.Context.SetDestinationService(DestinationServiceSpanContext{
+		Resource: resource,
+	})
+	return span
+}
+
 // StartSpanOptions starts and returns a new Span within the transaction,
 // with the specified name, type, and options.
 //
@@ -64,7 +83,8 @@ func (tx *Transaction) StartSpan(name, spanType string, parent *Span) *Span {
 // span type, subtype, and action; a single dot separates span type and
 // subtype, and the action will not be set.
 func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions) *Span {
-	if tx == nil {
+	if tx == nil || opts.parent.IsExitSpan() {
+		// TODO: Is this the equivalent of a noop span?
 		return newDroppedSpan()
 	}
 
@@ -143,7 +163,10 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 // way will not have the "max spans" configuration applied, nor will they be
 // considered in any transaction's span count.
 func (t *Tracer) StartSpan(name, spanType string, transactionID SpanID, opts SpanOptions) *Span {
-	if opts.Parent.Trace.Validate() != nil || opts.Parent.Span.Validate() != nil || transactionID.Validate() != nil {
+	if opts.Parent.Trace.Validate() != nil ||
+		opts.Parent.Span.Validate() != nil ||
+		transactionID.Validate() != nil ||
+		opts.parent.IsExitSpan() {
 		return newDroppedSpan()
 	}
 	if !opts.Parent.Options.Recorded() {
@@ -384,6 +407,19 @@ func (s *Span) ended() bool {
 	return s.SpanData == nil
 }
 
+// IsExitSpan returns true if the span is an exit span.
+func (s *Span) IsExitSpan() bool {
+	if s == nil || s.SpanData == nil {
+		return false
+	}
+	ctx := s.Context
+	return s.exit ||
+		ctx.destination != model.DestinationSpanContext{} ||
+		ctx.database != model.DatabaseSpanContext{} ||
+		ctx.message != model.MessageSpanContext{} ||
+		ctx.http != model.HTTPSpanContext{}
+}
+
 // SpanData holds the details for a span, and is embedded inside Span.
 // When a span is ended or discarded, its SpanData field will be set
 // to nil.
@@ -392,6 +428,7 @@ type SpanData struct {
 	stackTraceLimit        int
 	timestamp              time.Time
 	childrenTimer          childrenTimer
+	exit                   bool
 
 	// Name holds the span name, initialized with the value passed to StartSpan.
 	Name string
