@@ -173,7 +173,6 @@ func send(req *request.Request) {
 	span.Action = req.Operation.Name
 
 	span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
-		Name:     spanSubtype,
 		Resource: svc.resource(),
 	})
 

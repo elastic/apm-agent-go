@@ -65,37 +65,31 @@ func TestSpanContextSetHTTPRequest(t *testing.T) {
 		url:      "http://localhost/foo/bar",
 		addr:     "localhost",
 		port:     80,
-		name:     "http://localhost",
 		resource: "localhost:80",
 	}, {
 		url:      "http://localhost:80/foo/bar",
 		addr:     "localhost",
 		port:     80,
-		name:     "http://localhost",
 		resource: "localhost:80",
 	}, {
 		url:      "https://[::1]/foo/bar",
 		addr:     "::1",
 		port:     443,
-		name:     "https://[::1]",
 		resource: "[::1]:443",
 	}, {
 		url:      "https://[::1]:8443/foo/bar",
 		addr:     "::1",
 		port:     8443,
-		name:     "https://[::1]:8443",
 		resource: "[::1]:8443",
 	}, {
 		url:      "gopher://gopher.invalid:70",
 		addr:     "gopher.invalid",
 		port:     70,
-		name:     "gopher://gopher.invalid:70",
 		resource: "gopher.invalid:70",
 	}, {
 		url:      "gopher://gopher.invalid",
 		addr:     "gopher.invalid",
 		port:     0,
-		name:     "gopher://gopher.invalid",
 		resource: "gopher.invalid",
 	}}
 
@@ -116,7 +110,6 @@ func TestSpanContextSetHTTPRequest(t *testing.T) {
 				Port:    tc.port,
 				Service: &model.DestinationServiceSpanContext{
 					Type:     spans[0].Type,
-					Name:     tc.name,
 					Resource: tc.resource,
 				},
 			}, spans[0].Context.Destination)
@@ -132,29 +125,23 @@ func TestSetDestinationService(t *testing.T) {
 	}
 
 	testcases := []testcase{{
-		name:        "",
 		resource:    "",
 		expectEmpty: true,
 	}, {
-		name:        "",
 		resource:    "nonempty",
-		expectEmpty: true,
+		expectEmpty: false,
 	}, {
-		name:        "nonempty",
 		resource:    "",
 		expectEmpty: true,
 	}, {
-		name:     "nonempty",
 		resource: "nonempty",
 	}}
-
 	for _, tc := range testcases {
 		t.Run(fmt.Sprintf("%s_%s", tc.name, tc.resource), func(t *testing.T) {
 			_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
 				span, _ := apm.StartSpan(ctx, "name", "span_type")
 				span.Context.SetDestinationAddress("testing.invalid", 123)
 				span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
-					Name:     tc.name,
 					Resource: tc.resource,
 				})
 				span.End()
@@ -164,7 +151,6 @@ func TestSetDestinationService(t *testing.T) {
 				assert.Nil(t, spans[0].Context.Destination.Service)
 			} else {
 				assert.Equal(t, &model.DestinationServiceSpanContext{
-					Name:     tc.name,
 					Resource: tc.resource,
 					Type:     "span_type",
 				}, spans[0].Context.Destination.Service)
