@@ -63,8 +63,11 @@ type roundTripper struct {
 func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	ctx := req.Context()
 	tx := apm.TransactionFromContext(ctx)
+	if tx == nil {
+		return r.r.RoundTrip(req)
+	}
 	traceContext := tx.TraceContext()
-	if tx == nil || !tx.Sampled() {
+	if !tx.Sampled() {
 		apmhttp.SetHeaders(req, traceContext, false)
 		return r.r.RoundTrip(req)
 	}
