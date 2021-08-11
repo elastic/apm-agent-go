@@ -97,14 +97,7 @@ func StartExitSpan(ctx context.Context, name, spanType string) (*Span, context.C
 	if span.Dropped() {
 		return span, ctx
 	}
-	span.exit = true
-	resource := spanType
-	if resource == "" {
-		resource = name
-	}
-	span.Context.SetDestinationService(DestinationServiceSpanContext{
-		Resource: resource,
-	})
+	span.setExitSpan(name, spanType)
 	return span, ctx
 }
 

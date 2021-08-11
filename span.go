@@ -62,14 +62,7 @@ func (tx *Transaction) StartExitSpan(name, spanType string, parent *Span) *Span 
 	if span.Dropped() {
 		return span
 	}
-	span.exit = true
-	resource := spanType
-	if resource == "" {
-		resource = name
-	}
-	span.Context.SetDestinationService(DestinationServiceSpanContext{
-		Resource: resource,
-	})
+	span.setExitSpan(name, spanType)
 	return span
 }
 
@@ -405,6 +398,17 @@ func (s *Span) enqueue() {
 
 func (s *Span) ended() bool {
 	return s.SpanData == nil
+}
+
+func (s *Span) setExitSpan(name, spanType string) {
+	resource := spanType
+	if resource == "" {
+		resource = name
+	}
+	s.exit = true
+	s.Context.SetDestinationService(DestinationServiceSpanContext{
+		Resource: resource,
+	})
 }
 
 // IsExitSpan returns true if the span is an exit span.
