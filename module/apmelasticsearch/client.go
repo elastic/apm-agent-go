@@ -63,17 +63,26 @@ type roundTripper struct {
 func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	ctx := req.Context()
 	tx := apm.TransactionFromContext(ctx)
-	if tx == nil || !tx.Sampled() {
+	if tx == nil {
+		return r.r.RoundTrip(req)
+	}
+	traceContext := tx.TraceContext()
+	if !tx.Sampled() {
+		apmhttp.SetHeaders(req, traceContext, false)
 		return r.r.RoundTrip(req)
 	}
 
+	propagateLegacyHeader := tx.ShouldPropagateLegacyHeader()
 	name := requestName(req)
 	span := tx.StartSpan(name, "db.elasticsearch", apm.SpanFromContext(ctx))
+
 	if span.Dropped() {
 		span.End()
+		apmhttp.SetHeaders(req, traceContext, propagateLegacyHeader)
 		return r.r.RoundTrip(req)
 	}
 
+	traceContext = span.TraceContext()
 	statement, req := captureSearchStatement(req)
 	username, _, _ := req.BasicAuth()
 	ctx = apm.ContextWithSpan(ctx, span)
@@ -89,6 +98,7 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 		User:      username,
 	})
 
+	apmhttp.SetHeaders(req, traceContext, propagateLegacyHeader)
 	resp, err := r.r.RoundTrip(req)
 	if err != nil {
 		span.End()
