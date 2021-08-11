@@ -331,7 +331,7 @@ func TestTraceHeaders(t *testing.T) {
 
 func TestClientSpanDropped(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		w.Write([]byte(req.Header.Get("Elastic-Apm-Traceparent")))
+		w.Write([]byte(req.Header.Get("Traceparent")))
 	}))
 	defer server.Close()
 
@@ -369,7 +369,7 @@ func TestClientSpanDropped(t *testing.T) {
 
 func TestClientTransactionUnsampled(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		w.Write([]byte(req.Header.Get("Elastic-Apm-Traceparent")))
+		w.Write([]byte(req.Header.Get("Traceparent")))
 	}))
 	defer server.Close()
 

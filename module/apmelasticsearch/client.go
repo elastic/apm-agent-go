@@ -64,12 +64,12 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	ctx := req.Context()
 	tx := apm.TransactionFromContext(ctx)
 	traceContext := tx.TraceContext()
-	propagateLegacyHeader := tx.ShouldPropagateLegacyHeader()
-	if !tx.Sampled() {
-		apmhttp.SetHeaders(req, traceContext, propagateLegacyHeader)
+	if tx == nil || !tx.Sampled() {
+		apmhttp.SetHeaders(req, traceContext, false)
 		return r.r.RoundTrip(req)
 	}
 
+	propagateLegacyHeader := tx.ShouldPropagateLegacyHeader()
 	name := requestName(req)
 	span := tx.StartSpan(name, "db.elasticsearch", apm.SpanFromContext(ctx))
 
