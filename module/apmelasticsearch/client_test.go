@@ -34,10 +34,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context/ctxhttp"
 
+	"go.elastic.co/apm"
 	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/module/apmelasticsearch"
 	"go.elastic.co/apm/module/apmhttp"
+	"go.elastic.co/apm/transport/transporttest"
 )
 
 func TestWrapRoundTripper(t *testing.T) {
@@ -325,6 +327,93 @@ func TestTraceHeaders(t *testing.T) {
 	assert.Contains(t, headers, apmhttp.ElasticTraceparentHeader)
 	assert.Contains(t, headers, apmhttp.W3CTraceparentHeader)
 	assert.Contains(t, headers, apmhttp.TracestateHeader)
+}
+
+func TestClientSpanDropped(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.Write([]byte(req.Header.Get("Elastic-Apm-Traceparent")))
+	}))
+	defer server.Close()
+
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	tracer.SetMaxSpans(1)
+	tx := tracer.StartTransaction("name", "type")
+	ctx := apm.ContextWithTransaction(context.Background(), tx)
+
+	var responseBodies []string
+	for i := 0; i < 2; i++ {
+		body, err := doGET(ctx, server.URL)
+		require.NoError(t, err)
+		responseBodies = append(responseBodies, body)
+	}
+
+	tx.End()
+	tracer.Flush(nil)
+	payloads := transport.Payloads()
+	require.Len(t, payloads.Spans, 1)
+	transaction := payloads.Transactions[0]
+	span := payloads.Spans[0] // for first request
+
+	clientTraceContext, err := apmhttp.ParseTraceparentHeader(string(responseBodies[0]))
+	require.NoError(t, err)
+	assert.Equal(t, span.TraceID, model.TraceID(clientTraceContext.Trace))
+	assert.Equal(t, span.ID, model.SpanID(clientTraceContext.Span))
+
+	clientTraceContext, err = apmhttp.ParseTraceparentHeader(string(responseBodies[1]))
+	require.NoError(t, err)
+	assert.Equal(t, transaction.TraceID, model.TraceID(clientTraceContext.Trace))
+	assert.Equal(t, transaction.ID, model.SpanID(clientTraceContext.Span))
+}
+
+func TestClientTransactionUnsampled(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.Write([]byte(req.Header.Get("Elastic-Apm-Traceparent")))
+	}))
+	defer server.Close()
+
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+	tracer.SetSampler(apm.NewRatioSampler(0)) // sample nothing
+
+	tx := tracer.StartTransaction("name", "type")
+	ctx := apm.ContextWithTransaction(context.Background(), tx)
+	body, err := doGET(ctx, server.URL)
+	require.NoError(t, err)
+
+	tx.End()
+	tracer.Flush(nil)
+
+	payloads := transport.Payloads()
+	require.Len(t, payloads.Transactions, 1)
+	require.Len(t, payloads.Spans, 0)
+	transaction := payloads.Transactions[0]
+
+	clientTraceContext, err := apmhttp.ParseTraceparentHeader(string(body))
+	require.NoError(t, err)
+	assert.Equal(t, transaction.TraceID, model.TraceID(clientTraceContext.Trace))
+	assert.Equal(t, transaction.ID, model.SpanID(clientTraceContext.Span))
+}
+
+func doGET(ctx context.Context, url string) (string, error) {
+	client := &http.Client{Transport: apmelasticsearch.WrapRoundTripper(http.DefaultTransport)}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", err
+	}
+	resp, err := client.Do(req.WithContext(ctx))
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	return string(body), nil
 }
 
 type readCloser struct {
