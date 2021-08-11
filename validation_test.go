@@ -119,7 +119,7 @@ func TestValidateDatabaseSpanContext(t *testing.T) {
 
 func TestValidateDestinationSpanContext(t *testing.T) {
 	overlong := strings.Repeat("x", 1025)
-	for _ = range []string{"", overlong} {
+	for range []string{"", overlong} {
 		for _, resource := range []string{"", overlong} {
 			validateSpan(t, func(s *apm.Span) {
 				s.Context.SetDestinationAddress(overlong, 0)
