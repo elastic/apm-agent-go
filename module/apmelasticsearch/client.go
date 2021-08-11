@@ -74,10 +74,14 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 		return r.r.RoundTrip(req)
 	}
 
-	headerValue := apmhttp.FormatTraceparentHeader(tx.TraceContext())
+	traceContext := span.TraceContext()
+	headerValue := apmhttp.FormatTraceparentHeader(traceContext)
 	req.Header.Set(apmhttp.W3CTraceparentHeader, headerValue)
 	if tx.ShouldPropagateLegacyHeader() {
 		req.Header.Set(apmhttp.ElasticTraceparentHeader, headerValue)
+	}
+	if tracestate := traceContext.State.String(); tracestate != "" {
+		req.Header.Set(apmhttp.TracestateHeader, tracestate)
 	}
 
 	statement, req := captureSearchStatement(req)

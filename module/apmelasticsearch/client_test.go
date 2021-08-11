@@ -304,7 +304,7 @@ func TestDestination(t *testing.T) {
 	test("http://[2001:db8::1]:80/_search", "2001:db8::1", 80)
 }
 
-func TestTraceparentHeader(t *testing.T) {
+func TestTraceHeaders(t *testing.T) {
 	headers := make(map[string]string)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		for k, vs := range req.Header {
@@ -324,6 +324,7 @@ func TestTraceparentHeader(t *testing.T) {
 
 	assert.Contains(t, headers, apmhttp.ElasticTraceparentHeader)
 	assert.Contains(t, headers, apmhttp.W3CTraceparentHeader)
+	assert.Contains(t, headers, apmhttp.TracestateHeader)
 }
 
 type readCloser struct {
