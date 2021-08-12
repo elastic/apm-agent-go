@@ -24,7 +24,6 @@ import (
 	"sync"
 	"time"
 
-	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/stacktrace"
 )
 
@@ -81,19 +80,14 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 	// Lock the parent first to avoid deadlocks in breakdown metrics calculation.
 	if opts.parent != nil {
 		opts.parent.mu.Lock()
+		defer opts.parent.mu.Unlock()
 	}
 
 	// Prevent tx from being ended while we're starting a span.
 	tx.mu.RLock()
 	defer tx.mu.RUnlock()
 	if tx.ended() {
-		if opts.parent != nil {
-			opts.parent.mu.Unlock()
-		}
 		return tx.tracer.StartSpan(name, spanType, transactionID, opts)
-	}
-	if opts.parent != nil {
-		defer opts.parent.mu.Unlock()
 	}
 
 	// Calculate the span time relative to the transaction timestamp so
@@ -108,7 +102,7 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 	span.tx = tx
 	span.parent = opts.parent
 	if opts.ExitSpan {
-		span.setDestinationServiceResource(name, spanType)
+		span.setExitSpan(name, spanType)
 	}
 
 	// Guard access to spansCreated, spansDropped, rand, and childrenTimer.
@@ -179,7 +173,7 @@ func (t *Tracer) StartSpan(name, spanType string, transactionID SpanID, opts Spa
 	span.stackFramesMinDuration = instrumentationConfig.spanFramesMinDuration
 	span.stackTraceLimit = instrumentationConfig.stackTraceLimit
 	if opts.ExitSpan {
-		span.setDestinationServiceResource(name, spanType)
+		span.setExitSpan(name, spanType)
 	}
 
 	return span
@@ -315,7 +309,6 @@ func (s *Span) End() {
 	if s.ended() {
 		return
 	}
-	s.setExitSpan()
 	if s.Duration < 0 {
 		s.Duration = time.Since(s.timestamp)
 	}
@@ -405,7 +398,7 @@ func (s *Span) ended() bool {
 	return s.SpanData == nil
 }
 
-func (s *Span) setDestinationServiceResource(name, spanType string) {
+func (s *Span) setExitSpan(name, spanType string) {
 	resource := spanType
 	if resource == "" {
 		resource = name
@@ -413,7 +406,7 @@ func (s *Span) setDestinationServiceResource(name, spanType string) {
 	s.Context.SetDestinationService(DestinationServiceSpanContext{
 		Resource: resource,
 	})
-	s.setExitSpan()
+	s.exit = true
 }
 
 // IsExitSpan returns true if the span is an exit span.
@@ -421,21 +414,7 @@ func (s *Span) IsExitSpan() bool {
 	if s == nil {
 		return false
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.setExitSpan()
 	return s.exit
-}
-
-func (s *Span) setExitSpan() {
-	if s.exit || s.SpanData == nil {
-		return
-	}
-	ctx := s.Context
-	s.exit = ctx.destination != model.DestinationSpanContext{} ||
-		ctx.database != model.DatabaseSpanContext{} ||
-		ctx.message != model.MessageSpanContext{} ||
-		ctx.http != model.HTTPSpanContext{}
 }
 
 // SpanData holds the details for a span, and is embedded inside Span.

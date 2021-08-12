@@ -186,68 +186,6 @@ func TestStartExitSpan(t *testing.T) {
 	// Spans should still be marked as an exit span after they've been
 	// ended.
 	assert.True(t, span.IsExitSpan())
-
-	// when a span has the correct fields set to qualify as an exit span,
-	// it should be considered as such.
-	span = tx.StartSpan("name", "type", nil)
-	assert.False(t, span.IsExitSpan())
-	span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
-		Resource: "my-resource",
-	})
-	assert.True(t, span.IsExitSpan())
-	span2 = tx.StartSpan("name", "type", span)
-	assert.True(t, span2.Dropped())
-	span.End()
-	span2.End()
-	// Spans should still be marked as an exit span after they've been
-	// ended.
-	assert.True(t, span.IsExitSpan())
-
-	span = tx.StartSpan("name", "type", nil)
-	assert.False(t, span.IsExitSpan())
-	span.Context.SetMessage(apm.MessageSpanContext{
-		QueueName: "my-queue",
-	})
-	assert.True(t, span.IsExitSpan())
-	span2 = tx.StartSpan("name", "type", span)
-	assert.True(t, span2.Dropped())
-	span.End()
-	span2.End()
-	// Spans should still be marked as an exit span after they've been
-	// ended.
-	assert.True(t, span.IsExitSpan())
-
-	span = tx.StartSpan("name", "type", nil)
-	assert.False(t, span.IsExitSpan())
-	span.Context.SetDatabase(apm.DatabaseSpanContext{
-		Instance: "my-instance",
-	})
-	assert.True(t, span.IsExitSpan())
-	span2 = tx.StartSpan("name", "type", span)
-	assert.True(t, span2.Dropped())
-	span.End()
-	span2.End()
-	// Spans should still be marked as an exit span after they've been
-	// ended.
-	assert.True(t, span.IsExitSpan())
-
-	span = tx.StartSpan("name", "type", nil)
-	assert.False(t, span.IsExitSpan())
-	span.Context.SetHTTPStatusCode(200)
-	assert.True(t, span.IsExitSpan())
-	span2 = tx.StartSpan("name", "type", span)
-	assert.True(t, span2.Dropped())
-	span.End()
-	span2.End()
-	// Spans should still be marked as an exit span after they've been
-	// ended.
-	assert.True(t, span.IsExitSpan())
-
-	// confirm that End() sets span.IsExitSpan()
-	span = tx.StartSpan("name", "type", nil)
-	span.Context.SetHTTPStatusCode(200)
-	span.End()
-	assert.True(t, span.IsExitSpan())
 }
 
 func TestTracerStartSpanIDSpecified(t *testing.T) {
