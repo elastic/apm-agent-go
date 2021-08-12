@@ -165,7 +165,7 @@ func TestSpanType(t *testing.T) {
 
 func TestStartExitSpan(t *testing.T) {
 	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
-		span, _ := apm.StartExitSpan(ctx, "name", "type")
+		span, _ := apm.StartSpanOptions(ctx, "name", "type", apm.SpanOptions{ExitSpan: true})
 		assert.True(t, span.IsExitSpan())
 		span.End()
 	})
@@ -176,7 +176,7 @@ func TestStartExitSpan(t *testing.T) {
 	defer tracer.Close()
 
 	tx := tracer.StartTransaction("name", "type")
-	span := tx.StartExitSpan("name", "type", nil)
+	span := tx.StartSpanOptions("name", "type", apm.SpanOptions{ExitSpan: true})
 	assert.True(t, span.IsExitSpan())
 	// when the parent span is an exit span, any children should be noops.
 	span2 := tx.StartSpan("name", "type", span)

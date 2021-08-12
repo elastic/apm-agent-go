@@ -90,17 +90,6 @@ func StartSpan(ctx context.Context, name, spanType string) (*Span, context.Conte
 	return StartSpanOptions(ctx, name, spanType, SpanOptions{})
 }
 
-// StartExitSpan starts an exit span. If the provided context already contains
-// an exit span, this function returns a dropped span.
-func StartExitSpan(ctx context.Context, name, spanType string) (*Span, context.Context) {
-	span, ctx := StartSpanOptions(ctx, name, spanType, SpanOptions{})
-	if span.Dropped() {
-		return span, ctx
-	}
-	span.setExitSpan(name, spanType)
-	return span, ctx
-}
-
 // StartSpanOptions starts and returns a new Span within the sampled transaction
 // and parent span in the context, if any. If the span isn't dropped, it will be
 // stored in the resulting context.

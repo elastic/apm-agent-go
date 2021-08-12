@@ -55,17 +55,6 @@ func (tx *Transaction) StartSpan(name, spanType string, parent *Span) *Span {
 	})
 }
 
-// StartExitSpan starts an exit span. If the provided parent is already an exit
-// span, this function returns a dropped span.
-func (tx *Transaction) StartExitSpan(name, spanType string, parent *Span) *Span {
-	span := tx.StartSpan(name, spanType, parent)
-	if span.Dropped() {
-		return span
-	}
-	span.setExitSpan(name, spanType)
-	return span
-}
-
 // StartSpanOptions starts and returns a new Span within the transaction,
 // with the specified name, type, and options.
 //
@@ -113,6 +102,9 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 	span := tx.tracer.startSpan(name, spanType, transactionID, opts)
 	span.tx = tx
 	span.parent = opts.parent
+	if opts.ExitSpan {
+		span.setExitSpan(name, spanType)
+	}
 
 	// Guard access to spansCreated, spansDropped, rand, and childrenTimer.
 	tx.TransactionData.mu.Lock()
@@ -193,6 +185,10 @@ type SpanOptions struct {
 	// SpanID holds the ID to assign to the span. If this is zero, a new ID
 	// will be generated and used instead.
 	SpanID SpanID
+
+	// Indicates whether a span is an exit span or not. All child spans
+	// will be noop spans.
+	ExitSpan bool
 
 	// parent, if non-nil, holds the parent span.
 	//
