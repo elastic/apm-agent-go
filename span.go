@@ -255,6 +255,7 @@ type Span struct {
 	traceContext  TraceContext
 	transactionID SpanID
 	parentID      SpanID
+	exit          bool
 
 	mu sync.RWMutex
 
@@ -432,7 +433,6 @@ type SpanData struct {
 	stackTraceLimit        int
 	timestamp              time.Time
 	childrenTimer          childrenTimer
-	exit                   bool
 
 	// Name holds the span name, initialized with the value passed to StartSpan.
 	Name string
