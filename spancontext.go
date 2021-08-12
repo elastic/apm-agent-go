@@ -178,6 +178,7 @@ func (c *SpanContext) SetHTTPRequest(req *http.Request) {
 		}
 	}
 	c.SetDestinationService(DestinationServiceSpanContext{
+		Name:     destinationServiceURL.String(),
 		Resource: destinationServiceResource,
 	})
 }
