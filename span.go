@@ -77,7 +77,6 @@ func (tx *Transaction) StartExitSpan(name, spanType string, parent *Span) *Span 
 // subtype, and the action will not be set.
 func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions) *Span {
 	if tx == nil || opts.parent.IsExitSpan() {
-		// TODO: Is this the equivalent of a noop span?
 		return newDroppedSpan()
 	}
 
