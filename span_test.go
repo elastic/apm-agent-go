@@ -183,6 +183,9 @@ func TestStartExitSpan(t *testing.T) {
 	assert.True(t, span2.Dropped())
 	span.End()
 	span2.End()
+	// Spans should still be marked as an exit span after they've been
+	// ended.
+	assert.True(t, span.IsExitSpan())
 
 	// when a span has the correct fields set to qualify as an exit span,
 	// it should be considered as such.
@@ -196,6 +199,9 @@ func TestStartExitSpan(t *testing.T) {
 	assert.True(t, span2.Dropped())
 	span.End()
 	span2.End()
+	// Spans should still be marked as an exit span after they've been
+	// ended.
+	assert.True(t, span.IsExitSpan())
 
 	span = tx.StartSpan("name", "type", nil)
 	assert.False(t, span.IsExitSpan())
@@ -207,6 +213,9 @@ func TestStartExitSpan(t *testing.T) {
 	assert.True(t, span2.Dropped())
 	span.End()
 	span2.End()
+	// Spans should still be marked as an exit span after they've been
+	// ended.
+	assert.True(t, span.IsExitSpan())
 
 	span = tx.StartSpan("name", "type", nil)
 	assert.False(t, span.IsExitSpan())
@@ -218,6 +227,9 @@ func TestStartExitSpan(t *testing.T) {
 	assert.True(t, span2.Dropped())
 	span.End()
 	span2.End()
+	// Spans should still be marked as an exit span after they've been
+	// ended.
+	assert.True(t, span.IsExitSpan())
 
 	span = tx.StartSpan("name", "type", nil)
 	assert.False(t, span.IsExitSpan())
@@ -227,6 +239,15 @@ func TestStartExitSpan(t *testing.T) {
 	assert.True(t, span2.Dropped())
 	span.End()
 	span2.End()
+	// Spans should still be marked as an exit span after they've been
+	// ended.
+	assert.True(t, span.IsExitSpan())
+
+	// confirm that End() sets span.IsExitSpan()
+	span = tx.StartSpan("name", "type", nil)
+	span.Context.SetHTTPStatusCode(200)
+	span.End()
+	assert.True(t, span.IsExitSpan())
 }
 
 func TestTracerStartSpanIDSpecified(t *testing.T) {

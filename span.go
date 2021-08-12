@@ -108,7 +108,7 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 	span.tx = tx
 	span.parent = opts.parent
 	if opts.ExitSpan {
-		span.setExitSpan(name, spanType)
+		span.setDestinationServiceResource(name, spanType)
 	}
 
 	// Guard access to spansCreated, spansDropped, rand, and childrenTimer.
@@ -178,6 +178,9 @@ func (t *Tracer) StartSpan(name, spanType string, transactionID SpanID, opts Spa
 	instrumentationConfig := t.instrumentationConfig()
 	span.stackFramesMinDuration = instrumentationConfig.spanFramesMinDuration
 	span.stackTraceLimit = instrumentationConfig.stackTraceLimit
+	if opts.ExitSpan {
+		span.setDestinationServiceResource(name, spanType)
+	}
 
 	return span
 }
@@ -312,6 +315,7 @@ func (s *Span) End() {
 	if s.ended() {
 		return
 	}
+	s.setExitSpan()
 	if s.Duration < 0 {
 		s.Duration = time.Since(s.timestamp)
 	}
@@ -401,15 +405,15 @@ func (s *Span) ended() bool {
 	return s.SpanData == nil
 }
 
-func (s *Span) setExitSpan(name, spanType string) {
+func (s *Span) setDestinationServiceResource(name, spanType string) {
 	resource := spanType
 	if resource == "" {
 		resource = name
 	}
-	s.exit = true
 	s.Context.SetDestinationService(DestinationServiceSpanContext{
 		Resource: resource,
 	})
+	s.setExitSpan()
 }
 
 // IsExitSpan returns true if the span is an exit span.
@@ -417,14 +421,18 @@ func (s *Span) IsExitSpan() bool {
 	if s == nil {
 		return false
 	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	if s.SpanData == nil {
-		return false
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.setExitSpan()
+	return s.exit
+}
+
+func (s *Span) setExitSpan() {
+	if s.exit || s.SpanData == nil {
+		return
 	}
 	ctx := s.Context
-	return s.exit ||
-		ctx.destination != model.DestinationSpanContext{} ||
+	s.exit = ctx.destination != model.DestinationSpanContext{} ||
 		ctx.database != model.DatabaseSpanContext{} ||
 		ctx.message != model.MessageSpanContext{} ||
 		ctx.http != model.HTTPSpanContext{}
