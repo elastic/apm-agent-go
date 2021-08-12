@@ -81,14 +81,19 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 	// Lock the parent first to avoid deadlocks in breakdown metrics calculation.
 	if opts.parent != nil {
 		opts.parent.mu.Lock()
-		defer opts.parent.mu.Unlock()
 	}
 
 	// Prevent tx from being ended while we're starting a span.
 	tx.mu.RLock()
 	defer tx.mu.RUnlock()
 	if tx.ended() {
+		if opts.parent != nil {
+			opts.parent.mu.Unlock()
+		}
 		return tx.tracer.StartSpan(name, spanType, transactionID, opts)
+	}
+	if opts.parent != nil {
+		defer opts.parent.mu.Unlock()
 	}
 
 	// Calculate the span time relative to the transaction timestamp so
@@ -409,7 +414,12 @@ func (s *Span) setExitSpan(name, spanType string) {
 
 // IsExitSpan returns true if the span is an exit span.
 func (s *Span) IsExitSpan() bool {
-	if s == nil || s.SpanData == nil {
+	if s == nil {
+		return false
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.SpanData == nil {
 		return false
 	}
 	ctx := s.Context
