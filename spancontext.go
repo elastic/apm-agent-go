@@ -57,6 +57,10 @@ type DatabaseSpanContext struct {
 
 // DestinationServiceSpanContext holds destination service span span.
 type DestinationServiceSpanContext struct {
+	// Name holds a name for the destination service, which may be used
+	// for grouping and labeling in service maps. Deprecated.
+	Name string
+
 	// Resource holds an identifier for a destination service resource,
 	// such as a message queue.
 	Resource string
@@ -220,6 +224,7 @@ func (c *SpanContext) SetDestinationService(service DestinationServiceSpanContex
 	if service.Resource == "" {
 		return
 	}
+	c.destinationService.Name = truncateString(service.Name)
 	c.destinationService.Resource = truncateString(service.Resource)
 	c.destination.Service = &c.destinationService
 	c.model.Destination = &c.destination
