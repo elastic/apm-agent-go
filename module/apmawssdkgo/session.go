@@ -189,6 +189,12 @@ func send(req *request.Request) {
 }
 
 func complete(req *request.Request) {
+	spanSubtype := req.ClientInfo.ServiceName
+	_, ok := serviceTypeMap[spanSubtype]
+	if !ok {
+		return
+	}
+
 	ctx := req.Context()
 	span := apm.SpanFromContext(ctx)
 	if span.Dropped() {
