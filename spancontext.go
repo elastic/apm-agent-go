@@ -37,6 +37,10 @@ type SpanContext struct {
 	databaseRowsAffected int64
 	database             model.DatabaseSpanContext
 	http                 model.HTTPSpanContext
+
+	// If SetDestinationService has been called, we do not auto-set its
+	// resource value on span end.
+	setDestinationServiceCalled bool
 }
 
 // DatabaseSpanContext holds database span context.
@@ -222,6 +226,7 @@ func (c *SpanContext) SetMessage(message MessageSpanContext) {
 // Both service.Name and service.Resource are required. If either is empty,
 // then SetDestinationService is a no-op.
 func (c *SpanContext) SetDestinationService(service DestinationServiceSpanContext) {
+	c.setDestinationServiceCalled = true
 	if service.Resource == "" {
 		return
 	}

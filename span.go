@@ -102,7 +102,7 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 	span.tx = tx
 	span.parent = opts.parent
 	if opts.ExitSpan {
-		span.setExitSpan(name, spanType)
+		span.exit = true
 	}
 
 	// Guard access to spansCreated, spansDropped, rand, and childrenTimer.
@@ -173,7 +173,7 @@ func (t *Tracer) StartSpan(name, spanType string, transactionID SpanID, opts Spa
 	span.stackFramesMinDuration = instrumentationConfig.spanFramesMinDuration
 	span.stackTraceLimit = instrumentationConfig.stackTraceLimit
 	if opts.ExitSpan {
-		span.setExitSpan(name, spanType)
+		span.exit = true
 	}
 
 	return span
@@ -309,6 +309,11 @@ func (s *Span) End() {
 	if s.ended() {
 		return
 	}
+	if s.exit && !s.Context.setDestinationServiceCalled {
+		// The span was created as an exit span, but the user did not
+		// manually set the destination.service.resource
+		s.setExitSpan()
+	}
 	if s.Duration < 0 {
 		s.Duration = time.Since(s.timestamp)
 	}
@@ -398,15 +403,14 @@ func (s *Span) ended() bool {
 	return s.SpanData == nil
 }
 
-func (s *Span) setExitSpan(name, spanType string) {
-	resource := spanType
+func (s *Span) setExitSpan() {
+	resource := s.Subtype
 	if resource == "" {
-		resource = name
+		resource = s.Type
 	}
 	s.Context.SetDestinationService(DestinationServiceSpanContext{
 		Resource: resource,
 	})
-	s.exit = true
 }
 
 // IsExitSpan returns true if the span is an exit span.
