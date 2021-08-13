@@ -97,7 +97,7 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	propagateLegacyHeader := tx.ShouldPropagateLegacyHeader()
 	traceContext := tx.TraceContext()
 	if !traceContext.Options.Recorded() {
-		r.setHeaders(req, traceContext, propagateLegacyHeader)
+		SetHeaders(req, traceContext, propagateLegacyHeader)
 		return r.r.RoundTrip(req)
 	}
 
@@ -117,7 +117,7 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 		span = nil
 	}
 
-	r.setHeaders(req, traceContext, propagateLegacyHeader)
+	SetHeaders(req, traceContext, propagateLegacyHeader)
 	resp, err := r.r.RoundTrip(req)
 	if span != nil {
 		if err != nil {
@@ -133,7 +133,8 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	return resp, err
 }
 
-func (r *roundTripper) setHeaders(req *http.Request, traceContext apm.TraceContext, propagateLegacyHeader bool) {
+// SetHeaders sets traceparent and tracestate headers on an http request.
+func SetHeaders(req *http.Request, traceContext apm.TraceContext, propagateLegacyHeader bool) {
 	headerValue := FormatTraceparentHeader(traceContext)
 	if propagateLegacyHeader {
 		req.Header.Set(ElasticTraceparentHeader, headerValue)
