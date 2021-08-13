@@ -195,7 +195,7 @@ func (c *SpanContext) SetHTTPStatusCode(statusCode int) {
 
 // SetDestinationAddress sets the destination address and port in the context.
 //
-// SetDestinationAddress has no effect when called when an empty addr.
+// SetDestinationAddress has no effect when called with an empty addr.
 func (c *SpanContext) SetDestinationAddress(addr string, port int) {
 	if addr != "" {
 		c.destination.Address = truncateString(addr)
