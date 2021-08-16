@@ -132,29 +132,23 @@ func TestSetDestinationService(t *testing.T) {
 	}
 
 	testcases := []testcase{{
-		name:        "",
 		resource:    "",
 		expectEmpty: true,
 	}, {
-		name:        "",
 		resource:    "nonempty",
-		expectEmpty: true,
+		expectEmpty: false,
 	}, {
-		name:        "nonempty",
 		resource:    "",
 		expectEmpty: true,
 	}, {
-		name:     "nonempty",
 		resource: "nonempty",
 	}}
-
 	for _, tc := range testcases {
 		t.Run(fmt.Sprintf("%s_%s", tc.name, tc.resource), func(t *testing.T) {
 			_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
 				span, _ := apm.StartSpan(ctx, "name", "span_type")
 				span.Context.SetDestinationAddress("testing.invalid", 123)
 				span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
-					Name:     tc.name,
 					Resource: tc.resource,
 				})
 				span.End()
@@ -164,7 +158,6 @@ func TestSetDestinationService(t *testing.T) {
 				assert.Nil(t, spans[0].Context.Destination.Service)
 			} else {
 				assert.Equal(t, &model.DestinationServiceSpanContext{
-					Name:     tc.name,
 					Resource: tc.resource,
 					Type:     "span_type",
 				}, spans[0].Context.Destination.Service)
