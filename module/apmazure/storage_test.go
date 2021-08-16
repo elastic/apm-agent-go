@@ -18,6 +18,7 @@
 package apmazure
 
 import (
+	"bytes"
 	"context"
 	"net/http"
 	"net/url"
@@ -34,7 +35,11 @@ import (
 
 func TestBlob(t *testing.T) {
 	cred := new(tokenCredential)
-	conn := NewConnection(armcore.AzurePublicCloud, cred, nil)
+
+	opts := &armcore.ConnectionOptions{
+		HTTPClient: new(fakeTransport),
+	}
+	conn := NewConnection("https://storage-account-name.blob.core.windows.net", cred, opts)
 	client := armstorage.NewBlobContainersClient(conn, "subscription-id")
 
 	_, spans, errors := apmtest.WithTransaction(func(ctx context.Context) {
@@ -57,32 +62,12 @@ func TestBlob(t *testing.T) {
 	assert.Equal(t, "azureblob", span.Subtype)
 	assert.Equal(t, "Create", span.Action)
 	destination := span.Context.Destination
-	// According to the spec, the accountname should be in the left-most
-	// position, but that doesn't appear to be happening. This might be
-	// part of how I'm using "fake" credentials?
-	// assert.Equal(t, "accountname.blob.core.windows.net", destination.Address)
+	assert.Equal(t, "storage-account-name.blob.core.windows.net", destination.Address)
 	assert.Equal(t, 443, destination.Port)
 	assert.Equal(t, "azureblob/storage-account-name", destination.Service.Resource)
 	// Aren't these deprecated???
 	assert.Equal(t, "azureblob", destination.Service.Name)
 	assert.Equal(t, "storage", destination.Service.Type)
-}
-
-type tokenCredential struct{}
-
-func (t *tokenCredential) GetToken(_ context.Context, _ azcore.TokenRequestOptions) (*azcore.AccessToken, error) {
-	return nil, nil
-}
-
-func (t *tokenCredential) AuthenticationPolicy(options azcore.AuthenticationPolicyOptions) azcore.Policy {
-	return new(fakePolicy)
-}
-
-type fakePolicy struct{}
-
-func (p *fakePolicy) Do(req *azcore.Request) (*azcore.Response, error) {
-	resp, err := req.Next()
-	return resp, err
 }
 
 func TestGetOperation(t *testing.T) {
@@ -303,3 +288,33 @@ func TestPutOperation(t *testing.T) {
 		assert.Equal(t, tc.want, putOperation(tc.values, tc.header))
 	}
 }
+
+type tokenCredential struct{}
+
+func (t *tokenCredential) GetToken(_ context.Context, _ azcore.TokenRequestOptions) (*azcore.AccessToken, error) {
+	return nil, nil
+}
+
+func (t *tokenCredential) AuthenticationPolicy(options azcore.AuthenticationPolicyOptions) azcore.Policy {
+	return new(fakePolicy)
+}
+
+type fakePolicy struct{}
+
+func (p *fakePolicy) Do(req *azcore.Request) (*azcore.Response, error) {
+	resp, err := req.Next()
+	return resp, err
+}
+
+type fakeTransport struct{}
+
+func (t *fakeTransport) Do(req *http.Request) (*http.Response, error) {
+	return &http.Response{
+		StatusCode: http.StatusBadRequest,
+		Body:       &fakeBuffer{new(bytes.Buffer)},
+	}, nil
+}
+
+type fakeBuffer struct{ *bytes.Buffer }
+
+func (b *fakeBuffer) Close() error { return nil }

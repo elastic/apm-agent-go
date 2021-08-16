@@ -124,12 +124,18 @@ func newAzureRPC(req *azcore.Request) (*azureRPC, error) {
 	if p, ok := m["providers"]; ok {
 		// TODO(stn): Check that providers all follow this pattern
 		// p == "Microsoft.Storage"
+		// Otherwise, the second left-most subdomain seems to work
+		// eg. storage-account-name.blob.core.windows.net
 		rpc._type = strings.ToLower(p[10:])
 	}
 	if _, ok := m["blobServices"]; ok {
 		rpc.subtype = "azureblob"
 	}
 	if p, ok := m["storageAccounts"]; ok {
+		// TODO(stn): Check that all URLs follow this pattern
+		// Otherwise, the left-most subdomain contains the storage
+		// account name
+		// eg. storage-account-name.blob.core.windows.net
 		rpc.storageAccountName = p
 	}
 	if p, ok := m["containers"]; ok {
