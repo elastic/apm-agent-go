@@ -30,6 +30,7 @@ that framework's API. The request context can be used for reporting <<custom-ins
 * <<builtin-modules-apmelasticsearch>>
 * <<builtin-modules-apmmongo>>
 * <<builtin-modules-apmawssdkgo>>
+* <<builtin-modules-apmazure>>
 
 [[builtin-modules-apmhttp]]
 ==== module/apmhttp
@@ -901,6 +902,41 @@ func (s *server) handleRequest(w http.ResponseWriter, req *http.Request) {
     Key:    aws.String("your-key"),
     Body:   bytes.NewBuffer([]byte("your-body")),
   })
+  ...
+}
+----
+
+[[builtin-modules-apmazure]]
+==== module/apmazure
+Package apmazure provides a means of instrumenting the
+https://github.com/Azure/azure-sdk-for-go[Azure SDK for Go] connection object,
+so that Azure requests are reported as spans within the current transaction.
+
+To create spans for Azure requests, you should create a new connection using
+`apmazure.NewConnection`, then use the created connection as normal.
+
+The following services are supported:
+
+- Blob Storage
+
+
+[source,go]
+----
+import (
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/armstorage"
+
+	"go.elastic.co/apm/module/apmazure"
+)
+
+func main() {
+  cred, err := azidentity.NewDefaultAzureCredential(nil)
+  if err != nil {
+    panic(err)
+  }
+  conn := apmazure.NewConnection("https://storage-account-name.blob.core.windows.net", cred, nil)
+	client := armstorage.NewBlobContainersClient(conn, "subscription-id")
+  // Use the client to interact with Blob Storage
   ...
 }
 ----

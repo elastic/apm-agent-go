@@ -309,6 +309,14 @@ See <<builtin-modules-apmawssdkgo, module/apmawssdkgo>> for more information
 about AWS SDK Go instrumentation.
 
 [float]
+==== Azure Storage
+We provide instrumentation for Azure Storage. This is usable with
+https://github.com/Azure/azure-sdk-for-go[Azure SDK for Go].
+
+See <<builtin-modules-apmazure, module/apmazure>> for more information
+about Azure SDK Go instrumentation.
+
+[float]
 [[supported-tech-messaging-systems]]
 === Messaging Systems
 
