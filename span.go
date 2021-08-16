@@ -312,7 +312,7 @@ func (s *Span) End() {
 	if s.exit && !s.Context.setDestinationServiceCalled {
 		// The span was created as an exit span, but the user did not
 		// manually set the destination.service.resource
-		s.setExitSpan()
+		s.setExitSpanDestinationService()
 	}
 	if s.Duration < 0 {
 		s.Duration = time.Since(s.timestamp)
@@ -403,7 +403,7 @@ func (s *Span) ended() bool {
 	return s.SpanData == nil
 }
 
-func (s *Span) setExitSpan() {
+func (s *Span) setExitSpanDestinationService() {
 	resource := s.Subtype
 	if resource == "" {
 		resource = s.Type
