@@ -42,7 +42,7 @@ endif
 
 .PHONY: check-vet
 check-vet:
-	@for dir in $(shell scripts/moduledirs.sh); do (cd $$dir && go vet ./...) || exit $$?; done
+	scripts/check_vet.sh
 
 .PHONY: install
 install:
