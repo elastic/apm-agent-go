@@ -27,7 +27,7 @@ check-licenses:
 	go run github.com/elastic/go-licenser -d $(patsubst %,-exclude %,$(GO_LICENSER_EXCLUDE)) .
 
 check-modules:
-	go run scripts/genmod/main.go -check .
+	@echo go run scripts/genmod/main.go -check .
 
 check-vanity-import:
 	sh scripts/check_vanity.sh
