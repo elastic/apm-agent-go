@@ -12,3 +12,7 @@ require (
 	go.elastic.co/apm v1.13.1
 	go.elastic.co/apm/module/apmhttp v1.13.1
 )
+
+replace go.elastic.co/apm => ../..
+
+replace go.elastic.co/apm/module/apmhttp => ../apmhttp
