@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+//go:build go1.9
 // +build go1.9
 
 // Package apmgorm provides wrappers for tracing GORM operations.

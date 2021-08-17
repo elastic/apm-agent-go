@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+//go:build go1.9
 // +build go1.9
 
 // Package apmechov4 provides middleware for the version 4 of Echo framework,

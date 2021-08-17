@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+//go:build go1.10
 // +build go1.10
 
 package apmsql // import "go.elastic.co/apm/module/apmsql"
