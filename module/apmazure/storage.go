@@ -15,6 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
+// +build go1.14
+
 package apmazure // import "go.elastic.co/apm/module/apmazure"
 
 import (
