@@ -23,15 +23,18 @@ import (
 	"bytes"
 	"context"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/athena"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"go.elastic.co/apm"
 	"go.elastic.co/apm/apmtest"
 )
 
@@ -170,4 +173,32 @@ func TestDynamoDB(t *testing.T) {
 		assert.Equal(t, tx.ID, span.ParentID)
 	}
 
+}
+
+func TestUnsupportedServices(t *testing.T) {
+	region := "us-west-2"
+	cfg := aws.NewConfig().
+		WithRegion(region).
+		WithDisableSSL(true).
+		WithCredentials(credentials.AnonymousCredentials)
+
+	session := session.Must(session.NewSession(cfg))
+	wrapped := WrapSession(session)
+	svc := athena.New(wrapped)
+
+	tx := apm.DefaultTracer.StartTransaction("send-email", "test-tx")
+	span := tx.StartSpan("test-span", "send-email", nil)
+	defer span.End()
+
+	ctx := apm.ContextWithSpan(context.Background(), span)
+	namedQuery := &athena.BatchGetNamedQueryInput{
+		NamedQueryIds: []*string{aws.String("query")},
+	}
+	// Setting a timeout so the request fails fast. This doesn't affect
+	// testing that we noop on unsupported services.
+	ctx, cancel := context.WithTimeout(ctx, time.Millisecond)
+	defer cancel()
+
+	svc.BatchGetNamedQueryWithContext(ctx, namedQuery)
+	assert.NotPanics(t, func() { svc.BatchGetNamedQueryWithContext(ctx, namedQuery) })
 }

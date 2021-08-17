@@ -64,7 +64,7 @@ func (tx *Transaction) StartSpan(name, spanType string, parent *Span) *Span {
 // span type, subtype, and action; a single dot separates span type and
 // subtype, and the action will not be set.
 func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions) *Span {
-	if tx == nil {
+	if tx == nil || opts.parent.IsExitSpan() {
 		return newDroppedSpan()
 	}
 
@@ -101,6 +101,9 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 	span := tx.tracer.startSpan(name, spanType, transactionID, opts)
 	span.tx = tx
 	span.parent = opts.parent
+	if opts.ExitSpan {
+		span.exit = true
+	}
 
 	// Guard access to spansCreated, spansDropped, rand, and childrenTimer.
 	tx.TransactionData.mu.Lock()
@@ -143,7 +146,10 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 // way will not have the "max spans" configuration applied, nor will they be
 // considered in any transaction's span count.
 func (t *Tracer) StartSpan(name, spanType string, transactionID SpanID, opts SpanOptions) *Span {
-	if opts.Parent.Trace.Validate() != nil || opts.Parent.Span.Validate() != nil || transactionID.Validate() != nil {
+	if opts.Parent.Trace.Validate() != nil ||
+		opts.Parent.Span.Validate() != nil ||
+		transactionID.Validate() != nil ||
+		opts.parent.IsExitSpan() {
 		return newDroppedSpan()
 	}
 	if !opts.Parent.Options.Recorded() {
@@ -166,6 +172,9 @@ func (t *Tracer) StartSpan(name, spanType string, transactionID SpanID, opts Spa
 	instrumentationConfig := t.instrumentationConfig()
 	span.stackFramesMinDuration = instrumentationConfig.spanFramesMinDuration
 	span.stackTraceLimit = instrumentationConfig.stackTraceLimit
+	if opts.ExitSpan {
+		span.exit = true
+	}
 
 	return span
 }
@@ -178,6 +187,10 @@ type SpanOptions struct {
 	// SpanID holds the ID to assign to the span. If this is zero, a new ID
 	// will be generated and used instead.
 	SpanID SpanID
+
+	// Indicates whether a span is an exit span or not. All child spans
+	// will be noop spans.
+	ExitSpan bool
 
 	// parent, if non-nil, holds the parent span.
 	//
@@ -239,6 +252,7 @@ type Span struct {
 	traceContext  TraceContext
 	transactionID SpanID
 	parentID      SpanID
+	exit          bool
 
 	mu sync.RWMutex
 
@@ -294,6 +308,11 @@ func (s *Span) End() {
 	defer s.mu.Unlock()
 	if s.ended() {
 		return
+	}
+	if s.exit && !s.Context.setDestinationServiceCalled {
+		// The span was created as an exit span, but the user did not
+		// manually set the destination.service.resource
+		s.setExitSpanDestinationService()
 	}
 	if s.Duration < 0 {
 		s.Duration = time.Since(s.timestamp)
@@ -382,6 +401,24 @@ func (s *Span) enqueue() {
 
 func (s *Span) ended() bool {
 	return s.SpanData == nil
+}
+
+func (s *Span) setExitSpanDestinationService() {
+	resource := s.Subtype
+	if resource == "" {
+		resource = s.Type
+	}
+	s.Context.SetDestinationService(DestinationServiceSpanContext{
+		Resource: resource,
+	})
+}
+
+// IsExitSpan returns true if the span is an exit span.
+func (s *Span) IsExitSpan() bool {
+	if s == nil {
+		return false
+	}
+	return s.exit
 }
 
 // SpanData holds the details for a span, and is embedded inside Span.

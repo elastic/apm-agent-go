@@ -75,12 +75,11 @@ type service interface {
 }
 
 func build(req *request.Request) {
-	spanSubtype := req.ClientInfo.ServiceName
-	spanType, ok := serviceTypeMap[spanSubtype]
-	if !ok {
+	if !supportedRequest(req) {
 		return
 	}
 
+	spanSubtype := req.ClientInfo.ServiceName
 	if spanSubtype == serviceSNS && !supportedSNSMethod(req) {
 		return
 	}
@@ -96,6 +95,7 @@ func build(req *request.Request) {
 
 	// The span name is added in the `send()` function, after other
 	// handlers have generated the necessary information on the request.
+	spanType := serviceTypeMap[spanSubtype]
 	span := tx.StartSpan("", spanType, apm.SpanFromContext(ctx))
 	if !span.Dropped() {
 		ctx = apm.ContextWithSpan(ctx, span)
@@ -121,9 +121,7 @@ func send(req *request.Request) {
 		return
 	}
 
-	spanSubtype := req.ClientInfo.ServiceName
-	_, ok := serviceTypeMap[spanSubtype]
-	if !ok {
+	if !supportedRequest(req) {
 		return
 	}
 
@@ -137,6 +135,7 @@ func send(req *request.Request) {
 		svc service
 		err error
 	)
+	spanSubtype := req.ClientInfo.ServiceName
 	switch spanSubtype {
 	case serviceS3:
 		svc = newS3(req)
@@ -189,6 +188,10 @@ func send(req *request.Request) {
 }
 
 func complete(req *request.Request) {
+	if !supportedRequest(req) {
+		return
+	}
+
 	ctx := req.Context()
 	span := apm.SpanFromContext(ctx)
 	if span.Dropped() {
@@ -201,4 +204,9 @@ func complete(req *request.Request) {
 	if err := req.Error; err != nil {
 		apm.CaptureError(ctx, err).Send()
 	}
+}
+
+func supportedRequest(req *request.Request) bool {
+	_, ok := serviceTypeMap[req.ClientInfo.ServiceName]
+	return ok
 }

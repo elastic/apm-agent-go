@@ -371,11 +371,11 @@ type DestinationSpanContext struct {
 // DestinationServiceSpanContext holds contextual information about a
 // destination service.
 type DestinationServiceSpanContext struct {
-	// Type holds the destination service type.
+	// Type holds the destination service type. Deprecated.
 	Type string `json:"type,omitempty"`
 
-	// Name holds the destination service name.
-	Name string `json:"name,omitempty"`
+	// Name holds the destination service name. Deprecated.
+	Name string `json:"name"`
 
 	// Resource identifies the destination service
 	// resource, e.g. a URI or message queue name.

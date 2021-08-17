@@ -163,6 +163,46 @@ func TestSpanType(t *testing.T) {
 	check(spans[3], "type", "subtype", "action.figure")
 }
 
+func TestStartExitSpan(t *testing.T) {
+	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+		span, _ := apm.StartSpanOptions(ctx, "name", "type", apm.SpanOptions{ExitSpan: true})
+		assert.True(t, span.IsExitSpan())
+		span.End()
+	})
+	require.Len(t, spans, 1)
+	// When the context's DestinationService is not explicitly set, ending
+	// the exit span will assign the value.
+	assert.Equal(t, spans[0].Context.Destination.Service.Resource, "type")
+
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+
+	tx := tracer.StartTransaction("name", "type")
+	span := tx.StartSpanOptions("name", "type", apm.SpanOptions{ExitSpan: true})
+	assert.True(t, span.IsExitSpan())
+	// when the parent span is an exit span, any children should be noops.
+	span2 := tx.StartSpan("name", "type", span)
+	assert.True(t, span2.Dropped())
+	span.End()
+	span2.End()
+	// Spans should still be marked as an exit span after they've been
+	// ended.
+	assert.True(t, span.IsExitSpan())
+}
+
+func TestExitSpanDoesNotOverwriteDestinationServiceResource(t *testing.T) {
+	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+		span, _ := apm.StartSpanOptions(ctx, "name", "type", apm.SpanOptions{ExitSpan: true})
+		assert.True(t, span.IsExitSpan())
+		span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
+			Resource: "my-custom-resource",
+		})
+		span.End()
+	})
+	require.Len(t, spans, 1)
+	assert.Equal(t, spans[0].Context.Destination.Service.Resource, "my-custom-resource")
+}
+
 func TestTracerStartSpanIDSpecified(t *testing.T) {
 	spanID := apm.SpanID{0, 1, 2, 3, 4, 5, 6, 7}
 	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
