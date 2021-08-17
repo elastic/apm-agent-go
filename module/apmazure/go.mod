@@ -1,6 +1,6 @@
 module go.elastic.co/apm/module/apmazure
 
-go 1.16
+go 1.14
 
 require (
 	github.com/Azure/azure-sdk-for-go v56.2.0+incompatible // indirect
