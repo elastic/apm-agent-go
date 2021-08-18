@@ -20,7 +20,6 @@
 package apmfasthttp // import "go.elastic.co/apm/module/apmfasthttp"
 
 import (
-	"context"
 	"net/http"
 	"strings"
 
@@ -28,31 +27,8 @@ import (
 	"github.com/valyala/fasthttp/fasthttpadaptor"
 
 	"go.elastic.co/apm"
-	"go.elastic.co/apm/internal/apmcontext"
 	"go.elastic.co/apm/module/apmhttp"
 )
-
-const txKey = "apmfasthttp_transaction"
-
-func init() {
-	origTransactionFromContext := apmcontext.TransactionFromContext
-	apmcontext.TransactionFromContext = func(ctx context.Context) interface{} {
-		if tx, ok := ctx.Value(txKey).(*txCloser); ok {
-			return tx.tx
-		}
-
-		return origTransactionFromContext(ctx)
-	}
-
-	origBodyCapturerFromContext := apmcontext.BodyCapturerFromContext
-	apmcontext.BodyCapturerFromContext = func(ctx context.Context) interface{} {
-		if tx, ok := ctx.Value(txKey).(*txCloser); ok {
-			return tx.bc
-		}
-
-		return origBodyCapturerFromContext(ctx)
-	}
-}
 
 func setRequestContext(ctx *fasthttp.RequestCtx, tracer *apm.Tracer, tx *apm.Transaction) (*apm.BodyCapturer, error) {
 	req := new(http.Request)
