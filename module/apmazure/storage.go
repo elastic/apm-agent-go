@@ -261,7 +261,6 @@ func putOperation(v url.Values, h http.Header) string {
 		return "SetAcl"
 	}
 
-	// TODO: Figure out Create
 	if comp == "" && !(copySource || blobType || pageWrite) {
 		return "Create"
 	}
