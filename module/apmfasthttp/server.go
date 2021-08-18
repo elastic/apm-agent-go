@@ -68,7 +68,7 @@ func (h *apmHandler) handler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	tx, bc, err := StartTransactionWithBody(h.tracer, h.requestName(ctx), ctx)
+	tx, bc, err := StartTransactionWithBody(ctx, h.tracer, h.requestName(ctx))
 	if err != nil {
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 

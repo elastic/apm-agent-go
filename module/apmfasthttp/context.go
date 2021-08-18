@@ -75,7 +75,7 @@ func setResponseContext(ctx *fasthttp.RequestCtx, tx *apm.Transaction, bc *apm.B
 // If the transaction is not ignored, the request and the request body
 // capturer will be returned with the transaction added to its context.
 func StartTransactionWithBody(
-	tracer *apm.Tracer, name string, ctx *fasthttp.RequestCtx,
+	ctx *fasthttp.RequestCtx, tracer *apm.Tracer, name string,
 ) (*apm.Transaction, *apm.BodyCapturer, error) {
 	traceContext, ok := getRequestTraceparent(ctx, apmhttp.W3CTraceparentHeader)
 	if !ok {
