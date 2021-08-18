@@ -18,42 +18,40 @@
 //go:build go1.14
 // +build go1.14
 
-package apmazure
+package apmazure // import "go.elastic.co/apm/module/apmazure"
 
 import (
-	"bytes"
-	"context"
-	"net/http"
+	"fmt"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 )
 
-type tokenCredential struct{}
-
-func (t *tokenCredential) GetToken(_ context.Context, _ azcore.TokenRequestOptions) (*azcore.AccessToken, error) {
-	return nil, nil
+type queueRPC struct {
+	accountName string
+	storageName string
+	req         *azcore.Request
 }
 
-func (t *tokenCredential) AuthenticationPolicy(options azcore.AuthenticationPolicyOptions) azcore.Policy {
-	return new(fakePolicy)
+func (q *queueRPC) name() string {
+	return fmt.Sprintf("AzureQueue %s %s", q.operation(), q.storageName)
 }
 
-type fakePolicy struct{}
-
-func (p *fakePolicy) Do(req *azcore.Request) (*azcore.Response, error) {
-	resp, err := req.Next()
-	return resp, err
+func (q *queueRPC) _type() string {
+	return "messaging"
 }
 
-type fakeTransport struct{}
-
-func (t *fakeTransport) Do(req *http.Request) (*http.Response, error) {
-	return &http.Response{
-		StatusCode: http.StatusBadRequest,
-		Body:       &fakeBuffer{new(bytes.Buffer)},
-	}, nil
+func (q *queueRPC) subtype() string {
+	return "azurequeue"
 }
 
-type fakeBuffer struct{ *bytes.Buffer }
+func (q *queueRPC) storageAccountName() string {
+	return q.accountName
+}
 
-func (b *fakeBuffer) Close() error { return nil }
+func (q *queueRPC) storage() string {
+	return q.storageName
+}
+
+func (q *queueRPC) operation() string {
+	return ""
+}
