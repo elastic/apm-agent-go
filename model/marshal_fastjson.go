@@ -742,35 +742,14 @@ func (v *DestinationSpanContext) MarshalFastJSON(w *fastjson.Writer) error {
 
 func (v *DestinationServiceSpanContext) MarshalFastJSON(w *fastjson.Writer) error {
 	w.RawByte('{')
-	first := true
-	if v.Name != "" {
-		const prefix = ",\"name\":"
-		if first {
-			first = false
-			w.RawString(prefix[1:])
-		} else {
-			w.RawString(prefix)
-		}
-		w.String(v.Name)
-	}
+	w.RawString("\"name\":")
+	w.String(v.Name)
 	if v.Resource != "" {
-		const prefix = ",\"resource\":"
-		if first {
-			first = false
-			w.RawString(prefix[1:])
-		} else {
-			w.RawString(prefix)
-		}
+		w.RawString(",\"resource\":")
 		w.String(v.Resource)
 	}
 	if v.Type != "" {
-		const prefix = ",\"type\":"
-		if first {
-			first = false
-			w.RawString(prefix[1:])
-		} else {
-			w.RawString(prefix)
-		}
+		w.RawString(",\"type\":")
 		w.String(v.Type)
 	}
 	w.RawByte('}')

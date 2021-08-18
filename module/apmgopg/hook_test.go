@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+//go:build go1.11
 // +build go1.11
 
 package apmgopg_test
