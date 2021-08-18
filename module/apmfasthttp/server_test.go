@@ -54,7 +54,6 @@ func TestServerHTTPResponse(t *testing.T) {
 		shutdown <- s.Serve(ln)
 	}()
 
-	// addr to make req to
 	addr := ln.Addr().String()
 	resp, err := http.Get("http://" + addr)
 	require.NoError(t, err)
