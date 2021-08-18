@@ -32,6 +32,8 @@ import (
 	"go.elastic.co/apm/module/apmhttp"
 )
 
+const txKey = "apmfasthttp_transaction"
+
 func init() {
 	origTransactionFromContext := apmcontext.TransactionFromContext
 	apmcontext.TransactionFromContext = func(ctx context.Context) interface{} {
@@ -117,8 +119,6 @@ func StartTransactionWithBody(
 
 		return nil, nil, err
 	}
-
-	ctx.SetUserValue(txKey, newTxCloser(ctx, tx, bc))
 
 	return tx, bc, nil
 }

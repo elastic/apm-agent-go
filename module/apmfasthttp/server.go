@@ -92,6 +92,12 @@ func (h *apmHandler) handler(ctx *fasthttp.RequestCtx) {
 	}()
 
 	h.requestHandler(ctx)
+
+	if err := setResponseContext(ctx, tx, bc); err != nil {
+		return
+	}
+
+	tx.End()
 }
 
 // WithTracer returns a ServerOption which sets t as the tracer
