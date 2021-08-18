@@ -29,6 +29,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -246,10 +247,17 @@ func main() {}
 	}
 	// Add "go <version>", using the latest release tag.
 	tags := build.Default.ReleaseTags
-	// TODO(stn): This has been modified to use go1.16, because of the lazy
-	// loading changes to go.mod. Revert these changes once lazy loading is
-	// accounted for.
-	fmt.Fprintf(&tmpGomodContent, "\ngo %s\n", tags[len(tags)-2][2:])
+	// TODO(stn): go1.17 introduced changes to gomod, which breaks this
+	// check. Lock go1.17 and higher to go1.16 behavior for now.
+	tag := tags[len(tags)-1][2:]
+	minorVersion, err := strconv.Atoi(tag[2:4])
+	if err != nil {
+		return err
+	}
+	if tag == "1.17" {
+		tag = "1.16"
+	}
+	fmt.Fprintf(&tmpGomodContent, "\ngo %s\n", tag)
 
 	if err := ioutil.WriteFile(tmpGomodPath, tmpGomodContent.Bytes(), 0644); err != nil {
 		return err
@@ -258,10 +266,10 @@ func main() {}
 		return err
 	}
 
-	// TODO(stn): This has been modified to use go1.16, because of the lazy
-	// loading changes to go.mod. Revert these changes once lazy loading is
-	// accounted for.
-	cmd = exec.Command("go", "mod", "tidy", "-v", "-go=1.16")
+	cmd = exec.Command("go", "mod", "tidy", "-v")
+	if minorVersion > 16 {
+		cmd.Args = append(cmd.Args, "-go=1.16")
+	}
 	cmd.Env = append(os.Environ(), "GO111MODULE=on")
 	cmd.Env = append(cmd.Env, "GOPROXY=http://proxy.invalid", "GOSUMDB=sum.golang.org https://sum.golang.org")
 	cmd.Stderr = os.Stderr
