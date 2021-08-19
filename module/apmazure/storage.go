@@ -113,8 +113,15 @@ func newAzureRPC(req pipeline.Request) (azureRPC, error) {
 	split := strings.Split(req.Host, ".")
 	accountName, storage := split[0], split[1]
 	var rpc azureRPC
-	if storage == "blob" {
+	switch storage {
+	case "blob":
 		rpc = &blobRPC{
+			resourceName: req.URL.Path[1:], // remove /
+			accountName:  accountName,
+			req:          req,
+		}
+	case "queue":
+		rpc = &queueRPC{
 			resourceName: req.URL.Path[1:], // remove /
 			accountName:  accountName,
 			req:          req,

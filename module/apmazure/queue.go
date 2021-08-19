@@ -29,7 +29,7 @@ import (
 type queueRPC struct {
 	accountName  string
 	resourceName string
-	req          *pipeline.Request
+	req          pipeline.Request
 }
 
 func (q *queueRPC) name() string {
