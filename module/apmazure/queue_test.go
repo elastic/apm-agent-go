@@ -21,15 +21,173 @@
 package apmazure // import "go.elastic.co/apm/module/apmazure"
 
 import (
+	"context"
+	"net/url"
 	"testing"
+
+	"github.com/Azure/azure-storage-queue-go/azqueue"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"go.elastic.co/apm/apmtest"
 )
+
+func TestQueueReceive(t *testing.T) {
+	retry := azqueue.RetryOptions{
+		MaxTries: 1,
+	}
+	po := azqueue.PipelineOptions{
+		Retry: retry,
+	}
+	p := azqueue.NewPipeline(azqueue.NewAnonymousCredential(), po)
+	p = WrapPipeline(p)
+	u, err := url.Parse("https://fakeaccnt.queue.core.windows.net")
+	require.NoError(t, err)
+	queueURL := azqueue.NewQueueURL(*u, p)
+	msgUrl := queueURL.NewMessagesURL()
+
+	_, spans, errors := apmtest.WithTransaction(func(ctx context.Context) {
+		msgUrl.Peek(ctx, 32)
+	})
+	require.Len(t, errors, 1)
+	require.Len(t, spans, 1)
+	span := spans[0]
+
+	assert.Equal(t, "messaging", span.Type)
+	assert.Equal(t, "AzureQueue PEEK from fakeaccnt", span.Name)
+	// TODO: If we use a fake URL, the test is fast but we do not set a
+	// status code
+	// Using a real subdomain takes ~1.3sec for the test. Do we want to
+	// test this?
+	// assert.Equal(t, 403, span.Context.HTTP.StatusCode)
+	assert.Equal(t, "azurequeue", span.Subtype)
+	assert.Equal(t, "PEEK", span.Action)
+	destination := span.Context.Destination
+	assert.Equal(t, "fakeaccnt.queue.core.windows.net", destination.Address)
+	assert.Equal(t, 443, destination.Port)
+	assert.Equal(t, "azurequeue/fakeaccnt", destination.Service.Resource)
+	// Aren't these deprecated???
+	assert.Equal(t, "azurequeue", destination.Service.Name)
+	assert.Equal(t, "messaging", destination.Service.Type)
+}
 
 // TODO
 func TestQueueSend(t *testing.T) {
 	t.Skip()
 }
 
-// TODO
-func TestQueueReceive(t *testing.T) {
-	t.Skip()
+func TestQueueGetOperation(t *testing.T) {
+	tcs := []struct {
+		want   string
+		values url.Values
+	}{
+		// https://github.com/elastic/apm/blob/master/specs/agents/tracing-instrumentation-azure.md#determining-operations-1
+		{
+			want:   "RECEIVE",
+			values: url.Values{},
+		},
+		{
+			want:   "PEEK",
+			values: url.Values{"peekonly": []string{"true"}},
+		},
+		{
+			want:   "LISTQUEUES",
+			values: url.Values{"comp": []string{"list"}},
+		},
+		{
+			want:   "GETPROPERTIES",
+			values: url.Values{"comp": []string{"properties"}},
+		},
+		{
+			want:   "STATS",
+			values: url.Values{"comp": []string{"stats"}},
+		},
+		{
+			want:   "GETMETADATA",
+			values: url.Values{"comp": []string{"metadata"}},
+		},
+		{
+			want:   "GETACL",
+			values: url.Values{"comp": []string{"acl"}},
+		},
+	}
+
+	q := new(queueRPC)
+	for _, tc := range tcs {
+		assert.Equal(t, tc.want, q.getOperation(tc.values))
+	}
+}
+
+func TestQueueHeadOperation(t *testing.T) {
+	tcs := []struct {
+		want   string
+		values url.Values
+	}{
+		// https://github.com/elastic/apm/blob/master/specs/agents/tracing-instrumentation-azure.md#determining-operations-1
+		{
+			want:   "GETMETADATA",
+			values: url.Values{"comp": []string{"metadata"}},
+		},
+		{
+			want:   "GETACL",
+			values: url.Values{"comp": []string{"acl"}},
+		},
+	}
+
+	q := new(queueRPC)
+	for _, tc := range tcs {
+		assert.Equal(t, tc.want, q.headOperation(tc.values))
+	}
+}
+
+func TestQueuePostOperation(t *testing.T) {
+	tcs := []struct {
+		want   string
+		values url.Values
+	}{
+		// https://github.com/elastic/apm/blob/master/specs/agents/tracing-instrumentation-azure.md#determining-operations-1
+		{
+			want:   "SEND",
+			values: url.Values{},
+		},
+	}
+
+	q := new(queueRPC)
+	for _, tc := range tcs {
+		assert.Equal(t, tc.want, q.postOperation(tc.values))
+	}
+}
+
+func TestQueuePutOperation(t *testing.T) {
+	tcs := []struct {
+		want   string
+		values url.Values
+	}{
+		// https://github.com/elastic/apm/blob/master/specs/agents/tracing-instrumentation-azure.md#determining-operations-1
+		{
+			want:   "SETMETADATA",
+			values: url.Values{"comp": []string{"metadata"}},
+		},
+		{
+			want:   "SETACL",
+			values: url.Values{"comp": []string{"acl"}},
+		},
+		{
+			want:   "SETPROPERTIES",
+			values: url.Values{"comp": []string{"properties"}},
+		},
+		{
+			want:   "UPDATE",
+			values: url.Values{"popreceipt": []string{"value"}},
+		},
+		{
+			want:   "CREATE",
+			values: url.Values{},
+		},
+	}
+
+	q := new(queueRPC)
+	for _, tc := range tcs {
+		assert.Equal(t, tc.want, q.putOperation(tc.values))
+	}
 }

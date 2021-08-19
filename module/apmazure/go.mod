@@ -5,6 +5,7 @@ go 1.14
 require (
 	github.com/Azure/azure-pipeline-go v0.2.3
 	github.com/Azure/azure-storage-blob-go v0.14.0
+	github.com/Azure/azure-storage-queue-go v0.0.0-20191125232315-636801874cdd
 	github.com/stretchr/testify v1.7.0
 	go.elastic.co/apm v1.13.1
 	go.elastic.co/apm/module/apmhttp v1.13.1

@@ -73,7 +73,7 @@ func TestBlob(t *testing.T) {
 	assert.Equal(t, "storage", destination.Service.Type)
 }
 
-func TestGetOperation(t *testing.T) {
+func TestBlobGetOperation(t *testing.T) {
 	tcs := []struct {
 		want   string
 		values url.Values
@@ -117,12 +117,13 @@ func TestGetOperation(t *testing.T) {
 		},
 	}
 
+	b := new(blobRPC)
 	for _, tc := range tcs {
-		assert.Equal(t, tc.want, getOperation(tc.values))
+		assert.Equal(t, tc.want, b.getOperation(tc.values))
 	}
 }
 
-func TestHeadOperation(t *testing.T) {
+func TestBlobHeadOperation(t *testing.T) {
 	tcs := []struct {
 		want   string
 		values url.Values
@@ -142,12 +143,13 @@ func TestHeadOperation(t *testing.T) {
 		},
 	}
 
+	b := new(blobRPC)
 	for _, tc := range tcs {
-		assert.Equal(t, tc.want, headOperation(tc.values))
+		assert.Equal(t, tc.want, b.headOperation(tc.values))
 	}
 }
 
-func TestPostOperation(t *testing.T) {
+func TestBlobPostOperation(t *testing.T) {
 	tcs := []struct {
 		want   string
 		values url.Values
@@ -171,12 +173,13 @@ func TestPostOperation(t *testing.T) {
 		},
 	}
 
+	b := new(blobRPC)
 	for _, tc := range tcs {
-		assert.Equal(t, tc.want, postOperation(tc.values))
+		assert.Equal(t, tc.want, b.postOperation(tc.values))
 	}
 }
 
-func TestPutOperation(t *testing.T) {
+func TestBlobPutOperation(t *testing.T) {
 	tcs := []struct {
 		want   string
 		values url.Values
@@ -287,7 +290,8 @@ func TestPutOperation(t *testing.T) {
 		},
 	}
 
+	b := new(blobRPC)
 	for _, tc := range tcs {
-		assert.Equal(t, tc.want, putOperation(tc.values, tc.header))
+		assert.Equal(t, tc.want, b.putOperation(tc.values, tc.header))
 	}
 }

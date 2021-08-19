@@ -22,6 +22,9 @@ package apmazure // import "go.elastic.co/apm/module/apmazure"
 
 import (
 	"fmt"
+	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/Azure/azure-pipeline-go/pipeline"
 )
@@ -33,7 +36,7 @@ type queueRPC struct {
 }
 
 func (q *queueRPC) name() string {
-	return fmt.Sprintf("AzureQueue %s %s", q.operation(), q.resourceName)
+	return fmt.Sprintf("AzureQueue %s %s %s", q.operation(), q.dir(), q.accountName)
 }
 
 func (q *queueRPC) _type() string {
@@ -52,6 +55,81 @@ func (q *queueRPC) resource() string {
 	return q.resourceName
 }
 
+func (q *queueRPC) dir() string {
+	switch q.req.Method {
+	case http.MethodGet, "":
+		return "from"
+	default:
+		return "to"
+	}
+}
+
 func (q *queueRPC) operation() string {
-	return ""
+	query := q.req.URL.Query()
+	switch q.req.Method {
+	// From net/http documentation:
+	// For client requests, an empty string means GET.
+	case http.MethodGet, "":
+		return q.getOperation(query)
+	case http.MethodPost:
+		return q.postOperation(query)
+	case http.MethodHead:
+		return q.headOperation(query)
+	case http.MethodPut:
+		return q.putOperation(query)
+	case http.MethodOptions:
+		return "PREFLIGHT"
+	case http.MethodDelete:
+		if strings.HasSuffix(q.req.URL.Path, "/messages") {
+			return "CLEAR"
+		}
+		return "DELETE"
+	default:
+		return q.req.Method
+	}
+}
+
+func (q *queueRPC) getOperation(v url.Values) string {
+	if peekOnly := v.Get("peekonly"); peekOnly == "true" {
+		return "PEEK"
+	}
+	switch comp := v.Get("comp"); comp {
+	case "":
+		return "RECEIVE"
+	case "list":
+		return "LISTQUEUES"
+	case "stats":
+		return "STATS"
+	case "properties", "metadata", "acl":
+		return "GET" + strings.ToUpper(comp)
+	default:
+		return "unknown operation"
+	}
+}
+
+func (q *queueRPC) postOperation(v url.Values) string {
+	return "SEND"
+}
+
+func (q *queueRPC) headOperation(v url.Values) string {
+	switch comp := v.Get("comp"); comp {
+	case "metadata", "acl":
+		return "GET" + strings.ToUpper(comp)
+	default:
+		return "unknown operation"
+	}
+}
+
+func (q *queueRPC) putOperation(v url.Values) string {
+	if _, ok := v["popreceipt"]; ok {
+		return "UPDATE"
+	}
+	switch comp := v.Get("comp"); comp {
+	case "":
+		return "CREATE"
+	case "metadata", "acl", "properties":
+		return "SET" + strings.ToUpper(comp)
+	default:
+		return "unknown operation"
+	}
 }
