@@ -23,17 +23,17 @@ package apmazure // import "go.elastic.co/apm/module/apmazure"
 import (
 	"fmt"
 
-	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-pipeline-go/pipeline"
 )
 
 type queueRPC struct {
-	accountName string
-	storageName string
-	req         *azcore.Request
+	accountName  string
+	resourceName string
+	req          *pipeline.Request
 }
 
 func (q *queueRPC) name() string {
-	return fmt.Sprintf("AzureQueue %s %s", q.operation(), q.storageName)
+	return fmt.Sprintf("AzureQueue %s %s", q.operation(), q.resourceName)
 }
 
 func (q *queueRPC) _type() string {
@@ -48,8 +48,8 @@ func (q *queueRPC) storageAccountName() string {
 	return q.accountName
 }
 
-func (q *queueRPC) storage() string {
-	return q.storageName
+func (q *queueRPC) resource() string {
+	return q.resourceName
 }
 
 func (q *queueRPC) operation() string {

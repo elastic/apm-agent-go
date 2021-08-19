@@ -21,52 +21,48 @@
 package apmazure // import "go.elastic.co/apm/module/apmazure"
 
 import (
+	"context"
 	"errors"
-	"fmt"
 	"net"
 	"strconv"
 	"strings"
 
+	"github.com/Azure/azure-pipeline-go/pipeline"
+
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/module/apmhttp"
 	"go.elastic.co/apm/stacktrace"
-
-	"github.com/Azure/azure-sdk-for-go/sdk/armcore"
-	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 )
 
 func init() {
 	stacktrace.RegisterLibraryPackage(
-		"github.com/Azure/azure-sdk-for-go",
+		"github.com/Azure/azure-storage-blob-go/azblob",
 	)
 }
 
-// NewConnection returns a new *armcore.Connection whose Pipeline is using an
-// http.Client that has been wrapped by apmhttp.WrapClient.
-func NewConnection(endpoint string, cred azcore.TokenCredential, options *armcore.ConnectionOptions) *armcore.Connection {
-	if options == nil {
-		options = &armcore.ConnectionOptions{}
-	} else {
-		// create a copy so we don't modify the original
-		cp := *options
-		options = &cp
-	}
-	options.PerCallPolicies = append(options.PerCallPolicies, new(policy))
-	return armcore.NewConnection(endpoint, cred, options)
+// WrapPipeline wraps the provided pipeline.Pipeline, returning a new one that
+// instruments requests and responses.
+func WrapPipeline(p pipeline.Pipeline) pipeline.Pipeline {
+	return &apmPipeline{p}
 }
 
-type policy struct{}
+type apmPipeline struct {
+	next pipeline.Pipeline
+}
 
-func (p *policy) Do(req *azcore.Request) (*azcore.Response, error) {
+func (p *apmPipeline) Do(
+	ctx context.Context,
+	methodFactory pipeline.Factory,
+	req pipeline.Request,
+) (pipeline.Response, error) {
 	rpc, err := newAzureRPC(req)
 	if err != nil {
-		return req.Next()
+		return p.next.Do(ctx, methodFactory, req)
 	}
 
-	ctx := req.Context()
 	tx := apm.TransactionFromContext(ctx)
 	if tx == nil {
-		return req.Next()
+		return p.next.Do(ctx, methodFactory, req)
 	}
 
 	span := tx.StartSpan(rpc.name(), rpc._type(), apm.SpanFromContext(ctx))
@@ -76,7 +72,7 @@ func (p *policy) Do(req *azcore.Request) (*azcore.Response, error) {
 		req.Request = apmhttp.RequestWithContext(ctx, req.Request)
 		span.Context.SetHTTPRequest(req.Request)
 	} else {
-		return req.Next()
+		return p.next.Do(ctx, methodFactory, req)
 	}
 	span.Action = rpc.operation()
 	span.Subtype = rpc.subtype()
@@ -92,12 +88,14 @@ func (p *policy) Do(req *azcore.Request) (*azcore.Response, error) {
 		span.Context.SetDestinationAddress(host, p)
 	}
 
-	resp, err := req.Next()
+	resp, err := p.next.Do(ctx, methodFactory, req)
 	if err != nil {
 		apm.CaptureError(ctx, err).Send()
 	}
 
-	span.Context.SetHTTPStatusCode(resp.StatusCode)
+	if r := resp.Response(); r != nil {
+		span.Context.SetHTTPStatusCode(r.StatusCode)
+	}
 
 	return resp, err
 }
@@ -107,36 +105,19 @@ type azureRPC interface {
 	_type() string
 	subtype() string
 	storageAccountName() string
-	storage() string
+	resource() string
 	operation() string
 }
 
-func newAzureRPC(req *azcore.Request) (azureRPC, error) {
-	u := req.URL
-
-	m := make(map[string]string)
-	// Remove initial /
-	split := strings.Split(u.Path[1:], "/")
-	if len(split)%2 != 0 {
-		return nil, fmt.Errorf("unexpected path: %s", u.Path)
-	}
-	for i := 0; i < len(split); i += 2 {
-		fmt.Printf("%s: %s\n", split[i], split[i+1])
-		m[split[i]] = split[i+1]
-	}
+func newAzureRPC(req pipeline.Request) (azureRPC, error) {
+	split := strings.Split(req.Host, ".")
+	accountName, storage := split[0], split[1]
 	var rpc azureRPC
-	if _, ok := m["blobServices"]; ok {
+	if storage == "blob" {
 		rpc = &blobRPC{
-			storageName: m["containers"],
-			accountName: m["storageAccounts"],
-			req:         req,
-		}
-	}
-	if _, ok := m["queueServices"]; ok {
-		rpc = &queueRPC{
-			storageName: m["queues"],
-			accountName: m["storageAccounts"],
-			req:         req,
+			resourceName: req.URL.Path[1:], // remove /
+			accountName:  accountName,
+			req:          req,
 		}
 	}
 	if rpc == nil {

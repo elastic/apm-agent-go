@@ -26,8 +26,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/Azure/azure-sdk-for-go/sdk/armcore"
-	"github.com/Azure/azure-sdk-for-go/sdk/storage/armstorage"
+	"github.com/Azure/azure-storage-blob-go/azblob"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -35,37 +34,40 @@ import (
 )
 
 func TestBlob(t *testing.T) {
-	cred := new(tokenCredential)
-
-	opts := &armcore.ConnectionOptions{
-		HTTPClient: new(fakeTransport),
+	retry := azblob.RetryOptions{
+		MaxTries: 1,
 	}
-	conn := NewConnection("https://storage-account-name.blob.core.windows.net", cred, opts)
-	client := armstorage.NewBlobContainersClient(conn, "subscription-id")
+	po := azblob.PipelineOptions{
+		Retry: retry,
+	}
+	p := azblob.NewPipeline(azblob.NewAnonymousCredential(), po)
+	p = WrapPipeline(p)
+	u, err := url.Parse("https://fakeaccnt.blob.core.windows.net")
+	require.NoError(t, err)
+	serviceURL := azblob.NewServiceURL(*u, p)
+	containerURL := serviceURL.NewContainerURL("mycontainer")
+	blobURL := containerURL.NewBlobURL("readme.txt")
 
 	_, spans, errors := apmtest.WithTransaction(func(ctx context.Context) {
-		client.Create(
-			ctx,
-			"resource-group-name",
-			"storage-account-name",
-			"container-name",
-			armstorage.BlobContainer{},
-			new(armstorage.BlobContainersCreateOptions),
-		)
+		blobURL.GetTags(ctx, nil)
 	})
-	require.Len(t, errors, 0)
+	require.Len(t, errors, 1)
 	require.Len(t, spans, 1)
 	span := spans[0]
 
 	assert.Equal(t, "storage", span.Type)
-	assert.Equal(t, "AzureBlob Create container-name", span.Name)
-	assert.Equal(t, 400, span.Context.HTTP.StatusCode)
+	assert.Equal(t, "AzureBlob GetTags mycontainer/readme.txt", span.Name)
+	// TODO: If we use a fake URL, the test is fast but we do not set a
+	// status code
+	// Using a real subdomain takes ~1.3sec for the test. Do we want to
+	// test this?
+	// assert.Equal(t, 403, span.Context.HTTP.StatusCode)
 	assert.Equal(t, "azureblob", span.Subtype)
-	assert.Equal(t, "Create", span.Action)
+	assert.Equal(t, "GetTags", span.Action)
 	destination := span.Context.Destination
-	assert.Equal(t, "storage-account-name.blob.core.windows.net", destination.Address)
+	assert.Equal(t, "fakeaccnt.blob.core.windows.net", destination.Address)
 	assert.Equal(t, 443, destination.Port)
-	assert.Equal(t, "azureblob/storage-account-name", destination.Service.Resource)
+	assert.Equal(t, "azureblob/fakeaccnt", destination.Service.Resource)
 	// Aren't these deprecated???
 	assert.Equal(t, "azureblob", destination.Service.Name)
 	assert.Equal(t, "storage", destination.Service.Type)

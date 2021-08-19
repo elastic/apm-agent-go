@@ -26,17 +26,17 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-pipeline-go/pipeline"
 )
 
 type blobRPC struct {
-	accountName string
-	storageName string
-	req         *azcore.Request
+	accountName  string
+	resourceName string
+	req          pipeline.Request
 }
 
 func (b *blobRPC) name() string {
-	return fmt.Sprintf("AzureBlob %s %s", b.operation(), b.storageName)
+	return fmt.Sprintf("AzureBlob %s %s", b.operation(), b.resourceName)
 }
 
 func (b *blobRPC) _type() string {
@@ -51,8 +51,8 @@ func (b *blobRPC) storageAccountName() string {
 	return b.accountName
 }
 
-func (b *blobRPC) storage() string {
-	return b.storageName
+func (b *blobRPC) resource() string {
+	return b.resourceName
 }
 
 func (b *blobRPC) operation() string {
