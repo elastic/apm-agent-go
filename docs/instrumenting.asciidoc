@@ -909,11 +909,13 @@ func (s *server) handleRequest(w http.ResponseWriter, req *http.Request) {
 [[builtin-modules-apmazure]]
 ==== module/apmazure
 Package apmazure provides a means of instrumenting the
-https://github.com/Azure/azure-sdk-for-go[Azure SDK for Go] connection object,
+https://github.com/Azure/azure-pipeline-go[Azure Pipeline Go] pipeline object,
 so that Azure requests are reported as spans within the current transaction.
 
-To create spans for Azure requests, you should create a new connection using
-`apmazure.NewConnection`, then use the created connection as normal.
+To create spans for Azure requests, you should create a new pipeline using the
+relevant service's `NewPipeline` function, like `azblob.NewPipeline`, then wrap
+the `pipeline.Pipeline` with `apmazure.WrapPipeline`. The returned `Pipeline`
+can be used as normal.
 
 The following services are supported:
 
@@ -923,20 +925,19 @@ The following services are supported:
 [source,go]
 ----
 import (
-	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	"github.com/Azure/azure-sdk-for-go/sdk/storage/armstorage"
+  "github.com/Azure/azure-storage-blob-go/azblob"
 
-	"go.elastic.co/apm/module/apmazure"
+  "go.elastic.co/apm/module/apmazure"
 )
 
 func main() {
-  cred, err := azidentity.NewDefaultAzureCredential(nil)
-  if err != nil {
-    panic(err)
-  }
-  conn := apmazure.NewConnection("https://storage-account-name.blob.core.windows.net", cred, nil)
-	client := armstorage.NewBlobContainersClient(conn, "subscription-id")
-  // Use the client to interact with Blob Storage
+  p := azblob.NewPipeline(azblob.NewAnonymousCredential(), po)
+  p = apmazure.WrapPipeline(p)
+  u, err := url.Parse("https://my-account.blob.core.windows.net")
+  serviceURL := azblob.NewServiceURL(*u, p)
+  containerURL := serviceURL.NewContainerURL("mycontainer")
+  blobURL := containerURL.NewBlobURL("readme.txt")
+  // Use the blobURL to interact with Blob Storage
   ...
 }
 ----
