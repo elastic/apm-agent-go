@@ -30,9 +30,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"go.elastic.co/apm/apmtest"
+	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/transport/transporttest"
 )
 
-func TestQueueReceive(t *testing.T) {
+func TestQueueSend(t *testing.T) {
 	retry := azqueue.RetryOptions{
 		MaxTries: 1,
 	}
@@ -44,24 +46,24 @@ func TestQueueReceive(t *testing.T) {
 	u, err := url.Parse("https://fakeaccnt.queue.core.windows.net")
 	require.NoError(t, err)
 	queueURL := azqueue.NewQueueURL(*u, p)
-	msgUrl := queueURL.NewMessagesURL()
+	msgURL := queueURL.NewMessagesURL()
 
 	_, spans, errors := apmtest.WithTransaction(func(ctx context.Context) {
-		msgUrl.Peek(ctx, 32)
+		msgURL.Enqueue(ctx, "new message", 0, 0)
 	})
 	require.Len(t, errors, 1)
 	require.Len(t, spans, 1)
 	span := spans[0]
 
 	assert.Equal(t, "messaging", span.Type)
-	assert.Equal(t, "AzureQueue PEEK from fakeaccnt", span.Name)
+	assert.Equal(t, "AzureQueue SEND to fakeaccnt", span.Name)
 	// TODO: If we use a fake URL, the test is fast but we do not set a
 	// status code
 	// Using a real subdomain takes ~1.3sec for the test. Do we want to
 	// test this?
 	// assert.Equal(t, 403, span.Context.HTTP.StatusCode)
 	assert.Equal(t, "azurequeue", span.Subtype)
-	assert.Equal(t, "PEEK", span.Action)
+	assert.Equal(t, "SEND", span.Action)
 	destination := span.Context.Destination
 	assert.Equal(t, "fakeaccnt.queue.core.windows.net", destination.Address)
 	assert.Equal(t, 443, destination.Port)
@@ -71,9 +73,31 @@ func TestQueueReceive(t *testing.T) {
 	assert.Equal(t, "messaging", destination.Service.Type)
 }
 
-// TODO
-func TestQueueSend(t *testing.T) {
-	t.Skip()
+func TestQueueReceive(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+	retry := azqueue.RetryOptions{
+		MaxTries: 1,
+	}
+	po := azqueue.PipelineOptions{
+		Retry: retry,
+	}
+	p := azqueue.NewPipeline(azqueue.NewAnonymousCredential(), po)
+	p = WrapPipeline(p, WithTracer(tracer))
+	u, err := url.Parse("https://fakeaccnt.queue.core.windows.net")
+	require.NoError(t, err)
+	queueURL := azqueue.NewQueueURL(*u, p)
+	msgURL := queueURL.NewMessagesURL()
+
+	msgURL.Peek(context.Background(), 32)
+	tracer.Flush(nil)
+
+	payloads := transport.Payloads()
+	transaction := payloads.Transactions[0]
+	// ParentID is empty, a new transaction was created
+	assert.Equal(t, model.SpanID{}, transaction.ParentID)
+	assert.Equal(t, "AzureQueue PEEK from fakeaccnt", transaction.Name)
+	assert.Equal(t, "messaging", transaction.Type)
 }
 
 func TestQueueGetOperation(t *testing.T) {

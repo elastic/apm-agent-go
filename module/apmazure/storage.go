@@ -84,21 +84,22 @@ func (p *apmPipeline) Do(
 		return p.next.Do(ctx, methodFactory, req)
 	}
 
-	// - A new span is created when there is a current transaction, and
-	//   when a message is sent to a queue
+	// A new span is created when there is a current transaction, and
+	// when a message is sent to a queue
 	tx := apm.TransactionFromContext(ctx)
 	if tx == nil {
 		// Azure Queue Storage
-		// - A new transaction is created when one or more messages are
-		//   received from a queue
-		if rpc._type() == "messaging" && req.Method == "GET" || req.Method == "" {
+		// A new transaction is created when one or more messages are
+		// received from a queue
+		if rpc._type() == "messaging" && (req.Method == "GET" || req.Method == "") {
 			// TODO: Should this only be RECEIVE/PEEK? Or all "get" methods?
+			// TODO: Should we also make the span? Or just the tx
+			// and execute the next step in the pipeline?
 			tx = p.tracer.StartTransaction(rpc.name(), rpc._type())
 			ctx := apm.ContextWithTransaction(req.Context(), tx)
 			r := req.Request.WithContext(ctx)
 			req.Request = r
 			defer tx.End()
-
 		}
 		return p.next.Do(ctx, methodFactory, req)
 	}
