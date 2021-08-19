@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+//go:build gofuzz
 // +build gofuzz
 
 package apmsql_test // import "go.elastic.co/apm/module/apmsql"

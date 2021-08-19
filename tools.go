@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+//go:build tools
 // +build tools
 
 package apm // import "go.elastic.co/apm"
