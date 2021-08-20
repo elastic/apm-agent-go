@@ -35,6 +35,16 @@ type apmHandler struct {
 	panicPropagation bool
 }
 
+// txCloser wraps the APM transaction to implement
+// the `io.Closer` interface to end the transaction automatically,
+// due to it will be saved on the RequestCtx.UserValues
+// which will end the transaction automatically when the request finish.
+type txCloser struct {
+	ctx *fasthttp.RequestCtx
+	tx  *apm.Transaction
+	bc  *apm.BodyCapturer
+}
+
 // ServerOption sets options for tracing server requests.
 type ServerOption func(*apmHandler)
 
