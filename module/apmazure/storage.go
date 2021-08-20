@@ -146,7 +146,7 @@ func newAzureRPC(req pipeline.Request) (azureRPC, error) {
 		}
 	case "queue":
 		rpc = &queueRPC{
-			resourceName: req.URL.Path[1:], // remove /
+			resourceName: strings.TrimPrefix(req.URL.Path, "/"),
 			accountName:  accountName,
 			req:          req,
 		}
