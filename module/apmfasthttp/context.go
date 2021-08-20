@@ -121,5 +121,7 @@ func StartTransactionWithBody(
 		return nil, nil, err
 	}
 
+	ctx.SetUserValue(txKey, newTxCloser(ctx, tx, bc))
+
 	return tx, bc, nil
 }
