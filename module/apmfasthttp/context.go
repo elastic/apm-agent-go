@@ -87,9 +87,7 @@ func setResponseContext(ctx *fasthttp.RequestCtx, tx *apm.Transaction, bc *apm.B
 	tx.Context.SetHTTPResponseHeaders(headers)
 	tx.Context.SetHTTPStatusCode(statusCode)
 
-	if bc != nil {
-		bc.Discard()
-	}
+	bc.Discard()
 
 	return nil
 }
