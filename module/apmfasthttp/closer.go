@@ -21,17 +21,14 @@
 package apmfasthttp // import "go.elastic.co/apm/module/apmfasthttp"
 
 import (
-	"github.com/valyala/fasthttp"
-
 	"go.elastic.co/apm"
 )
 
 // newTxCloser returns a transaction closer.
-func newTxCloser(ctx *fasthttp.RequestCtx, tx *apm.Transaction, bc *apm.BodyCapturer) *txCloser {
+func newTxCloser(tx *apm.Transaction, bc *apm.BodyCapturer) *txCloser {
 	return &txCloser{
-		ctx: ctx,
-		tx:  tx,
-		bc:  bc,
+		tx: tx,
+		bc: bc,
 	}
 }
 
