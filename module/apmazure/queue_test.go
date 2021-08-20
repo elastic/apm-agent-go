@@ -90,6 +90,16 @@ func TestQueueReceive(t *testing.T) {
 	assert.Equal(t, model.SpanID{}, transaction.ParentID)
 	assert.Equal(t, "AzureQueue PEEK from fakeaccnt", transaction.Name)
 	assert.Equal(t, "messaging", transaction.Type)
+
+	span := payloads.Spans[0]
+	assert.Equal(t, "messaging", span.Type)
+	assert.Equal(t, "AzureQueue PEEK from fakeaccnt", span.Name)
+	assert.Equal(t, "azurequeue", span.Subtype)
+	assert.Equal(t, "PEEK", span.Action)
+	destination := span.Context.Destination
+	assert.Equal(t, "fakeaccnt.queue.core.windows.net", destination.Address)
+	assert.Equal(t, 443, destination.Port)
+	assert.Equal(t, "azurequeue/fakeaccnt", destination.Service.Resource)
 }
 
 func TestQueueGetOperation(t *testing.T) {
