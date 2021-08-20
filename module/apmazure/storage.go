@@ -36,6 +36,7 @@ func init() {
 	stacktrace.RegisterLibraryPackage(
 		"github.com/Azure/azure-pipeline-go",
 		"github.com/Azure/azure-storage-blob-go/azblob",
+		"github.com/Azure/azure-storage-file-go/azfile",
 		"github.com/Azure/azure-storage-queue-go/azqueue",
 	)
 }
@@ -147,6 +148,12 @@ func newAzureRPC(req pipeline.Request) (azureRPC, error) {
 		}
 	case "queue":
 		rpc = &queueRPC{
+			resourceName: strings.TrimPrefix(req.URL.Path, "/"),
+			accountName:  accountName,
+			req:          req,
+		}
+	case "file":
+		rpc = &fileRPC{
 			resourceName: strings.TrimPrefix(req.URL.Path, "/"),
 			accountName:  accountName,
 			req:          req,
