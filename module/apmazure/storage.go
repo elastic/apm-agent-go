@@ -23,8 +23,6 @@ package apmazure // import "go.elastic.co/apm/module/apmazure"
 import (
 	"context"
 	"errors"
-	"net"
-	"strconv"
 	"strings"
 
 	"github.com/Azure/azure-pipeline-go/pipeline"
@@ -36,6 +34,7 @@ import (
 
 func init() {
 	stacktrace.RegisterLibraryPackage(
+		"github.com/Azure/azure-pipeline-go",
 		"github.com/Azure/azure-storage-blob-go/azblob",
 		"github.com/Azure/azure-storage-queue-go/azqueue",
 	)
@@ -84,27 +83,23 @@ func (p *apmPipeline) Do(
 		return p.next.Do(ctx, methodFactory, req)
 	}
 
-	// A new span is created when there is a current transaction, and
-	// when a message is sent to a queue
-	tx := apm.TransactionFromContext(ctx)
-	if tx == nil {
-		// Azure Queue Storage
+	var span *apm.Span
+	if rpc._type() == "messaging" && (req.Method == "GET" || req.Method == "") {
 		// A new transaction is created when one or more messages are
 		// received from a queue
-		if rpc._type() == "messaging" && (req.Method == "GET" || req.Method == "") {
-			// TODO: Should this only be RECEIVE/PEEK? Or all "get" methods?
-			// TODO: Should we also make the span? Or just the tx
-			// and execute the next step in the pipeline?
-			tx = p.tracer.StartTransaction(rpc.name(), rpc._type())
-			ctx := apm.ContextWithTransaction(req.Context(), tx)
-			r := req.Request.WithContext(ctx)
-			req.Request = r
-			defer tx.End()
-		}
-		return p.next.Do(ctx, methodFactory, req)
+		// TODO: Should this only be RECEIVE/PEEK? Or all "get" methods?
+		// TODO: Should we also make the span? Or just the tx
+		// and execute the next step in the pipeline?
+		tx := p.tracer.StartTransaction(rpc.name(), rpc._type())
+		ctx := apm.ContextWithTransaction(req.Context(), tx)
+		r := req.Request.WithContext(ctx)
+		req.Request = r
+		defer tx.End()
+		span = tx.StartSpan(rpc.name(), rpc._type(), apm.SpanFromContext(ctx))
+	} else {
+		span, ctx = apm.StartSpan(ctx, rpc.name(), rpc._type())
 	}
 
-	span := tx.StartSpan(rpc.name(), rpc._type(), apm.SpanFromContext(ctx))
 	defer span.End()
 	if !span.Dropped() {
 		ctx = apm.ContextWithSpan(ctx, span)
@@ -116,24 +111,14 @@ func (p *apmPipeline) Do(
 	span.Action = rpc.operation()
 	span.Subtype = rpc.subtype()
 	span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
-		Name:     rpc.subtype(),
 		Resource: rpc.subtype() + "/" + rpc.storageAccountName(),
 	})
-
-	if host, port, err := net.SplitHostPort(req.URL.Host); err == nil {
-		// strconv.Atoi returns 0 if err != nil
-		// TODO: How do we want to handle an error?
-		p, _ := strconv.Atoi(port)
-		span.Context.SetDestinationAddress(host, p)
-	}
 
 	resp, err := p.next.Do(ctx, methodFactory, req)
 	if err != nil {
 		apm.CaptureError(ctx, err).Send()
-	}
-
-	if r := resp.Response(); r != nil {
-		span.Context.SetHTTPStatusCode(r.StatusCode)
+	} else {
+		span.Context.SetHTTPStatusCode(resp.Response().StatusCode)
 	}
 
 	return resp, err
@@ -155,7 +140,7 @@ func newAzureRPC(req pipeline.Request) (azureRPC, error) {
 	switch storage {
 	case "blob":
 		rpc = &blobRPC{
-			resourceName: req.URL.Path[1:], // remove /
+			resourceName: strings.TrimPrefix(req.URL.Path, "/"),
 			accountName:  accountName,
 			req:          req,
 		}

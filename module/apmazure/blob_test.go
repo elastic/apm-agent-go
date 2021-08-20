@@ -68,9 +68,6 @@ func TestBlob(t *testing.T) {
 	assert.Equal(t, "fakeaccnt.blob.core.windows.net", destination.Address)
 	assert.Equal(t, 443, destination.Port)
 	assert.Equal(t, "azureblob/fakeaccnt", destination.Service.Resource)
-	// Aren't these deprecated???
-	assert.Equal(t, "azureblob", destination.Service.Name)
-	assert.Equal(t, "storage", destination.Service.Type)
 }
 
 func TestBlobGetOperation(t *testing.T) {
