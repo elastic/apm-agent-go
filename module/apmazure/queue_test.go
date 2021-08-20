@@ -57,20 +57,12 @@ func TestQueueSend(t *testing.T) {
 
 	assert.Equal(t, "messaging", span.Type)
 	assert.Equal(t, "AzureQueue SEND to fakeaccnt", span.Name)
-	// TODO: If we use a fake URL, the test is fast but we do not set a
-	// status code
-	// Using a real subdomain takes ~1.3sec for the test. Do we want to
-	// test this?
-	// assert.Equal(t, 403, span.Context.HTTP.StatusCode)
 	assert.Equal(t, "azurequeue", span.Subtype)
 	assert.Equal(t, "SEND", span.Action)
 	destination := span.Context.Destination
 	assert.Equal(t, "fakeaccnt.queue.core.windows.net", destination.Address)
 	assert.Equal(t, 443, destination.Port)
 	assert.Equal(t, "azurequeue/fakeaccnt", destination.Service.Resource)
-	// Aren't these deprecated???
-	assert.Equal(t, "azurequeue", destination.Service.Name)
-	assert.Equal(t, "messaging", destination.Service.Type)
 }
 
 func TestQueueReceive(t *testing.T) {
