@@ -23,8 +23,6 @@ package apmazure // import "go.elastic.co/apm/module/apmazure"
 import (
 	"context"
 	"errors"
-	"net"
-	"strconv"
 	"strings"
 
 	"github.com/Azure/azure-pipeline-go/pipeline"
@@ -36,6 +34,7 @@ import (
 
 func init() {
 	stacktrace.RegisterLibraryPackage(
+		"github.com/Azure/azure-pipeline-go",
 		"github.com/Azure/azure-storage-blob-go/azblob",
 	)
 }
@@ -60,12 +59,7 @@ func (p *apmPipeline) Do(
 		return p.next.Do(ctx, methodFactory, req)
 	}
 
-	tx := apm.TransactionFromContext(ctx)
-	if tx == nil {
-		return p.next.Do(ctx, methodFactory, req)
-	}
-
-	span := tx.StartSpan(rpc.name(), rpc._type(), apm.SpanFromContext(ctx))
+	span, ctx := apm.StartSpan(ctx, rpc.name(), rpc._type())
 	defer span.End()
 	if !span.Dropped() {
 		ctx = apm.ContextWithSpan(ctx, span)
@@ -77,24 +71,14 @@ func (p *apmPipeline) Do(
 	span.Action = rpc.operation()
 	span.Subtype = rpc.subtype()
 	span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
-		Name:     rpc.subtype(),
 		Resource: rpc.subtype() + "/" + rpc.storageAccountName(),
 	})
-
-	if host, port, err := net.SplitHostPort(req.URL.Host); err == nil {
-		// strconv.Atoi returns 0 if err != nil
-		// TODO: How do we want to handle an error?
-		p, _ := strconv.Atoi(port)
-		span.Context.SetDestinationAddress(host, p)
-	}
 
 	resp, err := p.next.Do(ctx, methodFactory, req)
 	if err != nil {
 		apm.CaptureError(ctx, err).Send()
-	}
-
-	if r := resp.Response(); r != nil {
-		span.Context.SetHTTPStatusCode(r.StatusCode)
+	} else {
+		span.Context.SetHTTPStatusCode(resp.Response().StatusCode)
 	}
 
 	return resp, err
@@ -115,7 +99,7 @@ func newAzureRPC(req pipeline.Request) (azureRPC, error) {
 	var rpc azureRPC
 	if storage == "blob" {
 		rpc = &blobRPC{
-			resourceName: req.URL.Path[1:], // remove /
+			resourceName: strings.TrimPrefix(req.URL.Path, "/"),
 			accountName:  accountName,
 			req:          req,
 		}
