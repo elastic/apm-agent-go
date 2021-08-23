@@ -32,8 +32,14 @@ func newTxCloser(tx *apm.Transaction, bc *apm.BodyCapturer) *txCloser {
 	}
 }
 
-// Close sets the response context to the APM transaction and
-// ends the transaction.
+// Close ends the transaction. The closer exists because, while the wrapped
+// handler may return, an underlying streaming body writer may still exist.
+// References to the transaction and bodycloser are held in a txCloser struct,
+// which is added to the context on the request. From the fasthttp
+// documentation:
+// All the values are removed from ctx after returning from the top
+// RequestHandler. Additionally, Close method is called on each value
+// implementing io.Closer before removing the value from ctx.
 func (c *txCloser) Close() error {
 	c.tx.End()
 	c.bc.Discard()

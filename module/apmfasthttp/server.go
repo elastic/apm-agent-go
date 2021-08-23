@@ -73,7 +73,6 @@ func (h *apmHandler) handler(ctx *fasthttp.RequestCtx) {
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 		return
 	}
-	defer tx.End()
 
 	defer func() {
 		if err := recover(); err != nil {
