@@ -68,12 +68,12 @@ func setRequestContext(ctx *fasthttp.RequestCtx, tracer *apm.Tracer, tx *apm.Tra
 	return bc, nil
 }
 
-func setResponseContext(ctx *fasthttp.RequestCtx, tx *apm.Transaction, bc *apm.BodyCapturer) error {
+func setResponseContext(ctx *fasthttp.RequestCtx, tx *apm.Transaction, bc *apm.BodyCapturer) {
 	statusCode := ctx.Response.Header.StatusCode()
 
 	tx.Result = apmhttp.StatusCodeResult(statusCode)
 	if !tx.Sampled() {
-		return nil
+		return
 	}
 
 	headers := make(http.Header)
@@ -87,9 +87,7 @@ func setResponseContext(ctx *fasthttp.RequestCtx, tx *apm.Transaction, bc *apm.B
 	tx.Context.SetHTTPResponseHeaders(headers)
 	tx.Context.SetHTTPStatusCode(statusCode)
 
-	bc.Discard()
-
-	return nil
+	return
 }
 
 // StartTransactionWithBody returns a new Transaction with name,
