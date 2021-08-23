@@ -77,7 +77,11 @@ func (p *apmPipeline) Do(
 	resp, err := p.next.Do(ctx, methodFactory, req)
 	if err != nil {
 		apm.CaptureError(ctx, err).Send()
-	} else {
+	}
+	// We may still have a response even if err != nil
+	// eg., the client library considers 4XX as an error but still returns
+	// the response to us.
+	if resp.Response() != nil {
 		span.Context.SetHTTPStatusCode(resp.Response().StatusCode)
 	}
 
