@@ -22,10 +22,13 @@ package apmazure
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 
+	"github.com/Azure/azure-pipeline-go/pipeline"
 	"github.com/Azure/azure-storage-blob-go/azblob"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -34,11 +37,8 @@ import (
 )
 
 func TestBlob(t *testing.T) {
-	retry := azblob.RetryOptions{
-		MaxTries: 1,
-	}
 	po := azblob.PipelineOptions{
-		Retry: retry,
+		HTTPSender: new(fakeSender),
 	}
 	p := azblob.NewPipeline(azblob.NewAnonymousCredential(), po)
 	p = WrapPipeline(p)
@@ -57,11 +57,7 @@ func TestBlob(t *testing.T) {
 
 	assert.Equal(t, "storage", span.Type)
 	assert.Equal(t, "AzureBlob GetTags mycontainer/readme.txt", span.Name)
-	// TODO: If we use a fake URL, the test is fast but we do not set a
-	// status code
-	// Using a real subdomain takes ~1.3sec for the test. Do we want to
-	// test this?
-	// assert.Equal(t, 403, span.Context.HTTP.StatusCode)
+	assert.Equal(t, 403, span.Context.HTTP.StatusCode)
 	assert.Equal(t, "azureblob", span.Subtype)
 	assert.Equal(t, "GetTags", span.Action)
 	destination := span.Context.Destination
@@ -291,4 +287,36 @@ func TestBlobPutOperation(t *testing.T) {
 	for _, tc := range tcs {
 		assert.Equal(t, tc.want, b.putOperation(tc.values, tc.header))
 	}
+}
+
+type fakeSender struct{}
+
+func (s *fakeSender) New(next pipeline.Policy, po *pipeline.PolicyOptions) pipeline.Policy {
+	return s
+}
+
+func (s *fakeSender) Do(ctx context.Context, request pipeline.Request) (pipeline.Response, error) {
+	resp := &http.Response{
+		StatusCode: http.StatusForbidden,
+		Status:     "403 Forbidden",
+		Body:       &readCloser{strings.NewReader("")},
+		Request:    request.Request,
+	}
+
+	return pipeline.NewHTTPResponse(resp), nil
+}
+
+type readCloser struct {
+	io.Reader
+}
+
+func (r *readCloser) Read(p []byte) (int, error) {
+	if r.Reader != nil {
+		return r.Reader.Read(p)
+	}
+	return len(p), nil
+}
+
+func (r *readCloser) Close() error {
+	return nil
 }
