@@ -65,14 +65,12 @@ func Wrap(handler fasthttp.RequestHandler, options ...ServerOption) fasthttp.Req
 func (h *apmHandler) handler(ctx *fasthttp.RequestCtx) {
 	if !h.tracer.Recording() || h.requestIgnorer(ctx) {
 		h.requestHandler(ctx)
-
 		return
 	}
 
-	tx, bc, err := StartTransactionWithBody(h.tracer, h.requestName(ctx), ctx)
+	tx, bc, err := StartTransactionWithBody(ctx, h.tracer, h.requestName(ctx))
 	if err != nil {
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
-
 		return
 	}
 
@@ -93,6 +91,8 @@ func (h *apmHandler) handler(ctx *fasthttp.RequestCtx) {
 	}()
 
 	h.requestHandler(ctx)
+
+	setResponseContext(ctx, tx, bc)
 }
 
 // WithTracer returns a ServerOption which sets t as the tracer
