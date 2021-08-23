@@ -21,6 +21,8 @@
 package apmfasthttp_test
 
 import (
+	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"testing"
@@ -58,6 +60,8 @@ func TestServerHTTPResponse(t *testing.T) {
 	addr := ln.Addr().String()
 	resp, err := http.Get("http://" + addr)
 	require.NoError(t, err)
+	io.Copy(ioutil.Discard, resp.Body) // consume body to complete request handler
+	resp.Body.Close()
 	assert.Equal(t, fasthttp.StatusUnauthorized, resp.StatusCode)
 	tracer.Flush(nil)
 
