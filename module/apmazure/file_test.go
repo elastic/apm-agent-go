@@ -22,6 +22,7 @@ package apmazure
 
 import (
 	"context"
+	"net/http"
 	"net/url"
 	"testing"
 
@@ -63,4 +64,158 @@ func TestFile(t *testing.T) {
 	assert.Equal(t, "fakeaccnt.file.core.windows.net", destination.Address)
 	assert.Equal(t, 443, destination.Port)
 	assert.Equal(t, "azurefile/fakeaccnt", destination.Service.Resource)
+}
+
+func TestFileGetOperation(t *testing.T) {
+	tcs := []struct {
+		want   string
+		values url.Values
+	}{
+		// https://github.com/elastic/apm/blob/master/specs/agents/tracing-instrumentation-azure.md#determining-operations-3
+		{
+			want:   "Download",
+			values: url.Values{},
+		},
+		{
+			want:   "GetProperties",
+			values: url.Values{"restype": []string{"share"}},
+		},
+		{
+			want:   "ListHandles",
+			values: url.Values{"comp": []string{"listhandles"}},
+		},
+		{
+			want:   "ListRanges",
+			values: url.Values{"comp": []string{"rangelist"}},
+		},
+		{
+			want:   "Stats",
+			values: url.Values{"comp": []string{"stats"}},
+		},
+		{
+			want:   "List",
+			values: url.Values{"comp": []string{"list"}},
+		},
+		{
+			want:   "GetMetadata",
+			values: url.Values{"comp": []string{"metadata"}},
+		},
+		{
+			want:   "GetAcl",
+			values: url.Values{"comp": []string{"acl"}},
+		},
+	}
+
+	q := new(fileRPC)
+	for _, tc := range tcs {
+		assert.Equal(t, tc.want, q.getOperation(tc.values))
+	}
+}
+
+func TestFilePostOperation(t *testing.T) {
+	q := new(fileRPC)
+	assert.Equal(t, "unknown operation", q.postOperation())
+}
+
+func TestFileHeadOperation(t *testing.T) {
+	tcs := []struct {
+		want   string
+		values url.Values
+	}{
+		// https://github.com/elastic/apm/blob/master/specs/agents/tracing-instrumentation-azure.md#determining-operations-3
+		{
+			want:   "GetProperties",
+			values: url.Values{},
+		},
+		{
+			want:   "GetProperties",
+			values: url.Values{"restype": []string{"share"}},
+		},
+		{
+			want:   "GetMetadata",
+			values: url.Values{"comp": []string{"metadata"}},
+		},
+		{
+			want:   "GetAcl",
+			values: url.Values{"comp": []string{"acl"}},
+		},
+	}
+
+	q := new(fileRPC)
+	for _, tc := range tcs {
+		assert.Equal(t, tc.want, q.headOperation(tc.values))
+	}
+}
+
+func TestFilePutOperation(t *testing.T) {
+	tcs := []struct {
+		want   string
+		values url.Values
+		header http.Header
+	}{
+		// https://github.com/elastic/apm/blob/master/specs/agents/tracing-instrumentation-azure.md#determining-operations
+		{
+			want:   "Copy",
+			header: http.Header{"x-ms-copy-source": []string{}},
+		},
+		{
+			want:   "Abort",
+			header: http.Header{"x-ms-copy-action:abort": []string{}},
+		},
+		{
+			want:   "Create",
+			values: url.Values{"restype": []string{"directory"}},
+		},
+		{
+			want:   "Upload",
+			values: url.Values{"comp": []string{"range"}},
+		},
+		{
+			want:   "CloseHandles",
+			values: url.Values{"comp": []string{"forceclosehandles"}},
+		},
+		{
+			want:   "Lease",
+			values: url.Values{"comp": []string{"lease"}},
+		},
+		{
+			want:   "Snapshot",
+			values: url.Values{"comp": []string{"snapshot"}},
+		},
+		{
+			want:   "Undelete",
+			values: url.Values{"comp": []string{"undelete"}},
+		},
+		{
+			want:   "SetAcl",
+			values: url.Values{"comp": []string{"acl"}},
+		},
+		{
+			want:   "SetPermission",
+			values: url.Values{"comp": []string{"filepermission"}},
+		},
+		{
+			want:   "SetMetadata",
+			values: url.Values{"comp": []string{"metadata"}},
+		},
+		{
+			want:   "SetProperties",
+			values: url.Values{"comp": []string{"properties"}},
+		},
+	}
+
+	f := new(fileRPC)
+	for _, tc := range tcs {
+		assert.Equal(t, tc.want, f.putOperation(tc.values, tc.header))
+	}
+}
+
+func TestFileOptionsOperation(t *testing.T) {
+	f := new(fileRPC)
+	assert.Equal(t, "Preflight", f.optionsOperation())
+}
+
+func TestFileDeleteOperation(t *testing.T) {
+	f := new(fileRPC)
+	assert.Equal(t, "Delete", f.deleteOperation())
 }

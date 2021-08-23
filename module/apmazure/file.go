@@ -59,9 +59,9 @@ func (f *fileRPC) operation() string {
 	q := f.req.URL.Query()
 	switch f.req.Method {
 	case http.MethodOptions:
-		return "Preflight"
+		return f.optionsOperation()
 	case http.MethodDelete:
-		return "Delete"
+		return f.deleteOperation()
 	// From net/http documentation:
 	// For client requests, an empty string means GET.
 	case http.MethodGet, "":
@@ -77,6 +77,14 @@ func (f *fileRPC) operation() string {
 	}
 }
 
+func (f *fileRPC) deleteOperation() string {
+	return "Delete"
+}
+
+func (f *fileRPC) optionsOperation() string {
+	return "Preflight"
+}
+
 func (f *fileRPC) getOperation(v url.Values) string {
 	if v.Get("restype") == "share" {
 		return "GetProperties"
@@ -90,9 +98,9 @@ func (f *fileRPC) getOperation(v url.Values) string {
 	case "rangelist":
 		return "ListRanges"
 	case "metadata", "acl":
-		return "Get" + strings.ToTitle(comp)
+		return "Get" + strings.Title(comp)
 	case "list", "stats":
-		return strings.ToTitle(comp)
+		return strings.Title(comp)
 	default:
 		return "unknown operation"
 	}
@@ -111,7 +119,7 @@ func (f *fileRPC) headOperation(v url.Values) string {
 
 	switch comp {
 	case "metadata", "acl":
-		return "Get" + strings.ToTitle(comp)
+		return "Get" + strings.Title(comp)
 	default:
 		return "unknown operation"
 	}
@@ -129,20 +137,18 @@ func (f *fileRPC) putOperation(v url.Values, h http.Header) string {
 	if restype == "directory" {
 		return "Create"
 	}
-	comp := v.Get("comp")
-	if restype == "container" && comp == "acl" {
-		return "SetAcl"
-	}
 
-	switch comp {
+	switch comp := v.Get("comp"); comp {
 	case "range":
 		return "Upload"
 	case "forceclosehandles":
 		return "CloseHandles"
 	case "lease", "snapshot", "undelete":
 		return strings.Title(comp)
-	case "acl", "filepermission", "metadata", "properties":
+	case "acl", "metadata", "properties":
 		return "Set" + strings.Title(comp)
+	case "filepermission":
+		return "SetPermission"
 	default:
 		return "unknown operation"
 	}
