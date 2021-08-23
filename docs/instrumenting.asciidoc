@@ -920,6 +920,7 @@ can be used as normal.
 The following services are supported:
 
 - Blob Storage
+- Queue Storage
 
 
 [source,go]
