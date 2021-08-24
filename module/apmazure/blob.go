@@ -120,6 +120,7 @@ func (b *blobRPC) postOperation(v url.Values) string {
 	}
 
 }
+
 func (b *blobRPC) headOperation(v url.Values) string {
 	restype := v.Get("restype")
 	comp := v.Get("comp")
