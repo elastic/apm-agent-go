@@ -36,17 +36,41 @@ func init() {
 	stacktrace.RegisterLibraryPackage(
 		"github.com/Azure/azure-pipeline-go",
 		"github.com/Azure/azure-storage-blob-go/azblob",
+		"github.com/Azure/azure-storage-queue-go/azqueue",
 	)
 }
 
 // WrapPipeline wraps the provided pipeline.Pipeline, returning a new one that
 // instruments requests and responses.
-func WrapPipeline(p pipeline.Pipeline) pipeline.Pipeline {
-	return &apmPipeline{p}
+func WrapPipeline(next pipeline.Pipeline, options ...ServerOption) pipeline.Pipeline {
+	p := &apmPipeline{next: next}
+	for _, opt := range options {
+		opt(p)
+	}
+	if p.tracer == nil {
+		p.tracer = apm.DefaultTracer
+	}
+	return p
+}
+
+// ServerOption sets options for tracing requests.
+type ServerOption func(*apmPipeline)
+
+// WithTracer returns a ServerOption which sets t as the tracer
+// to use for tracing server requests.
+func WithTracer(t *apm.Tracer) ServerOption {
+	if t == nil {
+		panic("t == nil")
+	}
+
+	return func(h *apmPipeline) {
+		h.tracer = t
+	}
 }
 
 type apmPipeline struct {
-	next pipeline.Pipeline
+	next   pipeline.Pipeline
+	tracer *apm.Tracer
 }
 
 func (p *apmPipeline) Do(
@@ -59,7 +83,20 @@ func (p *apmPipeline) Do(
 		return p.next.Do(ctx, methodFactory, req)
 	}
 
-	span, ctx := apm.StartSpan(ctx, rpc.name(), rpc._type())
+	var span *apm.Span
+	if rpc._type() == "messaging" && (req.Method == "GET" || req.Method == "") {
+		// A new transaction is created when one or more messages are
+		// received from a queue
+		tx := p.tracer.StartTransaction(rpc.name(), rpc._type())
+		ctx := apm.ContextWithTransaction(req.Context(), tx)
+		r := req.Request.WithContext(ctx)
+		req.Request = r
+		defer tx.End()
+		span = tx.StartSpan(rpc.name(), rpc._type(), apm.SpanFromContext(ctx))
+	} else {
+		span, ctx = apm.StartSpan(ctx, rpc.name(), rpc._type())
+	}
+
 	defer span.End()
 	if !span.Dropped() {
 		ctx = apm.ContextWithSpan(ctx, span)
@@ -101,8 +138,15 @@ func newAzureRPC(req pipeline.Request) (azureRPC, error) {
 	split := strings.Split(req.Host, ".")
 	accountName, storage := split[0], split[1]
 	var rpc azureRPC
-	if storage == "blob" {
+	switch storage {
+	case "blob":
 		rpc = &blobRPC{
+			resourceName: strings.TrimPrefix(req.URL.Path, "/"),
+			accountName:  accountName,
+			req:          req,
+		}
+	case "queue":
+		rpc = &queueRPC{
 			resourceName: strings.TrimPrefix(req.URL.Path, "/"),
 			accountName:  accountName,
 			req:          req,

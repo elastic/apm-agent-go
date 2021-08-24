@@ -64,19 +64,19 @@ func (b *blobRPC) operation() string {
 	// From net/http documentation:
 	// For client requests, an empty string means GET.
 	case http.MethodGet, "":
-		return getOperation(q)
+		return b.getOperation(q)
 	case http.MethodPost:
-		return postOperation(q)
+		return b.postOperation(q)
 	case http.MethodHead:
-		return headOperation(q)
+		return b.headOperation(q)
 	case http.MethodPut:
-		return putOperation(q, b.req.Header)
+		return b.putOperation(q, b.req.Header)
 	default:
 		return b.req.Method
 	}
 }
 
-func getOperation(v url.Values) string {
+func (b *blobRPC) getOperation(v url.Values) string {
 	restype := v.Get("restype")
 	comp := v.Get("comp")
 	if (restype == "" && comp == "") || comp == "blocklist" {
@@ -106,7 +106,7 @@ func getOperation(v url.Values) string {
 	}
 }
 
-func postOperation(v url.Values) string {
+func (b *blobRPC) postOperation(v url.Values) string {
 	comp := v.Get("comp")
 	switch comp {
 	case "batch":
@@ -120,7 +120,8 @@ func postOperation(v url.Values) string {
 	}
 
 }
-func headOperation(v url.Values) string {
+
+func (b *blobRPC) headOperation(v url.Values) string {
 	restype := v.Get("restype")
 	comp := v.Get("comp")
 	if restype == "" && comp == "" {
@@ -138,7 +139,8 @@ func headOperation(v url.Values) string {
 		return "unknown operation"
 	}
 }
-func putOperation(v url.Values, h http.Header) string {
+
+func (b *blobRPC) putOperation(v url.Values, h http.Header) string {
 	// header.Get canonicalizes the key, ie. x-ms-copy-source->X-Ms-Copy-Source.
 	// The headers used are all lowercase, so we access the map directly.
 	_, copySource := h["x-ms-copy-source"]

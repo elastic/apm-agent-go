@@ -310,8 +310,10 @@ about AWS SDK Go instrumentation.
 
 [float]
 ==== Azure Storage
-We provide instrumentation for Azure Storage. This is usable with
-github.com/Azure/azure-storage-blob-go/azblob[Azure Blob Storage].
+We provide instrumentation for Azure Storage. This is usable with:
+
+- github.com/Azure/azure-storage-blob-go/azblob[Azure Blob Storage]
+- github.com/Azure/azure-storage-queue-go/azqueue[Azure Queue Storage]
 
 See <<builtin-modules-apmazure, module/apmazure>> for more information
 about Azure SDK Go instrumentation.
