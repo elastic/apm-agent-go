@@ -87,9 +87,6 @@ func (p *apmPipeline) Do(
 	if rpc._type() == "messaging" && (req.Method == "GET" || req.Method == "") {
 		// A new transaction is created when one or more messages are
 		// received from a queue
-		// TODO: Should this only be RECEIVE/PEEK? Or all "get" methods?
-		// TODO: Should we also make the span? Or just the tx
-		// and execute the next step in the pipeline?
 		tx := p.tracer.StartTransaction(rpc.name(), rpc._type())
 		ctx := apm.ContextWithTransaction(req.Context(), tx)
 		r := req.Request.WithContext(ctx)
