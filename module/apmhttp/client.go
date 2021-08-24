@@ -214,6 +214,9 @@ func WithClientRequestName(r RequestNameFunc) ClientOption {
 	})
 }
 
+// WithClientSpanType sets the span type for HTTP client requests.
+//
+// Defaults to "external.http".
 func WithClientSpanType(spanType string) ClientOption {
 	return ClientOption(func(rt *roundTripper) {
 		rt.spanType = spanType
