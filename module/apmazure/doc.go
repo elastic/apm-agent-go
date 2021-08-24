@@ -15,9 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//go:build go1.12
-// +build go1.12
-
-package apmfasthttp // import "go.elastic.co/apm/module/apmfasthttp"
-
-const txKey = "apmfasthttp_transaction"
+// Package apmazure provides tracing and error-reporting middleware for
+// azure-sdk-for-go.
+package apmazure // import "go.elastic.co/apm/module/apmazure"
