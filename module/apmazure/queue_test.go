@@ -25,6 +25,7 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/Azure/azure-pipeline-go/pipeline"
 	"github.com/Azure/azure-storage-queue-go/azqueue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -35,14 +36,7 @@ import (
 )
 
 func TestQueueSend(t *testing.T) {
-	retry := azqueue.RetryOptions{
-		MaxTries: 1,
-	}
-	po := azqueue.PipelineOptions{
-		Retry: retry,
-	}
-	p := azqueue.NewPipeline(azqueue.NewAnonymousCredential(), po)
-	p = WrapPipeline(p)
+	p := WrapPipeline(queuePipeline())
 	u, err := url.Parse("https://fakeaccnt.queue.core.windows.net")
 	require.NoError(t, err)
 	queueURL := azqueue.NewQueueURL(*u, p)
@@ -57,6 +51,7 @@ func TestQueueSend(t *testing.T) {
 
 	assert.Equal(t, "messaging", span.Type)
 	assert.Equal(t, "AzureQueue SEND to fakeaccnt", span.Name)
+	assert.Equal(t, 403, span.Context.HTTP.StatusCode)
 	assert.Equal(t, "azurequeue", span.Subtype)
 	assert.Equal(t, "SEND", span.Action)
 	destination := span.Context.Destination
@@ -68,14 +63,7 @@ func TestQueueSend(t *testing.T) {
 func TestQueueReceive(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
-	retry := azqueue.RetryOptions{
-		MaxTries: 1,
-	}
-	po := azqueue.PipelineOptions{
-		Retry: retry,
-	}
-	p := azqueue.NewPipeline(azqueue.NewAnonymousCredential(), po)
-	p = WrapPipeline(p, WithTracer(tracer))
+	p := WrapPipeline(queuePipeline(), WithTracer(tracer))
 	u, err := url.Parse("https://fakeaccnt.queue.core.windows.net")
 	require.NoError(t, err)
 	queueURL := azqueue.NewQueueURL(*u, p)
@@ -94,6 +82,7 @@ func TestQueueReceive(t *testing.T) {
 	span := payloads.Spans[0]
 	assert.Equal(t, "messaging", span.Type)
 	assert.Equal(t, "AzureQueue PEEK from fakeaccnt", span.Name)
+	assert.Equal(t, 403, span.Context.HTTP.StatusCode)
 	assert.Equal(t, "azurequeue", span.Subtype)
 	assert.Equal(t, "PEEK", span.Action)
 	destination := span.Context.Destination
@@ -216,4 +205,10 @@ func TestQueuePutOperation(t *testing.T) {
 	for _, tc := range tcs {
 		assert.Equal(t, tc.want, q.putOperation(tc.values))
 	}
+}
+
+func queuePipeline() pipeline.Pipeline {
+	f := []pipeline.Factory{pipeline.MethodFactoryMarker()}
+	o := pipeline.Options{HTTPSender: new(fakeSender)}
+	return pipeline.NewPipeline(f, o)
 }
