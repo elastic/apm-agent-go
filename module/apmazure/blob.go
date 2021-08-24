@@ -139,6 +139,7 @@ func (b *blobRPC) headOperation(v url.Values) string {
 		return "unknown operation"
 	}
 }
+
 func (b *blobRPC) putOperation(v url.Values, h http.Header) string {
 	// header.Get canonicalizes the key, ie. x-ms-copy-source->X-Ms-Copy-Source.
 	// The headers used are all lowercase, so we access the map directly.
