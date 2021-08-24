@@ -30,6 +30,7 @@ that framework's API. The request context can be used for reporting <<custom-ins
 * <<builtin-modules-apmelasticsearch>>
 * <<builtin-modules-apmmongo>>
 * <<builtin-modules-apmawssdkgo>>
+* <<builtin-modules-apmazure>>
 
 [[builtin-modules-apmhttp]]
 ==== module/apmhttp
@@ -901,6 +902,42 @@ func (s *server) handleRequest(w http.ResponseWriter, req *http.Request) {
     Key:    aws.String("your-key"),
     Body:   bytes.NewBuffer([]byte("your-body")),
   })
+  ...
+}
+----
+
+[[builtin-modules-apmazure]]
+==== module/apmazure
+Package apmazure provides a means of instrumenting the
+https://github.com/Azure/azure-pipeline-go[Azure Pipeline Go] pipeline object,
+so that Azure requests are reported as spans within the current transaction.
+
+To create spans for Azure requests, you should create a new pipeline using the
+relevant service's `NewPipeline` function, like `azblob.NewPipeline`, then wrap
+the `pipeline.Pipeline` with `apmazure.WrapPipeline`. The returned `Pipeline`
+can be used as normal.
+
+The following services are supported:
+
+- Blob Storage
+
+
+[source,go]
+----
+import (
+  "github.com/Azure/azure-storage-blob-go/azblob"
+
+  "go.elastic.co/apm/module/apmazure"
+)
+
+func main() {
+  p := azblob.NewPipeline(azblob.NewAnonymousCredential(), po)
+  p = apmazure.WrapPipeline(p)
+  u, err := url.Parse("https://my-account.blob.core.windows.net")
+  serviceURL := azblob.NewServiceURL(*u, p)
+  containerURL := serviceURL.NewContainerURL("mycontainer")
+  blobURL := containerURL.NewBlobURL("readme.txt")
+  // Use the blobURL to interact with Blob Storage
   ...
 }
 ----
