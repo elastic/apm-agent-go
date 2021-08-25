@@ -26,12 +26,6 @@ endif::[]
 [[release-notes-1.x]]
 === Go Agent version 1.x
 
-[[release-notes-1.14.0]]
-==== 1.14.0 - 2021/08/24
-
-- module/apmhttp: add apmhttp.WithClientSpanType ClientOption to set the span type of http client requests {pull}1106[#(1106)]
-
-
 [[release-notes-1.13.1]]
 ==== 1.13.1 - 2021/08/05
 
