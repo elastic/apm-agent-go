@@ -26,6 +26,7 @@ import (
 	"net"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -64,8 +65,24 @@ func TestServerHTTPResponse(t *testing.T) {
 	resp.Body.Close()
 	assert.Equal(t, fasthttp.StatusUnauthorized, resp.StatusCode)
 	tracer.Flush(nil)
-
 	payloads := transport.Payloads()
+
+	timer := time.NewTimer(100 * time.Millisecond)
+	defer timer.Stop()
+	for {
+		select {
+		case <-timer.C:
+			t.Fatal("timed out waiting for payload")
+		default:
+		}
+		if len(payloads.Transactions) > 0 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+		tracer.Flush(nil)
+		payloads = transport.Payloads()
+	}
+
 	transaction := payloads.Transactions[0]
 	assert.Equal(t, "GET /", transaction.Name)
 	assert.Equal(t, "request", transaction.Type)
