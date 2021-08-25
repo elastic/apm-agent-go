@@ -67,6 +67,11 @@ func TestServerHTTPResponse(t *testing.T) {
 	tracer.Flush(nil)
 	payloads := transport.Payloads()
 
+	// the transaction is ended after the response body is fully written,
+	// so a single call to `tracer.Flush()` may not have an event yet
+	// enqueued. Continue to call `tracer.Flush()` and wait for the
+	// transaction to have ended.
+	// This is unique to fasthttp's implementation.
 	timer := time.NewTimer(100 * time.Millisecond)
 	defer timer.Stop()
 	for {
