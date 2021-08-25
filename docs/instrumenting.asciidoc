@@ -921,6 +921,7 @@ The following services are supported:
 
 - Blob Storage
 - Queue Storage
+- File Storage
 
 
 [source,go]
