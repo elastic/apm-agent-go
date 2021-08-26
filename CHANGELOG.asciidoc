@@ -23,6 +23,8 @@ endif::[]
 
 https://github.com/elastic/apm-agent-go/compare/v1.13.1...master[View commits]
 
+- module/apmhttp: add apmhttp.WithClientSpanType ClientOption to set the span type of http client requests {pull}1106[#(1106)]
+
 [[release-notes-1.x]]
 === Go Agent version 1.x
 

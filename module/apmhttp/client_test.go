@@ -354,6 +354,22 @@ func TestClientOutcome(t *testing.T) {
 	assert.Equal(t, "failure", spans[2].Outcome)
 }
 
+func TestWithClientSpanType(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusTeapot)
+	}))
+	defer server.Close()
+
+	option := apmhttp.WithClientSpanType("cache")
+	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+		mustGET(ctx, server.URL, option)
+	})
+
+	require.Len(t, spans, 1)
+	span := spans[0]
+	assert.Equal(t, "cache", span.Type)
+}
+
 func mustGET(ctx context.Context, url string, o ...apmhttp.ClientOption) (statusCode int, responseBody string) {
 	client := apmhttp.WrapClient(http.DefaultClient, o...)
 	resp, err := ctxhttp.Get(ctx, client, url)
