@@ -30,6 +30,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/valyala/fasthttp"
 	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/module/apmfiber"
@@ -209,7 +210,7 @@ func TestMiddlewarePanic(t *testing.T) {
 	defer tracer.Close()
 
 	e := fiber.New()
-	e.Use(apmfiber.Middleware(apmfiber.WithTracer(tracer.Tracer)), recoverMiddleware.New())
+	e.Use(apmfiber.Middleware(apmfiber.WithTracer(tracer.Tracer)))
 	e.Get("/panic", handlePanic)
 
 	req, err := http.NewRequestWithContext(context.TODO(), http.MethodGet, "http://server.testing/panic", nil)
@@ -217,7 +218,68 @@ func TestMiddlewarePanic(t *testing.T) {
 
 	resp, err := e.Test(req)
 	assert.Nil(t, err)
-	assert.Equal(t, resp.StatusCode, http.StatusInternalServerError)
+	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+
+	tracer.Flush(nil)
+	assertError(t, tracer.Payloads(), "boom", false)
+}
+
+func TestMiddlewarePanicPropagation(t *testing.T) {
+
+	debugOutput.Reset()
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+
+	e := fiber.New()
+	e.Use(
+		// use this middleware because e.Test () serves up handlers in goroutine which causes fatal panic
+		recoverMiddleware.New(),
+
+		apmfiber.Middleware(
+			apmfiber.WithTracer(tracer.Tracer),
+			apmfiber.WithPanicPropagation(),
+		),
+	)
+	e.Get("/panic", handlePanic)
+
+	req, err := http.NewRequestWithContext(context.TODO(), http.MethodGet, "http://server.testing/panic", nil)
+	assert.Nil(t, err)
+
+	resp, err := e.Test(req, 2*1000)
+	assert.Nil(t, err)
+	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+
+	tracer.Flush(nil)
+	// panic must be unhandled error
+	assertError(t, tracer.Payloads(), "boom", false)
+}
+
+func TestMiddlewareRequestIgnorer(t *testing.T) {
+	debugOutput.Reset()
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+
+	e := fiber.New()
+	e.Use(
+		apmfiber.Middleware(
+			apmfiber.WithTracer(tracer.Tracer),
+			apmfiber.WithRequestIgnorer(func(ctx *fasthttp.RequestCtx) bool {
+				return "/hello1" == string(ctx.Path())
+			})),
+	)
+	e.Get("/hello1", handleHello)
+	e.Get("/hello2", handleHello)
+
+	req1, _ := http.NewRequestWithContext(context.TODO(), http.MethodGet, "http://server.testing/hello1", nil)
+	req2, _ := http.NewRequestWithContext(context.TODO(), http.MethodGet, "http://server.testing/hello2", nil)
+
+	_, _ = e.Test(req1)
+	_, _ = e.Test(req2)
+
+	tracer.Flush(nil)
+
+	assert.Equal(t, 1, len(tracer.Payloads().Transactions))
+	assert.Equal(t, "GET /hello2", tracer.Payloads().Transactions[0].Name)
 }
 
 func assertError(t *testing.T, payloads transporttest.Payloads, message string, handled bool) model.Error {

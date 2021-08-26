@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+//go:build go1.12
 // +build go1.12
 
 package apmfiber
@@ -37,18 +38,16 @@ import (
 //
 // By default, the middleware will use apm.DefaultTracer.
 // Use WithTracer to specify an alternative tracer.
+// Use WithPanicPropagation to disable panic recover.
 func Middleware(o ...Option) fiber.Handler {
-	opts := options{
-		tracer:         apm.DefaultTracer,
-		requestIgnorer: apmfasthttp.NewDynamicServerRequestIgnorer(apm.DefaultTracer),
-	}
-	for _, o := range o {
-		o(&opts)
+	m := &middleware{
+		tracer:           apm.DefaultTracer,
+		requestIgnorer:   apmfasthttp.NewDynamicServerRequestIgnorer(apm.DefaultTracer),
+		panicPropagation: false,
 	}
 
-	m := &middleware{
-		tracer:         opts.tracer,
-		requestIgnorer: opts.requestIgnorer,
+	for _, o := range o {
+		o(m)
 	}
 
 	return m.handle
@@ -85,10 +84,18 @@ func (m *middleware) handle(c *fiber.Ctx) error {
 		}
 
 		if v := recover(); v != nil {
+			if m.panicPropagation {
+				defer func() {
+					panic(v)
+				}()
+			}
+
 			e := m.tracer.Recovered(v)
 			e.SetTransaction(tx)
 			setContext(&e.Context, resp)
 			e.Send()
+
+			c.Status(http.StatusInternalServerError)
 		}
 
 		statusCode := resp.StatusCode()
@@ -97,11 +104,11 @@ func (m *middleware) handle(c *fiber.Ctx) error {
 		if tx.Sampled() {
 			setContext(&tx.Context, resp)
 		}
+
 		body.Discard()
 	}()
 
 	nextErr := c.Next()
-
 	if nextErr != nil {
 		resp := c.Response()
 		e := m.tracer.NewError(nextErr)
@@ -129,36 +136,41 @@ func setContext(ctx *apm.Context, resp *fiber.Response) {
 	ctx.SetHTTPResponseHeaders(headers)
 }
 
-type options struct {
-	tracer           *apm.Tracer
-	requestIgnorer   apmfasthttp.RequestIgnorerFunc
-	panicPropagation bool
+// Option sets options for tracing.
+type Option func(*middleware)
+
+// WithPanicPropagation returns an Option which enable panic propagation.
+// Any panic will be recovered and recorded as an error in a transaction, then
+// panic will be caused again.
+func WithPanicPropagation() Option {
+	return func(o *middleware) {
+		o.panicPropagation = true
+	}
 }
 
-// Option sets options for tracing.
-type Option func(*options)
-
 // WithTracer returns an Option which sets t as the tracer
-// to use for tracing server requests.
+// to use for tracing server requests. If t is nil, using default tracer.
 func WithTracer(t *apm.Tracer) Option {
 	if t == nil {
-		panic("t == nil")
+		return noopOption
 	}
 
-	return func(o *options) {
+	return func(o *middleware) {
 		o.tracer = t
 	}
 }
 
-// WithRequestIgnorer returns a Option which sets r as the
+// WithRequestIgnorer returns an Option which sets fn as the
 // function to use to determine whether or not a request should
-// be ignored. If r is nil, all requests will be reported.
+// be ignored. If fn is nil, using default RequestIgnorerFunc.
 func WithRequestIgnorer(fn apmfasthttp.RequestIgnorerFunc) Option {
 	if fn == nil {
-		panic("fn == nil")
+		return noopOption
 	}
 
-	return func(o *options) {
+	return func(o *middleware) {
 		o.requestIgnorer = fn
 	}
 }
+
+func noopOption(_ *middleware) {}
