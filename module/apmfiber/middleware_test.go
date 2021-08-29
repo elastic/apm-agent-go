@@ -31,6 +31,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/valyala/fasthttp"
+
 	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/module/apmfiber"

@@ -18,13 +18,14 @@
 //go:build go1.12
 // +build go1.12
 
-package apmfiber
+package apmfiber // import "go.elastic.co/apm/module/apmfiber"
 
 import (
 	"net/http"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/valyala/fasthttp"
+
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/module/apmfasthttp"
 	"go.elastic.co/apm/module/apmhttp"
@@ -80,14 +81,12 @@ func (m *middleware) handle(c *fiber.Ctx) error {
 			tx.Name = string(reqCtx.Method()) + " unknown route"
 		} else {
 			// Workaround for set tx.Name as template path, not absolute
-			tx.Name = string(reqCtx.Method()) + " " + c.Route().Path
+			tx.Name = string(reqCtx.Method()) + " " + path
 		}
 
 		if v := recover(); v != nil {
 			if m.panicPropagation {
-				defer func() {
-					panic(v)
-				}()
+				defer panic(v)
 			}
 
 			e := m.tracer.Recovered(v)
