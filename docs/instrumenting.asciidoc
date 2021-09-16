@@ -9,6 +9,7 @@ that framework's API. The request context can be used for reporting <<custom-ins
 * <<builtin-modules-apmfasthttp>>
 * <<builtin-modules-apmecho>>
 * <<builtin-modules-apmgin>>
+* <<builtin-modules-apmfiber>>
 * <<builtin-modules-apmbeego>>
 * <<builtin-modules-apmgorilla>>
 * <<builtin-modules-apmgrpc>>
@@ -169,6 +170,31 @@ func main() {
 ----
 
 The apmgin middleware will recover panics and send them to Elastic APM, so you do not need to install the gin.Recovery middleware.
+
+[[builtin-modules-apmfiber]]
+==== module/apmfiber
+Package apmfiber provides middleware for the https://gofiber.io/[Fiber] web framework, versions 2.x (v2.18.0 and greater).
+
+For each request, a transaction is stored in the request context, which can be obtained via
+https://pkg.go.dev/github.com/gofiber/fiber/v2#Ctx[fiber.Ctx]`.Context()` in your handler.
+
+[source,go]
+----
+import (
+	"go.elastic.co/apm/module/apmfiber"
+)
+
+func main() {
+	app := fiber.New()
+	app.Use(apmfiber.Middleware())
+	...
+}
+----
+
+The apmfiber middleware will recover panics and send them to Elastic APM,
+so you do not need to install the fiber https://docs.gofiber.io/api/middleware/recover[recover] middleware.
+You can disable default behaviour by using `WithPanicPropagation` option.
+
 
 [[builtin-modules-apmbeego]]
 ==== module/apmbeego

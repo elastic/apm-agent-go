@@ -71,6 +71,17 @@ https://github.com/gin-gonic/gin/releases/tag/v1.2[v1.2] and greater.
 See <<builtin-modules-apmgin, module/apmgin>> for more information
 about Gin instrumentation.
 
+
+[float]
+==== Fiber
+
+We support the https://gofiber.io/[Fiber] web framework,
+https://github.com/gofiber/fiber/releases/tag/v2.18.0[v2.18.0] and greater.
+
+We provide package only for the Fiber v2.
+See <<builtin-modules-apmfiber, module/apmfiber>> for more information
+about Fiber instrumentation.
+
 [float]
 ==== Beego
 
