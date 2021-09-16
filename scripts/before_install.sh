@@ -35,6 +35,8 @@ pin github.com/prometheus/client_golang v1.1.0
 pin github.com/emicklei/go-restful v2.9.6
 pin github.com/go-sql-driver/mysql v1.4.1
 pin golang.org/x/net 5f58ad60dda6 https://github.com/golang/net
+pin github.com/santhosh-tekuri/jsonschema v4.0.0
+pin go.uber.org/zap v1.16.0 https://github.com/uber-go/zap
 
 # Go 1.8-1.9
 if (! go run scripts/mingoversion.go 1.10 &>/dev/null); then
