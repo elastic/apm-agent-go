@@ -3,7 +3,7 @@ module go.elastic.co/apm/module/apmgometrics
 require (
 	github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a
 	github.com/stretchr/testify v1.6.1
-	go.elastic.co/apm v1.13.1
+	go.elastic.co/apm v1.14.0
 	gopkg.in/yaml.v2 v2.2.2 // indirect
 )
 

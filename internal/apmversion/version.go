@@ -19,5 +19,5 @@ package apmversion
 
 const (
 	// AgentVersion is the Elastic APM Go Agent version.
-	AgentVersion = "1.13.1"
+	AgentVersion = "1.14.0"
 )
