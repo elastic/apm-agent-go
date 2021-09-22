@@ -21,7 +21,8 @@ The table below is a simplified description of this policy.
 [options="header"]
 |====
 |Agent version |EOL Date |Maintained until
-|1.13.x |2023/02/28 |1.14.0
+|1.14.x |2023/03/22 |1.15.0
+|1.13.x |2023/02/03 |1.14.0
 |1.12.x |2022/11/25 |1.13.0
 |1.11.x |2022/08/01 |1.12.0
 |1.10.x |2022/07/20 |1.11.0
