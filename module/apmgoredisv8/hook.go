@@ -40,7 +40,9 @@ func NewHook() redis.Hook {
 
 // BeforeProcess initiates the span for the redis cmd
 func (r *hook) BeforeProcess(ctx context.Context, cmd redis.Cmder) (context.Context, error) {
-	_, ctx = apm.StartSpan(ctx, getCmdName(cmd), "db.redis")
+	_, ctx = apm.StartSpanOptions(ctx, getCmdName(cmd), "db.redis", apm.SpanOptions{
+		ExitSpan: true,
+	})
 	return ctx, nil
 }
 
@@ -63,7 +65,9 @@ func (r *hook) BeforeProcessPipeline(ctx context.Context, cmds []redis.Cmder) (c
 		cmdNameBuf.WriteString(getCmdName(cmd))
 	}
 
-	_, ctx = apm.StartSpan(ctx, cmdNameBuf.String(), "db.redis")
+	_, ctx = apm.StartSpanOptions(ctx, cmdNameBuf.String(), "db.redis", apm.SpanOptions{
+		ExitSpan: true,
+	})
 	return ctx, nil
 }
 
