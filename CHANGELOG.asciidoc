@@ -29,9 +29,13 @@ https://github.com/elastic/apm-agent-go/compare/v1.14.0...master[View commits]
 [[release-notes-1.14.0]]
 ==== 1.14.0 - 2021/09/22
 
+- span: automatically infer `destination.service.resource` information when the span is an exit span and deprecate `destination.service.name` and `destination.service.type` {pull}1003[#(1003)]
 - module/apmhttp: add apmhttp.WithClientSpanType ClientOption to set the span type of http client requests {pull}1106[#(1106)]
 - module/apmazure: introduce instrumentation module for Azure blob, queue, and file storage {pull}1109[#(1109)]
+- module/apmelasticsearch: propagete `Traceparent` and `Tracestate` headers to Elasticsearch {pull}1002[#(1002)]
 - module/apmfiber: introduce instrumentation module for Fiber web framework {pull}999[#(999)]
+- module/apmawssdkgo: fix a bug where the module would panic when an unsupported service is used {pull}1006[#(1006)]
+- module/apmfasthttp: report the correct HTTP Status Code instead of always reporting `200` {pull}1104[#(1104)]
 
 [[release-notes-1.13.1]]
 ==== 1.13.1 - 2021/08/05
