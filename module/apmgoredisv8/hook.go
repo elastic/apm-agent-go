@@ -40,21 +40,13 @@ func NewHook() redis.Hook {
 
 // BeforeProcess initiates the span for the redis cmd
 func (r *hook) BeforeProcess(ctx context.Context, cmd redis.Cmder) (context.Context, error) {
-	span, ctx := apm.StartSpan(ctx, getCmdName(cmd), "db.redis")
-	span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
-		Name:     getCmdName(cmd),
-		Resource: "redis",
-	})
+	_, ctx = apm.StartSpan(ctx, getCmdName(cmd), "db.redis")
 	return ctx, nil
 }
 
 // AfterProcess ends the initiated span from BeforeProcess
 func (r *hook) AfterProcess(ctx context.Context, cmd redis.Cmder) error {
 	if span := apm.SpanFromContext(ctx); span != nil {
-		span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
-			Name:     getCmdName(cmd),
-			Resource: "redis",
-		})
 		span.End()
 	}
 	return nil
@@ -71,21 +63,13 @@ func (r *hook) BeforeProcessPipeline(ctx context.Context, cmds []redis.Cmder) (c
 		cmdNameBuf.WriteString(getCmdName(cmd))
 	}
 
-	span, ctx := apm.StartSpan(ctx, cmdNameBuf.String(), "db.redis")
-	span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
-		Name:     "pipeline: " + cmdNameBuf.String(),
-		Resource: "redis",
-	})
+	_, ctx = apm.StartSpan(ctx, cmdNameBuf.String(), "db.redis")
 	return ctx, nil
 }
 
 // AfterProcess ends the initiated span from BeforeProcessPipeline
 func (r *hook) AfterProcessPipeline(ctx context.Context, cmds []redis.Cmder) error {
 	if span := apm.SpanFromContext(ctx); span != nil {
-		span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
-			Name:     "pipeline",
-			Resource: "redis",
-		})
 		span.End()
 	}
 	return nil
