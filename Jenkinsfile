@@ -30,7 +30,7 @@ pipeline {
     quietPeriod(10)
   }
   triggers {
-    issueCommentTrigger('(?i).*(?:jenkins\\W+)?run\\W+(?:the\\W+)?(?:benchmark\\W+)?tests(?:\\W+please)?.*')
+    issueCommentTrigger("(${obltGitHubComments()}|^run benchmark tests)")
   }
   parameters {
     string(name: 'GO_VERSION', defaultValue: "1.15.10", description: "Go version to use.")
