@@ -40,8 +40,12 @@ func NewHook() redis.Hook {
 
 // BeforeProcess initiates the span for the redis cmd
 func (r *hook) BeforeProcess(ctx context.Context, cmd redis.Cmder) (context.Context, error) {
-	_, ctx = apm.StartSpanOptions(ctx, getCmdName(cmd), "db.redis", apm.SpanOptions{
+	span, ctx := apm.StartSpanOptions(ctx, getCmdName(cmd), "db.redis", apm.SpanOptions{
 		ExitSpan: true,
+	})
+	span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
+		Name:     getCmdName(cmd),
+		Resource: "redis",
 	})
 	return ctx, nil
 }
@@ -49,6 +53,10 @@ func (r *hook) BeforeProcess(ctx context.Context, cmd redis.Cmder) (context.Cont
 // AfterProcess ends the initiated span from BeforeProcess
 func (r *hook) AfterProcess(ctx context.Context, cmd redis.Cmder) error {
 	if span := apm.SpanFromContext(ctx); span != nil {
+		span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
+			Name:     getCmdName(cmd),
+			Resource: "redis",
+		})
 		span.End()
 	}
 	return nil
@@ -65,15 +73,30 @@ func (r *hook) BeforeProcessPipeline(ctx context.Context, cmds []redis.Cmder) (c
 		cmdNameBuf.WriteString(getCmdName(cmd))
 	}
 
-	_, ctx = apm.StartSpanOptions(ctx, cmdNameBuf.String(), "db.redis", apm.SpanOptions{
+	span, ctx := apm.StartSpanOptions(ctx, cmdNameBuf.String(), "db.redis", apm.SpanOptions{
 		ExitSpan: true,
+	})
+	span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
+		Name:     "pipeline: " + cmdNameBuf.String(),
+		Resource: "redis",
 	})
 	return ctx, nil
 }
 
 // AfterProcess ends the initiated span from BeforeProcessPipeline
 func (r *hook) AfterProcessPipeline(ctx context.Context, cmds []redis.Cmder) error {
+	var cmdNameBuf bytes.Buffer
+	for i, cmd := range cmds {
+		if i != 0 {
+			cmdNameBuf.WriteString(", ")
+		}
+		cmdNameBuf.WriteString(getCmdName(cmd))
+	}
 	if span := apm.SpanFromContext(ctx); span != nil {
+		span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
+			Name:     "pipeline: " + cmdNameBuf.String(),
+			Resource: "redis",
+		})
 		span.End()
 	}
 	return nil
