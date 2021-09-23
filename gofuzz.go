@@ -23,7 +23,6 @@ package apm // import "go.elastic.co/apm"
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
