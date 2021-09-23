@@ -129,7 +129,6 @@ func TestMiddleware(t *testing.T) {
 		},
 		Request: &model.Request{
 			Socket: &model.RequestSocket{
-				Encrypted:     false,
 				RemoteAddress: "remote-addr",
 			},
 			URL: model.URL{

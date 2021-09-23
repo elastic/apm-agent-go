@@ -73,7 +73,6 @@ func TestHandlerHTTP2(t *testing.T) {
 	assert.Equal(t, &model.Context{
 		Request: &model.Request{
 			Socket: &model.RequestSocket{
-				Encrypted: true,
 				// 127.0.0.1 or ::1.
 				RemoteAddress: srvAddr.IP.String(),
 			},
