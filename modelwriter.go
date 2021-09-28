@@ -18,8 +18,6 @@
 package apm // import "go.elastic.co/apm"
 
 import (
-	"time"
-
 	"go.elastic.co/apm/internal/ringbuffer"
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/stacktrace"
@@ -291,7 +289,11 @@ func buildDroppedSpansStats(dss spanTimingsMap) []model.DroppedSpansStats {
 			Duration: model.AggregateDuration{
 				Count: int(timing.count),
 				Sum: model.DurationSum{
-					Us: time.Duration(timing.duration).Microseconds(),
+					// The internal representation of spanTimingsMap is in time.Nanosecond
+					// unit which we need to convert to us.
+					// Do not use the time.Duration.Microseconds(), since it
+					// was added on Go 1.13.
+					Us: timing.duration / 1e3,
 				},
 			},
 		})

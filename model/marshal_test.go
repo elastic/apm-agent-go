@@ -649,7 +649,7 @@ func fakeTransaction() model.Transaction {
 				Outcome:                    "success",
 				Duration: model.AggregateDuration{
 					Count: 4,
-					Sum:   model.DurationSum{Us: time.Millisecond.Microseconds()},
+					Sum:   model.DurationSum{Us: int64(time.Millisecond) / 1e3},
 				},
 			},
 		},

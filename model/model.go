@@ -317,6 +317,7 @@ type AggregateDuration struct {
 
 // DurationSum contains units for duration
 type DurationSum struct {
+	// Sum of the duration of a span in Microseconds.
 	Us int64 `json:"us"`
 }
 
