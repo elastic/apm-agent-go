@@ -108,10 +108,13 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 	// Guard access to spansCreated, spansDropped, rand, and childrenTimer.
 	tx.TransactionData.mu.Lock()
 	defer tx.TransactionData.mu.Unlock()
-	if !span.traceContext.Options.Recorded() {
-		span.tracer = nil // span is dropped
-	} else if tx.maxSpans >= 0 && tx.spansCreated >= tx.maxSpans {
-		span.tracer = nil // span is dropped
+
+	notRecorded := !span.traceContext.Options.Recorded()
+	exceedsMaxSpans := tx.maxSpans >= 0 && tx.spansCreated >= tx.maxSpans
+	// Drop span when it is not recorded.
+	if span.dropWhen(notRecorded) {
+		// nothing to do here since it isn't recorded.
+	} else if span.dropWhen(exceedsMaxSpans) {
 		tx.spansDropped++
 	} else {
 		if opts.SpanID.Validate() == nil {
@@ -299,6 +302,21 @@ func (s *Span) dropped() bool {
 	return s.tracer == nil
 }
 
+// dropWhen unsets the tracer when the passed bool cond is `true` and returns
+// `true` only when the span is dropped. If the span has already been dropped
+// or the condition isn't `true`, it then returns `false`.
+//
+// Must be called with s.mu.Lock held to be able to write to s.tracer.
+func (s *Span) dropWhen(cond bool) bool {
+	if s.Dropped() {
+		return false
+	}
+	if cond {
+		s.tracer = nil
+	}
+	return cond
+}
+
 // End marks the s as being complete; s must not be used after this.
 //
 // If s.Duration has not been set, End will set it to the elapsed time
@@ -381,7 +399,30 @@ func (s *Span) reportSelfTime() {
 	} else {
 		s.tx.childrenTimer.childEnded(endTime)
 	}
-	s.tx.spanTimings.add(s.Type, s.Subtype, s.Duration-s.childrenTimer.finalDuration(endTime))
+
+	// Collect span timings when dropped and the destination service isn't empty
+	// TODO (marclop): Assuming that we always want the destination service
+	// resource to be not empty, check if that's a strict requirement here.
+	spanDuration := s.Duration - s.childrenTimer.finalDuration(endTime)
+	dstStvRes := s.Context.destinationService.Resource
+	if s.dropped() && dstStvRes != "" {
+		dss := s.tx.droppedSpansStats
+		key := spanTimingsKey{
+			spanType:        s.Type,
+			spanSubtype:     s.Subtype,
+			spanDstResource: dstStvRes,
+			spanOutcome:     s.Outcome,
+		}
+
+		timing, ok := dss[key]
+		if ok || len(dss) < (maxDroppedSpanStats) {
+			timing.count++
+			timing.duration += int64(spanDuration)
+			dss[key] = timing
+		}
+	}
+
+	s.tx.spanTimings.add(s.Type, s.Subtype, spanDuration)
 }
 
 func (s *Span) enqueue() {

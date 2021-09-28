@@ -18,6 +18,8 @@
 package apm // import "go.elastic.co/apm"
 
 import (
+	"time"
+
 	"go.elastic.co/apm/internal/ringbuffer"
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/stacktrace"
@@ -122,6 +124,10 @@ func (w *modelWriter) buildModelTransaction(out *model.Transaction, tx *Transact
 	out.Duration = td.Duration.Seconds() * 1000
 	out.SpanCount.Started = td.spansCreated
 	out.SpanCount.Dropped = td.spansDropped
+	if dss := buildDroppedSpansStats(td.droppedSpansStats); len(dss) > 0 {
+		out.DroppedSpansStats = dss
+	}
+
 	if sampled {
 		out.Context = td.Context.build()
 	}
@@ -272,4 +278,23 @@ func normalizeOutcome(outcome string) string {
 	default:
 		return "unknown"
 	}
+}
+
+func buildDroppedSpansStats(dss spanTimingsMap) []model.DroppedSpansStats {
+	out := make([]model.DroppedSpansStats, 0, 128)
+	for k, timing := range dss {
+		out = append(out, model.DroppedSpansStats{
+			Type:                       k.spanType,
+			Subtype:                    k.spanSubtype,
+			DestinationServiceResource: k.spanDstResource,
+			Outcome:                    k.spanOutcome,
+			Duration: model.AggregateDuration{
+				Count: int(timing.count),
+				Sum: model.DurationSum{
+					Us: time.Duration(timing.duration).Microseconds(),
+				},
+			},
+		})
+	}
+	return out
 }

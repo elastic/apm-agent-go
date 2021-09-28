@@ -25,6 +25,12 @@ import (
 	"time"
 )
 
+const (
+	// maxDroppedSpanStats sets the hard limit for the number of dropped span
+	// stats that are stored in a transaction.
+	maxDroppedSpanStats = 128
+)
+
 // StartTransaction returns a new Transaction with the specified
 // name and type, and with the start time set to the current time.
 // This is equivalent to calling StartTransactionOptions with a
@@ -43,7 +49,8 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 			Context: Context{
 				captureBodyMask: CaptureBodyTransactions,
 			},
-			spanTimings: make(spanTimingsMap),
+			spanTimings:       make(spanTimingsMap),
+			droppedSpansStats: make(spanTimingsMap, maxDroppedSpanStats),
 		}
 		var seed int64
 		if err := binary.Read(cryptorand.Reader, binary.LittleEndian, &seed); err != nil {
@@ -355,24 +362,27 @@ type TransactionData struct {
 	propagateLegacyHeader   bool
 	timestamp               time.Time
 
-	mu            sync.Mutex
-	spansCreated  int
-	spansDropped  int
-	childrenTimer childrenTimer
-	spanTimings   spanTimingsMap
-	rand          *rand.Rand // for ID generation
+	mu                sync.Mutex
+	spansCreated      int
+	spansDropped      int
+	childrenTimer     childrenTimer
+	spanTimings       spanTimingsMap
+	droppedSpansStats spanTimingsMap
+	rand              *rand.Rand // for ID generation
 }
 
 // reset resets the TransactionData back to its zero state and places it back
 // into the transaction pool.
 func (td *TransactionData) reset(tracer *Tracer) {
 	*td = TransactionData{
-		Context:     td.Context,
-		Duration:    -1,
-		rand:        td.rand,
-		spanTimings: td.spanTimings,
+		Context:           td.Context,
+		Duration:          -1,
+		rand:              td.rand,
+		spanTimings:       td.spanTimings,
+		droppedSpansStats: td.droppedSpansStats,
 	}
 	td.Context.reset()
 	td.spanTimings.reset()
+	td.droppedSpansStats.reset()
 	tracer.transactionDataPool.Put(td)
 }
