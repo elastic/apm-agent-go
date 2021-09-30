@@ -335,7 +335,6 @@ func TestServerTLS(t *testing.T) {
 			Values: []string{"grpc-go/" + grpc.Version},
 		}},
 		Socket: &model.RequestSocket{
-			Encrypted: true,
 			// Server is listening on loopback, so the client
 			// should have the same IP address. RemoteAddress
 			// does not record the port.

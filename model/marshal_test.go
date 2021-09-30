@@ -83,7 +83,6 @@ func TestMarshalTransaction(t *testing.T) {
 					"random":  "junk",
 				},
 				"socket": map[string]interface{}{
-					"encrypted":      true,
 					"remote_address": "[::1]",
 				},
 			},
@@ -594,7 +593,6 @@ func fakeTransaction() model.Transaction {
 					{Name: "random", Value: "junk"},
 				},
 				Socket: &model.RequestSocket{
-					Encrypted:     true,
 					RemoteAddress: "[::1]",
 				},
 			},

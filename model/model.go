@@ -666,7 +666,7 @@ type Header struct {
 // RequestSocket holds transport-level information relating to an HTTP request.
 type RequestSocket struct {
 	// Encrypted indicates whether or not the request was sent
-	// as an SSL/HTTPS request.
+	// as an SSL/HTTPS request. Deprecated.
 	Encrypted bool `json:"encrypted,omitempty"`
 
 	// RemoteAddress holds the remote address for the request.
