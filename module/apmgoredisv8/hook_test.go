@@ -74,12 +74,15 @@ func TestHook(t *testing.T) {
 			assert.Equal(t, "PING", spans[0].Name)
 			assert.Equal(t, "db", spans[0].Type)
 			assert.Equal(t, "redis", spans[0].Subtype)
+			assert.Equal(t, "redis", spans[0].Context.Destination.Service.Resource)
 			assert.Equal(t, "GET", spans[1].Name)
 			assert.Equal(t, "db", spans[1].Type)
 			assert.Equal(t, "redis", spans[1].Subtype)
+			assert.Equal(t, "redis", spans[1].Context.Destination.Service.Resource)
 			assert.Equal(t, "(empty command)", spans[2].Name)
 			assert.Equal(t, "db", spans[2].Type)
 			assert.Equal(t, "redis", spans[2].Subtype)
+			assert.Equal(t, "redis", spans[2].Context.Destination.Service.Resource)
 		})
 	}
 }
@@ -102,6 +105,7 @@ func TestHookPipeline(t *testing.T) {
 			assert.Equal(t, "GET, SET, GET, (empty command)", spans[0].Name)
 			assert.Equal(t, "db", spans[0].Type)
 			assert.Equal(t, "redis", spans[0].Subtype)
+			assert.Equal(t, "redis", spans[0].Context.Destination.Service.Resource)
 		})
 	}
 }
@@ -132,6 +136,7 @@ func TestHookTxPipeline(t *testing.T) {
 			}
 			assert.Equal(t, "db", spans[0].Type)
 			assert.Equal(t, "redis", spans[0].Subtype)
+			assert.Equal(t, "redis", spans[0].Context.Destination.Service.Resource)
 		})
 	}
 }
