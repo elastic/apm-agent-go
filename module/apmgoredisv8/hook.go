@@ -73,13 +73,6 @@ func (r *hook) BeforeProcessPipeline(ctx context.Context, cmds []redis.Cmder) (c
 
 // AfterProcess ends the initiated span from BeforeProcessPipeline
 func (r *hook) AfterProcessPipeline(ctx context.Context, cmds []redis.Cmder) error {
-	var cmdNameBuf bytes.Buffer
-	for i, cmd := range cmds {
-		if i != 0 {
-			cmdNameBuf.WriteString(", ")
-		}
-		cmdNameBuf.WriteString(getCmdName(cmd))
-	}
 	if span := apm.SpanFromContext(ctx); span != nil {
 		span.End()
 	}
