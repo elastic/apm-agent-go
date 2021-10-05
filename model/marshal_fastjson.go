@@ -573,6 +573,12 @@ func (v *Span) MarshalFastJSON(w *fastjson.Writer) error {
 		w.RawString(",\"action\":")
 		w.String(v.Action)
 	}
+	if v.Composite != nil {
+		w.RawString(",\"composite\":")
+		if err := v.Composite.MarshalFastJSON(w); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
 	if v.Context != nil {
 		w.RawString(",\"context\":")
 		if err := v.Context.MarshalFastJSON(w); err != nil && firstErr == nil {
@@ -842,6 +848,18 @@ func (v *DatabaseSpanContext) MarshalFastJSON(w *fastjson.Writer) error {
 		}
 		w.String(v.User)
 	}
+	w.RawByte('}')
+	return nil
+}
+
+func (v *CompositeSpan) MarshalFastJSON(w *fastjson.Writer) error {
+	w.RawByte('{')
+	w.RawString("\"compression_strategy\":")
+	w.String(v.CompressionStrategy)
+	w.RawString(",\"count\":")
+	w.Int64(int64(v.Count))
+	w.RawString(",\"sum\":")
+	w.Float64(v.Sum)
 	w.RawByte('}')
 	return nil
 }
