@@ -30,9 +30,9 @@ import (
 	"go.elastic.co/apm/model"
 )
 
-// PrintTraces displays the trace as a table which can be used on tests to aid
+// WriteTraceTable displays the trace as a table which can be used on tests to aid
 // debugging.
-func PrintTraces(writer io.Writer, tx model.Transaction, spans []model.Span) {
+func WriteTraceTable(writer io.Writer, tx model.Transaction, spans []model.Span) {
 	w := tabwriter.NewWriter(writer, 2, 4, 2, ' ', tabwriter.TabIndent)
 	fmt.Fprintln(w, "#\tNAME\tTYPE\tCOMP\tN\tDURATION\tOFFSET\tSPAN ID\tPARENT ID\tTRACE ID")
 
