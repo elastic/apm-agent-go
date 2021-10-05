@@ -239,7 +239,7 @@ func TestCompressSpanExactMatch(t *testing.T) {
 				assert.Equal(t, composite.Composite.CompressionStrategy, "exact_match")
 				// Sum should be at least the time that each span ran for.
 				assert.Greater(t, composite.Composite.Sum,
-					float64(int64(compositeSpanCount)*100*time.Nanosecond.Milliseconds()),
+					float64(int64(compositeSpanCount)*100*1e6),
 				)
 
 				for _, span := range spans {
