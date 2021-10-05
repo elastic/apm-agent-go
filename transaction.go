@@ -62,6 +62,9 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 	}
 
 	tx.maxSpans = instrumentationConfig.maxSpans
+	tx.compressedSpans.enabled = instrumentationConfig.spanCompressionEnabled
+	tx.compressedSpans.exactMatchMaxDuration = instrumentationConfig.spanCompressionExactMatchMaxDuration
+	tx.compressedSpans.sameKindMaxDuration = instrumentationConfig.spanCompressionSameKindMaxDuration
 	tx.spanFramesMinDuration = instrumentationConfig.spanFramesMinDuration
 	tx.stackTraceLimit = instrumentationConfig.stackTraceLimit
 	tx.Context.captureHeaders = instrumentationConfig.captureHeaders
@@ -163,6 +166,7 @@ type Transaction struct {
 	tracer       *Tracer
 	traceContext TraceContext
 	parentID     SpanID
+	buffer       spanBuffer
 
 	mu sync.RWMutex
 
@@ -279,6 +283,9 @@ func (tx *Transaction) End() {
 		if tx.Outcome == "" {
 			tx.Outcome = tx.Context.outcome()
 		}
+		if !tx.buffer.empty() {
+			tx.buffer.flush(nil)
+		}
 		tx.enqueue()
 	} else {
 		tx.reset(tx.tracer)
@@ -349,6 +356,7 @@ type TransactionData struct {
 
 	recording               bool
 	maxSpans                int
+	compressedSpans         compressionOptions
 	spanFramesMinDuration   time.Duration
 	stackTraceLimit         int
 	breakdownMetricsEnabled bool

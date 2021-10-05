@@ -253,6 +253,9 @@ type Span struct {
 	transactionID SpanID
 	parentID      SpanID
 	exit          bool
+	ctxPropagated bool
+	composite     compositeSpan
+	buffer        spanBuffer
 
 	mu sync.RWMutex
 
@@ -266,6 +269,10 @@ func (s *Span) TraceContext() TraceContext {
 	if s == nil {
 		return TraceContext{}
 	}
+	// TODO(marclop) maybe use atomic
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.ctxPropagated = true
 	return s.traceContext
 }
 
@@ -333,6 +340,12 @@ func (s *Span) End() {
 	if len(s.stacktrace) == 0 && s.Duration >= s.stackFramesMinDuration {
 		s.setStacktrace(1)
 	}
+
+	compressionEnabled := s.tracer.instrumentationConfig().spanCompressionEnabled
+	if s.attemptCompress(compressionEnabled) {
+		return
+	}
+
 	if s.tx != nil {
 		s.reportSelfTime()
 	}
@@ -374,6 +387,13 @@ func (s *Span) reportSelfTime() {
 
 	s.tx.TransactionData.mu.Lock()
 	defer s.tx.TransactionData.mu.Unlock()
+	s.reportSelfTimeLockless(endTime)
+}
+
+// reportSelfTimeLockless is used by all spans (composite and regular spans) to
+// report their timers. Since the composite end is triggered by a span of the
+// same kind or its parent ending, the upstream locks are already acquired.
+func (s *Span) reportSelfTimeLockless(endTime time.Time) {
 	if s.parent != nil {
 		if !s.parent.ended() {
 			s.parent.childrenTimer.childEnded(endTime)
