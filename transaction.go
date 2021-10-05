@@ -296,10 +296,7 @@ func (tx *Transaction) enqueue() {
 		// Enqueuing a transaction should never block.
 		tx.tracer.breakdownMetrics.recordTransaction(tx.TransactionData)
 
-		// TODO(axw) use an atomic operation to increment.
-		tx.tracer.statsMu.Lock()
-		tx.tracer.stats.TransactionsDropped++
-		tx.tracer.statsMu.Unlock()
+		tx.tracer.stats.accumulate(TracerStats{TransactionsDropped: 1})
 		tx.reset(tx.tracer)
 	}
 }

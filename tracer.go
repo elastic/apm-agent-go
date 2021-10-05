@@ -327,8 +327,7 @@ type Tracer struct {
 	breakdownMetrics  *breakdownMetrics
 	profileSender     profileSender
 
-	statsMu sync.Mutex
-	stats   TracerStats
+	stats TracerStats
 
 	// instrumentationConfig_ must only be accessed and mutated
 	// using Tracer.instrumentationConfig() and Tracer.setInstrumentationConfig().
@@ -756,10 +755,7 @@ func (t *Tracer) SendMetrics(abort <-chan struct{}) {
 // Stats returns the current TracerStats. This will return the most
 // recent values even after the tracer has been closed.
 func (t *Tracer) Stats() TracerStats {
-	t.statsMu.Lock()
-	stats := t.stats
-	t.statsMu.Unlock()
-	return stats
+	return t.stats.copy()
 }
 
 func (t *Tracer) loop() {
@@ -1054,9 +1050,7 @@ func (t *Tracer) loop() {
 				}
 			}
 			if !stats.isZero() {
-				t.statsMu.Lock()
 				t.stats.accumulate(stats)
-				t.statsMu.Unlock()
 				stats = TracerStats{}
 			}
 			if sentMetrics != nil && requestBufMetricsets > 0 {
@@ -1091,9 +1085,7 @@ func (t *Tracer) loop() {
 		}
 
 		if !stats.isZero() {
-			t.statsMu.Lock()
 			t.stats.accumulate(stats)
-			t.statsMu.Unlock()
 			stats = TracerStats{}
 		}
 
