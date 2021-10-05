@@ -336,6 +336,66 @@ func TestCompressSpanSameKind(t *testing.T) {
 			<-time.After(100 * time.Nanosecond)
 			span.End()
 		}
+		// This span exceeds the threshold and will not be compressed.
+		{
+			span, _ := apm.StartSpanOptions(ctx, "GET /f", "request", exitSpanOpt)
+			<-time.After(time.Millisecond)
+			span.End()
+		}
+	})
+
+	defer func() {
+		if t.Failed() {
+			apmtest.WriteTraceWaterfall(os.Stdout, tx, spans)
+		}
+	}()
+
+	assert.NotNil(t, tx)
+	assert.Equal(t, 2, len(spans))
+
+	mysqlSpan := spans[0]
+	assert.Equal(t, mysqlSpan.Context.Destination.Service.Resource, "mysql")
+	assert.Nil(t, mysqlSpan.Composite)
+
+	requestSpan := spans[1]
+	assert.Equal(t, requestSpan.Context.Destination.Service.Resource, "request")
+	assert.NotNil(t, requestSpan.Composite)
+	assert.Equal(t, requestSpan.Composite.Count, 6)
+	assert.Equal(t, requestSpan.Name, "Calls to request")
+	// Check that the aggregate sum is at least the duration of the time we
+	// we waited for.
+	assert.Greater(t, requestSpan.Composite.Sum, float64(5*100/time.Millisecond))
+
+	// Check that the total composite span duration is at least 5 milliseconds.
+	assert.Greater(t, requestSpan.Duration, float64(5*100/time.Millisecond))
+}
+
+func TestCompressSpanSameKindTunedMax(t *testing.T) {
+	tracer := apmtest.NewRecordingTracer()
+	tracer.SetSpanCompressionEnabled(true)
+	tracer.SetSpanCompressionSameKindMaxDuration(10 * time.Millisecond)
+
+	// Compress 5 spans into 1 and add another span with a different type
+	// [       Transaction       ]
+	//  [ mysql ] [ request (5) ]
+	//
+	tx, spans, _ := tracer.WithTransaction(func(ctx context.Context) {
+		exitSpanOpt := apm.SpanOptions{ExitSpan: true}
+		path := []string{"/a", "/b", "/c", "/d", "/e"}
+		// Span is compressable, but cannot be compressed since the next span
+		// is not the same kind. It gets published.
+		{
+			span, _ := apm.StartSpanOptions(ctx, "SELECT * FROM users", "mysql", exitSpanOpt)
+			<-time.After(100 * time.Nanosecond)
+			span.End()
+		}
+		// These spans should be compressed into 1.
+		for i := 0; i < 5; i++ {
+			uri := fmt.Sprint("GET ", path[i])
+			span, _ := apm.StartSpanOptions(ctx, uri, "request", exitSpanOpt)
+			<-time.After(time.Millisecond)
+			span.End()
+		}
 	})
 
 	defer func() {
