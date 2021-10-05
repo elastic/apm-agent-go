@@ -114,8 +114,6 @@ func TestMarshalTransaction(t *testing.T) {
 					},
 				},
 				"outcome": "success",
-				"subtype": "elasticsearch",
-				"type":    "request",
 			},
 		},
 	}
@@ -643,8 +641,6 @@ func fakeTransaction() model.Transaction {
 		},
 		DroppedSpansStats: []model.DroppedSpansStats{
 			{
-				Type:                       "request",
-				Subtype:                    "elasticsearch",
 				DestinationServiceResource: "http://elasticsearch:9200",
 				Outcome:                    "success",
 				Duration: model.AggregateDuration{

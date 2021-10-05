@@ -291,11 +291,6 @@ type SpanCount struct {
 // DroppedSpansStats holds information about spans that were dropped
 // (for example due to transaction_max_spans or exit_span_min_duration).
 type DroppedSpansStats struct {
-	// Type holds the dropped span's type, and can have specific keywords
-	// within the service's domain (eg: 'request', 'backgroundjob', etc)
-	Type string `json:"type"`
-	// Subtype is a further sub-division of the type (e.g. postgresql, elasticsearch)
-	Subtype string `json:"subtype"`
 	// DestinationServiceResource identifies the destination service resource
 	// being operated on. e.g. 'http://elastic.co:80', 'elasticsearch', 'rabbitmq/queue_name'.
 	DestinationServiceResource string `json:"destination_service_resource"`

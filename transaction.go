@@ -50,7 +50,7 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 				captureBodyMask: CaptureBodyTransactions,
 			},
 			spanTimings:       make(spanTimingsMap),
-			droppedSpansStats: make(spanTimingsMap, maxDroppedSpanStats),
+			droppedSpansStats: make(droppedSpanTimingsMap, maxDroppedSpanStats),
 		}
 		var seed int64
 		if err := binary.Read(cryptorand.Reader, binary.LittleEndian, &seed); err != nil {
@@ -367,7 +367,7 @@ type TransactionData struct {
 	spansDropped      int
 	childrenTimer     childrenTimer
 	spanTimings       spanTimingsMap
-	droppedSpansStats spanTimingsMap
+	droppedSpansStats droppedSpanTimingsMap
 	rand              *rand.Rand // for ID generation
 }
 
@@ -385,4 +385,25 @@ func (td *TransactionData) reset(tracer *Tracer) {
 	td.spanTimings.reset()
 	td.droppedSpansStats.reset()
 	tracer.transactionDataPool.Put(td)
+}
+
+// droppedSpanTimingsMap records span timings for groups of dropped spans.
+type droppedSpanTimingsMap map[droppedSpanTimingsKey]spanTiming
+
+// add accumulates the timing for a {destination, outcome} pair.
+func (m droppedSpanTimingsMap) add(destination, outcome string, d time.Duration) {
+	k := droppedSpanTimingsKey{destination: destination, outcome: outcome}
+	timing, ok := m[k]
+	if ok || maxDroppedSpanStats > len(m) {
+		timing.count++
+		timing.duration += int64(d)
+		m[k] = timing
+	}
+}
+
+// reset resets m back to its initial zero state.
+func (m droppedSpanTimingsMap) reset() {
+	for k := range m {
+		delete(m, k)
+	}
 }

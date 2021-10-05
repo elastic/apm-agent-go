@@ -278,21 +278,17 @@ func normalizeOutcome(outcome string) string {
 	}
 }
 
-func buildDroppedSpansStats(dss spanTimingsMap) []model.DroppedSpansStats {
+func buildDroppedSpansStats(dss droppedSpanTimingsMap) []model.DroppedSpansStats {
 	out := make([]model.DroppedSpansStats, 0, 128)
 	for k, timing := range dss {
 		out = append(out, model.DroppedSpansStats{
-			Type:                       k.spanType,
-			Subtype:                    k.spanSubtype,
-			DestinationServiceResource: k.spanDstResource,
-			Outcome:                    k.spanOutcome,
+			DestinationServiceResource: k.destination,
+			Outcome:                    k.outcome,
 			Duration: model.AggregateDuration{
 				Count: int(timing.count),
 				Sum: model.DurationSum{
 					// The internal representation of spanTimingsMap is in time.Nanosecond
 					// unit which we need to convert to us.
-					// Do not use the time.Duration.Microseconds(), since it
-					// was added on Go 1.13.
 					Us: timing.duration / 1e3,
 				},
 			},

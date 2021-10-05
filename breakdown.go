@@ -64,10 +64,11 @@ Try to name your transactions so that there are less distinct transaction names.
 type spanTimingsKey struct {
 	spanType    string
 	spanSubtype string
+}
 
-	// These fields are only set for dropped spans.
-	spanDstResource string
-	spanOutcome     string
+type droppedSpanTimingsKey struct {
+	destination string
+	outcome     string
 }
 
 // spanTiming records the number of times a {spanType, spanSubtype} pair

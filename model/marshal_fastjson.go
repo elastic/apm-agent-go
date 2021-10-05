@@ -572,10 +572,6 @@ func (v *DroppedSpansStats) MarshalFastJSON(w *fastjson.Writer) error {
 	}
 	w.RawString(",\"outcome\":")
 	w.String(v.Outcome)
-	w.RawString(",\"subtype\":")
-	w.String(v.Subtype)
-	w.RawString(",\"type\":")
-	w.String(v.Type)
 	w.RawByte('}')
 	return firstErr
 }

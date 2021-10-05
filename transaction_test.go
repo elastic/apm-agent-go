@@ -391,32 +391,25 @@ func TestTransactionDroppedSpansStats(t *testing.T) {
 	// * When the list of items has reached 128, any spans that match entries
 	//   of the existing spans are still aggregated.
 	tx, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+		exitSpanOpts := apm.SpanOptions{ExitSpan: true}
 		for i := 0; i < 1000; i++ {
-			span, _ := apm.StartSpan(ctx,
+			span, _ := apm.StartSpanOptions(ctx,
 				fmt.Sprintf("GET %d", i),
 				fmt.Sprintf("request_%d", i),
+				exitSpanOpts,
 			)
-			span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
-				Resource: "host:443",
-			})
 			<-time.After(10 * time.Microsecond)
 			span.End()
 		}
 
 		for i := 0; i < 100; i++ {
-			span, _ := apm.StartSpan(ctx, "GET 501", "request_501")
-			span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
-				Resource: "host:443",
-			})
+			span, _ := apm.StartSpanOptions(ctx, "GET 501", "request_501", exitSpanOpts)
 			<-time.After(10 * time.Microsecond)
 			span.End()
 		}
 
 		for i := 0; i < 50; i++ {
-			span, _ := apm.StartSpan(ctx, "GET 600", "request_600")
-			span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
-				Resource: "host:443",
-			})
+			span, _ := apm.StartSpanOptions(ctx, "GET 600", "request_600", exitSpanOpts)
 			<-time.After(10 * time.Microsecond)
 			span.End()
 		}
@@ -432,12 +425,12 @@ func TestTransactionDroppedSpansStats(t *testing.T) {
 
 	// Ensure that the extra spans we generated are aggregated
 	for _, span := range tx.DroppedSpansStats {
-		if span.Type == "request_501" {
+		if span.DestinationServiceResource == "request_501" {
 			assert.Equal(t, 101, span.Duration.Count)
 			// Assert that the sum of the duration is at least
 			// 1.1 ms.
 			assert.Greater(t, span.Duration.Sum.Us, int64(1100))
-		} else if span.Type == "request_600" {
+		} else if span.DestinationServiceResource == "request_600" {
 			assert.Equal(t, 51, span.Duration.Count)
 			// Assert that the sum of the duration is at least
 			// 0.5 ms.
@@ -463,32 +456,25 @@ func TestTransactionDroppedSpansStatsChangedLimit(t *testing.T) {
 	tracer.SetMaxSpans(maxSpanLimit)
 
 	tx, spans, _ := tracer.WithTransaction(func(ctx context.Context) {
+		exitSpanOpts := apm.SpanOptions{ExitSpan: true}
 		for i := 0; i < 300; i++ {
-			span, _ := apm.StartSpan(ctx,
+			span, _ := apm.StartSpanOptions(ctx,
 				fmt.Sprintf("GET %d", i),
 				fmt.Sprintf("request_%d", i),
+				exitSpanOpts,
 			)
-			span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
-				Resource: "host:443",
-			})
 			<-time.After(10 * time.Microsecond)
 			span.End()
 		}
 
 		for i := 0; i < 50; i++ {
-			span, _ := apm.StartSpan(ctx, "GET 51", "request_51")
-			span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
-				Resource: "host:443",
-			})
+			span, _ := apm.StartSpanOptions(ctx, "GET 51", "request_51", exitSpanOpts)
 			<-time.After(10 * time.Microsecond)
 			span.End()
 		}
 
 		for i := 0; i < 20; i++ {
-			span, _ := apm.StartSpan(ctx, "GET 60", "request_60")
-			span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
-				Resource: "host:443",
-			})
+			span, _ := apm.StartSpanOptions(ctx, "GET 60", "request_60", exitSpanOpts)
 			<-time.After(10 * time.Microsecond)
 			span.End()
 		}
@@ -504,12 +490,12 @@ func TestTransactionDroppedSpansStatsChangedLimit(t *testing.T) {
 
 	// Ensure that the extra spans we generated are aggregated
 	for _, span := range tx.DroppedSpansStats {
-		if span.Type == "request_51" {
+		if span.DestinationServiceResource == "request_51" {
 			assert.Equal(t, 50, span.Duration.Count)
 			// Assert that the sum of the duration is at least
 			// 0.5 ms.
 			assert.Greater(t, span.Duration.Sum.Us, int64(500))
-		} else if span.Type == "request_60" {
+		} else if span.DestinationServiceResource == "request_60" {
 			assert.Equal(t, 20, span.Duration.Count)
 			// Assert that the sum of the duration is at least
 			// 0.2 ms.

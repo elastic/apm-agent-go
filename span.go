@@ -401,25 +401,10 @@ func (s *Span) reportSelfTime() {
 	}
 
 	// Collect span timings when dropped and the destination service isn't empty
-	// TODO (marclop): Assuming that we always want the destination service
-	// resource to be not empty, check if that's a strict requirement here.
 	spanDuration := s.Duration - s.childrenTimer.finalDuration(endTime)
-	dstStvRes := s.Context.destinationService.Resource
-	if s.dropped() && dstStvRes != "" {
-		dss := s.tx.droppedSpansStats
-		key := spanTimingsKey{
-			spanType:        s.Type,
-			spanSubtype:     s.Subtype,
-			spanDstResource: dstStvRes,
-			spanOutcome:     s.Outcome,
-		}
-
-		timing, ok := dss[key]
-		if ok || len(dss) < (maxDroppedSpanStats) {
-			timing.count++
-			timing.duration += int64(spanDuration)
-			dss[key] = timing
-		}
+	if s.dropped() && s.IsExitSpan() {
+		dstStvRes := s.Context.destinationService.Resource
+		s.tx.droppedSpansStats.add(dstStvRes, s.Outcome, spanDuration)
 	}
 
 	s.tx.spanTimings.add(s.Type, s.Subtype, spanDuration)
