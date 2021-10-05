@@ -63,6 +63,14 @@ const (
 	envUseElasticTraceparentHeader = "ELASTIC_APM_USE_ELASTIC_TRACEPARENT_HEADER"
 	envCloudProvider               = "ELASTIC_APM_CLOUD_PROVIDER"
 
+	// NOTE(marclop) Experimental settings
+	// span_compression (default `false`)
+	envSpanCompressionEnabled = "ELASTIC_APM_SPAN_COMPRESSION_ENABLED"
+	// span_compression_exact_match_max_duration (default `50ms`)
+	envSpanCompressionExactMatchMaxDuration = "ELASTIC_APM_SPAN_COMPRESSION_EXACT_MATCH_MAX_DURATION"
+	// span_compression_same_kind_max_duration (default `5ms`)
+	envSpanCompressionSameKindMaxDuration = "ELASTIC_APM_SPAN_COMPRESSION_SAME_KIND_MAX_DURATION"
+
 	// NOTE(axw) profiling environment variables are experimental.
 	// They may be removed in a future minor version without being
 	// considered a breaking change.
@@ -87,6 +95,11 @@ const (
 	maxAPIRequestSize    = 5 * configutil.MByte
 	minMetricsBufferSize = 10 * configutil.KByte
 	maxMetricsBufferSize = 100 * configutil.MByte
+
+	// Experinmental Span Compressions default setting values
+	defaultSpanCompressionEnabled               = false
+	defaultSpanCompressionExactMatchMaxDuration = 50 * time.Millisecond
+	defaultSpanCompressionSameKindMaxDuration   = 5 * time.Millisecond
 )
 
 var (
@@ -296,6 +309,26 @@ func initialBreakdownMetricsEnabled() (bool, error) {
 
 func initialUseElasticTraceparentHeader() (bool, error) {
 	return configutil.ParseBoolEnv(envUseElasticTraceparentHeader, true)
+}
+
+func initialSpanCompressionEnabled() (bool, error) {
+	return configutil.ParseBoolEnv(envSpanCompressionEnabled,
+		defaultSpanCompressionEnabled,
+	)
+}
+
+func initialSpanCompressionExactMatchMaxDuration() (time.Duration, error) {
+	return configutil.ParseDurationEnv(
+		envSpanCompressionExactMatchMaxDuration,
+		defaultSpanCompressionExactMatchMaxDuration,
+	)
+}
+
+func initialSpanCompressionSameKindMaxDuration() (time.Duration, error) {
+	return configutil.ParseDurationEnv(
+		envSpanCompressionSameKindMaxDuration,
+		defaultSpanCompressionSameKindMaxDuration,
+	)
 }
 
 func initialCPUProfileIntervalDuration() (time.Duration, time.Duration, error) {
@@ -532,4 +565,9 @@ type instrumentationConfigValues struct {
 	propagateLegacyHeader bool
 	sanitizedFieldNames   wildcard.Matchers
 	ignoreTransactionURLs wildcard.Matchers
+
+	// compressed spans.
+	spanCompressionEnabled               bool
+	spanCompressionExactMatchMaxDuration time.Duration
+	spanCompressionSameKindMaxDuration   time.Duration
 }
