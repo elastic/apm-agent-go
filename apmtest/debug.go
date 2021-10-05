@@ -70,7 +70,7 @@ func WriteTraceWaterfall(w io.Writer, tx model.Transaction, spans []model.Span) 
 		}
 	}
 
-	maxWidth := int64(220)
+	maxWidth := int64(180)
 	buf := new(bytes.Buffer)
 	if tx.Duration > 0.0 {
 		writeSpan(buf, int(maxWidth), 0, fmt.Sprintf("transaction (%x) - %s", tx.ID, maxDuration.String()))
@@ -97,7 +97,7 @@ func WriteTraceWaterfall(w io.Writer, tx model.Transaction, spans []model.Span) 
 			time.Duration(span.Duration*float64(time.Millisecond)).String(),
 		)
 		if span.Composite != nil {
-			spancontent = fmt.Sprintf("%d*%s - %s",
+			spancontent = fmt.Sprintf("%d %s - %s",
 				span.Composite.Count, span.Name,
 				time.Duration(span.Duration*float64(time.Millisecond)).String(),
 			)
@@ -110,9 +110,9 @@ func WriteTraceWaterfall(w io.Writer, tx model.Transaction, spans []model.Span) 
 
 func writeSpan(buf *bytes.Buffer, width, pos int, content string) {
 	spaceRune := ' '
-	fillRune := ' '
-	startRune := '['
-	endRune := ']'
+	fillRune := '_'
+	startRune := '|'
+	endRune := '|'
 
 	// Prevent the spans from going out of bounds.
 	if pos == width {

@@ -22,6 +22,7 @@ import (
 	"encoding/binary"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"go.elastic.co/apm/stacktrace"
@@ -253,9 +254,7 @@ type Span struct {
 	transactionID SpanID
 	parentID      SpanID
 	exit          bool
-	ctxPropagated bool
-	composite     compositeSpan
-	buffer        spanBuffer
+	ctxPropagated uint32
 
 	mu sync.RWMutex
 
@@ -269,10 +268,7 @@ func (s *Span) TraceContext() TraceContext {
 	if s == nil {
 		return TraceContext{}
 	}
-	// TODO(marclop) maybe use atomic
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.ctxPropagated = true
+	atomic.CompareAndSwapUint32(&s.ctxPropagated, 0, 1)
 	return s.traceContext
 }
 
@@ -341,11 +337,9 @@ func (s *Span) End() {
 		s.setStacktrace(1)
 	}
 
-	compressionEnabled := s.tracer.instrumentationConfig().spanCompressionEnabled
-	if s.attemptCompress(compressionEnabled) {
+	if s.attemptCompress() {
 		return
 	}
-
 	if s.tx != nil {
 		s.reportSelfTime()
 	}
@@ -449,6 +443,8 @@ type SpanData struct {
 	stackTraceLimit        int
 	timestamp              time.Time
 	childrenTimer          childrenTimer
+	buffer                 spanBuffer
+	composite              compositeSpan
 
 	// Name holds the span name, initialized with the value passed to StartSpan.
 	Name string

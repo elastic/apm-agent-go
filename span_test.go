@@ -234,13 +234,14 @@ func TestCompressSpanExactMatch(t *testing.T) {
 			assertFunc: func(t *testing.T, tx model.Transaction, spans []model.Span) {
 				var composite = spans[0]
 				assert.Equal(t, composite.Context.Destination.Service.Resource, "mysql")
-				compositeSpanCount := 11
-				assert.Equal(t, composite.Composite.Count, compositeSpanCount)
+
+				assert.Equal(t, composite.Composite.Count, 11)
 				assert.Equal(t, composite.Composite.CompressionStrategy, "exact_match")
-				// Sum should be at least the time that each span ran for.
-				assert.Greater(t, composite.Composite.Sum,
-					float64(int64(compositeSpanCount)*100*1e6),
-				)
+				// Sum should be at least the time that each span ran for. The
+				// model time is in Milliseconds and the span duration should be
+				// at least 2 Milliseconds
+				assert.Greater(t, composite.Composite.Sum, float64(2))
+				assert.Greater(t, composite.Duration, float64(2))
 
 				for _, span := range spans {
 					if span.Type == "mysql" {
@@ -301,6 +302,7 @@ func TestCompressSpanExactMatch(t *testing.T) {
 			defer func() {
 				if t.Failed() {
 					apmtest.WriteTraceWaterfall(os.Stdout, tx, spans)
+					apmtest.WriteTraceTable(os.Stdout, tx, spans)
 				}
 			}()
 
@@ -317,7 +319,8 @@ func TestCompressSpanSameKind(t *testing.T) {
 
 	// Compress 5 spans into 1 and add another span with a different type
 	// [       Transaction       ]
-	//  [ mysql ] [ request (5) ]
+	// [mysql]
+	//        [    request (5)   ]
 	//
 	tx, spans, _ := tracer.WithTransaction(func(ctx context.Context) {
 		exitSpanOpt := apm.SpanOptions{ExitSpan: true}
@@ -347,6 +350,7 @@ func TestCompressSpanSameKind(t *testing.T) {
 	defer func() {
 		if t.Failed() {
 			apmtest.WriteTraceWaterfall(os.Stdout, tx, spans)
+			apmtest.WriteTraceTable(os.Stdout, tx, spans)
 		}
 	}()
 
@@ -401,6 +405,7 @@ func TestCompressSpanSameKindTunedMax(t *testing.T) {
 	defer func() {
 		if t.Failed() {
 			apmtest.WriteTraceWaterfall(os.Stdout, tx, spans)
+			apmtest.WriteTraceTable(os.Stdout, tx, spans)
 		}
 	}()
 
@@ -475,6 +480,7 @@ func TestCompressSpanSameKindParentSpan(t *testing.T) {
 
 	defer func() {
 		if t.Failed() {
+			apmtest.WriteTraceTable(os.Stdout, tx, spans)
 			apmtest.WriteTraceWaterfall(os.Stdout, tx, spans)
 		}
 	}()

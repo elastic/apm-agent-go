@@ -18,6 +18,7 @@
 package apm // import "go.elastic.co/apm"
 
 import (
+	"sync/atomic"
 	"time"
 
 	"go.elastic.co/apm/model"
@@ -30,12 +31,12 @@ const (
 )
 
 type compositeSpan struct {
+	lastSiblingEndTime time.Time
 	// this internal representation should be set in Nanoseconds, although
 	// the model unit is set in Milliseconds.
-	sum                 int64
+	sum                 time.Duration
 	count               int
 	compressionStrategy int
-	lastSiblingEndTime  time.Time
 }
 
 func (cs compositeSpan) build() *model.CompositeSpan {
@@ -53,6 +54,44 @@ func (cs compositeSpan) build() *model.CompositeSpan {
 
 func (cs compositeSpan) empty() bool {
 	return cs.count < 1
+}
+
+// A span is eligible for compression if all the following conditions are met
+// 1. It's an exit span
+// 2. The trace context has not been propagated to a downstream service
+// 3. If the span has outcome (i.e., outcome is present and it's not null) then
+//    it should be success. It means spans with outcome indicating an issue of
+//    potential interest should not be compressed.
+// The second condition is important so that we don't remove (compress) a span
+// that may be the parent of a downstream service. This would orphan the sub-
+// graph started by the downstream service and cause it to not appear in the
+// waterfall view.
+func compress(span *Span, sibling *Span) bool {
+	strategy := span.canCompressComposite(sibling)
+	if strategy == 0 {
+		strategy = span.canCompressStandard(sibling)
+	}
+
+	// If the span cannot be compressed using any strategy.
+	if strategy == 0 {
+		return false
+	}
+
+	if span.composite.empty() {
+		span.composite = compositeSpan{
+			count:               1,
+			sum:                 span.Duration,
+			compressionStrategy: strategy,
+		}
+	}
+
+	span.composite.count++
+	span.composite.sum += sibling.Duration
+	siblingTimestamp := sibling.timestamp.Add(sibling.Duration)
+	if siblingTimestamp.After(span.composite.lastSiblingEndTime) {
+		span.composite.lastSiblingEndTime = siblingTimestamp
+	}
+	return true
 }
 
 //
@@ -82,9 +121,10 @@ func (cs compositeSpan) empty() bool {
 //
 // Returns `true` when the span has been buffered, thus the caller should not
 // reportSelfTime and enqueue the span. When `false` is returned, the buffer is
-// flushed and the called should reportSelfTime and enqueue.
-func (s *Span) attemptCompress(compressionEnabled bool) bool {
-	if !compressionEnabled {
+// flushed and the caller should reportSelfTime and enqueue.
+func (s *Span) attemptCompress() bool {
+	nilReqs := s == nil || s.tx == nil || s.tx.TransactionData == nil
+	if nilReqs || !s.tx.compressedSpans.enabled {
 		return false
 	}
 
@@ -94,7 +134,7 @@ func (s *Span) attemptCompress(compressionEnabled bool) bool {
 		// Flush the buffer, have the caller report the span.
 		if !s.isCompressionEligible() {
 			if !s.buffer.empty() {
-				s.buffer.flush(nil)
+				s.buffer.flush()
 			}
 			return false
 		}
@@ -109,28 +149,22 @@ func (s *Span) attemptCompress(compressionEnabled bool) bool {
 		// When the span is compressable, try to compress it, report back true:
 		// On success: store it.
 		// On failure: flush and swap the cache with the current span.
-		if s.compress(s.parent.buffer.span) {
-			s.parent.buffer.store(s)
-		} else {
-			s.parent.buffer.flush(s)
+		if !compress(s, s.parent.buffer.span) {
+			s.parent.buffer.flush()
 		}
+		s.parent.buffer.store(s)
 		return true
-	}
-	// If the span has not parent and no transaction, it should be reported by
-	// the caller.
-	if s.tx == nil {
-		return false
 	}
 
 	if !s.isCompressionEligible() {
-		// At this point, the span isn't compressable which is likely to be a
+		// At this point, the span isn't compressable which is likely to be the
 		// parent or non-compressable sibling, either way, the transaction or
 		// the span's buffer needs to be flushed and `false` is returned.
 		if !s.tx.buffer.empty() {
-			s.tx.buffer.flush(nil)
+			s.tx.buffer.flush()
 		}
 		if !s.buffer.empty() {
-			s.buffer.flush(nil)
+			s.buffer.flush()
 		}
 		return false
 	}
@@ -144,10 +178,11 @@ func (s *Span) attemptCompress(compressionEnabled bool) bool {
 	// When the span is compressable, try to compress it, report back true:
 	// On success: store it.
 	// On failure: flush and swap the cache with the current span.
-	if s.tx.buffer.span.compress(s) {
+	if compress(s.tx.buffer.span, s) {
 		s.tx.buffer.span.buffer.store(s)
 	} else {
-		s.tx.buffer.flush(s)
+		s.tx.buffer.flush()
+		s.tx.buffer.store(s)
 	}
 	return true
 }
@@ -156,46 +191,9 @@ func (s *Span) isCompressionEligible() bool {
 	if s == nil {
 		return false
 	}
-	return s.exit && !s.ctxPropagated &&
+	ctxPropagated := atomic.LoadUint32(&s.ctxPropagated) == 1
+	return s.exit && !ctxPropagated &&
 		(s.Outcome == "" || s.Outcome == "success")
-}
-
-// A span is eligible for compression if all the following conditions are met
-// 1. It's an exit span
-// 2. The trace context has not been propagated to a downstream service
-// 3. If the span has outcome (i.e., outcome is present and it's not null) then
-//    it should be success. It means spans with outcome indicating an issue of
-//    potential interest should not be compressed.
-// The second condition is important so that we don't remove (compress) a span
-// that may be the parent of a downstream service. This would orphan the sub-
-// graph started by the downstream service and cause it to not appear in the
-// waterfall view.
-func (s *Span) compress(sibling *Span) bool {
-	strategy := s.canCompressComposite(sibling)
-	if strategy == 0 {
-		strategy = s.canCompressStandard(sibling)
-	}
-
-	// If the span cannot be compressed using any strategy.
-	if strategy == 0 {
-		return false
-	}
-
-	if s.composite.empty() {
-		s.composite = compositeSpan{
-			count:               1,
-			sum:                 int64(s.Duration),
-			compressionStrategy: strategy,
-		}
-	}
-
-	s.composite.count++
-	s.composite.sum += int64(sibling.Duration)
-	siblingTimestamp := sibling.timestamp.Add(sibling.Duration)
-	if siblingTimestamp.After(s.composite.lastSiblingEndTime) {
-		s.composite.lastSiblingEndTime = siblingTimestamp
-	}
-	return true
 }
 
 func (s *Span) canCompressStandard(sibling *Span) int {
@@ -215,7 +213,6 @@ func (s *Span) canCompressStandard(sibling *Span) int {
 		if s.durationLowerOrEq(sibling,
 			s.tx.compressedSpans.sameKindMaxDuration,
 		) {
-			s.Name = "Calls to " + s.Context.destinationService.Resource
 			return compressedStrategyExactMatch
 		}
 	}
@@ -257,13 +254,19 @@ type spanBuffer struct {
 
 func (b *spanBuffer) empty() bool { return b.span == nil }
 
-func (b *spanBuffer) store(s *Span) { preserveSpanData(s, b) }
+func (b *spanBuffer) store(s *Span) {
+	b.span = s
+	b.span.SpanData = s.SpanData
+}
 
 // flush enqueues a span to the tracer event queue, but first, it reports the
 // parent and tx timers when the breakdown metrics are enabled and when it's
 // a compressed span, the duration is adjusted to end when the last sibling
 // ended - first span event timestamp.
-func (b *spanBuffer) flush(s *Span) {
+func (b *spanBuffer) flush() {
+	b.span.tx.TransactionData.mu.Lock()
+	defer b.span.tx.TransactionData.mu.Unlock()
+
 	// When the span is a composite span, we need to adjust the duration
 	// just before it is reported and no more spans will be compressed into
 	// the composite. If we did this any time before, the duration of the span
@@ -271,29 +274,31 @@ func (b *spanBuffer) flush(s *Span) {
 	// compressable span not being compressed and reported separately.
 	if !b.span.composite.empty() {
 		b.span.Duration = b.span.composite.lastSiblingEndTime.Sub(b.span.timestamp)
+		b.span.Name = "Calls to " + b.span.Context.destinationService.Resource
 	}
 	if !b.span.tx.ended() && b.span.tx.breakdownMetricsEnabled {
 		b.span.reportSelfTimeLockless(b.span.timestamp.Add(b.span.Duration))
 	}
 
 	b.span.enqueue()
-	b.span = s
-	if s != nil {
-		preserveSpanData(s, b)
-	}
+	b.span = nil
 }
 
-func preserveSpanData(from *Span, to *spanBuffer) {
-	te := struct {
-		*Span
-		*SpanData
-	}{
-		Span:     from,
-		SpanData: from.SpanData,
-	}
-	to.span = te.Span
-	to.span.SpanData = te.SpanData
-}
+// A span is eligible for compression if all the following conditions are met
+// 1. It's an exit span
+// 2. The trace context has not been propagated to a downstream service
+// 3. If the span has outcome (i.e., outcome is present and it's not null) then
+//    it should be success. It means spans with outcome indicating an issue of
+//    potential interest should not be compressed.
+// The second condition is important so that we don't remove (compress) a span
+// that may be the parent of a downstream service. This would orphan the sub-
+// graph started by the downstream service and cause it to not appear in the
+// waterfall view.
+// func (s *spanBuffer) compress(sibling *Span) bool {
+// 	ok := s.span.compress(sibling)
+// 	s.store(s.span)
+// 	return ok
+// }
 
 //
 // SpanData //

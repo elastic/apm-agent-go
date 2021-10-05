@@ -145,7 +145,7 @@ func (w *modelWriter) buildModelSpan(out *model.Span, span *Span, sd *SpanData) 
 	out.Duration = sd.Duration.Seconds() * 1000
 	out.Outcome = normalizeOutcome(sd.Outcome)
 	out.Context = sd.Context.build()
-	if span.composite.count > 1 {
+	if sd.composite.count > 1 {
 		out.Composite = span.composite.build()
 	}
 

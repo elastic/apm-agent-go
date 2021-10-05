@@ -166,7 +166,6 @@ type Transaction struct {
 	tracer       *Tracer
 	traceContext TraceContext
 	parentID     SpanID
-	buffer       spanBuffer
 
 	mu sync.RWMutex
 
@@ -284,7 +283,7 @@ func (tx *Transaction) End() {
 			tx.Outcome = tx.Context.outcome()
 		}
 		if !tx.buffer.empty() {
-			tx.buffer.flush(nil)
+			tx.buffer.flush()
 		}
 		tx.enqueue()
 	} else {
@@ -356,7 +355,6 @@ type TransactionData struct {
 
 	recording               bool
 	maxSpans                int
-	compressedSpans         compressionOptions
 	spanFramesMinDuration   time.Duration
 	stackTraceLimit         int
 	breakdownMetricsEnabled bool
@@ -369,6 +367,9 @@ type TransactionData struct {
 	childrenTimer childrenTimer
 	spanTimings   spanTimingsMap
 	rand          *rand.Rand // for ID generation
+
+	compressedSpans compressionOptions
+	buffer          spanBuffer
 }
 
 // reset resets the TransactionData back to its zero state and places it back
