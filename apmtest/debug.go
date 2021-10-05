@@ -97,7 +97,10 @@ func WriteTraceWaterfall(w io.Writer, tx model.Transaction, spans []model.Span) 
 			time.Duration(span.Duration*float64(time.Millisecond)).String(),
 		)
 		if span.Composite != nil {
-			spancontent = fmt.Sprintf("%d*%s", span.Composite.Count, spancontent)
+			spancontent = fmt.Sprintf("%d*%s - %s",
+				span.Composite.Count, span.Name,
+				time.Duration(span.Duration*float64(time.Millisecond)).String(),
+			)
 		}
 		writeSpan(buf, width, pos, spancontent)
 	}

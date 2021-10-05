@@ -254,7 +254,7 @@ func TestCompressSpanExactMatch(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if test.setup != nil {
-				t.Cleanup(test.setup(t))
+				defer test.setup(t)()
 			}
 
 			tracer := apmtest.NewRecordingTracer()
