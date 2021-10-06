@@ -327,6 +327,7 @@ type Tracer struct {
 	breakdownMetrics  *breakdownMetrics
 	profileSender     profileSender
 
+	// stats is heap-allocated to ensure correct alignment for atomic access.
 	stats *TracerStats
 
 	// instrumentationConfig_ must only be accessed and mutated
