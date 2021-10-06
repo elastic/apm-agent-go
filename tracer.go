@@ -327,7 +327,7 @@ type Tracer struct {
 	breakdownMetrics  *breakdownMetrics
 	profileSender     profileSender
 
-	stats TracerStats
+	stats *TracerStats
 
 	// instrumentationConfig_ must only be accessed and mutated
 	// using Tracer.instrumentationConfig() and Tracer.setInstrumentationConfig().
@@ -386,6 +386,7 @@ func newTracer(opts TracerOptions) *Tracer {
 		events:            make(chan tracerEvent, tracerEventChannelCap),
 		active:            1,
 		breakdownMetrics:  newBreakdownMetrics(),
+		stats:             &TracerStats{},
 		bufferSize:        opts.bufferSize,
 		metricsBufferSize: opts.metricsBufferSize,
 		profileSender:     opts.profileSender,
