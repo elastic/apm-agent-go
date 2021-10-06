@@ -333,9 +333,7 @@ func (e *ErrorData) enqueue() {
 	case e.tracer.events <- tracerEvent{eventType: errorEvent, err: e}:
 	default:
 		// Enqueuing an error should never block.
-		e.tracer.statsMu.Lock()
-		e.tracer.stats.ErrorsDropped++
-		e.tracer.statsMu.Unlock()
+		e.tracer.stats.accumulate(TracerStats{ErrorsDropped: 1})
 		e.reset()
 	}
 }
