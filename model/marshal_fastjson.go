@@ -1348,16 +1348,6 @@ func (v *Request) MarshalFastJSON(w *fastjson.Writer) error {
 func (v *RequestSocket) MarshalFastJSON(w *fastjson.Writer) error {
 	w.RawByte('{')
 	first := true
-	if v.Encrypted != false {
-		const prefix = ",\"encrypted\":"
-		if first {
-			first = false
-			w.RawString(prefix[1:])
-		} else {
-			w.RawString(prefix)
-		}
-		w.Bool(v.Encrypted)
-	}
 	if v.RemoteAddress != "" {
 		const prefix = ",\"remote_address\":"
 		if first {
