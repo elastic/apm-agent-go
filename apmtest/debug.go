@@ -21,12 +21,12 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"math"
 	"sort"
 	"text/tabwriter"
 	"time"
 	"unicode/utf8"
 
+	"go.elastic.co/apm/internal/apmmath"
 	"go.elastic.co/apm/model"
 )
 
@@ -81,13 +81,13 @@ func WriteTraceWaterfall(w io.Writer, tx model.Transaction, spans []model.Span) 
 	})
 
 	for _, span := range spans {
-		pos := int(math.Round(
+		pos := int(apmmath.Round(
 			float64(time.Time(span.Timestamp).Sub(time.Time(tx.Timestamp))) /
 				float64(maxDuration) * float64(maxWidth),
 		))
 		tDur := time.Duration(span.Duration * float64(time.Millisecond))
 		dur := float64(tDur) / float64(maxDuration)
-		width := int(math.Round(dur * float64(maxWidth)))
+		width := int(apmmath.Round(dur * float64(maxWidth)))
 		if width == int(maxWidth) {
 			width = int(maxWidth) - 1
 		}

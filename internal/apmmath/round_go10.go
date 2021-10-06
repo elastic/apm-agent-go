@@ -15,20 +15,14 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//go:build !go1.10
-// +build !go1.10
+//go:build go1.10
+// +build go1.10
 
-package apm // import "go.elastic.co/apm"
+package apmmath
 
 import "math"
 
-// Implementation of math.Round for Go < 1.10.
-//
-// Code shamelessly copied from pkg/math.
-func round(x float64) float64 {
-	t := math.Trunc(x)
-	if math.Abs(x-t) >= 0.5 {
-		return t + math.Copysign(1, x)
-	}
-	return t
+// Round is the current math.Round implementation for >= Go1.10.
+func Round(x float64) float64 {
+	return math.Round(x)
 }
