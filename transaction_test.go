@@ -516,7 +516,6 @@ func TestTransactionDroppedSpansStatsChangedLimit(t *testing.T) {
 		}
 	}
 
-	// transactionDuration := 1 + 10*300 + 50*10 + 20*10
 	metrics := payloadsBreakdownMetrics(transport)
 	assertMetrics := make([]model.Metrics, 0, len(metrics))
 	for i := 0; i < 300; i++ {
