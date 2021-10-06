@@ -66,11 +66,6 @@ type spanTimingsKey struct {
 	spanSubtype string
 }
 
-type droppedSpanTimingsKey struct {
-	destination string
-	outcome     string
-}
-
 // spanTiming records the number of times a {spanType, spanSubtype} pair
 // has occurred (within the context of a transaction group), along with
 // the sum of the span durations.

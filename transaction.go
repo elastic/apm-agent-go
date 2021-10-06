@@ -387,6 +387,11 @@ func (td *TransactionData) reset(tracer *Tracer) {
 	tracer.transactionDataPool.Put(td)
 }
 
+type droppedSpanTimingsKey struct {
+	destination string
+	outcome     string
+}
+
 // droppedSpanTimingsMap records span timings for groups of dropped spans.
 type droppedSpanTimingsMap map[droppedSpanTimingsKey]spanTiming
 

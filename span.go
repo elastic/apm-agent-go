@@ -400,14 +400,14 @@ func (s *Span) reportSelfTime() {
 		s.tx.childrenTimer.childEnded(endTime)
 	}
 
-	// Collect span timings when dropped and the destination service isn't empty
-	spanDuration := s.Duration - s.childrenTimer.finalDuration(endTime)
-	if s.dropped() && s.IsExitSpan() {
-		dstStvRes := s.Context.destinationService.Resource
-		s.tx.droppedSpansStats.add(dstStvRes, s.Outcome, spanDuration)
+	// An exit span would have the destination service set but in any case, we
+	// check the field value before adding an entry to the dropped spans stats.
+	service := s.Context.destinationService.Resource
+	if s.dropped() && s.IsExitSpan() && service != "" {
+		s.tx.droppedSpansStats.add(service, s.Outcome, s.Duration)
 	}
 
-	s.tx.spanTimings.add(s.Type, s.Subtype, spanDuration)
+	s.tx.spanTimings.add(s.Type, s.Subtype, s.Duration-s.childrenTimer.finalDuration(endTime))
 }
 
 func (s *Span) enqueue() {

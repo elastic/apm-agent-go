@@ -18,6 +18,8 @@
 package apm // import "go.elastic.co/apm"
 
 import (
+	"time"
+
 	"go.elastic.co/apm/internal/ringbuffer"
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/stacktrace"
@@ -279,7 +281,7 @@ func normalizeOutcome(outcome string) string {
 }
 
 func buildDroppedSpansStats(dss droppedSpanTimingsMap) []model.DroppedSpansStats {
-	out := make([]model.DroppedSpansStats, 0, 128)
+	out := make([]model.DroppedSpansStats, 0, len(dss))
 	for k, timing := range dss {
 		out = append(out, model.DroppedSpansStats{
 			DestinationServiceResource: k.destination,
@@ -289,7 +291,7 @@ func buildDroppedSpansStats(dss droppedSpanTimingsMap) []model.DroppedSpansStats
 				Sum: model.DurationSum{
 					// The internal representation of spanTimingsMap is in time.Nanosecond
 					// unit which we need to convert to us.
-					Us: timing.duration / 1e3,
+					Us: timing.duration / int64(time.Microsecond),
 				},
 			},
 		})
