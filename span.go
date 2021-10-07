@@ -408,9 +408,7 @@ func (s *Span) enqueue() {
 	case s.tracer.events <- event:
 	default:
 		// Enqueuing a span should never block.
-		s.tracer.statsMu.Lock()
-		s.tracer.stats.SpansDropped++
-		s.tracer.statsMu.Unlock()
+		s.tracer.stats.accumulate(TracerStats{SpansDropped: 1})
 		s.reset(s.tracer)
 	}
 }
