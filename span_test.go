@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sort"
 	"testing"
 	"time"
 
@@ -194,11 +195,26 @@ func TestStartExitSpan(t *testing.T) {
 
 func TestCompressSpanExactMatch(t *testing.T) {
 	tests := []struct {
-		name               string
-		compressionEnabled bool
 		setup              func(t *testing.T) func()
 		assertFunc         func(t *testing.T, tx model.Transaction, spans []model.Span)
+		name               string
+		compressionEnabled bool
 	}{
+		// |______________transaction (095b51e1b6ca784c) - 2.0013ms_______________|
+		// m
+		// m
+		// m
+		// m
+		// m
+		// m
+		// m
+		// m
+		// m
+		// m
+		// |___________________mysql SELECT * FROM users - 2ms____________________|
+		//                                                                        r
+		//                                                                        i
+		//                                                                        r
 		{
 			name:               "CompressFalse",
 			compressionEnabled: false,
@@ -210,38 +226,58 @@ func TestCompressSpanExactMatch(t *testing.T) {
 				}
 			},
 		},
+		// |______________transaction (7d3254511f02b26b) - 2.0013ms_______________|
+		// 1
+		// |___________________mysql SELECT * FROM users - 2ms____________________|
+		//                                                                        r
+		//                                                                        i
+		//                                                                        r
 		{
 			name:               "CompressTrueSettingTweak",
 			compressionEnabled: true,
 			setup: func(t *testing.T) func() {
+				// This setting
 				envVarName := "ELASTIC_APM_SPAN_COMPRESSION_EXACT_MATCH_MAX_DURATION"
 				og := os.Getenv(envVarName)
 				os.Setenv(envVarName, "1ms")
 				return func() { os.Setenv(envVarName, og) }
 			},
 			assertFunc: func(t *testing.T, tx model.Transaction, spans []model.Span) {
-				require.NotEmpty(t, tx)
-				// This setting
+				require.NotNil(t, tx)
 				require.Equal(t, 5, len(spans))
+				composite := spans[0]
+				require.NotNil(t, composite.Composite)
+				assert.Equal(t, "exact_match", composite.Composite.CompressionStrategy)
+				assert.Equal(t, composite.Composite.Count, 10)
+				assert.Equal(t, 0.001, composite.Composite.Sum)
+				assert.Equal(t, 0.001, composite.Duration)
+
 				for _, span := range spans[1:] {
 					require.Nil(t, span.Composite)
 				}
 			},
 		},
+		// |______________transaction (5797fe58c6ccce29) - 2.0013ms_______________|
+		// |_____________________11 Calls to mysql - 2.001ms______________________|
+		//                                                                        r
+		//                                                                        i
+		//                                                                        r
 		{
 			name:               "CompressSpanCount4",
 			compressionEnabled: true,
 			assertFunc: func(t *testing.T, tx model.Transaction, spans []model.Span) {
+				require.NotEmpty(t, tx)
 				var composite = spans[0]
 				assert.Equal(t, composite.Context.Destination.Service.Resource, "mysql")
 
+				require.NotNil(t, composite.Composite)
 				assert.Equal(t, composite.Composite.Count, 11)
-				assert.Equal(t, composite.Composite.CompressionStrategy, "exact_match")
+				assert.Equal(t, "exact_match", composite.Composite.CompressionStrategy)
 				// Sum should be at least the time that each span ran for. The
 				// model time is in Milliseconds and the span duration should be
 				// at least 2 Milliseconds
-				assert.Greater(t, composite.Composite.Sum, float64(2))
-				assert.Greater(t, composite.Duration, float64(2))
+				assert.Equal(t, int(composite.Composite.Sum), 2)
+				assert.Equal(t, int(composite.Duration), 2)
 
 				for _, span := range spans {
 					if span.Type == "mysql" {
@@ -259,6 +295,7 @@ func TestCompressSpanExactMatch(t *testing.T) {
 			}
 
 			tracer := apmtest.NewRecordingTracer()
+			defer tracer.Close()
 			tracer.SetSpanCompressionEnabled(test.compressionEnabled)
 
 			// When compression is enabled:
@@ -266,48 +303,71 @@ func TestCompressSpanExactMatch(t *testing.T) {
 			// [                    Transaction                    ]
 			//  [ mysql (11) ] [ request ] [ internal ] [ request ]
 			//
-			tx, spans, _ := tracer.WithTransaction(func(ctx context.Context) {
-				exitSpanOpt := apm.SpanOptions{ExitSpan: true}
-				for i := 0; i < 10; i++ {
-					span, _ := apm.StartSpanOptions(ctx, "SELECT * FROM users", "mysql", exitSpanOpt)
-					<-time.After(100 * time.Nanosecond)
-					span.End()
-				}
-				{
-					span, _ := apm.StartSpanOptions(ctx, "SELECT * FROM users", "mysql", exitSpanOpt)
-					<-time.After(2 * time.Millisecond)
-					span.End()
-				}
+			txStart := time.Now()
+			tx := tracer.StartTransactionOptions("name", "type",
+				apm.TransactionOptions{Start: txStart},
+			)
+			currentTime := txStart
+			for i := 0; i < 10; i++ {
+				span := tx.StartSpanOptions("SELECT * FROM users", "mysql", apm.SpanOptions{
+					ExitSpan: true, Start: currentTime,
+				})
+				span.Duration = 100 * time.Nanosecond
+				currentTime = currentTime.Add(span.Duration)
+				span.End()
+			}
+			{
+				span := tx.StartSpanOptions("SELECT * FROM users", "mysql", apm.SpanOptions{
+					ExitSpan: true, Start: currentTime,
+				})
+				span.Duration = 2 * time.Millisecond
+				currentTime = currentTime.Add(span.Duration)
+				span.End()
+			}
 
-				// None of these should be added to the composite.
-				{
-					span, _ := apm.StartSpanOptions(ctx, "GET /", "request", exitSpanOpt)
-					<-time.After(100 * time.Nanosecond)
-					span.End()
-				}
-				{
-					// Not an exit span, should not be compressed
-					span, _ := apm.StartSpan(ctx, "calculate complex", "internal")
-					<-time.After(100 * time.Nanosecond)
-					span.End()
-				}
-				{
-					// Exit span, this is a good candidate to be compressed, but
-					// since it can't be compressed with the last request type ("internal")
-					span, _ := apm.StartSpanOptions(ctx, "GET /", "request", exitSpanOpt)
-					<-time.After(100 * time.Nanosecond)
-					span.End()
-				}
-			})
+			// None of these should be added to the composite.
+			{
+				span := tx.StartSpanOptions("GET /", "request", apm.SpanOptions{
+					ExitSpan: true, Start: currentTime,
+				})
+				span.Duration = 100 * time.Nanosecond
+				currentTime = currentTime.Add(span.Duration)
+				span.End()
+			}
+			{
+				// Not an exit span, should not be compressed
+				span := tx.StartSpanOptions("calculate complex", "internal", apm.SpanOptions{
+					Start: currentTime,
+				})
+				span.Duration = 100 * time.Nanosecond
+				currentTime = currentTime.Add(span.Duration)
+				span.End()
+			}
+			{
+				// Exit span, this is a good candidate to be compressed, but
+				// since it can't be compressed with the last request type ("internal")
+				span := tx.StartSpanOptions("GET /", "request", apm.SpanOptions{
+					ExitSpan: true, Start: currentTime,
+				})
+				span.Duration = 100 * time.Nanosecond
+				currentTime = currentTime.Add(span.Duration)
+				span.End()
+			}
+			tx.Duration = currentTime.Sub(txStart)
+			tx.End()
+			tracer.Flush(nil)
+
+			transaction := tracer.Payloads().Transactions[0]
+			spans := tracer.Payloads().Spans
 			defer func() {
 				if t.Failed() {
-					apmtest.WriteTraceWaterfall(os.Stdout, tx, spans)
-					apmtest.WriteTraceTable(os.Stdout, tx, spans)
+					apmtest.WriteTraceWaterfall(os.Stdout, transaction, spans)
+					apmtest.WriteTraceTable(os.Stdout, transaction, spans)
 				}
 			}()
 
 			if test.assertFunc != nil {
-				test.assertFunc(t, tx, spans)
+				test.assertFunc(t, transaction, spans)
 			}
 		})
 	}
@@ -315,63 +375,80 @@ func TestCompressSpanExactMatch(t *testing.T) {
 
 func TestCompressSpanSameKind(t *testing.T) {
 	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
 	tracer.SetSpanCompressionEnabled(true)
 
 	// Compress 5 spans into 1 and add another span with a different type
-	// [       Transaction       ]
-	// [mysql]
-	//        [    request (5)   ]
+	// |______________transaction (572da67c206e9996) - 6.0006ms_______________|
+	// m
+	// 5
+	// |________________________request GET /f - 6ms_________________________|
 	//
-	tx, spans, _ := tracer.WithTransaction(func(ctx context.Context) {
-		exitSpanOpt := apm.SpanOptions{ExitSpan: true}
-		path := []string{"/a", "/b", "/c", "/d", "/e"}
-		// Span is compressable, but cannot be compressed since the next span
-		// is not the same kind. It gets published.
-		{
-			span, _ := apm.StartSpanOptions(ctx, "SELECT * FROM users", "mysql", exitSpanOpt)
-			<-time.After(100 * time.Nanosecond)
-			span.End()
-		}
-		// These spans should be compressed into 1.
-		for i := 0; i < 5; i++ {
-			uri := fmt.Sprint("GET ", path[i])
-			span, _ := apm.StartSpanOptions(ctx, uri, "request", exitSpanOpt)
-			<-time.After(100 * time.Nanosecond)
-			span.End()
-		}
-		// This span exceeds the threshold and will not be compressed.
-		{
-			span, _ := apm.StartSpanOptions(ctx, "GET /f", "request", exitSpanOpt)
-			<-time.After(time.Millisecond)
-			span.End()
-		}
-	})
+	txStart := time.Now()
+	tx := tracer.StartTransactionOptions("name", "type",
+		apm.TransactionOptions{Start: txStart},
+	)
+	currentTime := txStart
 
+	// Span is compressable, but cannot be compressed since the next span
+	// is not the same kind. It's published.
+	{
+		span := tx.StartSpanOptions("SELECT * FROM users", "mysql", apm.SpanOptions{
+			ExitSpan: true, Start: currentTime,
+		})
+		span.Duration = 100 * time.Nanosecond
+		currentTime = currentTime.Add(span.Duration)
+		span.End()
+	}
+
+	// These spans should be compressed into 1.
+	path := []string{"/a", "/b", "/c", "/d", "/e"}
+	for i := 0; i < 5; i++ {
+		span := tx.StartSpanOptions(fmt.Sprint("GET ", path[i]), "request", apm.SpanOptions{
+			ExitSpan: true, Start: currentTime,
+		})
+		span.Duration = 100 * time.Nanosecond
+		currentTime = currentTime.Add(span.Duration)
+		span.End()
+	}
+	// This span exceeds the threshold and will not be compressed.
+	{
+		span := tx.StartSpanOptions("GET /f", "request", apm.SpanOptions{
+			ExitSpan: true, Start: currentTime,
+		})
+		span.Duration = 6 * time.Millisecond
+		currentTime = currentTime.Add(span.Duration)
+		span.End()
+	}
+	tx.Duration = currentTime.Sub(txStart)
+	tx.End()
+	tracer.Flush(nil)
+
+	transaction := tracer.Payloads().Transactions[0]
+	spans := tracer.Payloads().Spans
 	defer func() {
 		if t.Failed() {
-			apmtest.WriteTraceWaterfall(os.Stdout, tx, spans)
-			apmtest.WriteTraceTable(os.Stdout, tx, spans)
+			apmtest.WriteTraceWaterfall(os.Stdout, transaction, spans)
+			apmtest.WriteTraceTable(os.Stdout, transaction, spans)
 		}
 	}()
 
-	assert.NotNil(t, tx)
-	assert.Equal(t, 2, len(spans))
+	require.NotNil(t, transaction)
+	assert.Equal(t, 3, len(spans))
 
 	mysqlSpan := spans[0]
-	assert.Equal(t, mysqlSpan.Context.Destination.Service.Resource, "mysql")
+	assert.Equal(t, "mysql", mysqlSpan.Context.Destination.Service.Resource)
 	assert.Nil(t, mysqlSpan.Composite)
 
 	requestSpan := spans[1]
-	assert.Equal(t, requestSpan.Context.Destination.Service.Resource, "request")
-	assert.NotNil(t, requestSpan.Composite)
-	assert.Equal(t, requestSpan.Composite.Count, 6)
-	assert.Equal(t, requestSpan.Name, "Calls to request")
-	// Check that the aggregate sum is at least the duration of the time we
-	// we waited for.
-	assert.Greater(t, requestSpan.Composite.Sum, float64(5*100/time.Millisecond))
-
-	// Check that the total composite span duration is at least 5 milliseconds.
-	assert.Greater(t, requestSpan.Duration, float64(5*100/time.Millisecond))
+	assert.Equal(t, "request", requestSpan.Context.Destination.Service.Resource)
+	require.NotNil(t, requestSpan.Composite)
+	assert.Equal(t, 5, requestSpan.Composite.Count)
+	assert.Equal(t, "same_kind", requestSpan.Composite.CompressionStrategy)
+	assert.Equal(t, "Calls to request", requestSpan.Name)
+	// Check that the sum and span duration is at least the duration of the time set.
+	assert.Equal(t, 0.0005, requestSpan.Composite.Sum, 0.001, requestSpan.Composite.Sum)
+	assert.Equal(t, 0.0005, requestSpan.Duration, 0.001, requestSpan.Duration)
 }
 
 func TestCompressSpanSameKindTunedMax(t *testing.T) {
@@ -380,37 +457,51 @@ func TestCompressSpanSameKindTunedMax(t *testing.T) {
 	tracer.SetSpanCompressionSameKindMaxDuration(10 * time.Millisecond)
 
 	// Compress 5 spans into 1 and add another span with a different type
-	// [       Transaction       ]
-	//  [ mysql ] [ request (5) ]
-	//
-	tx, spans, _ := tracer.WithTransaction(func(ctx context.Context) {
-		exitSpanOpt := apm.SpanOptions{ExitSpan: true}
-		path := []string{"/a", "/b", "/c", "/d", "/e"}
-		// Span is compressable, but cannot be compressed since the next span
-		// is not the same kind. It gets published.
-		{
-			span, _ := apm.StartSpanOptions(ctx, "SELECT * FROM users", "mysql", exitSpanOpt)
-			<-time.After(100 * time.Nanosecond)
-			span.End()
-		}
-		// These spans should be compressed into 1.
-		for i := 0; i < 5; i++ {
-			uri := fmt.Sprint("GET ", path[i])
-			span, _ := apm.StartSpanOptions(ctx, uri, "request", exitSpanOpt)
-			<-time.After(time.Millisecond)
-			span.End()
-		}
-	})
+	// |______________transaction (2b273f4efd1037c0) - 5.0001ms_______________|
+	// m
+	// |______________________5 Calls to request - 5ms_______________________|
+	txStart := time.Now()
+	tx := tracer.StartTransactionOptions("name", "type",
+		apm.TransactionOptions{Start: txStart},
+	)
 
+	currentTime := txStart
+	// Span is compressable, but cannot be compressed since the next span
+	// is not the same kind. It gets published.
+	path := []string{"/a", "/b", "/c", "/d", "/e"}
+	{
+		span := tx.StartSpanOptions("SELECT * FROM users", "mysql", apm.SpanOptions{
+			ExitSpan: true, Start: currentTime,
+		})
+		span.Duration = 100 * time.Nanosecond
+		currentTime = currentTime.Add(span.Duration)
+		span.End()
+	}
+	// These spans should be compressed into 1.
+	for i := 0; i < 5; i++ {
+		span := tx.StartSpanOptions(fmt.Sprint("GET ", path[i]), "request", apm.SpanOptions{
+			ExitSpan: true, Start: currentTime,
+		})
+		span.Duration = time.Millisecond
+		currentTime = currentTime.Add(span.Duration)
+		span.End()
+	}
+
+	tx.Duration = currentTime.Sub(txStart)
+	tx.End()
+	tracer.Flush(nil)
+
+	transaction := tracer.Payloads().Transactions[0]
+	spans := tracer.Payloads().Spans
 	defer func() {
 		if t.Failed() {
-			apmtest.WriteTraceWaterfall(os.Stdout, tx, spans)
-			apmtest.WriteTraceTable(os.Stdout, tx, spans)
+			apmtest.WriteTraceWaterfall(os.Stdout, transaction, spans)
+			apmtest.WriteTraceTable(os.Stdout, transaction, spans)
 		}
 	}()
 
-	assert.NotNil(t, tx)
-	assert.Equal(t, 2, len(spans))
+	require.NotNil(t, transaction)
+	require.Equal(t, 2, len(spans))
 
 	mysqlSpan := spans[0]
 	assert.Equal(t, mysqlSpan.Context.Destination.Service.Resource, "mysql")
@@ -419,8 +510,9 @@ func TestCompressSpanSameKindTunedMax(t *testing.T) {
 	requestSpan := spans[1]
 	assert.Equal(t, requestSpan.Context.Destination.Service.Resource, "request")
 	assert.NotNil(t, requestSpan.Composite)
-	assert.Equal(t, requestSpan.Composite.Count, 5)
-	assert.Equal(t, requestSpan.Name, "Calls to request")
+	assert.Equal(t, 5, requestSpan.Composite.Count)
+	assert.Equal(t, "Calls to request", requestSpan.Name)
+	assert.Equal(t, "same_kind", requestSpan.Composite.CompressionStrategy)
 	// Check that the aggregate sum is at least the duration of the time we
 	// we waited for.
 	assert.Greater(t, requestSpan.Composite.Sum, float64(5*100/time.Millisecond))
@@ -434,57 +526,90 @@ func TestCompressSpanSameKindParentSpan(t *testing.T) {
 	tracer.SetSpanCompressionEnabled(true)
 
 	// This test case covers spans that have other spans as parents.
-	tx, spans, _ := tracer.WithTransaction(func(ctx context.Context) {
-		{
-			// Doesn't compress any spans since none meet the necessary conditions
-			// the "request" type are both the same type but the parent
-			// [       Transaction       ...snip
-			//  [       internal op     ]
-			//   [        request      ]
-			//          [   request   ]
-			//
-			parent, ctx := apm.StartSpan(ctx, "internal op", "internal")
-			// Have span propagate context downstream, this should not allow for
-			// compression
-			child, ctx := apm.StartSpan(ctx, "GET /resource", "request")
-			grandChild, _ := apm.StartSpanOptions(ctx, "GET /different", "request", apm.SpanOptions{
-				ExitSpan: true,
-				Parent:   child.TraceContext(),
-			})
-			<-time.After(500 * time.Nanosecond)
-			grandChild.End()
-			child.End()
-			parent.End()
-		}
-		{
-			// Compresses the last two spans together since they are both exit
-			// spans, same "request" type, don't propagate ctx and succeed.
-			// ..continued  Transaction   ]
-			//  [       internal op     ]
-			//       [  request (2)   ]  ( [GET /res] [GET /diff] )
-			//
-			exitSpanOpts := apm.SpanOptions{ExitSpan: true}
-			parent, ctx := apm.StartSpan(ctx, "another op", "internal")
-			child, _ := apm.StartSpanOptions(ctx, "GET /res", "request", exitSpanOpts)
-			<-time.After(300 * time.Nanosecond)
+	// |_______________transaction (6b1e4866252dea6f) - 1.45ms________________|
+	// |__internal internal op - 700µs___|
+	//      |request GET /r|
+	//       |request G|
+	//                                    |___internal another op - 750µs____|
+	//                                         |2 Calls to re|
+	txStart := time.Now()
+	tx := tracer.StartTransactionOptions("name", "type",
+		apm.TransactionOptions{Start: txStart},
+	)
 
-			otherChild, _ := apm.StartSpanOptions(ctx, "GET /diff", "request", exitSpanOpts)
-			<-time.After(300 * time.Nanosecond)
+	currentTime := txStart
+	{
+		// Doesn't compress any spans since none meet the necessary conditions
+		// the "request" type are both the same type but the parent
+		parent := tx.StartSpanOptions("internal op", "internal", apm.SpanOptions{
+			Start: currentTime,
+		})
+		// Have span propagate context downstream, this should not allow for
+		// compression
+		child := tx.StartSpanOptions("GET /resource", "request", apm.SpanOptions{
+			Parent: parent.TraceContext(),
+			Start:  currentTime.Add(100 * time.Microsecond),
+		})
 
-			otherChild.End()
-			child.End()
+		grandChild := tx.StartSpanOptions("GET /different", "request", apm.SpanOptions{
+			ExitSpan: true,
+			Parent:   parent.TraceContext(),
+			Start:    currentTime.Add(120 * time.Microsecond),
+		})
 
-			parent.End()
-		}
-	})
+		grandChild.Duration = 200 * time.Microsecond
+		grandChild.End()
+
+		child.Duration = 300 * time.Microsecond
+		child.End()
+
+		parent.Duration = 700 * time.Microsecond
+		currentTime = currentTime.Add(parent.Duration)
+		parent.End()
+	}
+	{
+		// Compresses the last two spans together since they are  both exit
+		// spans, same "request" type, don't propagate ctx and succeed.
+		parent := tx.StartSpanOptions("another op", "internal", apm.SpanOptions{
+			Start: currentTime.Add(50 * time.Microsecond),
+		})
+		child := tx.StartSpanOptions("GET /res", "request", apm.SpanOptions{
+			ExitSpan: true,
+			Parent:   parent.TraceContext(),
+			Start:    currentTime.Add(120 * time.Microsecond),
+		})
+
+		otherChild := tx.StartSpanOptions("GET /diff", "request", apm.SpanOptions{
+			ExitSpan: true,
+			Parent:   parent.TraceContext(),
+			Start:    currentTime.Add(150 * time.Microsecond),
+		})
+
+		child.Duration = 300 * time.Microsecond
+		child.End()
+
+		otherChild.Duration = 250 * time.Microsecond
+		otherChild.End()
+
+		parent.Duration = 750 * time.Microsecond
+		currentTime = currentTime.Add(parent.Duration)
+		parent.End()
+	}
+
+	tx.Duration = currentTime.Sub(txStart)
+	tx.End()
+	tracer.Flush(nil)
+
+	transaction := tracer.Payloads().Transactions[0]
+	spans := tracer.Payloads().Spans
 
 	defer func() {
 		if t.Failed() {
-			apmtest.WriteTraceTable(os.Stdout, tx, spans)
-			apmtest.WriteTraceWaterfall(os.Stdout, tx, spans)
+			apmtest.WriteTraceTable(os.Stdout, transaction, spans)
+			apmtest.WriteTraceWaterfall(os.Stdout, transaction, spans)
 		}
 	}()
-	assert.NotNil(t, tx)
+	require.NotNil(t, transaction)
 	assert.Equal(t, 5, len(spans))
 
 	// Since the spans are started very close together, even a time.Sleep
@@ -505,10 +630,115 @@ func TestCompressSpanSameKindParentSpan(t *testing.T) {
 	}
 
 	assert.NotNil(t, compositeSpan)
-	assert.NotNil(t, compositeSpan.Composite)
+	require.NotNil(t, compositeSpan.Composite)
 	assert.Equal(t, compositeSpan.Composite.Count, 2)
 	assert.Equal(t, compositeSpan.ParentID, compositeParent.ID)
 	assert.GreaterOrEqual(t, compositeParent.Duration, compositeSpan.Duration)
+}
+
+func TestCompressSpanSameKindParentSpanContext(t *testing.T) {
+	// This test ensures that the compression also works when the s.Parent is
+	// set (via the context.Context).
+	// |________________transaction (ab51fc698fef307a) - 15ms_________________|
+	//      |___________________internal parent - 13ms____________________|
+	//             |3 Calls to re|
+	//                                  |internal algorithm - 5m|
+	//                                      |2 Calls t|
+	//                                                |inte|
+	tracer := apmtest.NewRecordingTracer()
+	tracer.SetSpanCompressionEnabled(true)
+
+	txStart := time.Now()
+	tx := tracer.StartTransactionOptions("name", "type",
+		apm.TransactionOptions{Start: txStart},
+	)
+
+	ctx := apm.ContextWithTransaction(context.Background(), tx)
+	parentStart := txStart.Add(time.Millisecond)
+	parent, ctx := apm.StartSpanOptions(ctx, "parent", "internal", apm.SpanOptions{
+		Start: parentStart,
+	})
+
+	childrenStart := parentStart.Add(2 * time.Millisecond)
+	for i := 0; i < 3; i++ {
+		span, _ := apm.StartSpanOptions(ctx, "db", "redis", apm.SpanOptions{
+			ExitSpan: true,
+			Start:    childrenStart,
+		})
+		childrenStart = childrenStart.Add(time.Millisecond)
+		span.Duration = time.Millisecond
+		span.End()
+	}
+
+	{
+		span, _ := apm.StartSpanOptions(ctx, "algorithm", "internal", apm.SpanOptions{
+			ExitSpan: true, Start: childrenStart.Add(time.Millisecond),
+		})
+		childrenStart = childrenStart.Add(time.Millisecond)
+		{
+			child, _ := apm.StartSpanOptions(ctx, "GET /some", "client", apm.SpanOptions{
+				ExitSpan: true, Start: childrenStart.Add(time.Millisecond),
+			})
+			childrenStart = childrenStart.Add(time.Millisecond)
+			child.Duration = time.Millisecond
+			child.End()
+		}
+		{
+			child, _ := apm.StartSpanOptions(ctx, "GET /resource", "client", apm.SpanOptions{
+				ExitSpan: true, Start: childrenStart.Add(time.Millisecond),
+			})
+			childrenStart = childrenStart.Add(2 * time.Millisecond)
+			child.Duration = 2 * time.Millisecond
+			child.End()
+		}
+		{
+			child, _ := apm.StartSpanOptions(ctx, "compute something", "internal", apm.SpanOptions{
+				ExitSpan: false,
+				Start:    childrenStart.Add(time.Millisecond),
+			})
+			childrenStart = childrenStart.Add(time.Millisecond)
+			child.Duration = time.Millisecond
+			child.End()
+		}
+		childrenStart = childrenStart.Add(time.Millisecond)
+		span.Duration = 6 * time.Millisecond
+		span.End()
+	}
+
+	parent.Duration = childrenStart.Add(2 * time.Millisecond).Sub(txStart)
+	parent.End()
+	tx.Duration = 15 * time.Millisecond
+	tx.End()
+
+	tracer.Flush(nil)
+
+	transaction := tracer.Payloads().Transactions[0]
+	spans := tracer.Payloads().Spans
+
+	defer func() {
+		if t.Failed() {
+			apmtest.WriteTraceTable(os.Stdout, transaction, spans)
+			apmtest.WriteTraceWaterfall(os.Stdout, transaction, spans)
+		}
+	}()
+	require.NotNil(t, transaction)
+	assert.Equal(t, 5, len(spans))
+
+	sort.SliceStable(spans, func(i, j int) bool {
+		return time.Time(spans[i].Timestamp).Before(time.Time(spans[j].Timestamp))
+	})
+
+	redisSpan := spans[1]
+	require.NotNil(t, redisSpan.Composite)
+	assert.Equal(t, 3, redisSpan.Composite.Count)
+	assert.Equal(t, float64(3), redisSpan.Composite.Sum)
+	assert.Equal(t, "exact_match", redisSpan.Composite.CompressionStrategy)
+
+	clientSpan := spans[3]
+	require.NotNil(t, clientSpan.Composite)
+	assert.Equal(t, 2, clientSpan.Composite.Count)
+	assert.Equal(t, float64(3), clientSpan.Composite.Sum)
+	assert.Equal(t, "same_kind", clientSpan.Composite.CompressionStrategy)
 }
 
 func TestExitSpanDoesNotOverwriteDestinationServiceResource(t *testing.T) {
