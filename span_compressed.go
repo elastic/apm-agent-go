@@ -18,6 +18,7 @@
 package apm // import "go.elastic.co/apm"
 
 import (
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -28,6 +29,10 @@ const (
 	_ int = iota
 	compressedStrategyExactMatch
 	compressedStrategySameKind
+)
+
+const (
+	compressedSpanSameKindName = "Calls to "
 )
 
 type compositeSpan struct {
@@ -66,10 +71,10 @@ func (cs compositeSpan) empty() bool {
 // that may be the parent of a downstream service. This would orphan the sub-
 // graph started by the downstream service and cause it to not appear in the
 // waterfall view.
-func compress(span *Span, sibling *Span) bool {
-	strategy := span.canCompressComposite(sibling)
+func (s *Span) compress(sibling *Span) bool {
+	strategy := s.canCompressComposite(sibling)
 	if strategy == 0 {
-		strategy = span.canCompressStandard(sibling)
+		strategy = s.canCompressStandard(sibling)
 	}
 
 	// If the span cannot be compressed using any strategy.
@@ -77,19 +82,19 @@ func compress(span *Span, sibling *Span) bool {
 		return false
 	}
 
-	if span.composite.empty() {
-		span.composite = compositeSpan{
+	if s.composite.empty() {
+		s.composite = compositeSpan{
 			count:               1,
-			sum:                 span.Duration,
+			sum:                 s.Duration,
 			compressionStrategy: strategy,
 		}
 	}
 
-	span.composite.count++
-	span.composite.sum += sibling.Duration
+	s.composite.count++
+	s.composite.sum += sibling.Duration
 	siblingTimestamp := sibling.timestamp.Add(sibling.Duration)
-	if siblingTimestamp.After(span.composite.lastSiblingEndTime) {
-		span.composite.lastSiblingEndTime = siblingTimestamp
+	if siblingTimestamp.After(s.composite.lastSiblingEndTime) {
+		s.composite.lastSiblingEndTime = siblingTimestamp
 	}
 	return true
 }
@@ -100,7 +105,7 @@ func compress(span *Span, sibling *Span) bool {
 
 // attemptCompress tries to compress a span into a "composite span" when:
 // * Compression is enabled on agent.
-// * The buffered span and the incoming span:
+// * The cached span and the incoming span:
 //   * Share the same parent (are siblings).
 //   * Are consecutive spans.
 //   * Are both exit spans, outcome == success and are short enough (See
@@ -115,13 +120,13 @@ func compress(span *Span, sibling *Span) bool {
 // The compression algorithm is fairly simple and only compresses spans into a
 // composite span when the conditions listed above are met for all consecutive
 // spans, when a span comes in that doesn't meet any of the conditions, the
-// buffer will be flushed (buffered span will be enqueued) and:
-// * When the incoming span is compressible, it will replace the buffered span.
+// cache will be evicted (cached span will be enqueued) and:
+// * When the incoming span is compressible, it will replace the cached span.
 // * When the incoming span is not compressible, it will be enqueued as well.
 //
-// Returns `true` when the span has been buffered, thus the caller should not
-// reportSelfTime and enqueue the span. When `false` is returned, the buffer is
-// flushed and the caller should reportSelfTime and enqueue.
+// Returns `true` when the span has been cached, thus the caller should not
+// reportSelfTime and enqueue the span. When `false` is returned, the cache is
+// evicted and the caller should reportSelfTime and enqueue.
 func (s *Span) attemptCompress() bool {
 	nilReqs := s == nil || s.tx == nil || s.tx.TransactionData == nil
 	if nilReqs || !s.tx.compressedSpans.enabled {
@@ -133,56 +138,54 @@ func (s *Span) attemptCompress() bool {
 	if s.parent != nil {
 		// Flush the buffer, have the caller report the span.
 		if !s.isCompressionEligible() {
-			if !s.buffer.empty() {
-				s.buffer.flush()
+			if s.cache != nil {
+				s.evictCache()
 			}
 			return false
 		}
 
 		// An incoming span (s) is compressable, check if the buffer is empty,
 		// if so, store the the event and report the span as compressed.
-		if s.parent.buffer.empty() {
-			s.parent.buffer.store(s)
+		if s.parent.cache == nil {
+			s.parent.cache = s
 			return true
 		}
 
-		// When the span is compressable, try to compress it, report back true:
-		// On success: store it.
+		// When the span is compressable, compress it into s.parent.cache:
+		// On success: nothing, already compressed in s.parent.cache (*Span).
 		// On failure: flush and swap the cache with the current span.
-		if !compress(s, s.parent.buffer.span) {
-			s.parent.buffer.flush()
+		if !s.parent.cache.compress(s) {
+			s.parent.evictCache()
+			s.parent.cache = s
 		}
-		s.parent.buffer.store(s)
 		return true
 	}
 
 	if !s.isCompressionEligible() {
 		// At this point, the span isn't compressable which is likely to be the
 		// parent or non-compressable sibling, either way, the transaction or
-		// the span's buffer needs to be flushed and `false` is returned.
-		if !s.tx.buffer.empty() {
-			s.tx.buffer.flush()
+		// the span's buffer needs to be evicted and `false` is returned.
+		if s.tx.cache != nil {
+			s.tx.evictCache()
 		}
-		if !s.buffer.empty() {
-			s.buffer.flush()
+		if s.cache != nil {
+			s.evictCache()
 		}
 		return false
 	}
 
 	// The span is compressable and we need to store in the parent's cache.
-	if s.tx.buffer.empty() {
-		s.tx.buffer.store(s)
+	if s.tx.cache == nil {
+		s.tx.cache = s
 		return true
 	}
 
-	// When the span is compressable, try to compress it, report back true:
-	// On success: store it.
+	// When the span is compressable, compress it into s.tx.cache:
+	// On success: it is already stored in the s.tx.cache (*Span).
 	// On failure: flush and swap the cache with the current span.
-	if compress(s.tx.buffer.span, s) {
-		s.tx.buffer.span.buffer.store(s)
-	} else {
-		s.tx.buffer.flush()
-		s.tx.buffer.store(s)
+	if !s.tx.cache.compress(s) {
+		s.tx.evictCache()
+		s.tx.cache = s
 	}
 	return true
 }
@@ -201,22 +204,29 @@ func (s *Span) canCompressStandard(sibling *Span) int {
 		return 0
 	}
 
+	// We've already established the spans are the same kind.
+	strategy := compressedStrategySameKind
+	maxDuration := s.tx.compressedSpans.sameKindMaxDuration
+
+	// If it's an exact match, we then switch the settings
 	if s.isExactMatch(sibling) {
-		if s.durationLowerOrEq(sibling,
-			s.tx.compressedSpans.exactMatchMaxDuration,
-		) {
-			return compressedStrategyExactMatch
-		}
+		maxDuration = s.tx.compressedSpans.exactMatchMaxDuration
+		strategy = compressedStrategyExactMatch
+	}
+
+	// Any spans that go over the maximum duration cannot be compressed.
+	if !s.durationLowerOrEq(sibling, maxDuration) {
 		return 0
 	}
-	if s.isSameKind(sibling) {
-		if s.durationLowerOrEq(sibling,
-			s.tx.compressedSpans.sameKindMaxDuration,
-		) {
-			return compressedStrategyExactMatch
-		}
+
+	// If the composite span already has a compression strategy it differs from
+	// the chosen strategy, the spans cannot be compressed.
+	if s.composite.compressionStrategy != strategy && !s.composite.empty() {
+		return 0
 	}
-	return 0
+
+	// Return whichever strategy was chosen.
+	return strategy
 }
 
 func (s *Span) canCompressComposite(sibling *Span) int {
@@ -244,62 +254,6 @@ func (s *Span) durationLowerOrEq(sibling *Span, max time.Duration) bool {
 	return s.Duration <= max && sibling.Duration <= max
 }
 
-// spanBuffer acts as an intermediary buffer that stores compressable spans on
-// their parents to compress with other compression eligible siblings.
-//
-// Not concurrently safe.
-type spanBuffer struct {
-	span *Span
-}
-
-func (b *spanBuffer) empty() bool { return b.span == nil }
-
-func (b *spanBuffer) store(s *Span) {
-	b.span = s
-	b.span.SpanData = s.SpanData
-}
-
-// flush enqueues a span to the tracer event queue, but first, it reports the
-// parent and tx timers when the breakdown metrics are enabled and when it's
-// a compressed span, the duration is adjusted to end when the last sibling
-// ended - first span event timestamp.
-func (b *spanBuffer) flush() {
-	b.span.tx.TransactionData.mu.Lock()
-	defer b.span.tx.TransactionData.mu.Unlock()
-
-	// When the span is a composite span, we need to adjust the duration
-	// just before it is reported and no more spans will be compressed into
-	// the composite. If we did this any time before, the duration of the span
-	// would potentially grow over the compressable threshold and result in
-	// compressable span not being compressed and reported separately.
-	if !b.span.composite.empty() {
-		b.span.Duration = b.span.composite.lastSiblingEndTime.Sub(b.span.timestamp)
-		b.span.Name = "Calls to " + b.span.Context.destinationService.Resource
-	}
-	if !b.span.tx.ended() && b.span.tx.breakdownMetricsEnabled {
-		b.span.reportSelfTimeLockless(b.span.timestamp.Add(b.span.Duration))
-	}
-
-	b.span.enqueue()
-	b.span = nil
-}
-
-// A span is eligible for compression if all the following conditions are met
-// 1. It's an exit span
-// 2. The trace context has not been propagated to a downstream service
-// 3. If the span has outcome (i.e., outcome is present and it's not null) then
-//    it should be success. It means spans with outcome indicating an issue of
-//    potential interest should not be compressed.
-// The second condition is important so that we don't remove (compress) a span
-// that may be the parent of a downstream service. This would orphan the sub-
-// graph started by the downstream service and cause it to not appear in the
-// waterfall view.
-// func (s *spanBuffer) compress(sibling *Span) bool {
-// 	ok := s.span.compress(sibling)
-// 	s.store(s.span)
-// 	return ok
-// }
-
 //
 // SpanData //
 //
@@ -317,10 +271,54 @@ func (s *SpanData) isExactMatch(span *Span) bool {
 func (s *SpanData) isSameKind(span *Span) bool {
 	sameType := s.Type == span.Type
 	sameSubType := s.Subtype == span.Subtype
-	dstSrv := s.Context.destination.Service
-	otherDstSrv := span.Context.destination.Service
-	sameDstSrvRs := dstSrv != nil && otherDstSrv != nil &&
-		dstSrv.Resource == otherDstSrv.Resource
+	dstService := s.Context.destination.Service
+	otherDstService := span.Context.destination.Service
+	sameService := dstService != nil && otherDstService != nil &&
+		dstService.Resource == otherDstService.Resource
 
-	return sameType && sameSubType && sameDstSrvRs
+	return sameType && sameSubType && sameService
+}
+
+// evictCache enqueues the cached span after adjusting its own Name, Duration,
+// and timers.
+//
+// Should be only be called from Span.End().
+func (s *SpanData) evictCache() {
+	evictCache(s.cache)
+	s.cache.SpanData = nil
+	s.cache = nil
+}
+
+func evictCache(cache *Span) {
+	// When the span is a composite span, we need to adjust the duration
+	// just before it is reported and no more spans will be compressed into
+	// the composite. If we did this any time before, the duration of the span
+	// would potentially grow over the compressable threshold and result in
+	// compressable span not being compressed and reported separately.
+	if !cache.composite.empty() {
+		cache.Duration = cache.composite.lastSiblingEndTime.Sub(cache.timestamp)
+		cache.compressedSpanName()
+	}
+
+	cache.tx.TransactionData.mu.Lock()
+	defer cache.tx.TransactionData.mu.Unlock()
+	if !cache.tx.ended() && cache.tx.breakdownMetricsEnabled {
+		cache.reportSelfTimeLockless(cache.timestamp.Add(cache.Duration))
+	}
+
+	cache.enqueue()
+}
+
+// compressedSpanName changes the span name to "Calls to <destination service>"
+// for composite spans that are compressed with the `"same_kind"` strategy.
+func (s *SpanData) compressedSpanName() {
+	if s.composite.compressionStrategy != compressedStrategySameKind {
+		return
+	}
+	var builder strings.Builder
+	service := s.Context.destinationService.Resource
+	builder.Grow(len(compressedSpanSameKindName) + len(service))
+	builder.WriteString(compressedSpanSameKindName)
+	builder.WriteString(service)
+	s.Name = builder.String()
 }

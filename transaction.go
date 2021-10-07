@@ -282,8 +282,8 @@ func (tx *Transaction) End() {
 		if tx.Outcome == "" {
 			tx.Outcome = tx.Context.outcome()
 		}
-		if !tx.buffer.empty() {
-			tx.buffer.flush()
+		if tx.cache != nil {
+			tx.evictCache()
 		}
 		tx.enqueue()
 	} else {
@@ -369,7 +369,9 @@ type TransactionData struct {
 	rand          *rand.Rand // for ID generation
 
 	compressedSpans compressionOptions
-	buffer          spanBuffer
+	// cache may temporarily contain a stored Span when span compression is
+	// enabled.
+	cache *Span
 }
 
 // reset resets the TransactionData back to its zero state and places it back
@@ -384,4 +386,14 @@ func (td *TransactionData) reset(tracer *Tracer) {
 	td.Context.reset()
 	td.spanTimings.reset()
 	tracer.transactionDataPool.Put(td)
+}
+
+// evictCache enqueues the cached span after adjusting its own Name, Duration,
+// and timers.
+//
+// Should be only be called from Transaction.End().
+func (td *TransactionData) evictCache() {
+	evictCache(td.cache)
+	td.cache.SpanData = nil
+	td.cache = nil
 }

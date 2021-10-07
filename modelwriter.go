@@ -146,7 +146,7 @@ func (w *modelWriter) buildModelSpan(out *model.Span, span *Span, sd *SpanData) 
 	out.Outcome = normalizeOutcome(sd.Outcome)
 	out.Context = sd.Context.build()
 	if sd.composite.count > 1 {
-		out.Composite = span.composite.build()
+		out.Composite = sd.composite.build()
 	}
 
 	// Copy the span type to context.destination.service.type.

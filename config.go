@@ -96,7 +96,7 @@ const (
 	minMetricsBufferSize = 10 * configutil.KByte
 	maxMetricsBufferSize = 100 * configutil.MByte
 
-	// Experinmental Span Compressions default setting values
+	// Experimental Span Compressions default setting values
 	defaultSpanCompressionEnabled               = false
 	defaultSpanCompressionExactMatchMaxDuration = 50 * time.Millisecond
 	defaultSpanCompressionSameKindMaxDuration   = 5 * time.Millisecond

@@ -70,7 +70,7 @@ func WriteTraceWaterfall(w io.Writer, tx model.Transaction, spans []model.Span) 
 		}
 	}
 
-	maxWidth := int64(180)
+	maxWidth := int64(72)
 	buf := new(bytes.Buffer)
 	if tx.Duration > 0.0 {
 		writeSpan(buf, int(maxWidth), 0, fmt.Sprintf("transaction (%x) - %s", tx.ID, maxDuration.String()))

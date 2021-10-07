@@ -387,6 +387,8 @@ func (s *Span) reportSelfTime() {
 // reportSelfTimeLockless is used by all spans (composite and regular spans) to
 // report their timers. Since the composite end is triggered by a span of the
 // same kind or its parent ending, the upstream locks are already acquired.
+//
+// Needs to be called with s.tx.TransactionData held.
 func (s *Span) reportSelfTimeLockless(endTime time.Time) {
 	if s.parent != nil {
 		if !s.parent.ended() {
@@ -443,8 +445,10 @@ type SpanData struct {
 	stackTraceLimit        int
 	timestamp              time.Time
 	childrenTimer          childrenTimer
-	buffer                 spanBuffer
 	composite              compositeSpan
+	// cache may temporarily contain a stored Span when span compression is
+	// enabled.
+	cache *Span
 
 	// Name holds the span name, initialized with the value passed to StartSpan.
 	Name string
