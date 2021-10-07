@@ -269,6 +269,10 @@ type Transaction struct {
 	// SpanCount holds statistics on spans within a transaction.
 	SpanCount SpanCount `json:"span_count"`
 
+	// DroppedSpansStats holds information about spans that were dropped
+	// (for example due to transaction_max_spans or exit_span_min_duration).
+	DroppedSpansStats []DroppedSpansStats `json:"dropped_spans_stats,omitempty"`
+
 	// Outcome holds the transaction outcome: success, failure, or unknown.
 	Outcome string `json:"outcome,omitempty"`
 }
@@ -282,6 +286,34 @@ type SpanCount struct {
 
 	// Started holds the number of spans started within a transaction.
 	Started int `json:"started"`
+}
+
+// DroppedSpansStats holds information about spans that were dropped
+// (for example due to transaction_max_spans or exit_span_min_duration).
+type DroppedSpansStats struct {
+	// DestinationServiceResource identifies the destination service resource
+	// being operated on. e.g. 'http://elastic.co:80', 'elasticsearch', 'rabbitmq/queue_name'.
+	DestinationServiceResource string `json:"destination_service_resource"`
+	// Outcome of the span: success, failure, or unknown. Outcome may be one of
+	// a limited set of permitted values describing the success or failure of
+	// the span. It can be used for calculating error rates for outgoing requests.
+	Outcome string `json:"outcome"`
+	// Duration holds duration aggregations about the dropped span.
+	Duration AggregateDuration `json:"duration"`
+}
+
+// AggregateDuration duration
+type AggregateDuration struct {
+	// Count holds the number of times the dropped span happened.
+	Count int `json:"count"`
+	// Sum holds dimensions about the dropped span's duration.
+	Sum DurationSum `json:"sum"`
+}
+
+// DurationSum contains units for duration
+type DurationSum struct {
+	// Sum of the duration of a span in Microseconds.
+	Us int64 `json:"us"`
 }
 
 // Span represents a span within a transaction.

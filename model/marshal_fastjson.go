@@ -512,6 +512,19 @@ func (v *Transaction) MarshalFastJSON(w *fastjson.Writer) error {
 			firstErr = err
 		}
 	}
+	if v.DroppedSpansStats != nil {
+		w.RawString(",\"dropped_spans_stats\":")
+		w.RawByte('[')
+		for i, v := range v.DroppedSpansStats {
+			if i != 0 {
+				w.RawByte(',')
+			}
+			if err := v.MarshalFastJSON(w); err != nil && firstErr == nil {
+				firstErr = err
+			}
+		}
+		w.RawByte(']')
+	}
 	if v.Outcome != "" {
 		w.RawString(",\"outcome\":")
 		w.String(v.Outcome)
@@ -544,6 +557,42 @@ func (v *SpanCount) MarshalFastJSON(w *fastjson.Writer) error {
 	w.Int64(int64(v.Dropped))
 	w.RawString(",\"started\":")
 	w.Int64(int64(v.Started))
+	w.RawByte('}')
+	return nil
+}
+
+func (v *DroppedSpansStats) MarshalFastJSON(w *fastjson.Writer) error {
+	var firstErr error
+	w.RawByte('{')
+	w.RawString("\"destination_service_resource\":")
+	w.String(v.DestinationServiceResource)
+	w.RawString(",\"duration\":")
+	if err := v.Duration.MarshalFastJSON(w); err != nil && firstErr == nil {
+		firstErr = err
+	}
+	w.RawString(",\"outcome\":")
+	w.String(v.Outcome)
+	w.RawByte('}')
+	return firstErr
+}
+
+func (v *AggregateDuration) MarshalFastJSON(w *fastjson.Writer) error {
+	var firstErr error
+	w.RawByte('{')
+	w.RawString("\"count\":")
+	w.Int64(int64(v.Count))
+	w.RawString(",\"sum\":")
+	if err := v.Sum.MarshalFastJSON(w); err != nil && firstErr == nil {
+		firstErr = err
+	}
+	w.RawByte('}')
+	return firstErr
+}
+
+func (v *DurationSum) MarshalFastJSON(w *fastjson.Writer) error {
+	w.RawByte('{')
+	w.RawString("\"us\":")
+	w.Int64(v.Us)
 	w.RawByte('}')
 	return nil
 }

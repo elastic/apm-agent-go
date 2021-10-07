@@ -25,6 +25,12 @@ import (
 	"time"
 )
 
+const (
+	// maxDroppedSpanStats sets the hard limit for the number of dropped span
+	// stats that are stored in a transaction.
+	maxDroppedSpanStats = 128
+)
+
 // StartTransaction returns a new Transaction with the specified
 // name and type, and with the start time set to the current time.
 // This is equivalent to calling StartTransactionOptions with a
@@ -43,7 +49,8 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 			Context: Context{
 				captureBodyMask: CaptureBodyTransactions,
 			},
-			spanTimings: make(spanTimingsMap),
+			spanTimings:       make(spanTimingsMap),
+			droppedSpansStats: make(droppedSpanTimingsMap, maxDroppedSpanStats),
 		}
 		var seed int64
 		if err := binary.Read(cryptorand.Reader, binary.LittleEndian, &seed); err != nil {
@@ -352,24 +359,54 @@ type TransactionData struct {
 	propagateLegacyHeader   bool
 	timestamp               time.Time
 
-	mu            sync.Mutex
-	spansCreated  int
-	spansDropped  int
-	childrenTimer childrenTimer
-	spanTimings   spanTimingsMap
-	rand          *rand.Rand // for ID generation
+	mu                sync.Mutex
+	spansCreated      int
+	spansDropped      int
+	childrenTimer     childrenTimer
+	spanTimings       spanTimingsMap
+	droppedSpansStats droppedSpanTimingsMap
+	rand              *rand.Rand // for ID generation
 }
 
 // reset resets the TransactionData back to its zero state and places it back
 // into the transaction pool.
 func (td *TransactionData) reset(tracer *Tracer) {
 	*td = TransactionData{
-		Context:     td.Context,
-		Duration:    -1,
-		rand:        td.rand,
-		spanTimings: td.spanTimings,
+		Context:           td.Context,
+		Duration:          -1,
+		rand:              td.rand,
+		spanTimings:       td.spanTimings,
+		droppedSpansStats: td.droppedSpansStats,
 	}
 	td.Context.reset()
 	td.spanTimings.reset()
+	td.droppedSpansStats.reset()
 	tracer.transactionDataPool.Put(td)
+}
+
+type droppedSpanTimingsKey struct {
+	destination string
+	outcome     string
+}
+
+// droppedSpanTimingsMap records span timings for groups of dropped spans.
+type droppedSpanTimingsMap map[droppedSpanTimingsKey]spanTiming
+
+// add accumulates the timing for a {destination, outcome} pair, silently drops
+// any pairs that would cause the map to exceed the maxDroppedSpanStats.
+func (m droppedSpanTimingsMap) add(destination, outcome string, d time.Duration) {
+	k := droppedSpanTimingsKey{destination: destination, outcome: outcome}
+	timing, ok := m[k]
+	if ok || maxDroppedSpanStats > len(m) {
+		timing.count++
+		timing.duration += int64(d)
+		m[k] = timing
+	}
+}
+
+// reset resets m back to its initial zero state.
+func (m droppedSpanTimingsMap) reset() {
+	for k := range m {
+		delete(m, k)
+	}
 }

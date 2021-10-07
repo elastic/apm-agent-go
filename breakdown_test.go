@@ -510,7 +510,7 @@ func spanSelfTimeMetrics(txName, txType, spanType, spanSubtype string, count int
 		},
 		Samples: map[string]model.Metric{
 			"span.self_time.count":  {Value: float64(count)},
-			"span.self_time.sum.us": {Value: sum.Seconds() * 1000000},
+			"span.self_time.sum.us": {Value: float64(sum) / 1e3},
 		},
 	}
 }

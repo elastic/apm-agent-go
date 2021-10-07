@@ -103,6 +103,18 @@ func TestMarshalTransaction(t *testing.T) {
 			"started": float64(99),
 			"dropped": float64(4),
 		},
+		"dropped_spans_stats": []interface{}{
+			map[string]interface{}{
+				"destination_service_resource": "http://elasticsearch:9200",
+				"duration": map[string]interface{}{
+					"count": float64(4),
+					"sum": map[string]interface{}{
+						"us": float64(1000),
+					},
+				},
+				"outcome": "success",
+			},
+		},
 	}
 	assert.Equal(t, expect, decoded)
 }
@@ -624,6 +636,16 @@ func fakeTransaction() model.Transaction {
 		SpanCount: model.SpanCount{
 			Started: 99,
 			Dropped: 4,
+		},
+		DroppedSpansStats: []model.DroppedSpansStats{
+			{
+				DestinationServiceResource: "http://elasticsearch:9200",
+				Outcome:                    "success",
+				Duration: model.AggregateDuration{
+					Count: 4,
+					Sum:   model.DurationSum{Us: int64(time.Millisecond) / 1e3},
+				},
+			},
 		},
 	}
 }
