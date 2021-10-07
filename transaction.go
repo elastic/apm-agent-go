@@ -392,7 +392,8 @@ type droppedSpanTimingsKey struct {
 // droppedSpanTimingsMap records span timings for groups of dropped spans.
 type droppedSpanTimingsMap map[droppedSpanTimingsKey]spanTiming
 
-// add accumulates the timing for a {destination, outcome} pair.
+// add accumulates the timing for a {destination, outcome} pair, silently drops
+// any pairs that would cause the map to exceed the maxDroppedSpanStats.
 func (m droppedSpanTimingsMap) add(destination, outcome string, d time.Duration) {
 	k := droppedSpanTimingsKey{destination: destination, outcome: outcome}
 	timing, ok := m[k]

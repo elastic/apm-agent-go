@@ -339,11 +339,12 @@ func (s *Span) End() {
 		s.Outcome = s.Context.outcome()
 	}
 	if s.dropped() {
-		if s.tx == nil {
-			droppedSpanDataPool.Put(s.SpanData)
-		} else {
+		if s.tx != nil {
 			s.reportSelfTime()
+			s.aggregateDroppedSpanStats()
 			s.reset(s.tx.tracer)
+		} else {
+			droppedSpanDataPool.Put(s.SpanData)
 		}
 		s.SpanData = nil
 		return
@@ -399,14 +400,6 @@ func (s *Span) reportSelfTime() {
 	} else {
 		s.tx.childrenTimer.childEnded(endTime)
 	}
-
-	// An exit span would have the destination service set but in any case, we
-	// check the field value before adding an entry to the dropped spans stats.
-	service := s.Context.destinationService.Resource
-	if s.dropped() && s.IsExitSpan() && service != "" {
-		s.tx.droppedSpansStats.add(service, s.Outcome, s.Duration)
-	}
-
 	s.tx.spanTimings.add(s.Type, s.Subtype, s.Duration-s.childrenTimer.finalDuration(endTime))
 }
 
@@ -443,6 +436,21 @@ func (s *Span) IsExitSpan() bool {
 		return false
 	}
 	return s.exit
+}
+
+// aggregateDroppedSpanStats aggregates the current span into the transaction
+// dropped spans stats timings.
+//
+// Must only be called from End() with s.tx.mu held.
+func (s *Span) aggregateDroppedSpanStats() {
+	// An exit span would have the destination service set but in any case, we
+	// check the field value before adding an entry to the dropped spans stats.
+	service := s.Context.destinationService.Resource
+	if s.dropped() && s.IsExitSpan() && service != "" {
+		s.tx.TransactionData.mu.Lock()
+		s.tx.droppedSpansStats.add(service, s.Outcome, s.Duration)
+		s.tx.TransactionData.mu.Unlock()
+	}
 }
 
 // SpanData holds the details for a span, and is embedded inside Span.
