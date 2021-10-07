@@ -24,6 +24,7 @@ endif::[]
 https://github.com/elastic/apm-agent-go/compare/v1.14.0...master[View commits]
 
 - Deprecate `http.request.socket.encrypted` and stop recording it in `module/apmhttp`, `module/apmgrpc` and `module/apmfiber`. {pull}1129[#(1129)]
+- Collect and send span destination service timing statistics about the dropped spans to the apm-server. {pull}1132[#(1132)]
 
 [[release-notes-1.x]]
 === Go Agent version 1.x
