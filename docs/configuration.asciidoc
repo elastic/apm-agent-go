@@ -611,6 +611,8 @@ If this config value is set to `"none"`, then no cloud metadata will be collecte
 [[config-span-compression-enabled]]
 === `ELASTIC_APM_SPAN_COMPRESSION_ENABLED`
 
+<<dynamic-configuration, image:./images/dynamic-config.svg[] >>
+
 [options="header"]
 |============
 | Environment                            | Default
@@ -644,6 +646,8 @@ NOTE: This feature is experimental and requires APM Server v7.15 or later.
 [[config-span-compression-exact-match-duration]]
 === `ELASTIC_APM_SPAN_COMPRESSION_EXACT_MATCH_MAX_DURATION`
 
+<<dynamic-configuration, image:./images/dynamic-config.svg[] >>
+
 [options="header"]
 |============
 | Environment                                             | Default
@@ -656,6 +660,8 @@ exact match for compression.
 [float]
 [[config-span-compression-same-kind-duration]]
 === `ELASTIC_APM_SPAN_COMPRESSION_SAME_KIND_MAX_DURATION`
+
+<<dynamic-configuration, image:./images/dynamic-config.svg[] >>
 
 [options="header"]
 |============
