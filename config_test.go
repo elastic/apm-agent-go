@@ -127,6 +127,67 @@ func TestTracerCentralConfigUpdate(t *testing.T) {
 		require.NoError(t, err)
 		return tracer.IgnoredTransactionURL(u)
 	})
+	run("span_compression_enabled", "true", func(tracer *apmtest.RecordingTracer) bool {
+		tracer.ResetPayloads()
+		tx := tracer.StartTransaction("name", "type")
+		exitSpanOpts := apm.SpanOptions{ExitSpan: true}
+		{
+
+			span := tx.StartSpanOptions("name", "request", exitSpanOpts)
+			span.Duration = 50 * time.Millisecond
+			span.End()
+		}
+		{
+			span := tx.StartSpanOptions("name", "request", exitSpanOpts)
+			span.Duration = 50 * time.Millisecond
+			span.End()
+		}
+		tx.End()
+		tracer.Flush(nil)
+		return len(tracer.Payloads().Spans) == 1
+	})
+	run("span_compression_exact_match_max_duration", "100ms", func(tracer *apmtest.RecordingTracer) bool {
+		tracer.ResetPayloads()
+		tracer.SetSpanCompressionEnabled(true)
+		defer tracer.SetSpanCompressionEnabled(false)
+		tx := tracer.StartTransaction("name", "type")
+		exitSpanOpts := apm.SpanOptions{ExitSpan: true}
+		{
+
+			span := tx.StartSpanOptions("name", "request", exitSpanOpts)
+			span.Duration = 100 * time.Millisecond
+			span.End()
+		}
+		{
+			span := tx.StartSpanOptions("name", "request", exitSpanOpts)
+			span.Duration = 100 * time.Millisecond
+			span.End()
+		}
+		tx.End()
+		tracer.Flush(nil)
+		return len(tracer.Payloads().Spans) == 1
+	})
+	run("span_compression_same_kind_max_duration", "10ms", func(tracer *apmtest.RecordingTracer) bool {
+		tracer.ResetPayloads()
+		tracer.SetSpanCompressionEnabled(true)
+		defer tracer.SetSpanCompressionEnabled(false)
+		tx := tracer.StartTransaction("name", "type")
+		exitSpanOpts := apm.SpanOptions{ExitSpan: true}
+		{
+
+			span := tx.StartSpanOptions("aspan", "request", exitSpanOpts)
+			span.Duration = 10 * time.Millisecond
+			span.End()
+		}
+		{
+			span := tx.StartSpanOptions("anotherspan", "request", exitSpanOpts)
+			span.Duration = 10 * time.Millisecond
+			span.End()
+		}
+		tx.End()
+		tracer.Flush(nil)
+		return len(tracer.Payloads().Spans) == 1
+	})
 }
 
 func testTracerCentralConfigUpdate(t *testing.T, logger apm.Logger, serverResponse string, isRemote func(*apmtest.RecordingTracer) bool) {

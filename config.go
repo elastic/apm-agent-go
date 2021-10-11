@@ -463,6 +463,36 @@ func (t *Tracer) updateRemoteConfig(logger WarningLogger, old, attrs map[string]
 				delete(attrs, k)
 				continue
 			}
+		case envSpanCompressionEnabled:
+			val, err := strconv.ParseBool(v)
+			if err != nil {
+				errorf("central config failure: failed to parse %s: %s", k, err)
+				delete(attrs, k)
+				continue
+			}
+			updates = append(updates, func(cfg *instrumentationConfig) {
+				cfg.spanCompressionEnabled = val
+			})
+		case envSpanCompressionExactMatchMaxDuration:
+			duration, err := configutil.ParseDuration(v)
+			if err != nil {
+				errorf("central config failure: failed to parse %s: %s", k, err)
+				delete(attrs, k)
+				continue
+			}
+			updates = append(updates, func(cfg *instrumentationConfig) {
+				cfg.spanCompressionExactMatchMaxDuration = duration
+			})
+		case envSpanCompressionSameKindMaxDuration:
+			duration, err := configutil.ParseDuration(v)
+			if err != nil {
+				errorf("central config failure: failed to parse %s: %s", k, err)
+				delete(attrs, k)
+				continue
+			}
+			updates = append(updates, func(cfg *instrumentationConfig) {
+				cfg.spanCompressionSameKindMaxDuration = duration
+			})
 		default:
 			warningf("central config failure: unsupported config: %s", k)
 			delete(attrs, k)
