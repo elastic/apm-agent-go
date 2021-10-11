@@ -297,7 +297,7 @@ func evictCache(cache *Span) {
 	// compressable span not being compressed and reported separately.
 	if !cache.composite.empty() {
 		cache.Duration = cache.composite.lastSiblingEndTime.Sub(cache.timestamp)
-		cache.compressedSpanName()
+		cache.setCompressedSpanName()
 	}
 
 	cache.tx.TransactionData.mu.Lock()
@@ -309,9 +309,9 @@ func evictCache(cache *Span) {
 	cache.enqueue()
 }
 
-// compressedSpanName changes the span name to "Calls to <destination service>"
+// setCompressedSpanName changes the span name to "Calls to <destination service>"
 // for composite spans that are compressed with the `"same_kind"` strategy.
-func (s *SpanData) compressedSpanName() {
+func (s *SpanData) setCompressedSpanName() {
 	if s.composite.compressionStrategy != compressedStrategySameKind {
 		return
 	}
