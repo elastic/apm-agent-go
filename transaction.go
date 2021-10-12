@@ -69,9 +69,7 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 	}
 
 	tx.maxSpans = instrumentationConfig.maxSpans
-	tx.compressedSpans.enabled = instrumentationConfig.spanCompressionEnabled
-	tx.compressedSpans.exactMatchMaxDuration = instrumentationConfig.spanCompressionExactMatchMaxDuration
-	tx.compressedSpans.sameKindMaxDuration = instrumentationConfig.spanCompressionSameKindMaxDuration
+	tx.compressedSpan.options = instrumentationConfig.compressionOptions
 	tx.spanFramesMinDuration = instrumentationConfig.spanFramesMinDuration
 	tx.stackTraceLimit = instrumentationConfig.stackTraceLimit
 	tx.Context.captureHeaders = instrumentationConfig.captureHeaders
@@ -289,9 +287,14 @@ func (tx *Transaction) End() {
 		if tx.Outcome == "" {
 			tx.Outcome = tx.Context.outcome()
 		}
-		if tx.cache != nil {
-			tx.evictCache()
+		// Hold the transaction data lock to check if the transaction has any
+		// compressed spans in its cache, if so, evict cache and end the span.
+		tx.TransactionData.mu.Lock()
+		if tx.compressedSpan.cache != nil {
+			cachedSpan := tx.compressedSpan.evict()
+			cachedSpan.End()
 		}
+		tx.TransactionData.mu.Unlock()
 		tx.enqueue()
 	} else {
 		tx.reset(tx.tracer)
@@ -373,10 +376,7 @@ type TransactionData struct {
 	droppedSpansStats droppedSpanTimingsMap
 	rand              *rand.Rand // for ID generation
 
-	compressedSpans compressionOptions
-	// cache may temporarily contain a stored Span when span compression is
-	// enabled.
-	cache *Span
+	compressedSpan compressedSpan
 }
 
 // reset resets the TransactionData back to its zero state and places it back
@@ -393,17 +393,6 @@ func (td *TransactionData) reset(tracer *Tracer) {
 	td.spanTimings.reset()
 	td.droppedSpansStats.reset()
 	tracer.transactionDataPool.Put(td)
-}
-
-// evictCache enqueues the cached span after adjusting its own Name, Duration,
-// and timers.
-//
-// Should be only be called from Transaction.End().
-func (td *TransactionData) evictCache() {
-	evictCache(td.cache)
-	td.cache.SpanData = nil
-	td.cache = nil
-
 }
 
 type droppedSpanTimingsKey struct {

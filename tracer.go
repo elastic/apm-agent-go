@@ -442,13 +442,13 @@ func newTracer(opts TracerOptions) *Tracer {
 		cfg.maxSpans = opts.maxSpans
 	})
 	t.setLocalInstrumentationConfig(envSpanCompressionEnabled, func(cfg *instrumentationConfigValues) {
-		cfg.spanCompressionEnabled = opts.compressionOptions.enabled
+		cfg.compressionOptions.enabled = opts.compressionOptions.enabled
 	})
 	t.setLocalInstrumentationConfig(envSpanCompressionExactMatchMaxDuration, func(cfg *instrumentationConfigValues) {
-		cfg.spanCompressionExactMatchMaxDuration = opts.compressionOptions.exactMatchMaxDuration
+		cfg.compressionOptions.exactMatchMaxDuration = opts.compressionOptions.exactMatchMaxDuration
 	})
 	t.setLocalInstrumentationConfig(envSpanCompressionSameKindMaxDuration, func(cfg *instrumentationConfigValues) {
-		cfg.spanCompressionSameKindMaxDuration = opts.compressionOptions.sameKindMaxDuration
+		cfg.compressionOptions.sameKindMaxDuration = opts.compressionOptions.sameKindMaxDuration
 	})
 	t.setLocalInstrumentationConfig(envTransactionSampleRate, func(cfg *instrumentationConfigValues) {
 		cfg.sampler = opts.sampler
@@ -748,7 +748,7 @@ func (t *Tracer) SetMaxSpans(n int) {
 // SetSpanCompressionEnabled enables/disables the span compression feature.
 func (t *Tracer) SetSpanCompressionEnabled(v bool) {
 	t.setLocalInstrumentationConfig(envSpanCompressionEnabled, func(cfg *instrumentationConfigValues) {
-		cfg.spanCompressionEnabled = v
+		cfg.compressionOptions.enabled = v
 	})
 }
 
@@ -756,7 +756,7 @@ func (t *Tracer) SetSpanCompressionEnabled(v bool) {
 // to be compressed with `compression_strategy` == `exact_match`.
 func (t *Tracer) SetSpanCompressionExactMatchMaxDuration(v time.Duration) {
 	t.setLocalInstrumentationConfig(envSpanCompressionExactMatchMaxDuration, func(cfg *instrumentationConfigValues) {
-		cfg.spanCompressionExactMatchMaxDuration = v
+		cfg.compressionOptions.exactMatchMaxDuration = v
 	})
 }
 
@@ -764,7 +764,7 @@ func (t *Tracer) SetSpanCompressionExactMatchMaxDuration(v time.Duration) {
 // to be compressed with `compression_strategy` == `same_kind`.
 func (t *Tracer) SetSpanCompressionSameKindMaxDuration(v time.Duration) {
 	t.setLocalInstrumentationConfig(envSpanCompressionSameKindMaxDuration, func(cfg *instrumentationConfigValues) {
-		cfg.spanCompressionSameKindMaxDuration = v
+		cfg.compressionOptions.sameKindMaxDuration = v
 	})
 }
 

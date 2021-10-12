@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"sync"
 	"testing"
 	"time"
 
@@ -714,6 +715,48 @@ func TestCompressSpanSameKindParentSpanContext(t *testing.T) {
 	assert.Equal(t, 2, clientSpan.Composite.Count)
 	assert.Equal(t, float64(3), clientSpan.Composite.Sum)
 	assert.Equal(t, "same_kind", clientSpan.Composite.CompressionStrategy)
+}
+
+func TestCompressSpanSameKindConcurrent(t *testing.T) {
+	tracer := apmtest.NewRecordingTracer()
+	tracer.SetSpanCompressionEnabled(true)
+
+	tx := tracer.StartTransaction("name", "type")
+	var wg sync.WaitGroup
+	count := 100
+	wg.Add(count)
+	exitSpanOpts := apm.SpanOptions{ExitSpan: true}
+	for i := 0; i < count; i++ {
+		go func(i int) {
+			span := tx.StartSpanOptions(fmt.Sprint(i), "request", exitSpanOpts)
+			span.Duration = time.Millisecond
+			span.End()
+			wg.Done()
+		}(i)
+	}
+
+	parent := tx.StartSpanOptions("parent", "internal", apm.SpanOptions{
+		Parent: tx.TraceContext(),
+	})
+
+	wg.Add(count)
+	for i := 0; i < count; i++ {
+		go func(i int) {
+			span := tx.StartSpanOptions(fmt.Sprint(i), "request", apm.SpanOptions{
+				Parent:   parent.TraceContext(),
+				ExitSpan: true,
+			})
+			span.Duration = time.Millisecond
+			span.End()
+			wg.Done()
+		}(i)
+	}
+
+	wg.Wait()
+	parent.Duration = 100 * time.Millisecond
+	parent.End()
+	tx.Duration = 200 * time.Millisecond
+	tx.End()
 }
 
 func TestExitSpanDoesNotOverwriteDestinationServiceResource(t *testing.T) {

@@ -471,7 +471,7 @@ func (t *Tracer) updateRemoteConfig(logger WarningLogger, old, attrs map[string]
 				continue
 			}
 			updates = append(updates, func(cfg *instrumentationConfig) {
-				cfg.spanCompressionEnabled = val
+				cfg.compressionOptions.enabled = val
 			})
 		case envSpanCompressionExactMatchMaxDuration:
 			duration, err := configutil.ParseDuration(v)
@@ -481,7 +481,7 @@ func (t *Tracer) updateRemoteConfig(logger WarningLogger, old, attrs map[string]
 				continue
 			}
 			updates = append(updates, func(cfg *instrumentationConfig) {
-				cfg.spanCompressionExactMatchMaxDuration = duration
+				cfg.compressionOptions.exactMatchMaxDuration = duration
 			})
 		case envSpanCompressionSameKindMaxDuration:
 			duration, err := configutil.ParseDuration(v)
@@ -491,7 +491,7 @@ func (t *Tracer) updateRemoteConfig(logger WarningLogger, old, attrs map[string]
 				continue
 			}
 			updates = append(updates, func(cfg *instrumentationConfig) {
-				cfg.spanCompressionSameKindMaxDuration = duration
+				cfg.compressionOptions.sameKindMaxDuration = duration
 			})
 		default:
 			warningf("central config failure: unsupported config: %s", k)
@@ -595,9 +595,5 @@ type instrumentationConfigValues struct {
 	propagateLegacyHeader bool
 	sanitizedFieldNames   wildcard.Matchers
 	ignoreTransactionURLs wildcard.Matchers
-
-	// compressed spans.
-	spanCompressionEnabled               bool
-	spanCompressionExactMatchMaxDuration time.Duration
-	spanCompressionSameKindMaxDuration   time.Duration
+	compressionOptions    compressionOptions
 }

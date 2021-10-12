@@ -125,6 +125,7 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 		}
 		span.stackFramesMinDuration = tx.spanFramesMinDuration
 		span.stackTraceLimit = tx.stackTraceLimit
+		span.compressedSpan.options = tx.compressedSpan.options
 		tx.spansCreated++
 	}
 
@@ -176,6 +177,7 @@ func (t *Tracer) StartSpan(name, spanType string, transactionID SpanID, opts Spa
 	instrumentationConfig := t.instrumentationConfig()
 	span.stackFramesMinDuration = instrumentationConfig.spanFramesMinDuration
 	span.stackTraceLimit = instrumentationConfig.stackTraceLimit
+	span.compressedSpan.options = instrumentationConfig.compressionOptions
 	if opts.ExitSpan {
 		span.exit = true
 	}
@@ -257,6 +259,12 @@ type Span struct {
 	transactionID SpanID
 	parentID      SpanID
 	exit          bool
+
+	// true when the span has been evicted from the cache. It is used to avoid
+	// infinite loops when attempting to compress spans.
+	fromCache bool
+
+	// ctxPropagated is set to 1 when the traceContext is propagated downstream.
 	ctxPropagated uint32
 
 	mu sync.RWMutex
@@ -356,12 +364,20 @@ func (s *Span) End() {
 		s.setStacktrace(1)
 	}
 
-	if s.attemptCompress() {
-		return
-	}
-	if s.tx != nil {
+	// When the span has fromCache boolean set, the timers have already been
+	// adjusted, so it can be skipped.
+	if s.tx != nil && !s.fromCache {
 		s.reportSelfTime()
 	}
+
+	cachedSpan, compressed := s.attemptCompress()
+	if cachedSpan != nil {
+		cachedSpan.End()
+	}
+	if compressed {
+		return
+	}
+
 	s.enqueue()
 	s.SpanData = nil
 }
@@ -400,15 +416,6 @@ func (s *Span) reportSelfTime() {
 
 	s.tx.TransactionData.mu.Lock()
 	defer s.tx.TransactionData.mu.Unlock()
-	s.reportSelfTimeLockless(endTime)
-}
-
-// reportSelfTimeLockless is used by all spans (composite and regular spans) to
-// report their timers. Since the composite end is triggered by a span of the
-// same kind or its parent ending, the upstream locks are already acquired.
-//
-// Needs to be called with s.tx.TransactionData held.
-func (s *Span) reportSelfTimeLockless(endTime time.Time) {
 	if s.parent != nil {
 		if !s.parent.ended() {
 			s.parent.childrenTimer.childEnded(endTime)
@@ -478,9 +485,7 @@ type SpanData struct {
 	timestamp              time.Time
 	childrenTimer          childrenTimer
 	composite              compositeSpan
-	// cache may temporarily contain a stored Span when span compression is
-	// enabled.
-	cache *Span
+	compressedSpan         compressedSpan
 
 	// Name holds the span name, initialized with the value passed to StartSpan.
 	Name string
