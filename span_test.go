@@ -525,23 +525,22 @@ func TestCompressSpanSameKindParentSpan(t *testing.T) {
 		apm.TransactionOptions{Start: txStart},
 	)
 
+	ctx := apm.ContextWithTransaction(context.Background(), tx)
 	currentTime := txStart
 	{
 		// Doesn't compress any spans since none meet the necessary conditions
 		// the "request" type are both the same type but the parent
-		parent := tx.StartSpanOptions("internal op", "internal", apm.SpanOptions{
+		parent, ctx := apm.StartSpanOptions(ctx, "internal op", "internal", apm.SpanOptions{
 			Start: currentTime,
 		})
 		// Have span propagate context downstream, this should not allow for
 		// compression
-		child := tx.StartSpanOptions("GET /resource", "request", apm.SpanOptions{
-			Parent: parent.TraceContext(),
-			Start:  currentTime.Add(100 * time.Microsecond),
+		child, ctx := apm.StartSpanOptions(ctx, "GET /resource", "request", apm.SpanOptions{
+			Start: currentTime.Add(100 * time.Microsecond),
 		})
 
-		grandChild := tx.StartSpanOptions("GET /different", "request", apm.SpanOptions{
+		grandChild, _ := apm.StartSpanOptions(ctx, "GET /different", "request", apm.SpanOptions{
 			ExitSpan: true,
-			Parent:   parent.TraceContext(),
 			Start:    currentTime.Add(120 * time.Microsecond),
 		})
 
@@ -558,26 +557,24 @@ func TestCompressSpanSameKindParentSpan(t *testing.T) {
 	{
 		// Compresses the last two spans together since they are  both exit
 		// spans, same "request" type, don't propagate ctx and succeed.
-		parent := tx.StartSpanOptions("another op", "internal", apm.SpanOptions{
+		parent, ctx := apm.StartSpanOptions(ctx, "another op", "internal", apm.SpanOptions{
 			Start: currentTime.Add(50 * time.Microsecond),
 		})
-		child := tx.StartSpanOptions("GET /res", "request", apm.SpanOptions{
+		child, _ := apm.StartSpanOptions(ctx, "GET /res", "request", apm.SpanOptions{
 			ExitSpan: true,
-			Parent:   parent.TraceContext(),
 			Start:    currentTime.Add(120 * time.Microsecond),
 		})
 
-		otherChild := tx.StartSpanOptions("GET /diff", "request", apm.SpanOptions{
+		otherChild, _ := apm.StartSpanOptions(ctx, "GET /diff", "request", apm.SpanOptions{
 			ExitSpan: true,
-			Parent:   parent.TraceContext(),
 			Start:    currentTime.Add(150 * time.Microsecond),
 		})
 
-		child.Duration = 300 * time.Microsecond
-		child.End()
-
 		otherChild.Duration = 250 * time.Microsecond
 		otherChild.End()
+
+		child.Duration = 300 * time.Microsecond
+		child.End()
 
 		parent.Duration = 750 * time.Microsecond
 		currentTime = currentTime.Add(parent.Duration)
@@ -646,40 +643,31 @@ func TestCompressSpanSameKindParentSpanContext(t *testing.T) {
 		span.End()
 	}
 
-	{
-		span, _ := apm.StartSpanOptions(ctx, "algorithm", "internal", apm.SpanOptions{
-			ExitSpan: true, Start: childrenStart.Add(time.Millisecond),
-		})
-		childrenStart = childrenStart.Add(time.Millisecond)
-		{
-			child, _ := apm.StartSpanOptions(ctx, "GET /some", "client", apm.SpanOptions{
-				ExitSpan: true, Start: childrenStart.Add(time.Millisecond),
-			})
-			childrenStart = childrenStart.Add(time.Millisecond)
-			child.Duration = time.Millisecond
-			child.End()
-		}
-		{
-			child, _ := apm.StartSpanOptions(ctx, "GET /resource", "client", apm.SpanOptions{
-				ExitSpan: true, Start: childrenStart.Add(time.Millisecond),
-			})
-			childrenStart = childrenStart.Add(2 * time.Millisecond)
-			child.Duration = 2 * time.Millisecond
-			child.End()
-		}
-		{
-			child, _ := apm.StartSpanOptions(ctx, "compute something", "internal", apm.SpanOptions{
-				ExitSpan: false,
-				Start:    childrenStart.Add(time.Millisecond),
-			})
-			childrenStart = childrenStart.Add(time.Millisecond)
-			child.Duration = time.Millisecond
-			child.End()
-		}
-		childrenStart = childrenStart.Add(time.Millisecond)
-		span.Duration = 6 * time.Millisecond
-		span.End()
+	testSpans := []struct {
+		name     string
+		typ      string
+		duration time.Duration
+	}{
+		{name: "GET /some", typ: "client", duration: time.Millisecond},
+		{name: "GET /resource", typ: "client", duration: 2 * time.Millisecond},
+		{name: "compute something", typ: "internal", duration: time.Millisecond},
 	}
+
+	subParent, ctx := apm.StartSpanOptions(ctx, "algorithm", "internal", apm.SpanOptions{
+		Start: childrenStart.Add(time.Millisecond),
+	})
+	childrenStart = childrenStart.Add(time.Millisecond)
+	for _, cfg := range testSpans {
+		child, _ := apm.StartSpanOptions(ctx, cfg.name, cfg.typ, apm.SpanOptions{
+			ExitSpan: true, Start: childrenStart.Add(cfg.duration),
+		})
+		childrenStart = childrenStart.Add(cfg.duration)
+		child.Duration = cfg.duration
+		child.End()
+	}
+	childrenStart = childrenStart.Add(time.Millisecond)
+	subParent.Duration = 6 * time.Millisecond
+	subParent.End()
 
 	parent.Duration = childrenStart.Add(2 * time.Millisecond).Sub(txStart)
 	parent.End()
@@ -712,12 +700,14 @@ func TestCompressSpanSameKindParentSpanContext(t *testing.T) {
 
 	clientSpan := spans[3]
 	require.NotNil(t, clientSpan.Composite)
+	assert.Equal(t, clientSpan.ParentID, spans[2].ID)
 	assert.Equal(t, 2, clientSpan.Composite.Count)
 	assert.Equal(t, float64(3), clientSpan.Composite.Sum)
 	assert.Equal(t, "same_kind", clientSpan.Composite.CompressionStrategy)
 }
 
 func TestCompressSpanSameKindConcurrent(t *testing.T) {
+	// This test verifies there aren't any deadlocks.
 	tracer := apmtest.NewRecordingTracer()
 	tracer.SetSpanCompressionEnabled(true)
 
@@ -729,34 +719,165 @@ func TestCompressSpanSameKindConcurrent(t *testing.T) {
 	for i := 0; i < count; i++ {
 		go func(i int) {
 			span := tx.StartSpanOptions(fmt.Sprint(i), "request", exitSpanOpts)
-			span.Duration = time.Millisecond
 			span.End()
 			wg.Done()
 		}(i)
 	}
 
-	parent := tx.StartSpanOptions("parent", "internal", apm.SpanOptions{
-		Parent: tx.TraceContext(),
-	})
-
+	ctx := apm.ContextWithTransaction(context.Background(), tx)
+	parent, ctx := apm.StartSpan(ctx, "parent", "internal")
 	wg.Add(count)
+
+	compressedSome := make(chan struct{})
 	for i := 0; i < count; i++ {
 		go func(i int) {
-			span := tx.StartSpanOptions(fmt.Sprint(i), "request", apm.SpanOptions{
+			select {
+			case compressedSome <- struct{}{}:
+			default:
+			}
+			span, _ := apm.StartSpanOptions(ctx, fmt.Sprint(i), "request", apm.SpanOptions{
+				ExitSpan: true,
+			})
+			span.End()
+			wg.Done()
+		}(i)
+	}
+
+	// Wait until at least a goroutine has been scheduled
+	<-compressedSome
+	tx.End()
+	parent.End()
+	wg.Wait()
+	close(compressedSome)
+}
+
+func TestCompressSpanPrematureEnd(t *testing.T) {
+	// This test cases assert that the cached spans are sent when the span or
+	// tx that holds their cache is ended and the cache isn't lost.
+	type expect struct {
+		compressionStrategy string
+		compositeSum        float64
+		spanCount           int
+		compositeCount      int
+	}
+	assertResult := func(t *testing.T, spans []model.Span, expect expect) {
+		assert.Equal(t, expect.spanCount, len(spans))
+		var composite *model.CompositeSpan
+		for _, span := range spans {
+			if span.Composite != nil {
+				assert.Equal(t, expect.compositeCount, span.Composite.Count)
+				assert.Equal(t, expect.compressionStrategy, span.Composite.CompressionStrategy)
+				assert.Equal(t, expect.compositeSum, span.Composite.Sum)
+				composite = span.Composite
+			}
+		}
+		require.NotNil(t, composite)
+	}
+
+	// 1. The parent ends before they do.
+	// The parent holds the compression cache in this test case.
+	// |      tx      |
+	// |  parent |         <--- The parent ends before the children ends.
+	// | child |           <--- compressed
+	// |  child |          <--- compressed
+	// |    child  |       <--- NOT compressed
+	// The expected result are 3 spans, the cache is invalidated and the span
+	// ended after the parent ends.
+	t.Run("ParentContext", func(t *testing.T) {
+		tracer := apmtest.NewRecordingTracer()
+		tracer.SetSpanCompressionEnabled(true)
+
+		tx := tracer.StartTransaction("name", "type")
+		ctx := apm.ContextWithTransaction(context.Background(), tx)
+		parent, ctx := apm.StartSpan(ctx, "parent", "internal")
+		for i := 0; i < 4; i++ {
+			child, _ := apm.StartSpanOptions(ctx, fmt.Sprint(i), "type", apm.SpanOptions{
 				Parent:   parent.TraceContext(),
 				ExitSpan: true,
 			})
-			span.Duration = time.Millisecond
-			span.End()
-			wg.Done()
-		}(i)
-	}
+			child.Duration = time.Microsecond
+			child.End()
+			if i == 2 {
+				parent.End()
+			}
+		}
+		tx.End()
+		tracer.Flush(nil)
+		assertResult(t, tracer.Payloads().Spans, expect{
+			spanCount:           3,
+			compositeCount:      3,
+			compressionStrategy: "same_kind",
+			compositeSum:        0.003,
+		})
+	})
 
-	wg.Wait()
-	parent.Duration = 100 * time.Millisecond
-	parent.End()
-	tx.Duration = 200 * time.Millisecond
-	tx.End()
+	// 2. The tx ends before the parent ends.
+	// The tx holds the compression cache in this test case.
+	// |    tx   |          <--- The TX ends before parent.
+	// |   parent  |
+	// | child |            <--- compressed
+	// |  child |           <--- compressed
+	// The expected result are 3 spans, the cache is invalidated and the span
+	// ended after the parent ends.
+	t.Run("TxEndBefore", func(t *testing.T) {
+		tracer := apmtest.NewRecordingTracer()
+		tracer.SetSpanCompressionEnabled(true)
+
+		tx := tracer.StartTransaction("name", "type")
+		ctx := apm.ContextWithTransaction(context.Background(), tx)
+
+		parent, ctx := apm.StartSpan(ctx, "parent", "internal")
+		for i := 0; i < 2; i++ {
+			child, _ := apm.StartSpanOptions(ctx, fmt.Sprint(i), "type", apm.SpanOptions{
+				ExitSpan: true,
+			})
+			child.Duration = time.Microsecond
+			child.End()
+		}
+		tx.End()
+		parent.End()
+		tracer.Flush(nil)
+		assertResult(t, tracer.Payloads().Spans, expect{
+			spanCount:           2,
+			compositeCount:      2,
+			compressionStrategy: "same_kind",
+			compositeSum:        0.002,
+		})
+	})
+
+	// 2. The parent ends before the last of the children span are finished.
+	// The tx holds the compression cache in this test case.
+	// |      tx      |
+	// |  parent  |         <--- The parent ends before the last child ends.
+	// | child |           <--- compressed
+	// |  child |          <--- compressed
+	// |    child  |       <--- NOT compressed
+	t.Run("ParentFromTx", func(t *testing.T) {
+		tracer := apmtest.NewRecordingTracer()
+		tracer.SetSpanCompressionEnabled(true)
+
+		tx := tracer.StartTransaction("name", "type")
+		parent := tx.StartSpan("parent", "internal", nil)
+		for i := 0; i < 3; i++ {
+			child := tx.StartSpanOptions(fmt.Sprint(i), "type", apm.SpanOptions{
+				Parent:   parent.TraceContext(),
+				ExitSpan: true,
+			})
+			child.Duration = time.Microsecond
+			child.End()
+			if i == 1 {
+				parent.End()
+			}
+		}
+		tx.End()
+		tracer.Flush(nil)
+		assertResult(t, tracer.Payloads().Spans, expect{
+			spanCount:           3,
+			compositeCount:      2,
+			compressionStrategy: "same_kind",
+			compositeSum:        0.002,
+		})
+	})
 }
 
 func TestExitSpanDoesNotOverwriteDestinationServiceResource(t *testing.T) {
