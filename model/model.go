@@ -362,6 +362,10 @@ type Span struct {
 
 	// Outcome holds the span outcome: success, failure, or unknown.
 	Outcome string `json:"outcome,omitempty"`
+
+	// Composite is set when the span is a composite span and represents an
+	// aggregated set of spans as defined by `composite.compression_strategy`.
+	Composite *CompositeSpan `json:"composite,omitempty"`
 }
 
 // SpanContext holds contextual information relating to the span.
@@ -462,6 +466,19 @@ type HTTPSpanContext struct {
 
 	// StatusCode holds the HTTP response status code.
 	StatusCode int `json:"status_code,omitempty"`
+}
+
+// CompositeSpan holds details on a group of spans represented by a single one.
+type CompositeSpan struct {
+	// Count is the number of compressed spans the composite span represents.
+	// The minimum count is 2, as a composite span represents at least two spans.
+	Count int `json:"count"`
+	// Sum is the durations of all compressed spans this composite span
+	// represents in milliseconds.
+	Sum float64 `json:"sum"`
+	// A string value indicating which compression strategy was used. The valid
+	// values are `exact_match` and `same_kind`.
+	CompressionStrategy string `json:"compression_strategy"`
 }
 
 // Context holds contextual information relating to a transaction or error.

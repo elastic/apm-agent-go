@@ -117,6 +117,8 @@ type TracerOptions struct {
 	cpuProfileInterval    time.Duration
 	cpuProfileDuration    time.Duration
 	heapProfileInterval   time.Duration
+
+	compressionOptions compressionOptions
 }
 
 // initDefaults updates opts with default values.
@@ -162,6 +164,21 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 	maxSpans, err := initialMaxSpans()
 	if failed(err) {
 		maxSpans = defaultMaxSpans
+	}
+
+	spanCompressionEnabled, err := initialSpanCompressionEnabled()
+	if failed(err) {
+		spanCompressionEnabled = defaultSpanCompressionEnabled
+	}
+
+	spanCompressionExactMatchMaxDuration, err := initialSpanCompressionExactMatchMaxDuration()
+	if failed(err) {
+		spanCompressionExactMatchMaxDuration = defaultSpanCompressionExactMatchMaxDuration
+	}
+
+	spanCompressionSameKindMaxDuration, err := initialSpanCompressionSameKindMaxDuration()
+	if failed(err) {
+		spanCompressionSameKindMaxDuration = defaultSpanCompressionSameKindMaxDuration
 	}
 
 	sampler, err := initialSampler()
@@ -244,6 +261,11 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 	opts.bufferSize = bufferSize
 	opts.metricsBufferSize = metricsBufferSize
 	opts.maxSpans = maxSpans
+	opts.compressionOptions = compressionOptions{
+		enabled:               spanCompressionEnabled,
+		exactMatchMaxDuration: spanCompressionExactMatchMaxDuration,
+		sameKindMaxDuration:   spanCompressionSameKindMaxDuration,
+	}
 	opts.sampler = sampler
 	opts.sanitizedFieldNames = initialSanitizedFieldNames()
 	opts.disabledMetrics = initialDisabledMetrics()
@@ -282,6 +304,12 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 		opts.ServiceEnvironment = serviceEnvironment
 	}
 	return nil
+}
+
+type compressionOptions struct {
+	enabled               bool
+	exactMatchMaxDuration time.Duration
+	sameKindMaxDuration   time.Duration
 }
 
 // Tracer manages the sampling and sending of transactions to
@@ -412,6 +440,15 @@ func newTracer(opts TracerOptions) *Tracer {
 	})
 	t.setLocalInstrumentationConfig(envMaxSpans, func(cfg *instrumentationConfigValues) {
 		cfg.maxSpans = opts.maxSpans
+	})
+	t.setLocalInstrumentationConfig(envSpanCompressionEnabled, func(cfg *instrumentationConfigValues) {
+		cfg.compressionOptions.enabled = opts.compressionOptions.enabled
+	})
+	t.setLocalInstrumentationConfig(envSpanCompressionExactMatchMaxDuration, func(cfg *instrumentationConfigValues) {
+		cfg.compressionOptions.exactMatchMaxDuration = opts.compressionOptions.exactMatchMaxDuration
+	})
+	t.setLocalInstrumentationConfig(envSpanCompressionSameKindMaxDuration, func(cfg *instrumentationConfigValues) {
+		cfg.compressionOptions.sameKindMaxDuration = opts.compressionOptions.sameKindMaxDuration
 	})
 	t.setLocalInstrumentationConfig(envTransactionSampleRate, func(cfg *instrumentationConfigValues) {
 		cfg.sampler = opts.sampler
@@ -705,6 +742,29 @@ func (t *Tracer) SetSampler(s Sampler) {
 func (t *Tracer) SetMaxSpans(n int) {
 	t.setLocalInstrumentationConfig(envMaxSpans, func(cfg *instrumentationConfigValues) {
 		cfg.maxSpans = n
+	})
+}
+
+// SetSpanCompressionEnabled enables/disables the span compression feature.
+func (t *Tracer) SetSpanCompressionEnabled(v bool) {
+	t.setLocalInstrumentationConfig(envSpanCompressionEnabled, func(cfg *instrumentationConfigValues) {
+		cfg.compressionOptions.enabled = v
+	})
+}
+
+// SetSpanCompressionExactMatchMaxDuration sets the maximum duration for a span
+// to be compressed with `compression_strategy` == `exact_match`.
+func (t *Tracer) SetSpanCompressionExactMatchMaxDuration(v time.Duration) {
+	t.setLocalInstrumentationConfig(envSpanCompressionExactMatchMaxDuration, func(cfg *instrumentationConfigValues) {
+		cfg.compressionOptions.exactMatchMaxDuration = v
+	})
+}
+
+// SetSpanCompressionSameKindMaxDuration sets the maximum duration for a span
+// to be compressed with `compression_strategy` == `same_kind`.
+func (t *Tracer) SetSpanCompressionSameKindMaxDuration(v time.Duration) {
+	t.setLocalInstrumentationConfig(envSpanCompressionSameKindMaxDuration, func(cfg *instrumentationConfigValues) {
+		cfg.compressionOptions.sameKindMaxDuration = v
 	})
 }
 

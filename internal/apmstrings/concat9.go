@@ -18,17 +18,24 @@
 //go:build !go1.10
 // +build !go1.10
 
-package apm // import "go.elastic.co/apm"
+package apmstrings
 
-import "math"
+import (
+	"bytes"
+)
 
-// Implementation of math.Round for Go < 1.10.
-//
-// Code shamelessly copied from pkg/math.
-func round(x float64) float64 {
-	t := math.Trunc(x)
-	if math.Abs(x-t) >= 0.5 {
-		return t + math.Copysign(1, x)
+// Concat concatenates all the string arguments efficiently.
+func Concat(elements ...string) string {
+	var buf bytes.Buffer
+	var length int
+	for i := range elements {
+		length += len(elements[i])
 	}
-	return t
+	buf.Grow(length)
+
+	for i := range elements {
+		buf.WriteString(elements[i])
+	}
+	return buf.String()
+
 }

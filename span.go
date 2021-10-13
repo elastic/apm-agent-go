@@ -22,6 +22,7 @@ import (
 	"encoding/binary"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"go.elastic.co/apm/stacktrace"
@@ -124,6 +125,7 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 		}
 		span.stackFramesMinDuration = tx.spanFramesMinDuration
 		span.stackTraceLimit = tx.stackTraceLimit
+		span.compressedSpan.options = tx.compressedSpan.options
 		tx.spansCreated++
 	}
 
@@ -175,6 +177,7 @@ func (t *Tracer) StartSpan(name, spanType string, transactionID SpanID, opts Spa
 	instrumentationConfig := t.instrumentationConfig()
 	span.stackFramesMinDuration = instrumentationConfig.spanFramesMinDuration
 	span.stackTraceLimit = instrumentationConfig.stackTraceLimit
+	span.compressedSpan.options = instrumentationConfig.compressionOptions
 	if opts.ExitSpan {
 		span.exit = true
 	}
@@ -257,6 +260,9 @@ type Span struct {
 	parentID      SpanID
 	exit          bool
 
+	// ctxPropagated is set to 1 when the traceContext is propagated downstream.
+	ctxPropagated uint32
+
 	mu sync.RWMutex
 
 	// SpanData holds the span data. This field is set to nil when
@@ -269,6 +275,7 @@ func (s *Span) TraceContext() TraceContext {
 	if s == nil {
 		return TraceContext{}
 	}
+	atomic.StoreUint32(&s.ctxPropagated, 1)
 	return s.traceContext
 }
 
@@ -352,8 +359,28 @@ func (s *Span) End() {
 	if len(s.stacktrace) == 0 && s.Duration >= s.stackFramesMinDuration {
 		s.setStacktrace(1)
 	}
+
 	if s.tx != nil {
 		s.reportSelfTime()
+	}
+
+	s.end()
+}
+
+// end represents a subset of the public `s.End()` API  and will only attempt
+// to compress the span if it's compressable, or enqueue it in case it's not.
+//
+// end must only be called from `s.End()` and `tx.End()`.
+func (s *Span) end() {
+	evictedSpan, cached := s.attemptCompress()
+	if evictedSpan != nil {
+		evictedSpan.end()
+	}
+	if cached {
+		// s has been cached for potential compression, and will be enqueued
+		// by a future call to attemptCompress on a sibling span, or when the
+		// parent is ended.
+		return
 	}
 	s.enqueue()
 	s.SpanData = nil
@@ -461,6 +488,8 @@ type SpanData struct {
 	stackTraceLimit        int
 	timestamp              time.Time
 	childrenTimer          childrenTimer
+	composite              compositeSpan
+	compressedSpan         compressedSpan
 
 	// Name holds the span name, initialized with the value passed to StartSpan.
 	Name string

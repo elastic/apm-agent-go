@@ -606,3 +606,68 @@ automatically collect the cloud metadata.
 
 Valid options are `"none"`, `"auto"`, `"aws"`, `"gcp"`, and `"azure"`
 If this config value is set to `"none"`, then no cloud metadata will be collected.
+
+[float]
+[[config-span-compression-enabled]]
+=== `ELASTIC_APM_SPAN_COMPRESSION_ENABLED`
+
+<<dynamic-configuration, image:./images/dynamic-config.svg[] >>
+
+[options="header"]
+|============
+| Environment                            | Default
+| `ELASTIC_APM_SPAN_COMPRESSION_ENABLED` | `false`
+|============
+
+When enabled, the agent will attempt to compress _short_ exit spans that share the
+same parent into a composite span. The exact duration for what is considered
+_short_, depends on the compression strategy used (`same_kind` or `exact_match`).
+
+In order for a span to be compressible, these conditions need to be met:
+
+* Spans are exit spans.
+* Spans are siblings (share the same parent).
+* Spans have not propagated their context downstream.
+* Each span duration is equal or lower to the compression strategy maximum duration.
+* Spans are compressed with `same_kind` strategy when these attributes are equal:
+** `span.type`.
+** `span.subtype`.
+** `span.context.destination.service.resource`
+* Spans are compressed with `exact_match` strategy when all the previous conditions
+are met and the `span.name` is equal.
+
+Compressing short exit spans should provide some storage savings for services that
+create a lot of consecutive short exit spans to for example databases or cache
+services which are generally uninteresting when viewing a trace.
+
+experimental::["This feature is experimental and requires APM Server v7.15 or later."]
+
+[float]
+[[config-span-compression-exact-match-duration]]
+=== `ELASTIC_APM_SPAN_COMPRESSION_EXACT_MATCH_MAX_DURATION`
+
+<<dynamic-configuration, image:./images/dynamic-config.svg[] >>
+
+[options="header"]
+|============
+| Environment                                             | Default
+| `ELASTIC_APM_SPAN_COMPRESSION_EXACT_MATCH_MAX_DURATION` | `50ms`
+|============
+
+The maximum duration to consider for compressing sibling exit spans that are an
+exact match for compression.
+
+[float]
+[[config-span-compression-same-kind-duration]]
+=== `ELASTIC_APM_SPAN_COMPRESSION_SAME_KIND_MAX_DURATION`
+
+<<dynamic-configuration, image:./images/dynamic-config.svg[] >>
+
+[options="header"]
+|============
+| Environment                                            | Default
+| `ELASTIC_APM_SPAN_COMPRESSION_SAME_KIND_MAX_DURATION`  | `5ms`
+|============
+
+The maximum duration to consider for compressing sibling exit spans that are of
+the same kind for compression.

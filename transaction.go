@@ -69,6 +69,7 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 	}
 
 	tx.maxSpans = instrumentationConfig.maxSpans
+	tx.compressedSpan.options = instrumentationConfig.compressionOptions
 	tx.spanFramesMinDuration = instrumentationConfig.spanFramesMinDuration
 	tx.stackTraceLimit = instrumentationConfig.stackTraceLimit
 	tx.Context.captureHeaders = instrumentationConfig.captureHeaders
@@ -286,6 +287,13 @@ func (tx *Transaction) End() {
 		if tx.Outcome == "" {
 			tx.Outcome = tx.Context.outcome()
 		}
+		// Hold the transaction data lock to check if the transaction has any
+		// compressed spans in its cache, if so, evict cache and end the span.
+		tx.TransactionData.mu.Lock()
+		if evictedSpan := tx.compressedSpan.evict(); evictedSpan != nil {
+			evictedSpan.end()
+		}
+		tx.TransactionData.mu.Unlock()
 		tx.enqueue()
 	} else {
 		tx.reset(tx.tracer)
@@ -366,6 +374,8 @@ type TransactionData struct {
 	spanTimings       spanTimingsMap
 	droppedSpansStats droppedSpanTimingsMap
 	rand              *rand.Rand // for ID generation
+
+	compressedSpan compressedSpan
 }
 
 // reset resets the TransactionData back to its zero state and places it back

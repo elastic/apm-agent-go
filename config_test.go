@@ -20,6 +20,7 @@ package apm_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -126,6 +127,57 @@ func TestTracerCentralConfigUpdate(t *testing.T) {
 		u, err := url.Parse("http://testing.invalid/")
 		require.NoError(t, err)
 		return tracer.IgnoredTransactionURL(u)
+	})
+	run("span_compression_enabled", "true", func(tracer *apmtest.RecordingTracer) bool {
+		tracer.ResetPayloads()
+		tx := tracer.StartTransaction("name", "type")
+		exitSpanOpts := apm.SpanOptions{ExitSpan: true}
+		for i := 0; i < 2; i++ {
+			span := tx.StartSpanOptions("name", "request", exitSpanOpts)
+			span.Duration = 50 * time.Millisecond
+			span.End()
+		}
+		tx.End()
+		tracer.Flush(nil)
+		return len(tracer.Payloads().Spans) == 1
+	})
+	run("span_compression_exact_match_max_duration", "100ms", func(tracer *apmtest.RecordingTracer) bool {
+		tracer.ResetPayloads()
+		tracer.SetSpanCompressionEnabled(true)
+		defer tracer.SetSpanCompressionEnabled(false)
+		tx := tracer.StartTransaction("name", "type")
+		exitSpanOpts := apm.SpanOptions{ExitSpan: true}
+		for i := 0; i < 2; i++ {
+			span := tx.StartSpanOptions("name", "request", exitSpanOpts)
+			span.Duration = 100 * time.Millisecond
+			span.End()
+		}
+		// Third span does not get compressed since it exceeds the max duration.
+		span := tx.StartSpanOptions("name", "request", exitSpanOpts)
+		span.Duration = 101 * time.Millisecond
+		span.End()
+		tx.End()
+		tracer.Flush(nil)
+		return len(tracer.Payloads().Spans) == 2
+	})
+	run("span_compression_same_kind_max_duration", "10ms", func(tracer *apmtest.RecordingTracer) bool {
+		tracer.ResetPayloads()
+		tracer.SetSpanCompressionEnabled(true)
+		defer tracer.SetSpanCompressionEnabled(false)
+		tx := tracer.StartTransaction("name", "type")
+		exitSpanOpts := apm.SpanOptions{ExitSpan: true}
+		for i := 0; i < 2; i++ {
+			span := tx.StartSpanOptions(fmt.Sprint(i), "request", exitSpanOpts)
+			span.Duration = 10 * time.Millisecond
+			span.End()
+		}
+		// Third span does not get compressed since it exceeds the max duration.
+		span := tx.StartSpanOptions("name", "request", exitSpanOpts)
+		span.Duration = 11 * time.Millisecond
+		span.End()
+		tx.End()
+		tracer.Flush(nil)
+		return len(tracer.Payloads().Spans) == 2
 	})
 }
 
