@@ -72,6 +72,11 @@ func (cs compositeSpan) empty() bool {
 // graph started by the downstream service and cause it to not appear in the
 // waterfall view.
 func (s *Span) compress(sibling *Span) bool {
+	// If the spans aren't siblings, we cannot compress them.
+	if s.parentID != sibling.parentID {
+		return false
+	}
+
 	strategy := s.canCompressComposite(sibling)
 	if strategy == 0 {
 		strategy = s.canCompressStandard(sibling)

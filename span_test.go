@@ -194,6 +194,57 @@ func TestStartExitSpan(t *testing.T) {
 	assert.True(t, span.IsExitSpan())
 }
 
+func TestCompressSpanNonSiblings(t *testing.T) {
+	// Asserts that non sibling spans are not compressed.
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+
+	tracer.SetSpanCompressionEnabled(true)
+
+	tx := tracer.StartTransaction("name", "type")
+	parent := tx.StartSpan("parent", "parent", nil)
+
+	createSpans := []struct {
+		name, typ string
+		parent    apm.TraceContext
+	}{
+		{name: "not compressed", typ: "internal", parent: parent.TraceContext()},
+		{name: "not compressed", typ: "internal", parent: tx.TraceContext()},
+		{name: "compressed", typ: "internal", parent: parent.TraceContext()},
+		{name: "compressed", typ: "internal", parent: parent.TraceContext()},
+		{name: "compressed", typ: "different", parent: tx.TraceContext()},
+		{name: "compressed", typ: "different", parent: tx.TraceContext()},
+	}
+	for _, span := range createSpans {
+		span := tx.StartSpanOptions(span.name, span.typ, apm.SpanOptions{
+			ExitSpan: true, Parent: span.parent,
+		})
+		span.Duration = time.Millisecond
+		span.End()
+	}
+
+	parent.End()
+	tx.End()
+	tracer.Flush(nil)
+
+	spans := tracer.Payloads().Spans
+	require.Len(t, spans, 5)
+
+	// First two spans should not have been compressed together.
+	require.Nil(t, spans[0].Composite)
+	require.Nil(t, spans[1].Composite)
+
+	require.NotNil(t, spans[2].Composite)
+	require.Equal(t, 2, spans[2].Composite.Count)
+	require.Equal(t, float64(2), spans[2].Composite.Sum)
+	require.Equal(t, "exact_match", spans[2].Composite.CompressionStrategy)
+
+	require.NotNil(t, spans[3].Composite)
+	require.Equal(t, 2, spans[3].Composite.Count)
+	require.Equal(t, float64(2), spans[3].Composite.Sum)
+	require.Equal(t, "exact_match", spans[3].Composite.CompressionStrategy)
+}
+
 func TestCompressSpanExactMatch(t *testing.T) {
 	// Aserts that that span compression works on compressable spans with
 	// "exact_match" strategy.
