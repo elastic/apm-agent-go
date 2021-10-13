@@ -119,93 +119,51 @@ func (s *Span) compress(sibling *Span) bool {
 //     CANNOT continue to compress spans using a different strategy.
 // The compression algorithm is fairly simple and only compresses spans into a
 // composite span when the conditions listed above are met for all consecutive
-// spans, when a span comes in that doesn't meet any of the conditions, the
-// cache will be evicted (cached span will be returned) and:
+// spans, at any point any span that doesn't meet the conditions, will cause
+// the cache be evicted and the cached span will be returned.
 // * When the incoming span is compressible, it will replace the cached span.
 // * When the incoming span is not compressible, it will be enqueued as well.
 //
 // Returns `true` when the span has been cached, thus the caller should not
 // enqueue the span. When `false` is returned, the cache is evicted and the
-// caller should enqueue. When the cache is evicted, the cached span is returned
-// and the caller is expected to enqueue it.
+// caller should enqueue the span.
 //
 // It needs to be called with s.mu held, and will attempt to hold s.parent.mu
 // when not nil or s.tx.mu and s.tx.TransactionData.mu when s.parent is nil.
 func (s *Span) attemptCompress() (*Span, bool) {
 	// If the span has already been evicted from the cache, ask the caller to
-	// enqueue it.
-	if !s.compressedSpan.options.enabled || s.fromCache {
+	// end it.
+	if !s.compressedSpan.options.enabled {
 		return nil, false
 	}
 
-	var cachedSpan *Span
-	// There are two distinct places where the span can be buffered; the parent
-	// span and the transaction (when a transaction is the span's parent).
+	// When a parent span ends, flush its cache.
+	if cache := s.compressedSpan.evict(); cache != nil {
+		return cache, false
+	}
+
+	// There are two distinct places where the span can be cached; the parent
+	// span and the transaction. The algorithm prefers storing the cached spans
+	// in its parent, and if nil, it will use the transaction's cache.
 	if s.parent != nil {
 		s.parent.mu.Lock()
 		defer s.parent.mu.Unlock()
-		// Flush the buffer, have the caller report the span.
-		if !s.isCompressionEligible() {
-			if s.parent.compressedSpan.cache != nil {
-				cachedSpan = s.parent.compressedSpan.evict()
-			}
-			return cachedSpan, false
+		if !s.parent.ended() {
+			return s.parent.compressedSpan.compressOrEvictCache(s)
 		}
-
-		// The span is compressable and we need to store in the parent's cache.
-		if s.parent.compressedSpan.cache == nil {
-			s.parent.compressedSpan.cache = s
-			return nil, true
-		}
-
-		// When the span is compressable, compress it into s.parent.cache:
-		// On success: nothing, already compressed in s.parent.cache (*Span).
-		// On failure: evict and swap the cache with the current span.
-		if !s.parent.compressedSpan.cache.compress(s) {
-			cachedSpan = s.parent.compressedSpan.evict()
-			s.parent.compressedSpan.cache = s
-		}
-		return cachedSpan, true
-	}
-
-	if s.tx == nil {
-		return nil, false
-	}
-	s.tx.mu.RLock()
-	defer s.tx.mu.RUnlock()
-	if s.tx.ended() {
 		return nil, false
 	}
 
-	s.tx.TransactionData.mu.Lock()
-	defer s.tx.TransactionData.mu.Unlock()
-	if !s.isCompressionEligible() {
-		// At this point, the span isn't compressable which is likely to be the
-		// parent or non-compressable sibling, either way, the transaction or
-		// the span's buffer needs to be evicted and `false` is returned.
-		if s.tx.compressedSpan.cache != nil {
-			cachedSpan = s.tx.compressedSpan.evict()
+	if s.tx != nil {
+		s.tx.mu.RLock()
+		defer s.tx.mu.RUnlock()
+		if !s.tx.ended() {
+			s.tx.TransactionData.mu.Lock()
+			defer s.tx.TransactionData.mu.Unlock()
+			return s.tx.compressedSpan.compressOrEvictCache(s)
 		}
-		if s.compressedSpan.cache != nil {
-			cachedSpan = s.compressedSpan.evict()
-		}
-		return cachedSpan, false
 	}
-
-	// The span is compressable and we need to store in the parent's cache.
-	if s.tx.compressedSpan.cache == nil {
-		s.tx.compressedSpan.cache = s
-		return nil, true
-	}
-
-	// When the span is compressable, compress it into s.tx.cache:
-	// On success: it is already stored in the s.tx.cache (*Span).
-	// On failure: evict and swap the cache with the current span.
-	if !s.tx.compressedSpan.cache.compress(s) {
-		cachedSpan = s.tx.compressedSpan.evict()
-		s.tx.compressedSpan.cache = s
-	}
-	return cachedSpan, true
+	return nil, false
 }
 
 func (s *Span) isCompressionEligible() bool {
@@ -318,8 +276,13 @@ type compressedSpan struct {
 //
 // Should be only be called from Transaction.End() and Span.End().
 func (cs *compressedSpan) evict() *Span {
+	if cs.cache == nil {
+		return nil
+	}
 	cached := cs.cache
-	cached.fromCache = true
+	// Disable compression on the evicted span to avoid the span from ending up
+	// swapping the cache and causing an infinite loop.
+	cached.compressedSpan.options.enabled = false
 	cs.cache = nil
 	// When the span composite is not empty, we need to adjust the duration just
 	// before it is reported and no more spans will be compressed into the
@@ -331,4 +294,22 @@ func (cs *compressedSpan) evict() *Span {
 		cached.setCompressedSpanName()
 	}
 	return cached
+}
+
+func (cs *compressedSpan) compressOrEvictCache(s *Span) (*Span, bool) {
+	if !s.isCompressionEligible() {
+		return cs.evict(), false
+	}
+
+	if cs.cache == nil {
+		cs.cache = s
+		return nil, true
+	}
+
+	var evictedSpan *Span
+	if !cs.cache.compress(s) {
+		evictedSpan = cs.evict()
+		cs.cache = s
+	}
+	return evictedSpan, true
 }

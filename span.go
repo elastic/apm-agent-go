@@ -260,10 +260,6 @@ type Span struct {
 	parentID      SpanID
 	exit          bool
 
-	// true when the span has been evicted from the cache. It is used to avoid
-	// infinite loops when attempting to compress spans.
-	fromCache bool
-
 	// ctxPropagated is set to 1 when the traceContext is propagated downstream.
 	ctxPropagated uint32
 
@@ -279,7 +275,7 @@ func (s *Span) TraceContext() TraceContext {
 	if s == nil {
 		return TraceContext{}
 	}
-	atomic.CompareAndSwapUint32(&s.ctxPropagated, 0, 1)
+	atomic.StoreUint32(&s.ctxPropagated, 1)
 	return s.traceContext
 }
 
@@ -364,20 +360,28 @@ func (s *Span) End() {
 		s.setStacktrace(1)
 	}
 
-	// When the span has fromCache boolean set, the timers have already been
-	// adjusted, so it can be skipped.
-	if s.tx != nil && !s.fromCache {
+	if s.tx != nil {
 		s.reportSelfTime()
 	}
 
-	cachedSpan, compressed := s.attemptCompress()
-	if cachedSpan != nil {
-		cachedSpan.End()
+	s.end()
+}
+
+// end represents a subset of the public `s.End()` API  and will only attempt
+// to compress the span if it's compressable, or enqueue it in case it's not.
+//
+// end must only be called from `s.End()` and `tx.End()`.
+func (s *Span) end() {
+	evictedSpan, cached := s.attemptCompress()
+	if evictedSpan != nil {
+		evictedSpan.end()
 	}
-	if compressed {
+	if cached {
+		// s has been cached for potential compression, and will be enqueued
+		// by a future call to attemptCompress on a sibling span, or when the
+		// parent is ended.
 		return
 	}
-
 	s.enqueue()
 	s.SpanData = nil
 }

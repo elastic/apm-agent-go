@@ -640,7 +640,7 @@ Compressing short exit spans should provide some storage savings for services th
 create a lot of consecutive short exit spans to for example databases or cache
 services which are generally uninteresting when viewing a trace.
 
-NOTE: This feature is experimental and requires APM Server v7.15 or later.
+experimental::["This feature is experimental and requires APM Server v7.15 or later."]
 
 [float]
 [[config-span-compression-exact-match-duration]]
