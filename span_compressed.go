@@ -276,8 +276,7 @@ type compressedSpan struct {
 }
 
 // evict resets the cache to nil and returns the cached span after adjusting
-// its Name, Duration, and timers. It will set `s.fromCache` in the span that's
-// been returned to avoid the `span.End()` from entering an infinite loop.
+// its Name, Duration, and timers.
 //
 // Should be only be called from Transaction.End() and Span.End().
 func (cs *compressedSpan) evict() *Span {
