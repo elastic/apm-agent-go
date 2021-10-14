@@ -403,6 +403,27 @@ prevent overloading the agent and the APM server with too much work
 for such edge cases.
 
 [float]
+[[config-exit-span-min-duration]]
+=== `ELASTIC_APM_EXIT_SPAN_MIN_DURATION`
+
+<<dynamic-configuration, image:./images/dynamic-config.svg[] >>
+
+[options="header"]
+|============
+| Environment                           | Default
+| `ELASTIC_APM_EXIT_SPAN_MIN_DURATION` | `1ms`
+|============
+
+Sets the minimum duration for an exit span to be reported. Spans shorter or
+equal to this threshold will be dropped by the agent and reported as statistics
+in the span's transaction, if any.
+
+When span compression is enabled (<<config-span-compression-enabled>>), the sum
+of the compressed span composite is considered.
+
+The minimum duration allowed for this setting is 1 microsecond (`μs`).
+
+[float]
 [[config-span-frames-min-duration-ms]]
 === `ELASTIC_APM_SPAN_FRAMES_MIN_DURATION`
 

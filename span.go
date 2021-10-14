@@ -126,6 +126,7 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 		span.stackFramesMinDuration = tx.spanFramesMinDuration
 		span.stackTraceLimit = tx.stackTraceLimit
 		span.compressedSpan.options = tx.compressedSpan.options
+		span.exitSpanMinDuration = tx.exitSpanMinDuration
 		tx.spansCreated++
 	}
 
@@ -178,6 +179,7 @@ func (t *Tracer) StartSpan(name, spanType string, transactionID SpanID, opts Spa
 	span.stackFramesMinDuration = instrumentationConfig.spanFramesMinDuration
 	span.stackTraceLimit = instrumentationConfig.stackTraceLimit
 	span.compressedSpan.options = instrumentationConfig.compressionOptions
+	span.exitSpanMinDuration = instrumentationConfig.exitSpanMinDuration
 	if opts.ExitSpan {
 		span.exit = true
 	}
@@ -484,6 +486,7 @@ func (s *Span) aggregateDroppedSpanStats() {
 // When a span is ended or discarded, its SpanData field will be set
 // to nil.
 type SpanData struct {
+	exitSpanMinDuration    time.Duration
 	stackFramesMinDuration time.Duration
 	stackTraceLimit        int
 	timestamp              time.Time

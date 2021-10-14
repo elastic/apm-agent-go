@@ -25,13 +25,37 @@ import (
 	"unicode"
 )
 
+var durationUnitMap = map[string]time.Duration{
+	"us": time.Microsecond,
+	"ms": time.Millisecond,
+	"s":  time.Second,
+	"m":  time.Minute,
+}
+
+// DurationOptions can be used to specify the minimum accepted duration unit
+// for ParseDurationOptions.
+type DurationOptions struct {
+	MinimumDurationUnit time.Duration
+}
+
 // ParseDuration parses s as a duration, accepting a subset
 // of the syntax supported by time.ParseDuration.
 //
 // Valid time units are "ms", "s", "m".
 func ParseDuration(s string) (time.Duration, error) {
+	return ParseDurationOptions(s, DurationOptions{
+		MinimumDurationUnit: time.Millisecond,
+	})
+}
+
+// ParseDurationOptions parses s as a duration, accepting a subset of the
+// syntax supported by time.ParseDuration. It allows a DurationOptions to
+// be passed to specify the minimum time.Duration unit allowed.
+//
+// Valid time units are "us", "ms", "s", "m".
+func ParseDurationOptions(s string, opts DurationOptions) (time.Duration, error) {
 	orig := s
-	var mul time.Duration = 1
+	mul := time.Nanosecond
 	if strings.HasPrefix(s, "-") {
 		mul = -1
 		s = s[1:]
@@ -46,28 +70,60 @@ func ParseDuration(s string) (time.Duration, error) {
 			}
 		}
 	}
+
+	allowedUnitsString := computeAllowedUnitsString(
+		opts.MinimumDurationUnit, time.Minute,
+	)
 	if sep == -1 {
-		return 0, fmt.Errorf("missing unit in duration %s (allowed units: ms, s, m)", orig)
+		return 0, fmt.Errorf("missing unit in duration %s (allowed units: %s)",
+			orig, allowedUnitsString,
+		)
 	}
 
 	n, err := strconv.ParseInt(s[:sep], 10, 32)
 	if err != nil {
 		return 0, fmt.Errorf("invalid duration %s", orig)
 	}
-	switch s[sep:] {
-	case "ms":
-		mul *= time.Millisecond
-	case "s":
-		mul *= time.Second
-	case "m":
-		mul *= time.Minute
-	default:
-		for _, c := range s[sep:] {
-			if unicode.IsSpace(c) {
-				return 0, fmt.Errorf("invalid character %q in duration %s", c, orig)
-			}
+
+	// If it's
+	mul, ok := durationUnitMap[s[sep:]]
+	if ok {
+		if mul < opts.MinimumDurationUnit {
+			return 0, fmt.Errorf("invalid unit in duration %s (allowed units: %s)",
+				orig, allowedUnitsString,
+			)
 		}
-		return 0, fmt.Errorf("invalid unit in duration %s (allowed units: ms, s, m)", orig)
+		return mul * time.Duration(n), nil
 	}
-	return mul * time.Duration(n), nil
+
+	for _, c := range s[sep:] {
+		if unicode.IsSpace(c) {
+			return 0, fmt.Errorf("invalid character %q in duration %s", c, orig)
+		}
+	}
+	return 0, fmt.Errorf("invalid unit in duration %s (allowed units: %s)",
+		orig, allowedUnitsString,
+	)
+}
+
+// computeAllowedUnitsString returns a string
+func computeAllowedUnitsString(minUnit, maxUnit time.Duration) string {
+	inverseLookup := make(map[time.Duration]string)
+	for k, v := range durationUnitMap {
+		inverseLookup[v] = k
+	}
+
+	if minUnit < time.Microsecond {
+		minUnit = time.Microsecond
+	}
+
+	allowedUnits := make([]string, 0, 4)
+	nextDuration := time.Duration(1000)
+	for i := minUnit; i <= maxUnit; i = i * nextDuration {
+		if i >= time.Second {
+			nextDuration = 60
+		}
+		allowedUnits = append(allowedUnits, inverseLookup[i])
+	}
+	return strings.Join(allowedUnits, ", ")
 }

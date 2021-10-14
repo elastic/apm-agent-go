@@ -57,6 +57,22 @@ func TestTracerCentralConfigUpdate(t *testing.T) {
 	run("transaction_max_spans", "0", func(tracer *apmtest.RecordingTracer) bool {
 		return tracer.StartTransaction("name", "type").StartSpan("name", "type", nil).Dropped()
 	})
+	run("exit_span_min_duration", "10ms", func(tracer *apmtest.RecordingTracer) bool {
+		tracer.ResetPayloads()
+
+		tx := tracer.StartTransaction("name", "type")
+		span := tx.StartSpanOptions("name", "type", apm.SpanOptions{ExitSpan: true})
+		span.Duration = 10 * time.Millisecond
+		span.End()
+		tx.End()
+
+		tracer.Flush(nil)
+		payloads := tracer.Payloads()
+		txs := payloads.Transactions
+		require.Len(t, txs, 1)
+		return txs[0].SpanCount.Dropped == 1 && len(payloads.Spans) == 0 &&
+			len(txs[0].DroppedSpansStats) == 1
+	})
 	run("capture_body", "all", func(tracer *apmtest.RecordingTracer) bool {
 		req, _ := http.NewRequest("POST", "/", strings.NewReader("..."))
 		capturer := tracer.CaptureHTTPRequestBody(req)

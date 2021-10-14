@@ -70,6 +70,7 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 
 	tx.maxSpans = instrumentationConfig.maxSpans
 	tx.compressedSpan.options = instrumentationConfig.compressionOptions
+	tx.exitSpanMinDuration = instrumentationConfig.exitSpanMinDuration
 	tx.spanFramesMinDuration = instrumentationConfig.spanFramesMinDuration
 	tx.stackTraceLimit = instrumentationConfig.stackTraceLimit
 	tx.Context.captureHeaders = instrumentationConfig.captureHeaders
@@ -361,6 +362,7 @@ type TransactionData struct {
 
 	recording               bool
 	maxSpans                int
+	exitSpanMinDuration     time.Duration
 	spanFramesMinDuration   time.Duration
 	stackTraceLimit         int
 	breakdownMetricsEnabled bool
