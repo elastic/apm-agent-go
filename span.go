@@ -347,36 +347,25 @@ func (s *Span) End() {
 	if s.Outcome == "" {
 		s.Outcome = s.Context.outcome()
 	}
-	if s.dropped() {
-		if s.tx != nil {
-			s.reportSelfTime()
-			s.aggregateDroppedSpanStats()
-			s.reset(s.tx.tracer)
-		} else {
-			droppedSpanDataPool.Put(s.SpanData)
-		}
-		s.SpanData = nil
-		return
-	}
-	if len(s.stacktrace) == 0 && s.Duration >= s.stackFramesMinDuration {
+	if !s.dropped() && len(s.stacktrace) == 0 &&
+		s.Duration >= s.stackFramesMinDuration {
 		s.setStacktrace(1)
 	}
-
 	if s.tx != nil {
 		s.reportSelfTime()
 	}
 
-	s.end()
-}
-
-// end represents a subset of the public `s.End()` API  and will only attempt
-// to compress the span if it's compressable, or enqueue it in case it's not.
-//
-// end must only be called from `s.End()` and `tx.End()`.
-func (s *Span) end() {
 	evictedSpan, cached := s.attemptCompress()
 	if evictedSpan != nil {
+		s.tx.mu.RLock()
+		if !evictedSpan.tx.ended() {
+			evictedSpan.tx.TransactionData.mu.Lock()
+		}
 		evictedSpan.end()
+		if !evictedSpan.tx.ended() {
+			evictedSpan.tx.TransactionData.mu.Unlock()
+		}
+		s.tx.mu.RUnlock()
 	}
 	if cached {
 		// s has been cached for potential compression, and will be enqueued
@@ -384,7 +373,35 @@ func (s *Span) end() {
 		// parent is ended.
 		return
 	}
-	s.enqueue()
+	s.end()
+}
+
+// end represents a subset of the public `s.End()` API  and will only attempt
+// to drop the span when it's a short exit span or enqueue it in case it's not.
+//
+// end must only be called with from `s.End()` and `tx.End()` with `s.mu` held.
+func (s *Span) end() {
+	// After an exit span finishes (no more compression attempts), we drop it
+	// when s.duration <= `exit_span_min_duration` and increment the tx dropped
+	// count.
+	s.dropFastExitSpan()
+
+	if s.dropped() {
+		if s.tx != nil {
+			if !s.tx.ended() {
+				s.tx.mu.RLock()
+				s.aggregateDroppedSpanStats()
+				s.tx.mu.RUnlock()
+			} else {
+				s.reset(s.tx.tracer)
+			}
+		} else {
+			droppedSpanDataPool.Put(s.SpanData)
+		}
+	} else {
+		s.enqueue()
+	}
+
 	s.SpanData = nil
 }
 
@@ -470,15 +487,37 @@ func (s *Span) IsExitSpan() bool {
 // aggregateDroppedSpanStats aggregates the current span into the transaction
 // dropped spans stats timings.
 //
-// Must only be called from End() with s.tx.mu held.
+// Must only be called from end() with s.tx.mu and s.tx.TransactionData.mu held.
 func (s *Span) aggregateDroppedSpanStats() {
 	// An exit span would have the destination service set but in any case, we
 	// check the field value before adding an entry to the dropped spans stats.
 	service := s.Context.destinationService.Resource
 	if s.dropped() && s.IsExitSpan() && service != "" {
-		s.tx.TransactionData.mu.Lock()
 		s.tx.droppedSpansStats.add(service, s.Outcome, s.Duration)
-		s.tx.TransactionData.mu.Unlock()
+		for i := 0; i < s.composite.count-1; i++ {
+			// Update the dropped span count.
+			s.tx.droppedSpansStats.add(service, s.Outcome, 0)
+		}
+	}
+}
+
+// discardable returns whether or not the span can be dropped.
+//
+// It should be called with s.mu held.
+func (s *Span) discardable() bool {
+	return s.isCompressionEligible() && s.Duration <= s.exitSpanMinDuration
+}
+
+// dropFastExitSpan drops an exit span that is discardable and increments the
+// s.tx.spansDropped.
+//
+// Must be called with s.tx.TransactionData held.
+func (s *Span) dropFastExitSpan() {
+	if !s.dropWhen(s.discardable()) || s.tx == nil {
+		return
+	}
+	if !s.tx.ended() {
+		s.tx.spansDropped++
 	}
 }
 
