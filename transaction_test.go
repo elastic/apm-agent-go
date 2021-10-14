@@ -407,12 +407,48 @@ func TestTransactionDroppedSpansStats(t *testing.T) {
 		// The number of spans to generate, the spans will be created with
 		// Name: GET /${i}, Type: request_${i}. The span duration is set to
 		// 10 Microseconds.
-		spanCount int
-		maxSpans  int
+		spanCount           int
+		maxSpans            int
+		exitSpanMinDuration time.Duration
+		compressSpans       bool
 	}{
 		{
 			name:      "DefaultLimit",
 			spanCount: 1000,
+			genExtra: []extraSpan{
+				{
+					count:    100,
+					name:     "GET 501",
+					typ:      "request_501",
+					duration: 10 * time.Microsecond,
+				},
+				{
+					count:    50,
+					name:     "GET 600",
+					typ:      "request_600",
+					duration: 10 * time.Microsecond,
+				},
+			},
+			assertFunc: func(t *testing.T, tx model.Transaction) {
+				// Ensure that the extra spans we generated are aggregated
+				for _, span := range tx.DroppedSpansStats {
+					if span.DestinationServiceResource == "request_501" {
+						assert.Equal(t, 101, span.Duration.Count)
+						assert.Equal(t, span.Duration.Sum.Us, int64(1010))
+					} else if span.DestinationServiceResource == "request_600" {
+						assert.Equal(t, 51, span.Duration.Count)
+						assert.Equal(t, span.Duration.Sum.Us, int64(510))
+					} else {
+						assert.Equal(t, 1, span.Duration.Count)
+						assert.Equal(t, span.Duration.Sum.Us, int64(10))
+					}
+				}
+			},
+		},
+		{
+			name:                "DefaultLimit/DropShortExitSpans",
+			exitSpanMinDuration: time.Millisecond,
+			spanCount:           1000,
 			genExtra: []extraSpan{
 				{
 					count:    100,
@@ -503,6 +539,8 @@ func TestTransactionDroppedSpansStats(t *testing.T) {
 
 			tracer := apmtest.NewRecordingTracer()
 			defer tracer.Close()
+			tracer.SetExitSpanMinDuration(test.exitSpanMinDuration)
+			tracer.SetSpanCompressionEnabled(test.compressSpans)
 			if test.maxSpans > 0 {
 				tracer.SetMaxSpans(test.maxSpans)
 			}
@@ -532,7 +570,7 @@ func TestTransactionDroppedSpansStats(t *testing.T) {
 			// Total spans dropped count:     650.
 			// Dropped Spans Stats count:     128.
 			maxSpans := test.maxSpans
-			if maxSpans == 0 {
+			if maxSpans == 0 && test.exitSpanMinDuration < time.Millisecond {
 				maxSpans = 500
 			}
 			assert.LessOrEqual(t, maxSpans, len(spans))

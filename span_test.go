@@ -170,6 +170,7 @@ func TestSpanType(t *testing.T) {
 func TestStartExitSpan(t *testing.T) {
 	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
 		span, _ := apm.StartSpanOptions(ctx, "name", "type", apm.SpanOptions{ExitSpan: true})
+		span.Duration = 2 * time.Millisecond
 		assert.True(t, span.IsExitSpan())
 		span.End()
 	})
@@ -200,6 +201,8 @@ func TestCompressSpanNonSiblings(t *testing.T) {
 	defer tracer.Close()
 
 	tracer.SetSpanCompressionEnabled(true)
+	// Avoid the spans from being dropped by fast exit spans.
+	tracer.SetExitSpanMinDuration(time.Nanosecond)
 
 	tx := tracer.StartTransaction("name", "type")
 	parent := tx.StartSpan("parent", "parent", nil)
@@ -234,15 +237,15 @@ func TestCompressSpanNonSiblings(t *testing.T) {
 	require.Nil(t, spans[0].Composite)
 	require.Nil(t, spans[1].Composite)
 
-	require.NotNil(t, spans[2].Composite)
-	require.Equal(t, 2, spans[2].Composite.Count)
-	require.Equal(t, float64(2), spans[2].Composite.Sum)
-	require.Equal(t, "exact_match", spans[2].Composite.CompressionStrategy)
+	assert.NotNil(t, spans[2].Composite)
+	assert.Equal(t, 2, spans[2].Composite.Count)
+	assert.Equal(t, float64(2), spans[2].Composite.Sum)
+	assert.Equal(t, "exact_match", spans[2].Composite.CompressionStrategy)
 
-	require.NotNil(t, spans[3].Composite)
-	require.Equal(t, 2, spans[3].Composite.Count)
-	require.Equal(t, float64(2), spans[3].Composite.Sum)
-	require.Equal(t, "exact_match", spans[3].Composite.CompressionStrategy)
+	assert.NotNil(t, spans[3].Composite)
+	assert.Equal(t, 2, spans[3].Composite.Count)
+	assert.Equal(t, float64(2), spans[3].Composite.Sum)
+	assert.Equal(t, "exact_match", spans[3].Composite.CompressionStrategy)
 }
 
 func TestCompressSpanExactMatch(t *testing.T) {
@@ -349,6 +352,7 @@ func TestCompressSpanExactMatch(t *testing.T) {
 			}
 
 			tracer := apmtest.NewRecordingTracer()
+			tracer.SetExitSpanMinDuration(time.Nanosecond)
 			defer tracer.Close()
 			tracer.SetSpanCompressionEnabled(test.compressionEnabled)
 
@@ -432,14 +436,15 @@ func TestCompressSpanSameKind(t *testing.T) {
 	// Aserts that that span compression works on compressable spans with
 	// "same_kind" strategy, and that different span types are not compressed.
 	tests := []struct {
-		setup              func(t *testing.T) func()
-		assertFunc         func(t *testing.T, spans []model.Span)
-		name               string
-		compressionEnabled bool
+		setup               func(t *testing.T) func()
+		assertFunc          func(t *testing.T, tx model.Transaction, spans []model.Span)
+		name                string
+		compressionEnabled  bool
+		exitSpanMinDuration time.Duration
 	}{
 		{
 			name: "DefaultThreshold",
-			assertFunc: func(t *testing.T, spans []model.Span) {
+			assertFunc: func(t *testing.T, _ model.Transaction, spans []model.Span) {
 				require.Equal(t, 3, len(spans))
 				mysqlSpan := spans[0]
 				assert.Equal(t, "mysql", mysqlSpan.Context.Destination.Service.Resource)
@@ -462,7 +467,7 @@ func TestCompressSpanSameKind(t *testing.T) {
 				os.Setenv("ELASTIC_APM_SPAN_COMPRESSION_SAME_KIND_MAX_DURATION", "10ms")
 				return func() { os.Unsetenv("ELASTIC_APM_SPAN_COMPRESSION_SAME_KIND_MAX_DURATION") }
 			},
-			assertFunc: func(t *testing.T, spans []model.Span) {
+			assertFunc: func(t *testing.T, _ model.Transaction, spans []model.Span) {
 				require.Equal(t, 2, len(spans))
 
 				mysqlSpan := spans[0]
@@ -483,6 +488,17 @@ func TestCompressSpanSameKind(t *testing.T) {
 				assert.Greater(t, requestSpan.Duration, float64(5*100/time.Millisecond))
 			},
 		},
+		{
+			name:                "DefaultThresholdDropFastExitSpan",
+			exitSpanMinDuration: time.Millisecond,
+			assertFunc: func(t *testing.T, tx model.Transaction, spans []model.Span) {
+				// drops all spans except the mysql span.
+				require.Equal(t, 1, len(spans))
+
+				// Collects statistics about the dropped spans.
+				require.Equal(t, 2, len(tx.DroppedSpansStats))
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -494,6 +510,8 @@ func TestCompressSpanSameKind(t *testing.T) {
 			tracer := apmtest.NewRecordingTracer()
 			defer tracer.Close()
 			tracer.SetSpanCompressionEnabled(true)
+			// Avoid the spans from being dropped by fast exit spans.
+			tracer.SetExitSpanMinDuration(test.exitSpanMinDuration)
 
 			// Compress 5 spans into 1 and add another span with a different type
 			// |______________transaction (572da67c206e9996) - 6.0006ms_______________|
@@ -552,7 +570,7 @@ func TestCompressSpanSameKind(t *testing.T) {
 
 			require.NotNil(t, transaction)
 			if test.assertFunc != nil {
-				test.assertFunc(t, spans)
+				test.assertFunc(t, transaction, spans)
 			}
 		})
 	}
@@ -563,6 +581,7 @@ func TestCompressSpanSameKindParentSpan(t *testing.T) {
 	// of another span.
 	tracer := apmtest.NewRecordingTracer()
 	tracer.SetSpanCompressionEnabled(true)
+	tracer.SetExitSpanMinDuration(0)
 
 	// This test case covers spans that have other spans as parents.
 	// |_______________transaction (6b1e4866252dea6f) - 1.45ms________________|
@@ -671,6 +690,7 @@ func TestCompressSpanSameKindParentSpanContext(t *testing.T) {
 	//                                                |inte|
 	tracer := apmtest.NewRecordingTracer()
 	tracer.SetSpanCompressionEnabled(true)
+	tracer.SetExitSpanMinDuration(0)
 
 	txStart := time.Now()
 	tx := tracer.StartTransactionOptions("name", "type",
@@ -761,6 +781,7 @@ func TestCompressSpanSameKindConcurrent(t *testing.T) {
 	// This test verifies there aren't any deadlocks.
 	tracer := apmtest.NewRecordingTracer()
 	tracer.SetSpanCompressionEnabled(true)
+	tracer.SetExitSpanMinDuration(0)
 
 	tx := tracer.StartTransaction("name", "type")
 	var wg sync.WaitGroup
@@ -780,6 +801,10 @@ func TestCompressSpanSameKindConcurrent(t *testing.T) {
 	wg.Add(count)
 
 	compressedSome := make(chan struct{})
+	go func() {
+		<-compressedSome
+		compressedSome <- struct{}{}
+	}()
 	for i := 0; i < count; i++ {
 		go func(i int) {
 			select {
@@ -795,11 +820,14 @@ func TestCompressSpanSameKindConcurrent(t *testing.T) {
 	}
 
 	// Wait until at least a goroutine has been scheduled
-	<-compressedSome
+	select {
+	case <-compressedSome:
+	case <-time.After(5 * time.Second):
+		panic("got stuck waiting for goroutine to end the message")
+	}
 	tx.End()
 	parent.End()
 	wg.Wait()
-	close(compressedSome)
 }
 
 func TestCompressSpanPrematureEnd(t *testing.T) {
@@ -822,45 +850,90 @@ func TestCompressSpanPrematureEnd(t *testing.T) {
 				composite = span.Composite
 			}
 		}
-		require.NotNil(t, composite)
+		if expect.compositeCount > 0 {
+			require.NotNil(t, composite)
+		}
+	}
+
+	testCases := []struct {
+		name                string
+		exitSpanMinDuration time.Duration
+		expect              expect
+		droppedSpansStats   int
+	}{
+		{
+			name:                "NoDropExitSpans",
+			exitSpanMinDuration: 0,
+			expect: expect{
+				spanCount:           3,
+				compositeCount:      3,
+				compressionStrategy: "same_kind",
+				compositeSum:        3,
+			},
+		},
+		{
+			name:                "DropExitSpans",
+			exitSpanMinDuration: time.Millisecond,
+			droppedSpansStats:   1,
+			expect: expect{
+				spanCount:           2,
+				compressionStrategy: "same_kind",
+				compositeSum:        3,
+				compositeCount:      3,
+			},
+		},
 	}
 
 	// 1. The parent ends before they do.
 	// The parent holds the compression cache in this test case.
 	// |      tx      |
-	// |  parent |         <--- The parent ends before the children ends.
-	// | child |           <--- compressed
-	// |  child |          <--- compressed
-	// |    child  |       <--- NOT compressed
+	// |  parent |        <--- The parent ends before the children ends.
+	// | child |          <--- compressed
+	// |  child |         <--- compressed
+	// |  child |         <--- compressed
+	// |    child  |      <--- NOT compressed
 	// The expected result are 3 spans, the cache is invalidated and the span
 	// ended after the parent ends.
-	t.Run("ParentContext", func(t *testing.T) {
-		tracer := apmtest.NewRecordingTracer()
-		tracer.SetSpanCompressionEnabled(true)
+	//
+	// When drop fast exit spans is enabled, with 1ms min duration, the expected
+	// span count is 2 (parent and the a composite which duration exceeds 1ms).
+	// |      tx      |
+	// |  parent |        <--- The parent ends before the children ends.
+	// | child |          <--- compressed
+	// |  child |         <--- compressed
+	// |  child |         <--- compressed
+	// |    child  |      <--- discarded since its duration is < than min exit.
+	for _, test := range testCases {
+		t.Run("ParentContext/"+test.name, func(t *testing.T) {
+			tracer := apmtest.NewRecordingTracer()
+			defer tracer.Close()
+			tracer.SetSpanCompressionEnabled(true)
+			tracer.SetExitSpanMinDuration(test.exitSpanMinDuration)
 
-		tx := tracer.StartTransaction("name", "type")
-		ctx := apm.ContextWithTransaction(context.Background(), tx)
-		parent, ctx := apm.StartSpan(ctx, "parent", "internal")
-		for i := 0; i < 4; i++ {
-			child, _ := apm.StartSpanOptions(ctx, fmt.Sprint(i), "type", apm.SpanOptions{
-				Parent:   parent.TraceContext(),
-				ExitSpan: true,
-			})
-			child.Duration = time.Microsecond
-			child.End()
-			if i == 2 {
-				parent.End()
+			tx := tracer.StartTransaction("name", "type")
+			ctx := apm.ContextWithTransaction(context.Background(), tx)
+			parent, ctx := apm.StartSpan(ctx, "parent", "internal")
+			for i := 0; i < 4; i++ {
+				child, _ := apm.StartSpanOptions(ctx, fmt.Sprint(i), "type", apm.SpanOptions{
+					Parent:   parent.TraceContext(),
+					ExitSpan: true,
+				})
+				child.Duration = time.Millisecond
+				child.End()
+				if i == 2 {
+					parent.End()
+				}
 			}
-		}
-		tx.End()
-		tracer.Flush(nil)
-		assertResult(t, tracer.Payloads().Spans, expect{
-			spanCount:           3,
-			compositeCount:      3,
-			compressionStrategy: "same_kind",
-			compositeSum:        0.003,
+			tx.End()
+			tracer.Flush(nil)
+			assertResult(t, tracer.Payloads().Spans, test.expect)
+
+			assert.Len(t,
+				tracer.Payloads().Transactions[0].DroppedSpansStats,
+				test.droppedSpansStats,
+			)
 		})
-	})
+	}
 
 	// 2. The tx ends before the parent ends.
 	// The tx holds the compression cache in this test case.
@@ -872,7 +945,9 @@ func TestCompressSpanPrematureEnd(t *testing.T) {
 	// ended after the parent ends.
 	t.Run("TxEndBefore", func(t *testing.T) {
 		tracer := apmtest.NewRecordingTracer()
+		defer tracer.Close()
 		tracer.SetSpanCompressionEnabled(true)
+		tracer.SetExitSpanMinDuration(time.Nanosecond)
 
 		tx := tracer.StartTransaction("name", "type")
 		ctx := apm.ContextWithTransaction(context.Background(), tx)
@@ -905,7 +980,9 @@ func TestCompressSpanPrematureEnd(t *testing.T) {
 	// |    child  |       <--- NOT compressed
 	t.Run("ParentFromTx", func(t *testing.T) {
 		tracer := apmtest.NewRecordingTracer()
+		defer tracer.Close()
 		tracer.SetSpanCompressionEnabled(true)
+		tracer.SetExitSpanMinDuration(time.Nanosecond)
 
 		tx := tracer.StartTransaction("name", "type")
 		parent := tx.StartSpan("parent", "internal", nil)
@@ -938,6 +1015,7 @@ func TestExitSpanDoesNotOverwriteDestinationServiceResource(t *testing.T) {
 		span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
 			Resource: "my-custom-resource",
 		})
+		span.Duration = 2 * time.Millisecond
 		span.End()
 	})
 	require.Len(t, spans, 1)
@@ -974,4 +1052,107 @@ func TestSpanSampleRate(t *testing.T) {
 	assert.Equal(t, 0.5556, *payloads.Transactions[0].SampleRate)
 	assert.Equal(t, 0.5556, *payloads.Spans[0].SampleRate)
 	assert.Equal(t, 0.5556, *payloads.Spans[1].SampleRate)
+}
+
+func TestSpanFastExit(t *testing.T) {
+	tests := []struct {
+		assertFunc func(t *testing.T, tx model.Transaction, spans []model.Span)
+		setup      func() func()
+		name       string
+	}{
+		{
+			name: "DefaultSetting",
+			assertFunc: func(t *testing.T, tx model.Transaction, spans []model.Span) {
+				assert.Len(t, spans, 1)
+				assert.Len(t, tx.DroppedSpansStats, 0)
+			},
+		},
+		{
+			name: "2msSetting",
+			setup: func() func() {
+				os.Setenv("ELASTIC_APM_EXIT_SPAN_MIN_DURATION", "2ms")
+				return func() { os.Unsetenv("ELASTIC_APM_EXIT_SPAN_MIN_DURATION") }
+			},
+			assertFunc: func(t *testing.T, tx model.Transaction, spans []model.Span) {
+				assert.Len(t, spans, 0)
+				assert.Len(t, tx.DroppedSpansStats, 1)
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if test.setup != nil {
+				defer test.setup()()
+			}
+
+			tracer := apmtest.NewRecordingTracer()
+			defer tracer.Close()
+
+			tx := tracer.StartTransaction("name", "type")
+			span := tx.StartSpanOptions("name", "type", apm.SpanOptions{ExitSpan: true})
+			span.Duration = 2 * time.Millisecond
+
+			span.End()
+			tx.End()
+			tracer.Flush(nil)
+			payloads := tracer.Payloads()
+			require.Len(t, payloads.Transactions, 1)
+			if test.assertFunc != nil {
+				test.assertFunc(t, payloads.Transactions[0], payloads.Spans)
+			}
+		})
+	}
+}
+
+func TestSpanFastExitWithCompress(t *testing.T) {
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+	tracer.SetSpanCompressionEnabled(true)
+
+	tx := tracer.StartTransaction("name", "type")
+	ctx := apm.ContextWithTransaction(context.Background(), tx)
+
+	// Compress 499 spans which are compressable and can be dropped
+	// They won't be dropped but compressed into 1
+	for i := 0; i < 499; i++ {
+		span, _ := apm.StartSpanOptions(ctx, "compressed", "type", apm.SpanOptions{ExitSpan: true})
+		span.Duration = time.Millisecond
+		span.End()
+	}
+
+	// This span is compressable and can be dropped too but won't be since its
+	// outcome is "failure".
+	errorSpan, _ := apm.StartSpanOptions(ctx, "compressed", "type", apm.SpanOptions{ExitSpan: true})
+	errorSpan.Duration = time.Millisecond
+	errorSpan.Outcome = "failure"
+	errorSpan.End()
+
+	// All these spans will be dropped on the floor with stats collected from
+	// them.
+	for i := 0; i < 100; i++ {
+		span, _ := apm.StartSpanOptions(ctx, "compressed", "type", apm.SpanOptions{ExitSpan: true})
+		span.Duration = time.Millisecond
+		span.End()
+	}
+
+	tx.End()
+	tracer.Flush(nil)
+	payloads := tracer.Payloads()
+
+	require.Len(t, payloads.Transactions, 1)
+	require.Len(t, payloads.Spans, 2)
+	transaction := payloads.Transactions[0]
+	assert.Len(t, transaction.DroppedSpansStats, 1)
+	assert.ElementsMatch(t, []model.DroppedSpansStats{{
+		DestinationServiceResource: "type",
+		Outcome:                    "unknown",
+		Duration: model.AggregateDuration{
+			Count: 100,
+			Sum:   model.DurationSum{Us: 100000},
+		},
+	}}, transaction.DroppedSpansStats)
+	assert.Equal(t, model.SpanCount{
+		Dropped: 100,
+		Started: 500,
+	}, transaction.SpanCount)
 }
