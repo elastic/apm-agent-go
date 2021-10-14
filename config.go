@@ -355,7 +355,7 @@ func initialHeapProfileInterval() (time.Duration, error) {
 func initialExitSpanMinDuration() (time.Duration, error) {
 	return configutil.ParseDurationEnvOptions(
 		envExitSpanMinDuration, defaultExitSpanMinDuration,
-		configutil.DurationOptions{MinimumDurationUnit: time.Millisecond},
+		configutil.DurationOptions{MinimumDurationUnit: time.Microsecond},
 	)
 }
 
