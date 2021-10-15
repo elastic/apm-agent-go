@@ -778,55 +778,46 @@ func TestCompressSpanSameKindParentSpanContext(t *testing.T) {
 }
 
 func TestCompressSpanSameKindConcurrent(t *testing.T) {
-	// This test verifies there aren't any deadlocks.
+	// This test verifies there aren't any deadlocks on calling
+	// span.End(), Parent.End() and tx.End().
 	tracer := apmtest.NewRecordingTracer()
 	tracer.SetSpanCompressionEnabled(true)
 	tracer.SetExitSpanMinDuration(0)
 
 	tx := tracer.StartTransaction("name", "type")
+	ctx := apm.ContextWithTransaction(context.Background(), tx)
+	parent, ctx := apm.StartSpan(ctx, "parent", "internal")
+
 	var wg sync.WaitGroup
 	count := 100
 	wg.Add(count)
-	exitSpanOpts := apm.SpanOptions{ExitSpan: true}
+	spanStarted := make(chan struct{})
 	for i := 0; i < count; i++ {
 		go func(i int) {
-			span := tx.StartSpanOptions(fmt.Sprint(i), "request", exitSpanOpts)
-			span.End()
-			wg.Done()
-		}(i)
-	}
-
-	ctx := apm.ContextWithTransaction(context.Background(), tx)
-	parent, ctx := apm.StartSpan(ctx, "parent", "internal")
-	wg.Add(count)
-
-	compressedSome := make(chan struct{})
-	go func() {
-		<-compressedSome
-		compressedSome <- struct{}{}
-	}()
-	for i := 0; i < count; i++ {
-		go func(i int) {
-			select {
-			case compressedSome <- struct{}{}:
-			default:
-			}
-			span, _ := apm.StartSpanOptions(ctx, fmt.Sprint(i), "request", apm.SpanOptions{
+			child, _ := apm.StartSpanOptions(ctx, fmt.Sprint(i), "request", apm.SpanOptions{
 				ExitSpan: true,
 			})
-			span.End()
+			spanStarted <- struct{}{}
+			child.End()
 			wg.Done()
 		}(i)
 	}
 
-	// Wait until at least a goroutine has been scheduled
-	select {
-	case <-compressedSome:
-	case <-time.After(5 * time.Second):
-		panic("got stuck waiting for goroutine to end the message")
+	var received int
+	for range spanStarted {
+		received++
+		if received >= 30 {
+			println("!!! TX END")
+			tx.End()
+		}
+		if received >= 50 {
+			println("!!! PARENT END")
+			parent.End()
+		}
+		if received >= 100 {
+			close(spanStarted)
+		}
 	}
-	tx.End()
-	parent.End()
 	wg.Wait()
 }
 

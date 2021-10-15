@@ -356,16 +356,18 @@ func (s *Span) End() {
 	}
 
 	evictedSpan, cached := s.attemptCompress()
-	if evictedSpan != nil {
+	if s.tx != nil {
 		s.tx.mu.RLock()
-		if !evictedSpan.tx.ended() {
-			evictedSpan.tx.TransactionData.mu.Lock()
+		defer s.tx.mu.RUnlock()
+		if !s.tx.ended() {
+			s.tx.TransactionData.mu.Lock()
+			defer s.tx.TransactionData.mu.Unlock()
 		}
+	}
+	if evictedSpan != nil {
+		evictedSpan.mu.Lock()
 		evictedSpan.end()
-		if !evictedSpan.tx.ended() {
-			evictedSpan.tx.TransactionData.mu.Unlock()
-		}
-		s.tx.mu.RUnlock()
+		evictedSpan.mu.Unlock()
 	}
 	if cached {
 		// s has been cached for potential compression, and will be enqueued
@@ -389,9 +391,7 @@ func (s *Span) end() {
 	if s.dropped() {
 		if s.tx != nil {
 			if !s.tx.ended() {
-				s.tx.mu.RLock()
 				s.aggregateDroppedSpanStats()
-				s.tx.mu.RUnlock()
 			} else {
 				s.reset(s.tx.tracer)
 			}

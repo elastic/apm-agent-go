@@ -292,7 +292,9 @@ func (tx *Transaction) End() {
 		// compressed spans in its cache, if so, evict cache and end the span.
 		tx.TransactionData.mu.Lock()
 		if evictedSpan := tx.compressedSpan.evict(); evictedSpan != nil {
+			evictedSpan.mu.Lock()
 			evictedSpan.end()
+			evictedSpan.mu.Unlock()
 		}
 		tx.TransactionData.mu.Unlock()
 		tx.enqueue()
