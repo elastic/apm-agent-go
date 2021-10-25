@@ -24,14 +24,12 @@ import (
 	"context"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/go-redis/redis/v8"
 
-	"go.elastic.co/apm"
 	"go.elastic.co/apm/apmtest"
 	apmgoredis "go.elastic.co/apm/module/apmgoredisv8"
 )
@@ -149,10 +147,7 @@ func redisEmptyClient() *redis.Client {
 
 func redisHookedClient() *redis.Client {
 	client := redisEmptyClient()
-	client.AddHook(&durationHook{
-		duration: 2 * time.Millisecond,
-		wrapped:  apmgoredis.NewHook(),
-	})
+	client.AddHook(apmgoredis.NewHook())
 	return client
 }
 
@@ -162,10 +157,7 @@ func redisEmptyClusterClient() *redis.ClusterClient {
 
 func redisHookedClusterClient() *redis.ClusterClient {
 	client := redisEmptyClusterClient()
-	client.AddHook(&durationHook{
-		duration: 2 * time.Millisecond,
-		wrapped:  apmgoredis.NewHook(),
-	})
+	client.AddHook(apmgoredis.NewHook())
 	return client
 }
 
@@ -175,34 +167,6 @@ func redisEmptyRing() *redis.Ring {
 
 func redisHookedRing() *redis.Ring {
 	client := redisEmptyRing()
-	client.AddHook(&durationHook{
-		duration: 2 * time.Millisecond,
-		wrapped:  apmgoredis.NewHook(),
-	})
+	client.AddHook(apmgoredis.NewHook())
 	return client
-}
-
-// durationHook decorates the existing hook to avoid the exit spans from being
-// dropped.
-type durationHook struct {
-	wrapped  redis.Hook
-	duration time.Duration
-}
-
-func (h *durationHook) BeforeProcess(ctx context.Context, cmd redis.Cmder) (context.Context, error) {
-	return h.wrapped.BeforeProcess(ctx, cmd)
-}
-func (h *durationHook) AfterProcess(ctx context.Context, cmd redis.Cmder) error {
-	span := apm.SpanFromContext(ctx)
-	span.Duration = h.duration
-	return h.wrapped.AfterProcess(ctx, cmd)
-}
-
-func (h *durationHook) BeforeProcessPipeline(ctx context.Context, cmds []redis.Cmder) (context.Context, error) {
-	return h.wrapped.BeforeProcessPipeline(ctx, cmds)
-}
-func (h *durationHook) AfterProcessPipeline(ctx context.Context, cmds []redis.Cmder) error {
-	span := apm.SpanFromContext(ctx)
-	span.Duration = h.duration
-	return h.wrapped.AfterProcessPipeline(ctx, cmds)
 }

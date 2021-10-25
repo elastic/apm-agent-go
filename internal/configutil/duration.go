@@ -32,6 +32,8 @@ var durationUnitMap = map[string]time.Duration{
 	"m":  time.Minute,
 }
 
+var allSuffixes = []string{"us", "ms", "s", "m"}
+
 // DurationOptions can be used to specify the minimum accepted duration unit
 // for ParseDurationOptions.
 type DurationOptions struct {
@@ -71,9 +73,7 @@ func ParseDurationOptions(s string, opts DurationOptions) (time.Duration, error)
 		}
 	}
 
-	allowedUnitsString := computeAllowedUnitsString(
-		opts.MinimumDurationUnit, time.Minute,
-	)
+	allowedUnitsString := computeAllowedUnitsString(opts.MinimumDurationUnit)
 	if sep == -1 {
 		return 0, fmt.Errorf("missing unit in duration %s (allowed units: %s)",
 			orig, allowedUnitsString,
@@ -85,7 +85,6 @@ func ParseDurationOptions(s string, opts DurationOptions) (time.Duration, error)
 		return 0, fmt.Errorf("invalid duration %s", orig)
 	}
 
-	// If it's
 	mul, ok := durationUnitMap[s[sep:]]
 	if ok {
 		if mul < opts.MinimumDurationUnit {
@@ -106,24 +105,11 @@ func ParseDurationOptions(s string, opts DurationOptions) (time.Duration, error)
 	)
 }
 
-// computeAllowedUnitsString returns a string
-func computeAllowedUnitsString(minUnit, maxUnit time.Duration) string {
-	inverseLookup := make(map[time.Duration]string)
-	for k, v := range durationUnitMap {
-		inverseLookup[v] = k
-	}
-
-	if minUnit < time.Microsecond {
-		minUnit = time.Microsecond
-	}
-
-	allowedUnits := make([]string, 0, 4)
-	nextDuration := time.Duration(1000)
-	for i := minUnit; i <= maxUnit; i = i * nextDuration {
-		if i >= time.Second {
-			nextDuration = 60
+func computeAllowedUnitsString(minUnit time.Duration) string {
+	for i, d := range allSuffixes {
+		if minUnit == durationUnitMap[d] {
+			return strings.Join(allSuffixes[i:], ", ")
 		}
-		allowedUnits = append(allowedUnits, inverseLookup[i])
 	}
-	return strings.Join(allowedUnits, ", ")
+	return strings.Join(allSuffixes, ", ")
 }

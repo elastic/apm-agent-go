@@ -351,23 +351,27 @@ func (s *Span) End() {
 		s.Duration >= s.stackFramesMinDuration {
 		s.setStacktrace(1)
 	}
-	if s.tx != nil {
-		s.reportSelfTime()
+	// If this span has a parent span, lock it before proceeding to
+	// prevent deadlocking when concurrently ending parent and child.
+	if s.parent != nil {
+		s.parent.mu.Lock()
+		defer s.parent.mu.Unlock()
 	}
-
-	evictedSpan, cached := s.attemptCompress()
+	// TODO(axw) try to find a way to not lock the transaction when
+	// ending every span. We already lock them when starting spans.
 	if s.tx != nil {
 		s.tx.mu.RLock()
 		defer s.tx.mu.RUnlock()
 		if !s.tx.ended() {
 			s.tx.TransactionData.mu.Lock()
 			defer s.tx.TransactionData.mu.Unlock()
+			s.reportSelfTime()
 		}
 	}
+
+	evictedSpan, cached := s.attemptCompress()
 	if evictedSpan != nil {
-		evictedSpan.mu.Lock()
 		evictedSpan.end()
-		evictedSpan.mu.Unlock()
 	}
 	if cached {
 		// s has been cached for potential compression, and will be enqueued
@@ -422,23 +426,10 @@ func (s *Span) ParentID() SpanID {
 func (s *Span) reportSelfTime() {
 	endTime := s.timestamp.Add(s.Duration)
 
-	// If this span has a parent span, lock it before proceeding to
-	// prevent deadlocking when concurrently ending parent and child.
-	if s.parent != nil {
-		s.parent.mu.Lock()
-		defer s.parent.mu.Unlock()
-	}
-
-	// TODO(axw) try to find a way to not lock the transaction when
-	// ending every span. We already lock them when starting spans.
-	s.tx.mu.RLock()
-	defer s.tx.mu.RUnlock()
 	if s.tx.ended() || !s.tx.breakdownMetricsEnabled {
 		return
 	}
 
-	s.tx.TransactionData.mu.Lock()
-	defer s.tx.TransactionData.mu.Unlock()
 	if s.parent != nil {
 		if !s.parent.ended() {
 			s.parent.childrenTimer.childEnded(endTime)
@@ -509,11 +500,15 @@ func (s *Span) discardable() bool {
 }
 
 // dropFastExitSpan drops an exit span that is discardable and increments the
-// s.tx.spansDropped.
+// s.tx.spansDropped. If the transaction is nil or has ended, the span will not
+// be dropped.
 //
 // Must be called with s.tx.TransactionData held.
 func (s *Span) dropFastExitSpan() {
-	if !s.dropWhen(s.discardable()) || s.tx == nil {
+	if s.tx == nil || s.tx.ended() {
+		return
+	}
+	if !s.dropWhen(s.discardable()) {
 		return
 	}
 	if !s.tx.ended() {

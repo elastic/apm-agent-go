@@ -34,6 +34,8 @@ func WithTransaction(f func(ctx context.Context)) (model.Transaction, []model.Sp
 // the decoded transaction and any associated spans and errors.
 func WithTransactionOptions(opts apm.TransactionOptions, f func(ctx context.Context)) (model.Transaction, []model.Span, []model.Error) {
 	tracer := NewRecordingTracer()
+	// Do not drop short exit spans by default.
+	tracer.SetExitSpanMinDuration(0)
 	defer tracer.Close()
 	return tracer.WithTransactionOptions(opts, f)
 }

@@ -435,145 +435,127 @@ func TestCompressSpanExactMatch(t *testing.T) {
 func TestCompressSpanSameKind(t *testing.T) {
 	// Aserts that that span compression works on compressable spans with
 	// "same_kind" strategy, and that different span types are not compressed.
-	tests := []struct {
-		setup               func(t *testing.T) func()
-		assertFunc          func(t *testing.T, tx model.Transaction, spans []model.Span)
-		name                string
-		compressionEnabled  bool
-		exitSpanMinDuration time.Duration
-	}{
+	testCase := func(tracer *apmtest.RecordingTracer) (model.Transaction, []model.Span, func()) {
+		txStart := time.Now()
+		tx := tracer.StartTransactionOptions("name", "type",
+			apm.TransactionOptions{Start: txStart},
+		)
+		currentTime := txStart
+
+		// Span is compressable, but cannot be compressed since the next span
+		// is not the same kind. It's published.
 		{
-			name: "DefaultThreshold",
-			assertFunc: func(t *testing.T, _ model.Transaction, spans []model.Span) {
-				require.Equal(t, 3, len(spans))
-				mysqlSpan := spans[0]
-				assert.Equal(t, "mysql", mysqlSpan.Context.Destination.Service.Resource)
-				assert.Nil(t, mysqlSpan.Composite)
-
-				requestSpan := spans[1]
-				assert.Equal(t, "request", requestSpan.Context.Destination.Service.Resource)
-				require.NotNil(t, requestSpan.Composite)
-				assert.Equal(t, 5, requestSpan.Composite.Count)
-				assert.Equal(t, "same_kind", requestSpan.Composite.CompressionStrategy)
-				assert.Equal(t, "Calls to request", requestSpan.Name)
-				// Check that the sum and span duration is at least the duration of the time set.
-				assert.Equal(t, 0.0005, requestSpan.Composite.Sum, requestSpan.Composite.Sum)
-				assert.Equal(t, 0.0005, requestSpan.Duration, requestSpan.Duration)
-			},
-		},
+			span := tx.StartSpanOptions("SELECT * FROM users", "mysql", apm.SpanOptions{
+				ExitSpan: true, Start: currentTime,
+			})
+			span.Duration = 100 * time.Nanosecond
+			currentTime = currentTime.Add(span.Duration)
+			span.End()
+		}
+		// These spans should be compressed into 1 with the default duration.
+		path := []string{"/a", "/b", "/c", "/d", "/e"}
+		for i := 0; i < 5; i++ {
+			span := tx.StartSpanOptions(fmt.Sprint("GET ", path[i]), "request", apm.SpanOptions{
+				ExitSpan: true, Start: currentTime,
+			})
+			span.Duration = 100 * time.Nanosecond
+			currentTime = currentTime.Add(span.Duration)
+			span.End()
+		}
+		// This span exceeds the default threshold (5ms) and won't be compressed.
 		{
-			name: "10msThreshold",
-			setup: func(*testing.T) func() {
-				os.Setenv("ELASTIC_APM_SPAN_COMPRESSION_SAME_KIND_MAX_DURATION", "10ms")
-				return func() { os.Unsetenv("ELASTIC_APM_SPAN_COMPRESSION_SAME_KIND_MAX_DURATION") }
-			},
-			assertFunc: func(t *testing.T, _ model.Transaction, spans []model.Span) {
-				require.Equal(t, 2, len(spans))
+			span := tx.StartSpanOptions("GET /f", "request", apm.SpanOptions{
+				ExitSpan: true, Start: currentTime,
+			})
+			span.Duration = 6 * time.Millisecond
+			currentTime = currentTime.Add(span.Duration)
+			span.End()
+		}
+		tx.Duration = currentTime.Sub(txStart)
+		tx.End()
+		tracer.Flush(nil)
 
-				mysqlSpan := spans[0]
-				assert.Equal(t, mysqlSpan.Context.Destination.Service.Resource, "mysql")
-				assert.Nil(t, mysqlSpan.Composite)
-
-				requestSpan := spans[1]
-				assert.Equal(t, requestSpan.Context.Destination.Service.Resource, "request")
-				assert.NotNil(t, requestSpan.Composite)
-				assert.Equal(t, 6, requestSpan.Composite.Count)
-				assert.Equal(t, "Calls to request", requestSpan.Name)
-				assert.Equal(t, "same_kind", requestSpan.Composite.CompressionStrategy)
-				// Check that the aggregate sum is at least the duration of the time we
-				// we waited for.
-				assert.Greater(t, requestSpan.Composite.Sum, float64(5*100/time.Millisecond))
-
-				// Check that the total composite span duration is at least 5 milliseconds.
-				assert.Greater(t, requestSpan.Duration, float64(5*100/time.Millisecond))
-			},
-		},
-		{
-			name:                "DefaultThresholdDropFastExitSpan",
-			exitSpanMinDuration: time.Millisecond,
-			assertFunc: func(t *testing.T, tx model.Transaction, spans []model.Span) {
-				// drops all spans except the mysql span.
-				require.Equal(t, 1, len(spans))
-
-				// Collects statistics about the dropped spans.
-				require.Equal(t, 2, len(tx.DroppedSpansStats))
-			},
-		},
+		transaction := tracer.Payloads().Transactions[0]
+		spans := tracer.Payloads().Spans
+		debugFunc := func() {
+			if t.Failed() {
+				apmtest.WriteTraceWaterfall(os.Stdout, transaction, spans)
+				apmtest.WriteTraceTable(os.Stdout, transaction, spans)
+			}
+		}
+		return transaction, spans, debugFunc
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			if test.setup != nil {
-				defer test.setup(t)()
-			}
+	t.Run("DefaultThreshold", func(t *testing.T) {
+		// With the default threshold the composite count will be 5.
+		tracer := apmtest.NewRecordingTracer()
+		defer tracer.Close()
+		tracer.SetSpanCompressionEnabled(true)
+		// Disable drop fast exit spans.
+		tracer.SetExitSpanMinDuration(0)
 
-			tracer := apmtest.NewRecordingTracer()
-			defer tracer.Close()
-			tracer.SetSpanCompressionEnabled(true)
-			// Avoid the spans from being dropped by fast exit spans.
-			tracer.SetExitSpanMinDuration(test.exitSpanMinDuration)
+		_, spans, debugFunc := testCase(tracer)
+		defer debugFunc()
 
-			// Compress 5 spans into 1 and add another span with a different type
-			// |______________transaction (572da67c206e9996) - 6.0006ms_______________|
-			// m
-			// 5
-			// |________________________request GET /f - 6ms_________________________|
-			//
-			txStart := time.Now()
-			tx := tracer.StartTransactionOptions("name", "type",
-				apm.TransactionOptions{Start: txStart},
-			)
-			currentTime := txStart
+		require.Equal(t, 3, len(spans))
+		mysqlSpan := spans[0]
+		assert.Equal(t, "mysql", mysqlSpan.Context.Destination.Service.Resource)
+		assert.Nil(t, mysqlSpan.Composite)
 
-			// Span is compressable, but cannot be compressed since the next span
-			// is not the same kind. It's published.
-			{
-				span := tx.StartSpanOptions("SELECT * FROM users", "mysql", apm.SpanOptions{
-					ExitSpan: true, Start: currentTime,
-				})
-				span.Duration = 100 * time.Nanosecond
-				currentTime = currentTime.Add(span.Duration)
-				span.End()
-			}
+		requestSpan := spans[1]
+		assert.Equal(t, "request", requestSpan.Context.Destination.Service.Resource)
+		require.NotNil(t, requestSpan.Composite)
+		assert.Equal(t, 5, requestSpan.Composite.Count)
+		assert.Equal(t, "same_kind", requestSpan.Composite.CompressionStrategy)
+		assert.Equal(t, "Calls to request", requestSpan.Name)
+		// Check that the sum and span duration is at least the duration of the time set.
+		assert.Equal(t, 0.0005, requestSpan.Composite.Sum, requestSpan.Composite.Sum)
+		assert.Equal(t, 0.0005, requestSpan.Duration, requestSpan.Duration)
+	})
+	t.Run("10msThreshold", func(t *testing.T) {
+		// With the this threshold the composite count will be 6.
+		os.Setenv("ELASTIC_APM_SPAN_COMPRESSION_SAME_KIND_MAX_DURATION", "10ms")
+		defer os.Unsetenv("ELASTIC_APM_SPAN_COMPRESSION_SAME_KIND_MAX_DURATION")
 
-			// These spans should be compressed into 1.
-			path := []string{"/a", "/b", "/c", "/d", "/e"}
-			for i := 0; i < 5; i++ {
-				span := tx.StartSpanOptions(fmt.Sprint("GET ", path[i]), "request", apm.SpanOptions{
-					ExitSpan: true, Start: currentTime,
-				})
-				span.Duration = 100 * time.Nanosecond
-				currentTime = currentTime.Add(span.Duration)
-				span.End()
-			}
-			// This span exceeds the default threshold (5ms) and won't be compressed.
-			{
-				span := tx.StartSpanOptions("GET /f", "request", apm.SpanOptions{
-					ExitSpan: true, Start: currentTime,
-				})
-				span.Duration = 6 * time.Millisecond
-				currentTime = currentTime.Add(span.Duration)
-				span.End()
-			}
-			tx.Duration = currentTime.Sub(txStart)
-			tx.End()
-			tracer.Flush(nil)
+		tracer := apmtest.NewRecordingTracer()
+		defer tracer.Close()
+		tracer.SetSpanCompressionEnabled(true)
+		// Disable drop fast exit spans.
+		tracer.SetExitSpanMinDuration(0)
 
-			transaction := tracer.Payloads().Transactions[0]
-			spans := tracer.Payloads().Spans
-			defer func() {
-				if t.Failed() {
-					apmtest.WriteTraceWaterfall(os.Stdout, transaction, spans)
-					apmtest.WriteTraceTable(os.Stdout, transaction, spans)
-				}
-			}()
+		_, spans, debugFunc := testCase(tracer)
+		defer debugFunc()
 
-			require.NotNil(t, transaction)
-			if test.assertFunc != nil {
-				test.assertFunc(t, transaction, spans)
-			}
-		})
-	}
+		mysqlSpan := spans[0]
+		assert.Equal(t, mysqlSpan.Context.Destination.Service.Resource, "mysql")
+		assert.Nil(t, mysqlSpan.Composite)
+
+		requestSpan := spans[1]
+		assert.Equal(t, requestSpan.Context.Destination.Service.Resource, "request")
+		assert.NotNil(t, requestSpan.Composite)
+		assert.Equal(t, 6, requestSpan.Composite.Count)
+		assert.Equal(t, "Calls to request", requestSpan.Name)
+		assert.Equal(t, "same_kind", requestSpan.Composite.CompressionStrategy)
+		// Check that the aggregate sum is at least the duration of the time we
+		// we waited for.
+		assert.Greater(t, requestSpan.Composite.Sum, float64(5*100/time.Millisecond))
+
+		// Check that the total composite span duration is at least 5 milliseconds.
+		assert.Greater(t, requestSpan.Duration, float64(5*100/time.Millisecond))
+	})
+	t.Run("DefaultThresholdDropFastExitSpan", func(t *testing.T) {
+		tracer := apmtest.NewRecordingTracer()
+		defer tracer.Close()
+		tracer.SetSpanCompressionEnabled(true)
+
+		tx, spans, debugFunc := testCase(tracer)
+		defer debugFunc()
+
+		// drops all spans except the mysql span.
+		require.Equal(t, 1, len(spans))
+		// Collects statistics about the dropped spans.
+		require.Equal(t, 2, len(tx.DroppedSpansStats))
+	})
 }
 
 func TestCompressSpanSameKindParentSpan(t *testing.T) {
@@ -807,14 +789,12 @@ func TestCompressSpanSameKindConcurrent(t *testing.T) {
 	for range spanStarted {
 		received++
 		if received >= 30 {
-			println("!!! TX END")
 			tx.End()
 		}
 		if received >= 50 {
-			println("!!! PARENT END")
 			parent.End()
 		}
-		if received >= 100 {
+		if received == count {
 			close(spanStarted)
 		}
 	}
@@ -1145,5 +1125,30 @@ func TestSpanFastExitWithCompress(t *testing.T) {
 	assert.Equal(t, model.SpanCount{
 		Dropped: 100,
 		Started: 500,
+	}, transaction.SpanCount)
+}
+
+func TestSpanFastExitNoTransaction(t *testing.T) {
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+
+	tx := tracer.StartTransaction("name", "type")
+	ctx := apm.ContextWithTransaction(context.Background(), tx)
+	span, _ := apm.StartSpanOptions(ctx, "compressed", "type", apm.SpanOptions{ExitSpan: true})
+
+	tx.End()
+	span.Duration = time.Millisecond
+	span.End()
+
+	tracer.Flush(nil)
+	payloads := tracer.Payloads()
+
+	require.Len(t, payloads.Transactions, 1)
+	require.Len(t, payloads.Spans, 1)
+	transaction := payloads.Transactions[0]
+
+	assert.Len(t, transaction.DroppedSpansStats, 0)
+	assert.Equal(t, model.SpanCount{
+		Started: 1,
 	}, transaction.SpanCount)
 }

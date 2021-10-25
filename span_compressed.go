@@ -133,8 +133,8 @@ func (s *Span) compress(sibling *Span) bool {
 // enqueue the span. When `false` is returned, the cache is evicted and the
 // caller should enqueue the span.
 //
-// It needs to be called with s.mu held, and will attempt to hold s.parent.mu
-// when not nil or s.tx.mu and s.tx.TransactionData.mu when s.parent is nil.
+// It needs to be called with s.mu, s.parent.mu, s.tx.TransactionData.mu and
+// s.tx.mu.Rlock held.
 func (s *Span) attemptCompress() (*Span, bool) {
 	// If the span has already been evicted from the cache, ask the caller to
 	// end it.
@@ -151,8 +151,6 @@ func (s *Span) attemptCompress() (*Span, bool) {
 	// span and the transaction. The algorithm prefers storing the cached spans
 	// in its parent, and if nil, it will use the transaction's cache.
 	if s.parent != nil {
-		s.parent.mu.Lock()
-		defer s.parent.mu.Unlock()
 		if !s.parent.ended() {
 			return s.parent.compressedSpan.compressOrEvictCache(s)
 		}
@@ -160,11 +158,7 @@ func (s *Span) attemptCompress() (*Span, bool) {
 	}
 
 	if s.tx != nil {
-		s.tx.mu.RLock()
-		defer s.tx.mu.RUnlock()
 		if !s.tx.ended() {
-			s.tx.TransactionData.mu.Lock()
-			defer s.tx.TransactionData.mu.Unlock()
 			return s.tx.compressedSpan.compressOrEvictCache(s)
 		}
 	}

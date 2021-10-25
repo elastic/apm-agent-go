@@ -92,7 +92,7 @@ const (
 	defaultSpanFramesMinDuration = 5 * time.Millisecond
 	defaultStackTraceLimit       = 50
 
-	defaultExitSpanMinDuration = 1 * time.Millisecond
+	defaultExitSpanMinDuration = time.Millisecond
 
 	minAPIBufferSize     = 10 * configutil.KByte
 	maxAPIBufferSize     = 100 * configutil.MByte

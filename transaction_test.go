@@ -384,203 +384,133 @@ func TestTransactionDiscard(t *testing.T) {
 }
 
 func TestTransactionDroppedSpansStats(t *testing.T) {
-	// Creates a huge transaction which drops all spans over $maxSpans spans
-	// and asserts a few things, after ${spanCount} spans have been added to the tx:
-	// * Any spans that go over the ${spanCount} max span limit are dropped.
-	// * Of these dropped spans, collect timing statistics for them.
-	// * The limit for distinct span type/subtype/outcome/destination is 128.
-	// * When the list of items has reached 128, any spans that match entries
-	//   of the existing spans are still aggregated.
-
+	exitSpanOpts := apm.SpanOptions{ExitSpan: true}
+	generateSpans := func(ctx context.Context, spans int) {
+		for i := 0; i < spans; i++ {
+			span, _ := apm.StartSpanOptions(ctx,
+				fmt.Sprintf("GET %d", i),
+				fmt.Sprintf("request_%d", i),
+				exitSpanOpts,
+			)
+			span.Duration = 10 * time.Microsecond
+			span.End()
+		}
+	}
 	type extraSpan struct {
-		name     string
-		typ      string
-		duration time.Duration
-		count    int
+		id, count int
 	}
-	tests := []struct {
-		name       string
-		setup      func(t *testing.T) func()
-		assertFunc func(t *testing.T, tx model.Transaction)
-		// Extra spans to generate to assert accumulation.
-		genExtra []extraSpan
-		// The number of spans to generate, the spans will be created with
-		// Name: GET /${i}, Type: request_${i}. The span duration is set to
-		// 10 Microseconds.
-		spanCount           int
-		maxSpans            int
-		exitSpanMinDuration time.Duration
-		compressSpans       bool
-	}{
-		{
-			name:      "DefaultLimit",
-			spanCount: 1000,
-			genExtra: []extraSpan{
-				{
-					count:    100,
-					name:     "GET 501",
-					typ:      "request_501",
-					duration: 10 * time.Microsecond,
-				},
-				{
-					count:    50,
-					name:     "GET 600",
-					typ:      "request_600",
-					duration: 10 * time.Microsecond,
-				},
-			},
-			assertFunc: func(t *testing.T, tx model.Transaction) {
-				// Ensure that the extra spans we generated are aggregated
-				for _, span := range tx.DroppedSpansStats {
-					if span.DestinationServiceResource == "request_501" {
-						assert.Equal(t, 101, span.Duration.Count)
-						assert.Equal(t, span.Duration.Sum.Us, int64(1010))
-					} else if span.DestinationServiceResource == "request_600" {
-						assert.Equal(t, 51, span.Duration.Count)
-						assert.Equal(t, span.Duration.Sum.Us, int64(510))
-					} else {
-						assert.Equal(t, 1, span.Duration.Count)
-						assert.Equal(t, span.Duration.Sum.Us, int64(10))
-					}
-				}
-			},
-		},
-		{
-			name:                "DefaultLimit/DropShortExitSpans",
-			exitSpanMinDuration: time.Millisecond,
-			spanCount:           1000,
-			genExtra: []extraSpan{
-				{
-					count:    100,
-					name:     "GET 501",
-					typ:      "request_501",
-					duration: 10 * time.Microsecond,
-				},
-				{
-					count:    50,
-					name:     "GET 600",
-					typ:      "request_600",
-					duration: 10 * time.Microsecond,
-				},
-			},
-			assertFunc: func(t *testing.T, tx model.Transaction) {
-				// Ensure that the extra spans we generated are aggregated
-				for _, span := range tx.DroppedSpansStats {
-					if span.DestinationServiceResource == "request_501" {
-						assert.Equal(t, 101, span.Duration.Count)
-						assert.Equal(t, span.Duration.Sum.Us, int64(1010))
-					} else if span.DestinationServiceResource == "request_600" {
-						assert.Equal(t, 51, span.Duration.Count)
-						assert.Equal(t, span.Duration.Sum.Us, int64(510))
-					} else {
-						assert.Equal(t, 1, span.Duration.Count)
-						assert.Equal(t, span.Duration.Sum.Us, int64(10))
-					}
-				}
-			},
-		},
-		{
-			name:      "MaxSpans100",
-			spanCount: 300,
-			maxSpans:  100,
-			genExtra: []extraSpan{
-				{
-					count:    50,
-					name:     "GET 501",
-					typ:      "request_501",
-					duration: 10 * time.Microsecond,
-				},
-				{
-					count:    20,
-					name:     "GET 600",
-					typ:      "request_600",
-					duration: 10 * time.Microsecond,
-				},
-			},
-			assertFunc: func(t *testing.T, tx model.Transaction) {
-				// Ensure that the extra spans we generated are aggregated
-				for _, span := range tx.DroppedSpansStats {
-					if span.DestinationServiceResource == "request_51" {
-						assert.Equal(t, 50, span.Duration.Count)
-						assert.Equal(t, span.Duration.Sum.Us, int64(500))
-					} else if span.DestinationServiceResource == "request_60" {
-						assert.Equal(t, 20, span.Duration.Count)
-						assert.Equal(t, span.Duration.Sum.Us, int64(20))
-					} else {
-						assert.Equal(t, 1, span.Duration.Count)
-						assert.Equal(t, span.Duration.Sum.Us, int64(10))
-					}
-				}
-			},
-		},
-		{
-			name:      "MaxSpans10WithDisabledBreakdownMetrics",
-			spanCount: 50,
-			maxSpans:  10,
-			setup: func(_ *testing.T) func() {
-				os.Setenv("ELASTIC_APM_BREAKDOWN_METRICS", "false")
-				return func() { os.Unsetenv("ELASTIC_APM_BREAKDOWN_METRICS") }
-			},
-			assertFunc: func(t *testing.T, tx model.Transaction) {
-				// Ensure that the extra spans we generated are aggregated
-				for _, span := range tx.DroppedSpansStats {
-					assert.Equal(t, 1, span.Duration.Count)
-					assert.Equal(t, span.Duration.Sum.Us, int64(10))
-				}
-			},
-		},
+	generateExtraSpans := func(ctx context.Context, genExtra []extraSpan) {
+		for _, extra := range genExtra {
+			for i := 0; i < extra.count; i++ {
+				span, _ := apm.StartSpanOptions(ctx,
+					fmt.Sprintf("GET %d", extra.id),
+					fmt.Sprintf("request_%d", extra.id),
+					exitSpanOpts,
+				)
+				span.Duration = 10 * time.Microsecond
+				span.End()
+			}
+		}
 	}
+	// The default limit is 500 spans.
+	// The default exit_span_min_duration is `1ms`.
+	t.Run("DefaultLimit", func(t *testing.T) {
+		tracer := apmtest.NewRecordingTracer()
+		defer tracer.Close()
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			if test.setup != nil {
-				defer test.setup(t)()
-			}
-
-			tracer := apmtest.NewRecordingTracer()
-			defer tracer.Close()
-			tracer.SetExitSpanMinDuration(test.exitSpanMinDuration)
-			tracer.SetSpanCompressionEnabled(test.compressSpans)
-			if test.maxSpans > 0 {
-				tracer.SetMaxSpans(test.maxSpans)
-			}
-
-			var created = test.spanCount
-			tx, spans, _ := tracer.WithTransaction(func(ctx context.Context) {
-				exitSpanOpts := apm.SpanOptions{ExitSpan: true}
-				for i := 0; i < test.spanCount; i++ {
-					span, _ := apm.StartSpanOptions(ctx,
-						fmt.Sprintf("GET %d", i),
-						fmt.Sprintf("request_%d", i),
-						exitSpanOpts,
-					)
-					span.Duration = 10 * time.Microsecond
-					span.End()
-				}
-				for _, extra := range test.genExtra {
-					created += extra.count
-					for i := 0; i < extra.count; i++ {
-						span, _ := apm.StartSpanOptions(ctx, extra.name, extra.typ, exitSpanOpts)
-						span.Duration = extra.duration
-						span.End()
-					}
-				}
+		tx, _, _ := tracer.WithTransaction(func(ctx context.Context) {
+			generateSpans(ctx, 1000)
+			generateExtraSpans(ctx, []extraSpan{
+				{count: 100, id: 501},
+				{count: 50, id: 600},
 			})
-			// Total spans not dropped count: ${test.maxSpans}.
-			// Total spans dropped count:     650.
-			// Dropped Spans Stats count:     128.
-			maxSpans := test.maxSpans
-			if maxSpans == 0 && test.exitSpanMinDuration < time.Millisecond {
-				maxSpans = 500
-			}
-			assert.LessOrEqual(t, maxSpans, len(spans))
-			assert.Equal(t, created-maxSpans, tx.SpanCount.Dropped)
-			assert.LessOrEqual(t, len(tx.DroppedSpansStats), 128)
-			if test.assertFunc != nil {
-				test.assertFunc(t, tx)
-			}
 		})
-	}
+		// Ensure that the extra spans we generated are aggregated
+		for _, span := range tx.DroppedSpansStats {
+			if span.DestinationServiceResource == "request_501" {
+				assert.Equal(t, 101, span.Duration.Count)
+				assert.Equal(t, int64(1010), span.Duration.Sum.Us)
+			} else if span.DestinationServiceResource == "request_600" {
+				assert.Equal(t, 51, span.Duration.Count)
+				assert.Equal(t, int64(510), span.Duration.Sum.Us)
+			} else {
+				assert.Equal(t, 1, span.Duration.Count)
+				assert.Equal(t, int64(10), span.Duration.Sum.Us)
+			}
+		}
+	})
+	t.Run("DefaultLimit/DropShortExitSpans", func(t *testing.T) {
+		tracer := apmtest.NewRecordingTracer()
+		defer tracer.Close()
+		// Set the exit span minimum duration. This test asserts that spans
+		// with a duration over the span minimum duration are not dropped.
+		tracer.SetExitSpanMinDuration(time.Microsecond)
+
+		// Each of the generated spans duration is 10 microseconds.
+		tx, spans, _ := tracer.WithTransaction(func(ctx context.Context) {
+			generateSpans(ctx, 150)
+		})
+
+		require.Equal(t, 150, len(spans))
+		require.Equal(t, 0, len(tx.DroppedSpansStats))
+	})
+	t.Run("MaxSpans100", func(t *testing.T) {
+		tracer := apmtest.NewRecordingTracer()
+		defer tracer.Close()
+		// Assert that any spans over 100 are dropped and stats are aggregated.
+		tracer.SetMaxSpans(100)
+
+		tx, spans, _ := tracer.WithTransaction(func(ctx context.Context) {
+			generateSpans(ctx, 300)
+			generateExtraSpans(ctx, []extraSpan{
+				{count: 50, id: 51},
+				{count: 20, id: 60},
+			})
+		})
+
+		require.Equal(t, 0, len(spans))
+		require.Equal(t, 128, len(tx.DroppedSpansStats))
+
+		for _, span := range tx.DroppedSpansStats {
+			if span.DestinationServiceResource == "request_51" {
+				assert.Equal(t, 51, span.Duration.Count)
+				assert.Equal(t, int64(510), span.Duration.Sum.Us)
+			} else if span.DestinationServiceResource == "request_60" {
+				assert.Equal(t, 21, span.Duration.Count)
+				assert.Equal(t, int64(210), span.Duration.Sum.Us)
+			} else {
+				assert.Equal(t, 1, span.Duration.Count)
+				assert.Equal(t, int64(10), span.Duration.Sum.Us)
+			}
+		}
+	})
+	t.Run("MaxSpans10WithDisabledBreakdownMetrics", func(t *testing.T) {
+		os.Setenv("ELASTIC_APM_BREAKDOWN_METRICS", "false")
+		defer os.Unsetenv("ELASTIC_APM_BREAKDOWN_METRICS")
+		tracer := apmtest.NewRecordingTracer()
+		defer tracer.Close()
+
+		// Assert that any spans over 10 are dropped and stats are aggregated.
+		tracer.SetMaxSpans(10)
+
+		// All spans except the one that we manually create will be dropped since
+		// their duration is lower than `exit_span_min_duration`.
+		tx, spans, _ := tracer.WithTransaction(func(ctx context.Context) {
+			span, _ := apm.StartSpanOptions(ctx, "name", "type", exitSpanOpts)
+			span.Duration = time.Second
+			span.End()
+			generateSpans(ctx, 50)
+		})
+
+		require.Len(t, spans, 1)
+		require.Len(t, tx.DroppedSpansStats, 50)
+
+		// Ensure that the extra spans we generated are aggregated
+		for _, span := range tx.DroppedSpansStats {
+			assert.Equal(t, 1, span.Duration.Count)
+			assert.Equal(t, int64(10), span.Duration.Sum.Us)
+		}
+	})
 }
 
 func BenchmarkTransaction(b *testing.B) {

@@ -242,7 +242,9 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 	}
 
 	exitSpanMinDuration, err := initialExitSpanMinDuration()
-	failed(err)
+	if failed(err) {
+		exitSpanMinDuration = defaultExitSpanMinDuration
+	}
 
 	if opts.ServiceName != "" {
 		err := validateServiceName(opts.ServiceName)

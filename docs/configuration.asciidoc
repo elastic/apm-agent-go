@@ -411,17 +411,18 @@ for such edge cases.
 [options="header"]
 |============
 | Environment                           | Default
-| `ELASTIC_APM_EXIT_SPAN_MIN_DURATION` | `1ms`
+| `ELASTIC_APM_EXIT_SPAN_MIN_DURATION`  | `1ms`
 |============
 
 Sets the minimum duration for an exit span to be reported. Spans shorter or
 equal to this threshold will be dropped by the agent and reported as statistics
-in the span's transaction, if any.
+in the span's transaction, as long as the transaction didn't end before the span
+was reported.
 
 When span compression is enabled (<<config-span-compression-enabled>>), the sum
 of the compressed span composite is considered.
 
-The minimum duration allowed for this setting is 1 microsecond (`μs`).
+The minimum duration allowed for this setting is 1 microsecond (`us`).
 
 [float]
 [[config-span-frames-min-duration-ms]]
