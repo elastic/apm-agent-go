@@ -37,6 +37,7 @@ pin github.com/go-sql-driver/mysql v1.4.1
 pin golang.org/x/net 5f58ad60dda6 https://github.com/golang/net
 pin github.com/santhosh-tekuri/jsonschema v4.0.0
 pin go.uber.org/zap v1.16.0 https://github.com/uber-go/zap
+pin github.com/mattn/go-sqlite3 2b780b4a7fb3
 
 # Go 1.8-1.9
 if (! go run scripts/mingoversion.go 1.10 &>/dev/null); then
