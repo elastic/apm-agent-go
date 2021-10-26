@@ -278,9 +278,6 @@ func (cs *compressedSpan) evict() *Span {
 		return nil
 	}
 	cached := cs.cache
-	// Disable compression on the evicted span to avoid the span from ending up
-	// swapping the cache and causing an infinite loop.
-	cached.compressedSpan.options.enabled = false
 	cs.cache = nil
 	// When the span composite is not empty, we need to adjust the duration just
 	// before it is reported and no more spans will be compressed into the

@@ -1111,7 +1111,7 @@ func TestSpanFastExitWithCompress(t *testing.T) {
 	payloads := tracer.Payloads()
 
 	require.Len(t, payloads.Transactions, 1)
-	require.Len(t, payloads.Spans, 2)
+	assert.Len(t, payloads.Spans, 2)
 	transaction := payloads.Transactions[0]
 	assert.Len(t, transaction.DroppedSpansStats, 1)
 	assert.ElementsMatch(t, []model.DroppedSpansStats{{
