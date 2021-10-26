@@ -810,7 +810,13 @@ func TestCompressSpanPrematureEnd(t *testing.T) {
 		spanCount           int
 		compositeCount      int
 	}
-	assertResult := func(t *testing.T, spans []model.Span, expect expect) {
+	assertResult := func(t *testing.T, tx model.Transaction, spans []model.Span, expect expect) {
+		defer func() {
+			if t.Failed() {
+				apmtest.WriteTraceTable(os.Stdout, tx, spans)
+				apmtest.WriteTraceWaterfall(os.Stdout, tx, spans)
+			}
+		}()
 		assert.Equal(t, expect.spanCount, len(spans))
 		var composite *model.CompositeSpan
 		for _, span := range spans {
@@ -833,8 +839,7 @@ func TestCompressSpanPrematureEnd(t *testing.T) {
 		droppedSpansStats   int
 	}{
 		{
-			name:                "NoDropExitSpans",
-			exitSpanMinDuration: 0,
+			name: "NoDropExitSpans",
 			expect: expect{
 				spanCount:           3,
 				compositeCount:      3,
@@ -881,23 +886,34 @@ func TestCompressSpanPrematureEnd(t *testing.T) {
 			tracer.SetSpanCompressionEnabled(true)
 			tracer.SetExitSpanMinDuration(test.exitSpanMinDuration)
 
+			txStart := time.Now()
 			tx := tracer.StartTransaction("name", "type")
 			ctx := apm.ContextWithTransaction(context.Background(), tx)
-			parent, ctx := apm.StartSpan(ctx, "parent", "internal")
+			currentTime := time.Now()
+			parent, ctx := apm.StartSpanOptions(ctx, "parent", "internal", apm.SpanOptions{
+				Start: currentTime,
+			})
 			for i := 0; i < 4; i++ {
 				child, _ := apm.StartSpanOptions(ctx, fmt.Sprint(i), "type", apm.SpanOptions{
 					Parent:   parent.TraceContext(),
 					ExitSpan: true,
+					Start:    currentTime,
 				})
 				child.Duration = time.Millisecond
+				currentTime = currentTime.Add(time.Millisecond)
 				child.End()
 				if i == 2 {
+					parent.Duration = 2 * time.Millisecond
 					parent.End()
 				}
 			}
+			tx.Duration = currentTime.Sub(txStart)
 			tx.End()
 			tracer.Flush(nil)
-			assertResult(t, tracer.Payloads().Spans, test.expect)
+
+			assertResult(t,
+				tracer.Payloads().Transactions[0], tracer.Payloads().Spans, test.expect,
+			)
 
 			assert.Len(t,
 				tracer.Payloads().Transactions[0].DroppedSpansStats,
@@ -934,7 +950,7 @@ func TestCompressSpanPrematureEnd(t *testing.T) {
 		tx.End()
 		parent.End()
 		tracer.Flush(nil)
-		assertResult(t, tracer.Payloads().Spans, expect{
+		assertResult(t, tracer.Payloads().Transactions[0], tracer.Payloads().Spans, expect{
 			spanCount:           2,
 			compositeCount:      2,
 			compressionStrategy: "same_kind",
@@ -970,7 +986,7 @@ func TestCompressSpanPrematureEnd(t *testing.T) {
 		}
 		tx.End()
 		tracer.Flush(nil)
-		assertResult(t, tracer.Payloads().Spans, expect{
+		assertResult(t, tracer.Payloads().Transactions[0], tracer.Payloads().Spans, expect{
 			spanCount:           3,
 			compositeCount:      2,
 			compressionStrategy: "same_kind",
@@ -1106,11 +1122,19 @@ func TestSpanFastExitWithCompress(t *testing.T) {
 		span.End()
 	}
 
+	tx.Duration = 1500 * time.Microsecond
 	tx.End()
 	tracer.Flush(nil)
 	payloads := tracer.Payloads()
 
 	require.Len(t, payloads.Transactions, 1)
+	defer func() {
+		if t.Failed() {
+			apmtest.WriteTraceTable(os.Stdout, payloads.Transactions[0], payloads.Spans)
+			apmtest.WriteTraceWaterfall(os.Stdout, payloads.Transactions[0], payloads.Spans)
+		}
+	}()
+
 	assert.Len(t, payloads.Spans, 2)
 	transaction := payloads.Transactions[0]
 	assert.Len(t, transaction.DroppedSpansStats, 1)
