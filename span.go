@@ -483,11 +483,11 @@ func (s *Span) aggregateDroppedSpanStats() {
 	// check the field value before adding an entry to the dropped spans stats.
 	service := s.Context.destinationService.Resource
 	if s.dropped() && s.IsExitSpan() && service != "" {
-		s.tx.droppedSpansStats.add(service, s.Outcome, s.Duration)
-		for i := 0; i < s.composite.count-1; i++ {
-			// Update the dropped span count.
-			s.tx.droppedSpansStats.add(service, s.Outcome, 0)
+		count := 1
+		if !s.composite.empty() {
+			count = s.composite.count
 		}
+		s.tx.droppedSpansStats.add(service, s.Outcome, count, s.Duration)
 	}
 }
 

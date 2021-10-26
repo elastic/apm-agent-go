@@ -406,11 +406,11 @@ type droppedSpanTimingsMap map[droppedSpanTimingsKey]spanTiming
 
 // add accumulates the timing for a {destination, outcome} pair, silently drops
 // any pairs that would cause the map to exceed the maxDroppedSpanStats.
-func (m droppedSpanTimingsMap) add(destination, outcome string, d time.Duration) {
-	k := droppedSpanTimingsKey{destination: destination, outcome: outcome}
+func (m droppedSpanTimingsMap) add(dst, outcome string, count int, d time.Duration) {
+	k := droppedSpanTimingsKey{destination: dst, outcome: outcome}
 	timing, ok := m[k]
 	if ok || maxDroppedSpanStats > len(m) {
-		timing.count++
+		timing.count += uintptr(count)
 		timing.duration += int64(d)
 		m[k] = timing
 	}

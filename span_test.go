@@ -1181,6 +1181,8 @@ func TestSpanFastExitWithCompress(t *testing.T) {
 	require.Len(t, payloads.Transactions, 1)
 	defer func() {
 		if t.Failed() {
+			// Assert that we're not dropping spans when we enqueue.
+			assert.Equal(t, 0, tracer.Stats().SpansDropped, "tracer dropped some spans")
 			apmtest.WriteTraceTable(os.Stdout, payloads.Transactions[0], payloads.Spans)
 			apmtest.WriteTraceWaterfall(os.Stdout, payloads.Transactions[0], payloads.Spans)
 		}
