@@ -452,7 +452,8 @@ func TestCompressSpanSameKind(t *testing.T) {
 			currentTime = currentTime.Add(span.Duration)
 			span.End()
 		}
-		// These spans should be compressed into 1 with the default duration.
+		// These should be compressed into 1 since they meet the compression
+		// criteria.
 		path := []string{"/a", "/b", "/c", "/d", "/e"}
 		for i := 0; i < 5; i++ {
 			span := tx.StartSpanOptions(fmt.Sprint("GET ", path[i]), "request", apm.SpanOptions{
@@ -491,7 +492,7 @@ func TestCompressSpanSameKind(t *testing.T) {
 		tracer := apmtest.NewRecordingTracer()
 		defer tracer.Close()
 		tracer.SetSpanCompressionEnabled(true)
-		// Disable drop fast exit spans.
+		// Don't drop fast exit spans.
 		tracer.SetExitSpanMinDuration(0)
 
 		_, spans, debugFunc := testCase(tracer)
@@ -513,14 +514,14 @@ func TestCompressSpanSameKind(t *testing.T) {
 		assert.Equal(t, 0.0005, requestSpan.Duration, requestSpan.Duration)
 	})
 	t.Run("10msThreshold", func(t *testing.T) {
-		// With the this threshold the composite count will be 6.
+		// With this threshold the composite count will be 6.
 		os.Setenv("ELASTIC_APM_SPAN_COMPRESSION_SAME_KIND_MAX_DURATION", "10ms")
 		defer os.Unsetenv("ELASTIC_APM_SPAN_COMPRESSION_SAME_KIND_MAX_DURATION")
 
 		tracer := apmtest.NewRecordingTracer()
 		defer tracer.Close()
 		tracer.SetSpanCompressionEnabled(true)
-		// Disable drop fast exit spans.
+		// Don't drop fast exit spans.
 		tracer.SetExitSpanMinDuration(0)
 
 		_, spans, debugFunc := testCase(tracer)
@@ -551,9 +552,9 @@ func TestCompressSpanSameKind(t *testing.T) {
 		tx, spans, debugFunc := testCase(tracer)
 		defer debugFunc()
 
-		// drops all spans except the mysql span.
+		// drops all spans except the last request span.
 		require.Equal(t, 1, len(spans))
-		// Collects statistics about the dropped spans.
+		// Collects statistics about the dropped spans (request and mysql).
 		require.Equal(t, 2, len(tx.DroppedSpansStats))
 	})
 }
@@ -664,12 +665,12 @@ func TestCompressSpanSameKindParentSpan(t *testing.T) {
 func TestCompressSpanSameKindParentSpanContext(t *testing.T) {
 	// This test ensures that the compression also works when the s.Parent is
 	// set (via the context.Context).
-	// |________________transaction (ab51fc698fef307a) - 15ms_________________|
-	//      |___________________internal parent - 13ms____________________|
-	//             |3 Calls to re|
-	//                                  |internal algorithm - 5m|
-	//                                      |2 Calls t|
-	//                                                |inte|
+	// |________________transaction (6df3948c6eff7b57) - 15ms_________________|
+	// |_____________________internal parent - 14ms______________________|
+	// 	   |_3 db - 3ms__|
+	// 							|_internal algorithm - 6ms__|
+	// 								|2 Calls to client |
+	// 											   |inte|
 	tracer := apmtest.NewRecordingTracer()
 	tracer.SetSpanCompressionEnabled(true)
 	tracer.SetExitSpanMinDuration(0)
@@ -685,6 +686,7 @@ func TestCompressSpanSameKindParentSpanContext(t *testing.T) {
 		Start: parentStart,
 	})
 
+	// These spans are all compressed into a composite.
 	childrenStart := parentStart.Add(2 * time.Millisecond)
 	for i := 0; i < 3; i++ {
 		span, _ := apm.StartSpanOptions(ctx, "db", "redis", apm.SpanOptions{
@@ -696,6 +698,8 @@ func TestCompressSpanSameKindParentSpanContext(t *testing.T) {
 		span.End()
 	}
 
+	// We create a nother "internal" type span from which 3 children (below)
+	// are created. one of them
 	testSpans := []struct {
 		name     string
 		typ      string
@@ -710,12 +714,13 @@ func TestCompressSpanSameKindParentSpanContext(t *testing.T) {
 		Start: childrenStart.Add(time.Millisecond),
 	})
 	childrenStart = childrenStart.Add(time.Millisecond)
-	for _, cfg := range testSpans {
-		child, _ := apm.StartSpanOptions(ctx, cfg.name, cfg.typ, apm.SpanOptions{
-			ExitSpan: true, Start: childrenStart.Add(cfg.duration),
+	for _, childCfg := range testSpans {
+		child, _ := apm.StartSpanOptions(ctx, childCfg.name, childCfg.typ, apm.SpanOptions{
+			ExitSpan: true,
+			Start:    childrenStart.Add(childCfg.duration),
 		})
-		childrenStart = childrenStart.Add(cfg.duration)
-		child.Duration = cfg.duration
+		childrenStart = childrenStart.Add(childCfg.duration)
+		child.Duration = childCfg.duration
 		child.End()
 	}
 	childrenStart = childrenStart.Add(time.Millisecond)
@@ -762,6 +767,8 @@ func TestCompressSpanSameKindParentSpanContext(t *testing.T) {
 func TestCompressSpanSameKindConcurrent(t *testing.T) {
 	// This test verifies there aren't any deadlocks on calling
 	// span.End(), Parent.End() and tx.End().
+	// Additionally, ensures that we're not leaking or losing any
+	// spans on parents and transaction being ended early.
 	tracer := apmtest.NewRecordingTracer()
 	tracer.SetSpanCompressionEnabled(true)
 	tracer.SetExitSpanMinDuration(0)
@@ -798,7 +805,32 @@ func TestCompressSpanSameKindConcurrent(t *testing.T) {
 			close(spanStarted)
 		}
 	}
+	// Wait until all the spans have ended.
 	wg.Wait()
+
+	tracer.Flush(nil)
+	payloads := tracer.Payloads()
+	require.Len(t, payloads.Transactions, 1)
+	defer func() {
+		if t.Failed() {
+			apmtest.WriteTraceTable(os.Stdout, payloads.Transactions[0], payloads.Spans)
+			apmtest.WriteTraceWaterfall(os.Stdout, payloads.Transactions[0], payloads.Spans)
+		}
+	}()
+
+	var spanCount int
+	for _, span := range payloads.Spans {
+		if span.Composite != nil {
+			// The real span count is the composite count.
+			spanCount += span.Composite.Count
+			continue
+		}
+		// If it's a normal span, then increment by 1.
+		spanCount++
+	}
+
+	// Asserts that the total spancount is 101, (100 generated spans + parent).
+	assert.Equal(t, 101, spanCount)
 }
 
 func TestCompressSpanPrematureEnd(t *testing.T) {
@@ -1042,16 +1074,20 @@ func TestSpanSampleRate(t *testing.T) {
 }
 
 func TestSpanFastExit(t *testing.T) {
+	type expect struct {
+		spans                  int
+		droppedSpansStatsCount int
+	}
 	tests := []struct {
-		assertFunc func(t *testing.T, tx model.Transaction, spans []model.Span)
-		setup      func() func()
-		name       string
+		expect expect
+		setup  func() func()
+		name   string
 	}{
 		{
 			name: "DefaultSetting",
-			assertFunc: func(t *testing.T, tx model.Transaction, spans []model.Span) {
-				assert.Len(t, spans, 1)
-				assert.Len(t, tx.DroppedSpansStats, 0)
+			expect: expect{
+				spans:                  1,
+				droppedSpansStatsCount: 0,
 			},
 		},
 		{
@@ -1060,9 +1096,9 @@ func TestSpanFastExit(t *testing.T) {
 				os.Setenv("ELASTIC_APM_EXIT_SPAN_MIN_DURATION", "2ms")
 				return func() { os.Unsetenv("ELASTIC_APM_EXIT_SPAN_MIN_DURATION") }
 			},
-			assertFunc: func(t *testing.T, tx model.Transaction, spans []model.Span) {
-				assert.Len(t, spans, 0)
-				assert.Len(t, tx.DroppedSpansStats, 1)
+			expect: expect{
+				spans:                  0,
+				droppedSpansStatsCount: 1,
 			},
 		},
 	}
@@ -1084,14 +1120,22 @@ func TestSpanFastExit(t *testing.T) {
 			tracer.Flush(nil)
 			payloads := tracer.Payloads()
 			require.Len(t, payloads.Transactions, 1)
-			if test.assertFunc != nil {
-				test.assertFunc(t, payloads.Transactions[0], payloads.Spans)
-			}
+			assert.Len(t, payloads.Spans, test.expect.spans)
+			assert.Len(t,
+				payloads.Transactions[0].DroppedSpansStats,
+				test.expect.droppedSpansStatsCount,
+			)
 		})
 	}
 }
 
 func TestSpanFastExitWithCompress(t *testing.T) {
+	// This test case asserts compressing spans into a composite:
+	//  * Takes precedence over dropping the spans
+	//  * When spans cannot be compressed but are discardable, they are.
+	//  * The compressed and dropped spans are not counted in tx.started.
+	//  * Dropped spans increment the dropped count.
+
 	tracer := apmtest.NewRecordingTracer()
 	defer tracer.Close()
 	tracer.SetSpanCompressionEnabled(true)
@@ -1099,8 +1143,8 @@ func TestSpanFastExitWithCompress(t *testing.T) {
 	tx := tracer.StartTransaction("name", "type")
 	ctx := apm.ContextWithTransaction(context.Background(), tx)
 
-	// Compress 499 spans which are compressable and can be dropped
-	// They won't be dropped but compressed into 1
+	// Compress 499 spans which are compressable and can be dropped, they will
+	// be compressed since that takes precedence.
 	for i := 0; i < 499; i++ {
 		span, _ := apm.StartSpanOptions(ctx, "compressed", "type", apm.SpanOptions{ExitSpan: true})
 		span.Duration = time.Millisecond
@@ -1114,10 +1158,17 @@ func TestSpanFastExitWithCompress(t *testing.T) {
 	errorSpan.Outcome = "failure"
 	errorSpan.End()
 
-	// All these spans will be dropped on the floor with stats collected from
-	// them.
+	// These spans will be compressed into a composite.
 	for i := 0; i < 100; i++ {
 		span, _ := apm.StartSpanOptions(ctx, "compressed", "type", apm.SpanOptions{ExitSpan: true})
+		span.Duration = time.Millisecond
+		span.End()
+	}
+
+	// Uncompressable spans are dropped when they are considered fast exit spans
+	// <= 1ms by default. They should not be accounted in the "Started" spans.
+	for i := 0; i < 100; i++ {
+		span, _ := apm.StartSpanOptions(ctx, fmt.Sprint(i), fmt.Sprint(i), apm.SpanOptions{ExitSpan: true})
 		span.Duration = time.Millisecond
 		span.End()
 	}
@@ -1135,24 +1186,18 @@ func TestSpanFastExitWithCompress(t *testing.T) {
 		}
 	}()
 
-	assert.Len(t, payloads.Spans, 2)
+	assert.Len(t, payloads.Spans, 3)
 	transaction := payloads.Transactions[0]
-	assert.Len(t, transaction.DroppedSpansStats, 1)
-	assert.ElementsMatch(t, []model.DroppedSpansStats{{
-		DestinationServiceResource: "type",
-		Outcome:                    "unknown",
-		Duration: model.AggregateDuration{
-			Count: 100,
-			Sum:   model.DurationSum{Us: 100000},
-		},
-	}}, transaction.DroppedSpansStats)
+	assert.Len(t, transaction.DroppedSpansStats, 100)
 	assert.Equal(t, model.SpanCount{
 		Dropped: 100,
-		Started: 500,
+		Started: 3,
 	}, transaction.SpanCount)
 }
 
 func TestSpanFastExitNoTransaction(t *testing.T) {
+	// This test case asserts that a discardable span is not discarded when the
+	// transaction ends before the span, since the stats wouldn't be recorded.
 	tracer := apmtest.NewRecordingTracer()
 	defer tracer.Close()
 
@@ -1174,5 +1219,6 @@ func TestSpanFastExitNoTransaction(t *testing.T) {
 	assert.Len(t, transaction.DroppedSpansStats, 0)
 	assert.Equal(t, model.SpanCount{
 		Started: 1,
+		Dropped: 0,
 	}, transaction.SpanCount)
 }

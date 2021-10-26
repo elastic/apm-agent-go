@@ -357,8 +357,6 @@ func (s *Span) End() {
 		s.parent.mu.Lock()
 		defer s.parent.mu.Unlock()
 	}
-	// TODO(axw) try to find a way to not lock the transaction when
-	// ending every span. We already lock them when starting spans.
 	if s.tx != nil {
 		s.tx.mu.RLock()
 		defer s.tx.mu.RUnlock()
@@ -385,7 +383,8 @@ func (s *Span) End() {
 // end represents a subset of the public `s.End()` API  and will only attempt
 // to drop the span when it's a short exit span or enqueue it in case it's not.
 //
-// end must only be called with from `s.End()` and `tx.End()` with `s.mu` held.
+// end must only be called with from `s.End()` and `tx.End()` with `s.mu`,
+// s.tx.mu.Rlock and s.tx.TransactionData.mu held.
 func (s *Span) end() {
 	// After an exit span finishes (no more compression attempts), we drop it
 	// when s.duration <= `exit_span_min_duration` and increment the tx dropped
@@ -512,6 +511,7 @@ func (s *Span) dropFastExitSpan() {
 		return
 	}
 	if !s.tx.ended() {
+		s.tx.spansCreated--
 		s.tx.spansDropped++
 	}
 }

@@ -302,7 +302,15 @@ func (cs *compressedSpan) compressOrEvictCache(s *Span) (*Span, bool) {
 	}
 
 	var evictedSpan *Span
-	if !cs.cache.compress(s) {
+	if cs.cache.compress(s) {
+		// Since span has been compressed into the composite, we decrease the
+		// s.tx.spansCreated since the span has been compressed into a composite.
+		if s.tx != nil {
+			if !s.tx.ended() {
+				s.tx.spansCreated--
+			}
+		}
+	} else {
 		evictedSpan = cs.evict()
 		cs.cache = s
 	}
