@@ -1135,45 +1135,64 @@ func TestSpanFastExitWithCompress(t *testing.T) {
 	//  * When spans cannot be compressed but are discardable, they are.
 	//  * The compressed and dropped spans are not counted in tx.started.
 	//  * Dropped spans increment the dropped count.
+	// Since compressed spans rely on the first compressed child's timestamp
+	// to calculate the span duration, we're using a running timestsamp for
+	// the spans.
 
 	tracer := apmtest.NewRecordingTracer()
 	defer tracer.Close()
 	tracer.SetSpanCompressionEnabled(true)
 
-	tx := tracer.StartTransaction("name", "type")
+	txts := time.Now()
+	tx := tracer.StartTransactionOptions("name", "type", apm.TransactionOptions{
+		Start: txts,
+	})
 	ctx := apm.ContextWithTransaction(context.Background(), tx)
+	ts := time.Now()
 
 	// Compress 499 spans which are compressable and can be dropped, they will
 	// be compressed since that takes precedence.
 	for i := 0; i < 499; i++ {
-		span, _ := apm.StartSpanOptions(ctx, "compressed", "type", apm.SpanOptions{ExitSpan: true})
+		span, _ := apm.StartSpanOptions(ctx, "compressed", "type", apm.SpanOptions{
+			ExitSpan: true, Start: ts,
+		})
 		span.Duration = time.Millisecond
+		ts = ts.Add(span.Duration)
 		span.End()
 	}
 
 	// This span is compressable and can be dropped too but won't be since its
 	// outcome is "failure".
-	errorSpan, _ := apm.StartSpanOptions(ctx, "compressed", "type", apm.SpanOptions{ExitSpan: true})
+	errorSpan, _ := apm.StartSpanOptions(ctx, "compressed", "type", apm.SpanOptions{
+		ExitSpan: true, Start: ts,
+	})
 	errorSpan.Duration = time.Millisecond
+	ts = ts.Add(errorSpan.Duration)
 	errorSpan.Outcome = "failure"
 	errorSpan.End()
 
 	// These spans will be compressed into a composite.
 	for i := 0; i < 100; i++ {
-		span, _ := apm.StartSpanOptions(ctx, "compressed", "type", apm.SpanOptions{ExitSpan: true})
+		span, _ := apm.StartSpanOptions(ctx, "compressed", "anothertype", apm.SpanOptions{
+			ExitSpan: true, Start: ts,
+		})
 		span.Duration = time.Millisecond
+		ts = ts.Add(span.Duration)
 		span.End()
 	}
 
 	// Uncompressable spans are dropped when they are considered fast exit spans
 	// <= 1ms by default. They should not be accounted in the "Started" spans.
 	for i := 0; i < 100; i++ {
-		span, _ := apm.StartSpanOptions(ctx, fmt.Sprint(i), fmt.Sprint(i), apm.SpanOptions{ExitSpan: true})
+		span, _ := apm.StartSpanOptions(ctx, fmt.Sprint(i), fmt.Sprint(i), apm.SpanOptions{
+			ExitSpan: true, Start: ts,
+		})
 		span.Duration = time.Millisecond
+		ts = ts.Add(span.Duration)
 		span.End()
 	}
 
-	tx.Duration = 1500 * time.Microsecond
+	tx.Duration = ts.Sub(txts)
 	tx.End()
 	tracer.Flush(nil)
 	payloads := tracer.Payloads()
@@ -1181,8 +1200,6 @@ func TestSpanFastExitWithCompress(t *testing.T) {
 	require.Len(t, payloads.Transactions, 1)
 	defer func() {
 		if t.Failed() {
-			// Assert that we're not dropping spans when we enqueue.
-			assert.Equal(t, 0, tracer.Stats().SpansDropped, "tracer dropped some spans")
 			apmtest.WriteTraceTable(os.Stdout, payloads.Transactions[0], payloads.Spans)
 			apmtest.WriteTraceWaterfall(os.Stdout, payloads.Transactions[0], payloads.Spans)
 		}
