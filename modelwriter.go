@@ -288,7 +288,7 @@ func buildDroppedSpansStats(dss droppedSpanTimingsMap) []model.DroppedSpansStats
 	for k, timing := range dss {
 		out = append(out, model.DroppedSpansStats{
 			DestinationServiceResource: k.destination,
-			Outcome:                    k.outcome,
+			Outcome:                    normalizeOutcome(k.outcome),
 			Duration: model.AggregateDuration{
 				Count: int(timing.count),
 				Sum: model.DurationSum{

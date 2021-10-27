@@ -126,6 +126,7 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 		span.stackFramesMinDuration = tx.spanFramesMinDuration
 		span.stackTraceLimit = tx.stackTraceLimit
 		span.compressedSpan.options = tx.compressedSpan.options
+		span.exitSpanMinDuration = tx.exitSpanMinDuration
 		tx.spansCreated++
 	}
 
@@ -178,6 +179,7 @@ func (t *Tracer) StartSpan(name, spanType string, transactionID SpanID, opts Spa
 	span.stackFramesMinDuration = instrumentationConfig.spanFramesMinDuration
 	span.stackTraceLimit = instrumentationConfig.stackTraceLimit
 	span.compressedSpan.options = instrumentationConfig.compressionOptions
+	span.exitSpanMinDuration = instrumentationConfig.exitSpanMinDuration
 	if opts.ExitSpan {
 		span.exit = true
 	}
@@ -345,33 +347,26 @@ func (s *Span) End() {
 	if s.Outcome == "" {
 		s.Outcome = s.Context.outcome()
 	}
-	if s.dropped() {
-		if s.tx != nil {
-			s.reportSelfTime()
-			s.aggregateDroppedSpanStats()
-			s.reset(s.tx.tracer)
-		} else {
-			droppedSpanDataPool.Put(s.SpanData)
-		}
-		s.SpanData = nil
-		return
-	}
-	if len(s.stacktrace) == 0 && s.Duration >= s.stackFramesMinDuration {
+	if !s.dropped() && len(s.stacktrace) == 0 &&
+		s.Duration >= s.stackFramesMinDuration {
 		s.setStacktrace(1)
 	}
-
+	// If this span has a parent span, lock it before proceeding to
+	// prevent deadlocking when concurrently ending parent and child.
+	if s.parent != nil {
+		s.parent.mu.Lock()
+		defer s.parent.mu.Unlock()
+	}
 	if s.tx != nil {
-		s.reportSelfTime()
+		s.tx.mu.RLock()
+		defer s.tx.mu.RUnlock()
+		if !s.tx.ended() {
+			s.tx.TransactionData.mu.Lock()
+			defer s.tx.TransactionData.mu.Unlock()
+			s.reportSelfTime()
+		}
 	}
 
-	s.end()
-}
-
-// end represents a subset of the public `s.End()` API  and will only attempt
-// to compress the span if it's compressable, or enqueue it in case it's not.
-//
-// end must only be called from `s.End()` and `tx.End()`.
-func (s *Span) end() {
 	evictedSpan, cached := s.attemptCompress()
 	if evictedSpan != nil {
 		evictedSpan.end()
@@ -382,7 +377,34 @@ func (s *Span) end() {
 		// parent is ended.
 		return
 	}
-	s.enqueue()
+	s.end()
+}
+
+// end represents a subset of the public `s.End()` API  and will only attempt
+// to drop the span when it's a short exit span or enqueue it in case it's not.
+//
+// end must only be called with from `s.End()` and `tx.End()` with `s.mu`,
+// s.tx.mu.Rlock and s.tx.TransactionData.mu held.
+func (s *Span) end() {
+	// After an exit span finishes (no more compression attempts), we drop it
+	// when s.duration <= `exit_span_min_duration` and increment the tx dropped
+	// count.
+	s.dropFastExitSpan()
+
+	if s.dropped() {
+		if s.tx != nil {
+			if !s.tx.ended() {
+				s.aggregateDroppedSpanStats()
+			} else {
+				s.reset(s.tx.tracer)
+			}
+		} else {
+			droppedSpanDataPool.Put(s.SpanData)
+		}
+	} else {
+		s.enqueue()
+	}
+
 	s.SpanData = nil
 }
 
@@ -403,23 +425,10 @@ func (s *Span) ParentID() SpanID {
 func (s *Span) reportSelfTime() {
 	endTime := s.timestamp.Add(s.Duration)
 
-	// If this span has a parent span, lock it before proceeding to
-	// prevent deadlocking when concurrently ending parent and child.
-	if s.parent != nil {
-		s.parent.mu.Lock()
-		defer s.parent.mu.Unlock()
-	}
-
-	// TODO(axw) try to find a way to not lock the transaction when
-	// ending every span. We already lock them when starting spans.
-	s.tx.mu.RLock()
-	defer s.tx.mu.RUnlock()
 	if s.tx.ended() || !s.tx.breakdownMetricsEnabled {
 		return
 	}
 
-	s.tx.TransactionData.mu.Lock()
-	defer s.tx.TransactionData.mu.Unlock()
 	if s.parent != nil {
 		if !s.parent.ended() {
 			s.parent.childrenTimer.childEnded(endTime)
@@ -468,15 +477,42 @@ func (s *Span) IsExitSpan() bool {
 // aggregateDroppedSpanStats aggregates the current span into the transaction
 // dropped spans stats timings.
 //
-// Must only be called from End() with s.tx.mu held.
+// Must only be called from end() with s.tx.mu and s.tx.TransactionData.mu held.
 func (s *Span) aggregateDroppedSpanStats() {
 	// An exit span would have the destination service set but in any case, we
 	// check the field value before adding an entry to the dropped spans stats.
 	service := s.Context.destinationService.Resource
 	if s.dropped() && s.IsExitSpan() && service != "" {
-		s.tx.TransactionData.mu.Lock()
-		s.tx.droppedSpansStats.add(service, s.Outcome, s.Duration)
-		s.tx.TransactionData.mu.Unlock()
+		count := 1
+		if !s.composite.empty() {
+			count = s.composite.count
+		}
+		s.tx.droppedSpansStats.add(service, s.Outcome, count, s.Duration)
+	}
+}
+
+// discardable returns whether or not the span can be dropped.
+//
+// It should be called with s.mu held.
+func (s *Span) discardable() bool {
+	return s.isCompressionEligible() && s.Duration <= s.exitSpanMinDuration
+}
+
+// dropFastExitSpan drops an exit span that is discardable and increments the
+// s.tx.spansDropped. If the transaction is nil or has ended, the span will not
+// be dropped.
+//
+// Must be called with s.tx.TransactionData held.
+func (s *Span) dropFastExitSpan() {
+	if s.tx == nil || s.tx.ended() {
+		return
+	}
+	if !s.dropWhen(s.discardable()) {
+		return
+	}
+	if !s.tx.ended() {
+		s.tx.spansCreated--
+		s.tx.spansDropped++
 	}
 }
 
@@ -484,6 +520,7 @@ func (s *Span) aggregateDroppedSpanStats() {
 // When a span is ended or discarded, its SpanData field will be set
 // to nil.
 type SpanData struct {
+	exitSpanMinDuration    time.Duration
 	stackFramesMinDuration time.Duration
 	stackTraceLimit        int
 	timestamp              time.Time

@@ -37,6 +37,10 @@ func TestParseDurationEnv(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 42*time.Second, d)
 
+	os.Setenv(envKey, "1us") // us == microsecond.
+	_, err = configutil.ParseDurationEnv(envKey, 42*time.Second)
+	assert.EqualError(t, err, "failed to parse ELASTIC_APM_TEST_DURATION: invalid unit in duration 1us (allowed units: ms, s, m)")
+
 	os.Setenv(envKey, "5s")
 	d, err = configutil.ParseDurationEnv(envKey, 42*time.Second)
 	assert.NoError(t, err)
@@ -67,6 +71,40 @@ func TestParseDurationEnv(t *testing.T) {
 	os.Setenv(envKey, "blah")
 	_, err = configutil.ParseDurationEnv(envKey, 42*time.Second)
 	assert.EqualError(t, err, "failed to parse ELASTIC_APM_TEST_DURATION: invalid duration blah")
+}
+
+func TestParseDurationOptionsEnv(t *testing.T) {
+	const envKey = "ELASTIC_APM_TEST_DURATION"
+	os.Unsetenv(envKey)
+	defer os.Unsetenv(envKey)
+
+	os.Setenv(envKey, "5us")
+	d, err := configutil.ParseDurationEnvOptions(envKey, 10*time.Microsecond, configutil.DurationOptions{
+		MinimumDurationUnit: time.Microsecond,
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 5*time.Microsecond, d)
+
+	os.Setenv(envKey, "")
+	d, err = configutil.ParseDurationEnvOptions(envKey, 10*time.Microsecond, configutil.DurationOptions{
+		MinimumDurationUnit: time.Microsecond,
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 10*time.Microsecond, d)
+
+	os.Setenv(envKey, "1ns")
+	_, err = configutil.ParseDurationEnvOptions(envKey, 10*time.Microsecond, configutil.DurationOptions{
+		MinimumDurationUnit: time.Microsecond,
+	})
+	assert.EqualError(t, err, "failed to parse ELASTIC_APM_TEST_DURATION: invalid unit in duration 1ns (allowed units: us, ms, s, m)")
+	assert.Equal(t, 10*time.Microsecond, d)
+
+	os.Setenv(envKey, "1ns")
+	_, err = configutil.ParseDurationEnvOptions(envKey, 10*time.Microsecond, configutil.DurationOptions{
+		MinimumDurationUnit: time.Nanosecond,
+	})
+	assert.EqualError(t, err, "failed to parse ELASTIC_APM_TEST_DURATION: invalid unit in duration 1ns (allowed units: us, ms, s, m)")
+	assert.Equal(t, 10*time.Microsecond, d)
 }
 
 func TestParseSizeEnv(t *testing.T) {

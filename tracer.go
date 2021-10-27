@@ -117,8 +117,8 @@ type TracerOptions struct {
 	cpuProfileInterval    time.Duration
 	cpuProfileDuration    time.Duration
 	heapProfileInterval   time.Duration
-
-	compressionOptions compressionOptions
+	exitSpanMinDuration   time.Duration
+	compressionOptions    compressionOptions
 }
 
 // initDefaults updates opts with default values.
@@ -241,6 +241,11 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 		heapProfileInterval = 0
 	}
 
+	exitSpanMinDuration, err := initialExitSpanMinDuration()
+	if failed(err) {
+		exitSpanMinDuration = defaultExitSpanMinDuration
+	}
+
 	if opts.ServiceName != "" {
 		err := validateServiceName(opts.ServiceName)
 		if failed(err) {
@@ -278,6 +283,7 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 	opts.active = active
 	opts.recording = recording
 	opts.propagateLegacyHeader = propagateLegacyHeader
+	opts.exitSpanMinDuration = exitSpanMinDuration
 	if opts.Transport == nil {
 		opts.Transport = transport.Default
 	}
@@ -468,6 +474,9 @@ func newTracer(opts TracerOptions) *Tracer {
 	})
 	t.setLocalInstrumentationConfig(envIgnoreURLs, func(cfg *instrumentationConfigValues) {
 		cfg.ignoreTransactionURLs = opts.ignoreTransactionURLs
+	})
+	t.setLocalInstrumentationConfig(envExitSpanMinDuration, func(cfg *instrumentationConfigValues) {
+		cfg.exitSpanMinDuration = opts.exitSpanMinDuration
 	})
 	if apmlog.DefaultLogger != nil {
 		defaultLogLevel := apmlog.DefaultLogger.Level()
@@ -795,6 +804,14 @@ func (t *Tracer) SetCaptureHeaders(capture bool) {
 func (t *Tracer) SetCaptureBody(mode CaptureBodyMode) {
 	t.setLocalInstrumentationConfig(envMaxSpans, func(cfg *instrumentationConfigValues) {
 		cfg.captureBody = mode
+	})
+}
+
+// SetExitSpanMinDuration sets the minimum duration for an exit span to not be
+// dropped.
+func (t *Tracer) SetExitSpanMinDuration(v time.Duration) {
+	t.setLocalInstrumentationConfig(envExitSpanMinDuration, func(cfg *instrumentationConfigValues) {
+		cfg.exitSpanMinDuration = v
 	})
 }
 

@@ -34,7 +34,7 @@ import (
 // debugging.
 func WriteTraceTable(writer io.Writer, tx model.Transaction, spans []model.Span) {
 	w := tabwriter.NewWriter(writer, 2, 4, 2, ' ', tabwriter.TabIndent)
-	fmt.Fprintln(w, "#\tNAME\tTYPE\tCOMP\tN\tDURATION\tOFFSET\tSPAN ID\tPARENT ID\tTRACE ID")
+	fmt.Fprintln(w, "#\tNAME\tTYPE\tCOMP\tN\tDURATION(ms)\tOFFSET\tSPAN ID\tPARENT ID\tTRACE ID")
 
 	fmt.Fprintf(w, "TX\t%s\t%s\t-\t-\t%f\t%d\t%x\t%x\t%x\n", tx.Name,
 		tx.Type, tx.Duration,
