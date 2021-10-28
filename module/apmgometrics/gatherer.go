@@ -23,6 +23,7 @@ import (
 	metrics "github.com/rcrowley/go-metrics"
 
 	"go.elastic.co/apm"
+	"go.elastic.co/apm/model"
 )
 
 // Wrap wraps r, a go-metrics Registry, so that it can be used
@@ -40,20 +41,20 @@ func (g gatherer) GatherMetrics(ctx context.Context, m *apm.Metrics) error {
 	g.r.Each(func(name string, v interface{}) {
 		switch v := v.(type) {
 		case metrics.Counter:
-			m.Add(name, nil, float64(v.Count()))
+			m.Add(model.MetricTypeCounter, name, nil, float64(v.Count()))
 		case metrics.Gauge:
-			m.Add(name, nil, float64(v.Value()))
+			m.Add(model.MetricTypeGauge, name, nil, float64(v.Value()))
 		case metrics.GaugeFloat64:
-			m.Add(name, nil, v.Value())
+			m.Add(model.MetricTypeGauge, name, nil, v.Value())
 		case metrics.Histogram:
-			m.Add(name+".count", nil, float64(v.Count()))
-			m.Add(name+".total", nil, float64(v.Sum()))
-			m.Add(name+".min", nil, float64(v.Min()))
-			m.Add(name+".max", nil, float64(v.Max()))
-			m.Add(name+".stddev", nil, v.StdDev())
-			m.Add(name+".percentile.50", nil, v.Percentile(0.5))
-			m.Add(name+".percentile.95", nil, v.Percentile(0.95))
-			m.Add(name+".percentile.99", nil, v.Percentile(0.99))
+			m.Add(model.MetricTypeCounter, name+".count", nil, float64(v.Count()))
+			m.Add(model.MetricTypeGauge, name+".total", nil, float64(v.Sum()))
+			m.Add(model.MetricTypeGauge, name+".min", nil, float64(v.Min()))
+			m.Add(model.MetricTypeGauge, name+".max", nil, float64(v.Max()))
+			m.Add(model.MetricTypeGauge, name+".stddev", nil, v.StdDev())
+			m.Add(model.MetricTypeGauge, name+".percentile.50", nil, v.Percentile(0.5))
+			m.Add(model.MetricTypeGauge, name+".percentile.95", nil, v.Percentile(0.95))
+			m.Add(model.MetricTypeGauge, name+".percentile.99", nil, v.Percentile(0.99))
 		default:
 			// TODO(axw) Meter, Timer, EWMA
 		}

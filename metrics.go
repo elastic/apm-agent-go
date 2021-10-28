@@ -75,14 +75,14 @@ func (f GatherMetricsFunc) GatherMetrics(ctx context.Context, m *Metrics) error 
 
 // Add adds a metric with the given name, labels, and value,
 // The labels are expected to be sorted lexicographically.
-func (m *Metrics) Add(name string, labels []MetricLabel, value float64) {
-	m.addMetric(name, labels, model.Metric{Value: value})
+func (m *Metrics) Add(metricType model.MetricType, name string, labels []MetricLabel, value float64) {
+	m.addMetric(name, labels, model.Metric{Value: value, Type: metricType})
 }
 
 // AddHistogram adds a histogram metric with the given name, labels, counts, and value,
 // The labels are expected to be sorted lexicographically.
 func (m *Metrics) AddHistogram(name string, labels []MetricLabel, buckets []float64, counts []uint64) {
-	m.addMetric(name, labels, model.Metric{Buckets: buckets, Counts: counts})
+	m.addMetric(name, labels, model.Metric{Buckets: buckets, Counts: counts, Type: model.MetricTypeHistogram})
 }
 
 func (m *Metrics) addMetric(name string, labels []MetricLabel, metric model.Metric) {
