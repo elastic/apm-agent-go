@@ -1582,6 +1582,16 @@ func (v *Metric) MarshalFastJSON(w *fastjson.Writer) error {
 		}
 		w.RawByte(']')
 	}
+	if v.Type != "" {
+		const prefix = ",\"type\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.String(v.Type)
+	}
 	if v.Value != 0 {
 		const prefix = ",\"value\":"
 		if first {

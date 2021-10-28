@@ -73,16 +73,34 @@ func (f GatherMetricsFunc) GatherMetrics(ctx context.Context, m *Metrics) error 
 	return f(ctx, m)
 }
 
-// Add adds a metric with the given name, labels, and value,
+// AddSummary adds a summary metric with the given name, labels, and value,
 // The labels are expected to be sorted lexicographically.
-func (m *Metrics) Add(metricType model.MetricType, name string, labels []MetricLabel, value float64) {
-	m.addMetric(name, labels, model.Metric{Value: value, Type: metricType})
+func (m *Metrics) AddSummary(name string, labels []MetricLabel, value float64) {
+	m.addMetric(name, labels, model.Metric{Value: value, Type: "summary"})
+}
+
+// AddCounter adds a counter metric with the given name, labels, and value,
+// The labels are expected to be sorted lexicographically.
+func (m *Metrics) AddCounter(name string, labels []MetricLabel, value float64) {
+	m.addMetric(name, labels, model.Metric{Value: value, Type: "counter"})
+}
+
+// AddGauge adds a gauge metric with the given name, labels, and value,
+// The labels are expected to be sorted lexicographically.
+func (m *Metrics) AddGauge(name string, labels []MetricLabel, value float64) {
+	m.addMetric(name, labels, model.Metric{Value: value, Type: "gauge"})
+}
+
+// AddUntyped adds an untyped metric with the given name, labels, and value,
+// The labels are expected to be sorted lexicographically.
+func (m *Metrics) AddUntyped(name string, labels []MetricLabel, value float64) {
+	m.addMetric(name, labels, model.Metric{Value: value, Type: "untyped"})
 }
 
 // AddHistogram adds a histogram metric with the given name, labels, counts, and value,
 // The labels are expected to be sorted lexicographically.
 func (m *Metrics) AddHistogram(name string, labels []MetricLabel, buckets []float64, counts []uint64) {
-	m.addMetric(name, labels, model.Metric{Buckets: buckets, Counts: counts, Type: model.MetricTypeHistogram})
+	m.addMetric(name, labels, model.Metric{Buckets: buckets, Counts: counts, Type: "histogram"})
 }
 
 func (m *Metrics) addMetric(name string, labels []MetricLabel, metric model.Metric) {

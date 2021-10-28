@@ -23,8 +23,6 @@ import (
 
 	sysinfo "github.com/elastic/go-sysinfo"
 	"github.com/elastic/go-sysinfo/types"
-
-	"go.elastic.co/apm/model"
 )
 
 // builtinMetricsGatherer is an MetricsGatherer which gathers builtin metrics:
@@ -46,7 +44,7 @@ func newBuiltinMetricsGatherer(t *Tracer) *builtinMetricsGatherer {
 
 // GatherMetrics gathers mem metrics into m.
 func (g *builtinMetricsGatherer) GatherMetrics(ctx context.Context, m *Metrics) error {
-	m.Add(model.MetricTypeGauge, "golang.goroutines", nil, float64(runtime.NumGoroutine()))
+	m.AddGauge("golang.goroutines", nil, float64(runtime.NumGoroutine()))
 	g.gatherSystemMetrics(m)
 	g.gatherMemStatsMetrics(m)
 	g.tracer.breakdownMetrics.gather(m)
@@ -59,12 +57,12 @@ func (g *builtinMetricsGatherer) gatherSystemMetrics(m *Metrics) {
 		return
 	}
 	systemCPU, processCPU := calculateCPUUsage(metrics.cpu, g.lastSysMetrics.cpu)
-	m.Add(model.MetricTypeGauge, "system.cpu.total.norm.pct", nil, systemCPU)
-	m.Add(model.MetricTypeGauge, "system.process.cpu.total.norm.pct", nil, processCPU)
-	m.Add(model.MetricTypeGauge, "system.memory.total", nil, float64(metrics.mem.system.Total))
-	m.Add(model.MetricTypeGauge, "system.memory.actual.free", nil, float64(metrics.mem.system.Available))
-	m.Add(model.MetricTypeGauge, "system.process.memory.size", nil, float64(metrics.mem.process.Virtual))
-	m.Add(model.MetricTypeGauge, "system.process.memory.rss.bytes", nil, float64(metrics.mem.process.Resident))
+	m.AddGauge("system.cpu.total.norm.pct", nil, systemCPU)
+	m.AddGauge("system.process.cpu.total.norm.pct", nil, processCPU)
+	m.AddGauge("system.memory.total", nil, float64(metrics.mem.system.Total))
+	m.AddGauge("system.memory.actual.free", nil, float64(metrics.mem.system.Available))
+	m.AddGauge("system.process.memory.size", nil, float64(metrics.mem.process.Virtual))
+	m.AddGauge("system.process.memory.rss.bytes", nil, float64(metrics.mem.process.Resident))
 	g.lastSysMetrics = metrics
 }
 
@@ -72,28 +70,28 @@ func (g *builtinMetricsGatherer) gatherMemStatsMetrics(m *Metrics) {
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
 
-	addUint64 := func(metricType model.MetricType, name string, v uint64) {
-		m.Add(metricType, name, nil, float64(v))
+	addUint64Counter := func(name string, v uint64) {
+		m.AddCounter(name, nil, float64(v))
 	}
-	add := func(metricType model.MetricType, name string, v float64) {
-		m.Add(metricType, name, nil, v)
+	addUint64Gauge := func(name string, v uint64) {
+		m.AddGauge(name, nil, float64(v))
 	}
 
-	addUint64(model.MetricTypeCounter, "golang.heap.allocations.mallocs", mem.Mallocs)
-	addUint64(model.MetricTypeCounter, "golang.heap.allocations.frees", mem.Frees)
-	addUint64(model.MetricTypeCounter, "golang.heap.allocations.objects", mem.HeapObjects)
-	addUint64(model.MetricTypeGauge, "golang.heap.allocations.total", mem.TotalAlloc)
-	addUint64(model.MetricTypeGauge, "golang.heap.allocations.allocated", mem.HeapAlloc)
-	addUint64(model.MetricTypeGauge, "golang.heap.allocations.idle", mem.HeapIdle)
-	addUint64(model.MetricTypeGauge, "golang.heap.allocations.active", mem.HeapInuse)
-	addUint64(model.MetricTypeGauge, "golang.heap.system.total", mem.Sys)
-	addUint64(model.MetricTypeGauge, "golang.heap.system.obtained", mem.HeapSys)
-	addUint64(model.MetricTypeGauge, "golang.heap.system.stack", mem.StackSys)
-	addUint64(model.MetricTypeCounter, "golang.heap.system.released", mem.HeapReleased)
-	addUint64(model.MetricTypeGauge, "golang.heap.gc.next_gc_limit", mem.NextGC)
-	addUint64(model.MetricTypeCounter, "golang.heap.gc.total_count", uint64(mem.NumGC))
-	addUint64(model.MetricTypeCounter, "golang.heap.gc.total_pause.ns", mem.PauseTotalNs)
-	add(model.MetricTypeGauge, "golang.heap.gc.cpu_fraction", mem.GCCPUFraction)
+	addUint64Counter("golang.heap.allocations.mallocs", mem.Mallocs)
+	addUint64Counter("golang.heap.allocations.frees", mem.Frees)
+	addUint64Counter("golang.heap.allocations.objects", mem.HeapObjects)
+	addUint64Gauge("golang.heap.allocations.total", mem.TotalAlloc)
+	addUint64Gauge("golang.heap.allocations.allocated", mem.HeapAlloc)
+	addUint64Gauge("golang.heap.allocations.idle", mem.HeapIdle)
+	addUint64Gauge("golang.heap.allocations.active", mem.HeapInuse)
+	addUint64Gauge("golang.heap.system.total", mem.Sys)
+	addUint64Gauge("golang.heap.system.obtained", mem.HeapSys)
+	addUint64Gauge("golang.heap.system.stack", mem.StackSys)
+	addUint64Counter("golang.heap.system.released", mem.HeapReleased)
+	addUint64Gauge("golang.heap.gc.next_gc_limit", mem.NextGC)
+	addUint64Counter("golang.heap.gc.total_count", uint64(mem.NumGC))
+	addUint64Counter("golang.heap.gc.total_pause.ns", mem.PauseTotalNs)
+	m.AddGauge("golang.heap.gc.cpu_fraction", nil, mem.GCCPUFraction)
 }
 
 func calculateCPUUsage(current, last cpuMetrics) (systemUsage, processUsage float64) {
