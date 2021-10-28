@@ -134,6 +134,45 @@ func TestLabels(t *testing.T) {
 	}}, metrics)
 }
 
+func TestHistogram(t *testing.T) {
+	r := prometheus.NewRegistry()
+	h := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "histogram",
+			Help:    ".",
+			Buckets: prometheus.DefBuckets,
+		},
+		[]string{"code", "method"},
+	)
+	r.MustRegister(h)
+
+	h.WithLabelValues("200", "GET").Observe(0.1)
+	h.WithLabelValues("200", "GET").Observe(0.1)
+	h.WithLabelValues("200", "GET").Observe(0.1)
+
+	h.WithLabelValues("302", "GET").Observe(0.5)
+	h.WithLabelValues("302", "GET").Observe(0.5)
+	h.WithLabelValues("302", "GET").Observe(0.5)
+
+	h.WithLabelValues("302", "GET").Observe(1)
+	h.WithLabelValues("302", "GET").Observe(1)
+	h.WithLabelValues("302", "GET").Observe(1)
+
+	g := apmprometheus.Wrap(r)
+	metrics := gatherMetrics(g)
+	for i, m := range metrics {
+		if i == 0 {
+			continue
+		}
+		for name := range m.Samples {
+			if !strings.HasPrefix(name, "histogram.") {
+				delete(metrics[0].Samples, name)
+			}
+		}
+	}
+	t.Fail()
+}
+
 func gatherMetrics(g apm.MetricsGatherer) []model.Metrics {
 	tracer := apmtest.NewRecordingTracer()
 	defer tracer.Close()

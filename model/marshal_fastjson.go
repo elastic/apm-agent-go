@@ -1366,6 +1366,16 @@ func (v *Request) MarshalFastJSON(w *fastjson.Writer) error {
 func (v *RequestSocket) MarshalFastJSON(w *fastjson.Writer) error {
 	w.RawByte('{')
 	first := true
+	if v.Encrypted != false {
+		const prefix = ",\"encrypted\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.Bool(v.Encrypted)
+	}
 	if v.RemoteAddress != "" {
 		const prefix = ",\"remote_address\":"
 		if first {
@@ -1537,8 +1547,51 @@ func (v *MetricsSpan) MarshalFastJSON(w *fastjson.Writer) error {
 
 func (v *Metric) MarshalFastJSON(w *fastjson.Writer) error {
 	w.RawByte('{')
-	w.RawString("\"value\":")
-	w.Float64(v.Value)
+	first := true
+	if v.Buckets != nil {
+		const prefix = ",\"buckets\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.RawByte('[')
+		for i, v := range v.Buckets {
+			if i != 0 {
+				w.RawByte(',')
+			}
+			w.Float64(v)
+		}
+		w.RawByte(']')
+	}
+	if v.Counts != nil {
+		const prefix = ",\"counts\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.RawByte('[')
+		for i, v := range v.Counts {
+			if i != 0 {
+				w.RawByte(',')
+			}
+			w.Uint64(v)
+		}
+		w.RawByte(']')
+	}
+	if v.Value != 0 {
+		const prefix = ",\"value\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.Float64(v.Value)
+	}
 	w.RawByte('}')
 	return nil
 }

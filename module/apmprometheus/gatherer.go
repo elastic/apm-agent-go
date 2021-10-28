@@ -80,8 +80,44 @@ func (g gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 					out.Add(name+".percentile."+strconv.Itoa(p), labels, q.GetValue())
 				}
 			}
+		case dto.MetricType_HISTOGRAM:
+			// For the bucket values, we follow the approach described by Prometheus's
+			// histogram_quantile function (https://prometheus.io/docs/prometheus/latest/querying/functions/#histogram_quantile)
+			// to achieve consistent percentile aggregation results:
+			//
+			// "The histogram_quantile() function interpolates quantile values by assuming a linear
+			// distribution within a bucket. (...) If a quantile is located in the highest bucket,
+			// the upper bound of the second highest bucket is returned. A lower limit of the lowest
+			// bucket is assumed to be 0 if the upper bound of that bucket is greater than 0. In that
+			// case, the usual linear interpolation is applied within that bucket. Otherwise, the upper
+			// bound of the lowest bucket is returned for quantiles located in the lowest bucket."
+			for _, m := range mf.GetMetric() {
+				h := m.GetHistogram()
+				// Total count for all buckets in this
+				// histogram. We want the per bucket count.
+				if h.GetSampleCount() == 0 {
+					continue
+				}
+				labels := makeLabels(m.GetLabel())
+				buckets := h.GetBucket()
+				midpoints := make([]float64, len(buckets))
+				counts := make([]uint64, len(buckets))
+				for i, b := range buckets {
+					le := b.GetUpperBound()
+					if i == 0 && le > 0 {
+						le /= 2
+					} else if i == (len(buckets) - 1) {
+						le = buckets[i-1].GetUpperBound()
+					} else {
+						le = buckets[i-1].GetUpperBound() + (le-buckets[i-1].GetUpperBound())/2.0
+					}
+					midpoints[i] = le
+					// count for this bucket b
+					counts[i] = b.GetCumulativeCount()
+				}
+				out.AddHistogram(name, labels, midpoints, counts)
+			}
 		default:
-			// TODO(axw) MetricType_HISTOGRAM
 		}
 	}
 	return nil
