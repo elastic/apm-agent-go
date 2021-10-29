@@ -1091,6 +1091,17 @@ func TestSpanFastExit(t *testing.T) {
 			},
 		},
 		{
+			name: "2msSetting/KeepSpan",
+			setup: func() func() {
+				os.Setenv("ELASTIC_APM_EXIT_SPAN_MIN_DURATION", "2ms")
+				return func() { os.Unsetenv("ELASTIC_APM_EXIT_SPAN_MIN_DURATION") }
+			},
+			expect: expect{
+				spans:                  1,
+				droppedSpansStatsCount: 0,
+			},
+		},
+		{
 			name: "3msSetting/DropSpan",
 			setup: func() func() {
 				os.Setenv("ELASTIC_APM_EXIT_SPAN_MIN_DURATION", "3ms")
