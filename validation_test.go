@@ -38,6 +38,7 @@ import (
 
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/internal/apmschema"
+	"go.elastic.co/apm/model"
 )
 
 func TestValidateServiceName(t *testing.T) {
@@ -334,8 +335,8 @@ func TestValidateErrorLog(t *testing.T) {
 
 func TestValidateMetrics(t *testing.T) {
 	gather := func(ctx context.Context, m *apm.Metrics) error {
-		m.AddUntyped("without_labels", nil, -66)
-		m.AddUntyped("with_labels", []apm.MetricLabel{
+		m.Add(model.MetricTypeUntyped, "without_labels", nil, -66)
+		m.Add(model.MetricTypeUntyped, "with_labels", []apm.MetricLabel{
 			{Name: "name", Value: "value"},
 		}, -66)
 		return nil

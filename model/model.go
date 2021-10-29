@@ -812,10 +812,26 @@ type MetricsSpan struct {
 	Subtype string `json:"subtype,omitempty"`
 }
 
+// MetricType describes the type of the metric.
+type MetricType string
+
+const (
+	// MetricTypeHistogram is a histogram metric.
+	MetricTypeHistogram MetricType = "histogram"
+	// MetricTypeSummary is a summary metric.
+	MetricTypeSummary MetricType = "summary"
+	// MetricTypeCounter is a counter metric.
+	MetricTypeCounter MetricType = "counter"
+	// MetricTypeGauge is a gauge metric.
+	MetricTypeGauge MetricType = "gauge"
+	// MetricTypeUntyped is a untyped metric.
+	MetricTypeUntyped MetricType = "untyped"
+)
+
 // Metric holds metric values.
 type Metric struct {
 	// Type holds the metric's type.
-	Type string `json:"type,omitempty"`
+	Type MetricType `json:"type,omitempty"`
 	// Value holds the metric value.
 	Value float64 `json:"value,omitempty"`
 	// Buckets holds the metric bucket values.
