@@ -26,7 +26,6 @@ import (
 	dto "github.com/prometheus/client_model/go"
 
 	"go.elastic.co/apm"
-	"go.elastic.co/apm/model"
 )
 
 // Wrap returns an apm.MetricsGatherer wrapping g.
@@ -51,7 +50,7 @@ func (g gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 		case dto.MetricType_COUNTER:
 			for _, m := range mf.GetMetric() {
 				v := m.GetCounter().GetValue()
-				out.Add(model.MetricTypeCounter, name, makeLabels(m.GetLabel()), v)
+				out.Add(name, makeLabels(m.GetLabel()), v)
 			}
 		case dto.MetricType_GAUGE:
 			metrics := mf.GetMetric()
@@ -63,22 +62,22 @@ func (g gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 			}
 			for _, m := range metrics {
 				v := m.GetGauge().GetValue()
-				out.Add(model.MetricTypeGauge, name, makeLabels(m.GetLabel()), v)
+				out.Add(name, makeLabels(m.GetLabel()), v)
 			}
 		case dto.MetricType_UNTYPED:
 			for _, m := range mf.GetMetric() {
 				v := m.GetUntyped().GetValue()
-				out.Add(model.MetricTypeUntyped, name, makeLabels(m.GetLabel()), v)
+				out.Add(name, makeLabels(m.GetLabel()), v)
 			}
 		case dto.MetricType_SUMMARY:
 			for _, m := range mf.GetMetric() {
 				s := m.GetSummary()
 				labels := makeLabels(m.GetLabel())
-				out.Add(model.MetricTypeCounter, name+".count", labels, float64(s.GetSampleCount()))
-				out.Add(model.MetricTypeGauge, name+".total", labels, float64(s.GetSampleSum()))
+				out.Add(name+".count", labels, float64(s.GetSampleCount()))
+				out.Add(name+".total", labels, float64(s.GetSampleSum()))
 				for _, q := range s.GetQuantile() {
 					p := int(q.GetQuantile() * 100)
-					out.Add(model.MetricTypeSummary, name+".percentile."+strconv.Itoa(p), labels, q.GetValue())
+					out.Add(name+".percentile."+strconv.Itoa(p), labels, q.GetValue())
 				}
 			}
 		case dto.MetricType_HISTOGRAM:

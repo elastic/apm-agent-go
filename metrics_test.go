@@ -138,11 +138,11 @@ func TestTracerMetricsGatherer(t *testing.T) {
 
 	tracer.RegisterMetricsGatherer(apm.GatherMetricsFunc(
 		func(ctx context.Context, m *apm.Metrics) error {
-			m.Add(model.MetricTypeCounter, "http.request", []apm.MetricLabel{
+			m.Add("http.request", []apm.MetricLabel{
 				{Name: "code", Value: "400"},
 				{Name: "path", Value: "/"},
 			}, 3)
-			m.Add(model.MetricTypeCounter, "http.request", []apm.MetricLabel{
+			m.Add("http.request", []apm.MetricLabel{
 				{Name: "code", Value: "200"},
 			}, 4)
 			return nil
@@ -170,7 +170,7 @@ func TestTracerMetricsDeregister(t *testing.T) {
 
 	g := apm.GatherMetricsFunc(
 		func(ctx context.Context, m *apm.Metrics) error {
-			m.Add(model.MetricTypeUntyped, "with_labels", []apm.MetricLabel{
+			m.Add("with_labels", []apm.MetricLabel{
 				{Name: "code", Value: "200"},
 			}, 4)
 			return nil
