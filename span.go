@@ -495,7 +495,7 @@ func (s *Span) aggregateDroppedSpanStats() {
 //
 // It should be called with s.mu held.
 func (s *Span) discardable() bool {
-	return s.isCompressionEligible() && s.Duration <= s.exitSpanMinDuration
+	return s.isCompressionEligible() && s.Duration < s.exitSpanMinDuration
 }
 
 // dropFastExitSpan drops an exit span that is discardable and increments the
