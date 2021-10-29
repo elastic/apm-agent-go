@@ -62,7 +62,7 @@ func TestTracerCentralConfigUpdate(t *testing.T) {
 
 		tx := tracer.StartTransaction("name", "type")
 		span := tx.StartSpanOptions("name", "type", apm.SpanOptions{ExitSpan: true})
-		span.Duration = 10 * time.Millisecond
+		span.Duration = 9 * time.Millisecond
 		span.End()
 		tx.End()
 
