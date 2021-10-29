@@ -104,16 +104,33 @@ func (g gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 				counts := make([]uint64, len(buckets))
 				for i, b := range buckets {
 					le := b.GetUpperBound()
-					if i == 0 && le > 0 {
-						le /= 2
+					if i == 0 {
+						// TODO: Add test verifying
+						// this doesn't panic, and if
+						// both conditions exist
+						// together and bucket0 < 0, it
+						// panics because eval falls
+						// through to the else branch.
+						if le > 0 {
+							le /= 2
+						}
+						// apm-server expects non-cumulative
+						// counts. prometheus counts each
+						// bucket cumulatively, ie. bucketN
+						// contains all counts for bucketN and
+						// all counts in preceding buckets. To
+						// get the current bucket's count we
+						// subtract bucketN-1 from bucketN,
+						// when N>0.
+						counts[i] = b.GetCumulativeCount()
 					} else if i == (len(buckets) - 1) {
 						le = buckets[i-1].GetUpperBound()
+						counts[i] = b.GetCumulativeCount() - buckets[i-1].GetCumulativeCount()
 					} else {
 						le = buckets[i-1].GetUpperBound() + (le-buckets[i-1].GetUpperBound())/2.0
+						counts[i] = b.GetCumulativeCount() - buckets[i-1].GetCumulativeCount()
 					}
 					midpoints[i] = le
-					// count for this bucket b
-					counts[i] = b.GetCumulativeCount()
 				}
 				out.AddHistogram(name, labels, midpoints, counts)
 			}

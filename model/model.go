@@ -814,8 +814,9 @@ type MetricsSpan struct {
 
 // Metric holds metric values.
 type Metric struct {
+	Type string `json:"type,omitempty"`
 	// Value holds the metric value.
-	Value float64 `json:"value,omitempty"`
+	Value float64 `json:"value"`
 	// Buckets holds the metric bucket values.
 	Buckets []float64 `json:"buckets,omitempty"`
 	// Count holds the metric observation count for the bucket.
