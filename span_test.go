@@ -876,7 +876,7 @@ func TestCompressSpanPrematureEnd(t *testing.T) {
 				spanCount:           3,
 				compositeCount:      3,
 				compressionStrategy: "same_kind",
-				compositeSum:        3,
+				compositeSum:        1.5,
 			},
 		},
 		{
@@ -885,9 +885,9 @@ func TestCompressSpanPrematureEnd(t *testing.T) {
 			droppedSpansStats:   1,
 			expect: expect{
 				spanCount:           2,
-				compressionStrategy: "same_kind",
-				compositeSum:        3,
 				compositeCount:      3,
+				compressionStrategy: "same_kind",
+				compositeSum:        1.5,
 			},
 		},
 	}
@@ -931,7 +931,7 @@ func TestCompressSpanPrematureEnd(t *testing.T) {
 					ExitSpan: true,
 					Start:    currentTime,
 				})
-				child.Duration = time.Millisecond
+				child.Duration = 500 * time.Microsecond
 				currentTime = currentTime.Add(time.Millisecond)
 				child.End()
 				if i == 2 {
@@ -1084,21 +1084,43 @@ func TestSpanFastExit(t *testing.T) {
 		name   string
 	}{
 		{
-			name: "DefaultSetting",
+			name: "DefaultSetting/KeepSpan",
 			expect: expect{
 				spans:                  1,
 				droppedSpansStatsCount: 0,
 			},
 		},
 		{
-			name: "2msSetting",
+			name: "2msSetting/KeepSpan",
 			setup: func() func() {
 				os.Setenv("ELASTIC_APM_EXIT_SPAN_MIN_DURATION", "2ms")
 				return func() { os.Unsetenv("ELASTIC_APM_EXIT_SPAN_MIN_DURATION") }
 			},
 			expect: expect{
+				spans:                  1,
+				droppedSpansStatsCount: 0,
+			},
+		},
+		{
+			name: "3msSetting/DropSpan",
+			setup: func() func() {
+				os.Setenv("ELASTIC_APM_EXIT_SPAN_MIN_DURATION", "3ms")
+				return func() { os.Unsetenv("ELASTIC_APM_EXIT_SPAN_MIN_DURATION") }
+			},
+			expect: expect{
 				spans:                  0,
 				droppedSpansStatsCount: 1,
+			},
+		},
+		{
+			name: "100usSetting/DropSpan",
+			setup: func() func() {
+				os.Setenv("ELASTIC_APM_EXIT_SPAN_MIN_DURATION", "100us")
+				return func() { os.Unsetenv("ELASTIC_APM_EXIT_SPAN_MIN_DURATION") }
+			},
+			expect: expect{
+				spans:                  1,
+				droppedSpansStatsCount: 0,
 			},
 		},
 	}
@@ -1187,7 +1209,7 @@ func TestSpanFastExitWithCompress(t *testing.T) {
 		span, _ := apm.StartSpanOptions(ctx, fmt.Sprint(i), fmt.Sprint(i), apm.SpanOptions{
 			ExitSpan: true, Start: ts,
 		})
-		span.Duration = time.Millisecond
+		span.Duration = 500 * time.Microsecond
 		ts = ts.Add(span.Duration)
 		span.End()
 	}
