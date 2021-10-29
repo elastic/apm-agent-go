@@ -159,18 +159,65 @@ func TestHistogram(t *testing.T) {
 	h.WithLabelValues("302", "GET").Observe(1)
 
 	g := apmprometheus.Wrap(r)
+	metrics := gatherMetrics(g)[1:]
+
+	assert.Equal(t, []model.Metrics{{
+		Labels: model.StringMap{
+			{Key: "code", Value: "200"},
+			{Key: "method", Value: "GET"},
+		},
+		Samples: map[string]model.Metric{
+			"histogram": {
+				Type:    "histogram",
+				Buckets: []float64{0.0025, 0.0075, 0.0175, 0.0375, 0.075, 0.175, 0.375, 0.75, 1.75, 3.75, 5},
+				Counts:  []uint64{0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0},
+			},
+		},
+	}, {
+		Labels: model.StringMap{
+			{Key: "code", Value: "302"},
+			{Key: "method", Value: "GET"},
+		},
+		Samples: map[string]model.Metric{
+			"histogram": {
+				Type:    "histogram",
+				Buckets: []float64{0.0025, 0.0075, 0.0175, 0.0375, 0.075, 0.175, 0.375, 0.75, 1.75, 3.75, 5},
+				Counts:  []uint64{0, 0, 0, 0, 0, 0, 3, 3, 0, 0, 0},
+			},
+		},
+	}}, metrics)
+}
+
+func TestHistogramNegativeBuckets(t *testing.T) {
+	r := prometheus.NewRegistry()
+	h := prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "histogram",
+			Help:    ".",
+			Buckets: []float64{-1, 0, 1},
+		},
+	)
+	r.MustRegister(h)
+
+	h.Observe(-0.4)
+
+	g := apmprometheus.Wrap(r)
 	metrics := gatherMetrics(g)
-	for i, m := range metrics {
-		if i == 0 {
-			continue
-		}
-		for name := range m.Samples {
-			if !strings.HasPrefix(name, "histogram.") {
-				delete(metrics[0].Samples, name)
-			}
+	for name := range metrics[0].Samples {
+		if !strings.HasPrefix(name, "histogram") {
+			delete(metrics[0].Samples, name)
 		}
 	}
-	t.Fail()
+
+	assert.Equal(t, []model.Metrics{{
+		Samples: map[string]model.Metric{
+			"histogram": {
+				Type:    "histogram",
+				Buckets: []float64{-1, -0.5, 0},
+				Counts:  []uint64{0, 1, 0},
+			},
+		},
+	}}, metrics)
 }
 
 func gatherMetrics(g apm.MetricsGatherer) []model.Metrics {

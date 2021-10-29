@@ -19,6 +19,7 @@ package apmprometheus // import "go.elastic.co/apm/module/apmprometheus"
 
 import (
 	"context"
+	"math"
 	"strconv"
 
 	"github.com/pkg/errors"
@@ -105,12 +106,6 @@ func (g gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 				for i, b := range buckets {
 					le := b.GetUpperBound()
 					if i == 0 {
-						// TODO: Add test verifying
-						// this doesn't panic, and if
-						// both conditions exist
-						// together and bucket0 < 0, it
-						// panics because eval falls
-						// through to the else branch.
 						if le > 0 {
 							le /= 2
 						}
@@ -130,7 +125,12 @@ func (g gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 						le = buckets[i-1].GetUpperBound() + (le-buckets[i-1].GetUpperBound())/2.0
 						counts[i] = b.GetCumulativeCount() - buckets[i-1].GetCumulativeCount()
 					}
-					midpoints[i] = le
+					// TODO: This rounds to 10,000ths, ie.
+					// 0.00001, precision, to handle
+					// floating point math trailing values,
+					// ie. 0.001500000003.
+					// How do we want to handle this?
+					midpoints[i] = math.Round(le*10000) / 10000
 				}
 				out.AddHistogram(name, labels, midpoints, counts)
 			}
