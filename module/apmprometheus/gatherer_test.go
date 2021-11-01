@@ -169,8 +169,8 @@ func TestHistogram(t *testing.T) {
 		Samples: map[string]model.Metric{
 			"histogram": {
 				Type:   "histogram",
-				Values: []float64{0.0025, 0.0075, 0.0175, 0.0375, 0.075, 0.175, 0.375, 0.75, 1.75, 3.75, 5},
-				Counts: []uint64{0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0},
+				Values: []float64{0.075},
+				Counts: []uint64{3},
 			},
 		},
 	}, {
@@ -181,8 +181,8 @@ func TestHistogram(t *testing.T) {
 		Samples: map[string]model.Metric{
 			"histogram": {
 				Type:   "histogram",
-				Values: []float64{0.0025, 0.0075, 0.0175, 0.0375, 0.075, 0.175, 0.375, 0.75, 1.75, 3.75, 5},
-				Counts: []uint64{0, 0, 0, 0, 0, 0, 3, 3, 0, 0, 0},
+				Values: []float64{0.375, 0.75},
+				Counts: []uint64{3, 3},
 			},
 		},
 	}}, metrics)
@@ -213,8 +213,8 @@ func TestHistogramNegativeValues(t *testing.T) {
 		Samples: map[string]model.Metric{
 			"histogram": {
 				Type:   "histogram",
-				Values: []float64{-1, -0.5, 0},
-				Counts: []uint64{0, 1, 0},
+				Values: []float64{-0.5},
+				Counts: []uint64{1},
 			},
 		},
 	}}, metrics)

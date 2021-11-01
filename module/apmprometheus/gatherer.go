@@ -101,14 +101,22 @@ func (g gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 				}
 				labels := makeLabels(m.GetLabel())
 				values := h.GetBucket()
-				midpoints := make([]float64, len(values))
-				counts := make([]uint64, len(values))
+				midpoints := make([]float64, 0, len(values))
+				counts := make([]uint64, 0, len(values))
 				for i, b := range values {
+					count := b.GetCumulativeCount()
+					// we are excluding zero-count
+					// prometheus buckets.
+					if count == 0 {
+						continue
+					}
 					le := b.GetUpperBound()
 					if i == 0 {
 						if le > 0 {
 							le /= 2
 						}
+					} else if i == (len(values) - 1) {
+						le = values[i-1].GetUpperBound()
 						// apm-server expects non-cumulative
 						// counts. prometheus counts each
 						// bucket cumulatively, ie. bucketN
@@ -117,20 +125,27 @@ func (g gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 						// get the current bucket's count we
 						// subtract bucketN-1 from bucketN,
 						// when N>0.
-						counts[i] = b.GetCumulativeCount()
-					} else if i == (len(values) - 1) {
-						le = values[i-1].GetUpperBound()
-						counts[i] = b.GetCumulativeCount() - values[i-1].GetCumulativeCount()
+						count = count - values[i-1].GetCumulativeCount()
 					} else {
 						le = values[i-1].GetUpperBound() + (le-values[i-1].GetUpperBound())/2.0
-						counts[i] = b.GetCumulativeCount() - values[i-1].GetCumulativeCount()
+						// prometheus counts buckets cumulatively.
+						count = count - values[i-1].GetCumulativeCount()
 					}
+					// re-check count. the cumulative count
+					// in the initial check may have been
+					// non-zero, but when we subtract the
+					// preceding bucket, it may end up
+					// having a zero count.
+					if count == 0 {
+						continue
+					}
+					counts = append(counts, count)
 					// TODO: This rounds to 10,000ths, ie.
 					// 0.00001, precision, to handle
 					// floating point math trailing values,
 					// ie. 0.001500000003.
 					// How do we want to handle this?
-					midpoints[i] = math.Round(le*10000) / 10000
+					midpoints = append(midpoints, math.Round(le*10000)/10000)
 				}
 				out.AddHistogram(name, labels, midpoints, counts)
 			}
