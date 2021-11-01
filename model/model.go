@@ -818,7 +818,7 @@ type Metric struct {
 	// Value holds the metric value.
 	Value float64 `json:"value"`
 	// Buckets holds the metric bucket values.
-	Buckets []float64 `json:"buckets,omitempty"`
+	Values []float64 `json:"values,omitempty"`
 	// Count holds the metric observation count for the bucket.
 	Counts []uint64 `json:"counts,omitempty"`
 }

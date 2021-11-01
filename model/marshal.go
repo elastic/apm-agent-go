@@ -677,9 +677,9 @@ func (v *Metric) MarshalFastJSON(w *fastjson.Writer) error {
 	w.RawString("\"type\":")
 	w.String(v.Type)
 	if len(v.Counts) > 0 {
-		w.RawString(",\"buckets\":")
+		w.RawString(",\"values\":")
 		w.RawByte('[')
-		for i, v := range v.Buckets {
+		for i, v := range v.Values {
 			if i != 0 {
 				w.RawByte(',')
 			}

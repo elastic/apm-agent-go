@@ -168,9 +168,9 @@ func TestHistogram(t *testing.T) {
 		},
 		Samples: map[string]model.Metric{
 			"histogram": {
-				Type:    "histogram",
-				Buckets: []float64{0.0025, 0.0075, 0.0175, 0.0375, 0.075, 0.175, 0.375, 0.75, 1.75, 3.75, 5},
-				Counts:  []uint64{0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0},
+				Type:   "histogram",
+				Values: []float64{0.0025, 0.0075, 0.0175, 0.0375, 0.075, 0.175, 0.375, 0.75, 1.75, 3.75, 5},
+				Counts: []uint64{0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0},
 			},
 		},
 	}, {
@@ -180,15 +180,15 @@ func TestHistogram(t *testing.T) {
 		},
 		Samples: map[string]model.Metric{
 			"histogram": {
-				Type:    "histogram",
-				Buckets: []float64{0.0025, 0.0075, 0.0175, 0.0375, 0.075, 0.175, 0.375, 0.75, 1.75, 3.75, 5},
-				Counts:  []uint64{0, 0, 0, 0, 0, 0, 3, 3, 0, 0, 0},
+				Type:   "histogram",
+				Values: []float64{0.0025, 0.0075, 0.0175, 0.0375, 0.075, 0.175, 0.375, 0.75, 1.75, 3.75, 5},
+				Counts: []uint64{0, 0, 0, 0, 0, 0, 3, 3, 0, 0, 0},
 			},
 		},
 	}}, metrics)
 }
 
-func TestHistogramNegativeBuckets(t *testing.T) {
+func TestHistogramNegativeValues(t *testing.T) {
 	r := prometheus.NewRegistry()
 	h := prometheus.NewHistogram(
 		prometheus.HistogramOpts{
@@ -212,9 +212,9 @@ func TestHistogramNegativeBuckets(t *testing.T) {
 	assert.Equal(t, []model.Metrics{{
 		Samples: map[string]model.Metric{
 			"histogram": {
-				Type:    "histogram",
-				Buckets: []float64{-1, -0.5, 0},
-				Counts:  []uint64{0, 1, 0},
+				Type:   "histogram",
+				Values: []float64{-1, -0.5, 0},
+				Counts: []uint64{0, 1, 0},
 			},
 		},
 	}}, metrics)

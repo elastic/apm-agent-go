@@ -94,16 +94,16 @@ func (g gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 			// bound of the lowest bucket is returned for quantiles located in the lowest bucket."
 			for _, m := range mf.GetMetric() {
 				h := m.GetHistogram()
-				// Total count for all buckets in this
-				// histogram. We want the per bucket count.
+				// Total count for all values in this
+				// histogram. We want the per value count.
 				if h.GetSampleCount() == 0 {
 					continue
 				}
 				labels := makeLabels(m.GetLabel())
-				buckets := h.GetBucket()
-				midpoints := make([]float64, len(buckets))
-				counts := make([]uint64, len(buckets))
-				for i, b := range buckets {
+				values := h.GetBucket()
+				midpoints := make([]float64, len(values))
+				counts := make([]uint64, len(values))
+				for i, b := range values {
 					le := b.GetUpperBound()
 					if i == 0 {
 						if le > 0 {
@@ -113,17 +113,17 @@ func (g gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 						// counts. prometheus counts each
 						// bucket cumulatively, ie. bucketN
 						// contains all counts for bucketN and
-						// all counts in preceding buckets. To
+						// all counts in preceding values. To
 						// get the current bucket's count we
 						// subtract bucketN-1 from bucketN,
 						// when N>0.
 						counts[i] = b.GetCumulativeCount()
-					} else if i == (len(buckets) - 1) {
-						le = buckets[i-1].GetUpperBound()
-						counts[i] = b.GetCumulativeCount() - buckets[i-1].GetCumulativeCount()
+					} else if i == (len(values) - 1) {
+						le = values[i-1].GetUpperBound()
+						counts[i] = b.GetCumulativeCount() - values[i-1].GetCumulativeCount()
 					} else {
-						le = buckets[i-1].GetUpperBound() + (le-buckets[i-1].GetUpperBound())/2.0
-						counts[i] = b.GetCumulativeCount() - buckets[i-1].GetCumulativeCount()
+						le = values[i-1].GetUpperBound() + (le-values[i-1].GetUpperBound())/2.0
+						counts[i] = b.GetCumulativeCount() - values[i-1].GetCumulativeCount()
 					}
 					// TODO: This rounds to 10,000ths, ie.
 					// 0.00001, precision, to handle
