@@ -211,11 +211,9 @@ func TestMarshalMetrics(t *testing.T) {
 		"samples": map[string]interface{}{
 			"metric_one": map[string]interface{}{
 				"value": float64(1024),
-				"type":  "",
 			},
 			"metric_two": map[string]interface{}{
 				"value": float64(-66.6),
-				"type":  "",
 			},
 		},
 	}
@@ -581,7 +579,7 @@ func TestMarshalMetric(t *testing.T) {
 
 	var w fastjson.Writer
 	histogram.MarshalFastJSON(&w)
-	expect := `{"type":"histogram","values":[0.05,0.1,0.5,1,5],"counts":[1,1,5,10,5]}`
+	expect := `{"values":[0.05,0.1,0.5,1,5],"counts":[1,1,5,10,5],"type":"histogram"}`
 
 	assert.Equal(t, expect, string(w.Bytes()))
 
@@ -589,7 +587,7 @@ func TestMarshalMetric(t *testing.T) {
 
 	w.Reset()
 	m.MarshalFastJSON(&w)
-	expect = `{"type":"","value":1}`
+	expect = `{"value":1}`
 
 	assert.Equal(t, expect, string(w.Bytes()))
 }

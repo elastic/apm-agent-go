@@ -674,14 +674,8 @@ func writeHex(w *fastjson.Writer, v []byte) {
 // MarshalFastJSON writes the JSON representation of v to w.
 func (v *Metric) MarshalFastJSON(w *fastjson.Writer) error {
 	w.RawByte('{')
-	w.RawString("\"type\":")
-	if v.Type != "" {
-		w.String(v.Type)
-	} else {
-		w.RawString("\"\"")
-	}
 	if len(v.Counts) > 0 {
-		w.RawString(",\"values\":")
+		w.RawString("\"values\":")
 		w.RawByte('[')
 		for i, v := range v.Values {
 			if i != 0 {
@@ -700,8 +694,12 @@ func (v *Metric) MarshalFastJSON(w *fastjson.Writer) error {
 		}
 		w.RawByte(']')
 	} else {
-		w.RawString(",\"value\":")
+		w.RawString("\"value\":")
 		w.Float64(v.Value)
+	}
+	if v.Type != "" {
+		w.RawString(",\"type\":")
+		w.String(v.Type)
 	}
 	w.RawByte('}')
 	return nil
