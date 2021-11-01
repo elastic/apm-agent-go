@@ -574,14 +574,14 @@ func TestMarshalCloud(t *testing.T) {
 
 func TestMarshalMetric(t *testing.T) {
 	histogram := &model.Metric{
-		Type:    "histogram",
-		Buckets: []float64{0.05, 0.1, 0.5, 1, 5},
-		Counts:  []uint64{1, 1, 5, 10, 5},
+		Type:   "histogram",
+		Values: []float64{0.05, 0.1, 0.5, 1, 5},
+		Counts: []uint64{1, 1, 5, 10, 5},
 	}
 
 	var w fastjson.Writer
 	histogram.MarshalFastJSON(&w)
-	expect := `{"type":"histogram","buckets":[0.05,0.1,0.5,1,5],"counts":[1,1,5,10,5]}`
+	expect := `{"type":"histogram","values":[0.05,0.1,0.5,1,5],"counts":[1,1,5,10,5]}`
 
 	assert.Equal(t, expect, string(w.Bytes()))
 
