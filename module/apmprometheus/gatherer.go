@@ -19,7 +19,6 @@ package apmprometheus // import "go.elastic.co/apm/module/apmprometheus"
 
 import (
 	"context"
-	"math"
 	"strconv"
 
 	"github.com/pkg/errors"
@@ -27,6 +26,7 @@ import (
 	dto "github.com/prometheus/client_model/go"
 
 	"go.elastic.co/apm"
+	"go.elastic.co/apm/internal/apmmath"
 )
 
 // Wrap returns an apm.MetricsGatherer wrapping g.
@@ -145,7 +145,7 @@ func (g gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 					// floating point math trailing values,
 					// ie. 0.001500000003.
 					// How do we want to handle this?
-					midpoints = append(midpoints, math.Round(le*10000)/10000)
+					midpoints = append(midpoints, apmmath.Round(le*10000)/10000)
 				}
 				out.AddHistogram(name, labels, midpoints, counts)
 			}
