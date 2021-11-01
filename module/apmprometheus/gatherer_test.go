@@ -140,23 +140,23 @@ func TestHistogram(t *testing.T) {
 		prometheus.HistogramOpts{
 			Name:    "histogram",
 			Help:    ".",
-			Buckets: prometheus.DefBuckets,
+			Buckets: []float64{1, 3, 5, 10, 15},
 		},
 		[]string{"code", "method"},
 	)
 	r.MustRegister(h)
 
-	h.WithLabelValues("200", "GET").Observe(0.1)
-	h.WithLabelValues("200", "GET").Observe(0.1)
-	h.WithLabelValues("200", "GET").Observe(0.1)
+	h.WithLabelValues("200", "GET").Observe(3.4)
+	h.WithLabelValues("200", "GET").Observe(3.4)
+	h.WithLabelValues("200", "GET").Observe(3.4)
 
-	h.WithLabelValues("302", "GET").Observe(0.5)
-	h.WithLabelValues("302", "GET").Observe(0.5)
-	h.WithLabelValues("302", "GET").Observe(0.5)
+	h.WithLabelValues("302", "GET").Observe(5.5)
+	h.WithLabelValues("302", "GET").Observe(5.5)
+	h.WithLabelValues("302", "GET").Observe(5.5)
 
-	h.WithLabelValues("302", "GET").Observe(1)
-	h.WithLabelValues("302", "GET").Observe(1)
-	h.WithLabelValues("302", "GET").Observe(1)
+	h.WithLabelValues("302", "GET").Observe(11.2)
+	h.WithLabelValues("302", "GET").Observe(11.2)
+	h.WithLabelValues("302", "GET").Observe(11.2)
 
 	g := apmprometheus.Wrap(r)
 	metrics := gatherMetrics(g)[1:]
@@ -169,7 +169,7 @@ func TestHistogram(t *testing.T) {
 		Samples: map[string]model.Metric{
 			"histogram": {
 				Type:   "histogram",
-				Values: []float64{0.075},
+				Values: []float64{4},
 				Counts: []uint64{3},
 			},
 		},
@@ -181,7 +181,7 @@ func TestHistogram(t *testing.T) {
 		Samples: map[string]model.Metric{
 			"histogram": {
 				Type:   "histogram",
-				Values: []float64{0.375, 0.75},
+				Values: []float64{7.5, 10},
 				Counts: []uint64{3, 3},
 			},
 		},

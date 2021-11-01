@@ -26,7 +26,6 @@ import (
 	dto "github.com/prometheus/client_model/go"
 
 	"go.elastic.co/apm"
-	"go.elastic.co/apm/internal/apmmath"
 )
 
 // Wrap returns an apm.MetricsGatherer wrapping g.
@@ -140,12 +139,7 @@ func (g gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 						continue
 					}
 					counts = append(counts, count)
-					// TODO: This rounds to 10,000ths, ie.
-					// 0.00001, precision, to handle
-					// floating point math trailing values,
-					// ie. 0.001500000003.
-					// How do we want to handle this?
-					midpoints = append(midpoints, apmmath.Round(le*10000)/10000)
+					midpoints = append(midpoints, le)
 				}
 				out.AddHistogram(name, labels, midpoints, counts)
 			}
