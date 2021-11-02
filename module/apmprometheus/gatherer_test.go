@@ -134,6 +134,132 @@ func TestLabels(t *testing.T) {
 	}}, metrics)
 }
 
+func TestHistogram(t *testing.T) {
+	r := prometheus.NewRegistry()
+	h := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "histogram",
+			Help:    ".",
+			Buckets: []float64{1, 3, 5, 10, 15},
+		},
+		[]string{"code", "method"},
+	)
+	r.MustRegister(h)
+
+	h.WithLabelValues("200", "GET").Observe(3.4)
+	h.WithLabelValues("200", "GET").Observe(3.4)
+	h.WithLabelValues("200", "GET").Observe(3.4)
+
+	h.WithLabelValues("302", "GET").Observe(5.5)
+	h.WithLabelValues("302", "GET").Observe(5.5)
+	h.WithLabelValues("302", "GET").Observe(5.5)
+
+	h.WithLabelValues("302", "GET").Observe(11.2)
+	h.WithLabelValues("302", "GET").Observe(11.2)
+	h.WithLabelValues("302", "GET").Observe(11.2)
+
+	g := apmprometheus.Wrap(r)
+	metrics := gatherMetrics(g)[1:]
+
+	assert.Equal(t, []model.Metrics{{
+		Labels: model.StringMap{
+			{Key: "code", Value: "200"},
+			{Key: "method", Value: "GET"},
+		},
+		Samples: map[string]model.Metric{
+			"histogram": {
+				Type:   "histogram",
+				Values: []float64{4},
+				Counts: []uint64{3},
+			},
+		},
+	}, {
+		Labels: model.StringMap{
+			{Key: "code", Value: "302"},
+			{Key: "method", Value: "GET"},
+		},
+		Samples: map[string]model.Metric{
+			"histogram": {
+				Type:   "histogram",
+				Values: []float64{7.5, 12.5},
+				Counts: []uint64{3, 3},
+			},
+		},
+	}}, metrics)
+}
+
+func TestHistogramInfBucket(t *testing.T) {
+	r := prometheus.NewRegistry()
+	h := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "histogram",
+			Help:    ".",
+			Buckets: []float64{1, 3, 5, 10, 15},
+		},
+		[]string{"code", "method"},
+	)
+	r.MustRegister(h)
+
+	h.WithLabelValues("302", "GET").Observe(11.2)
+	h.WithLabelValues("302", "GET").Observe(11.2)
+	h.WithLabelValues("302", "GET").Observe(11.2)
+
+	// These observations fall outside the defined bucket range. They
+	// should be recorded as being in the final bucket.
+	h.WithLabelValues("302", "GET").Observe(17.2)
+	h.WithLabelValues("302", "GET").Observe(17.2)
+
+	g := apmprometheus.Wrap(r)
+	metrics := gatherMetrics(g)[1:]
+
+	assert.Equal(t, []model.Metrics{{
+		Labels: model.StringMap{
+			{Key: "code", Value: "302"},
+			{Key: "method", Value: "GET"},
+		},
+		Samples: map[string]model.Metric{
+			"histogram": {
+				Type:   "histogram",
+				Values: []float64{12.5, 15},
+				Counts: []uint64{3, 2},
+			},
+		},
+	}}, metrics)
+}
+
+func TestHistogramNegativeValues(t *testing.T) {
+	r := prometheus.NewRegistry()
+	h := prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "histogram",
+			Help:    ".",
+			Buckets: []float64{-1, 0, 1},
+		},
+	)
+	r.MustRegister(h)
+
+	h.Observe(-1.4)
+	h.Observe(-0.4)
+
+	g := apmprometheus.Wrap(r)
+	metrics := gatherMetrics(g)
+	for name := range metrics[0].Samples {
+		if !strings.HasPrefix(name, "histogram") {
+			delete(metrics[0].Samples, name)
+		}
+	}
+
+	assert.Equal(t, []model.Metrics{{
+		Samples: map[string]model.Metric{
+			"histogram": {
+				Type:   "histogram",
+				Values: []float64{-1, -0.5},
+				Counts: []uint64{1, 1},
+			},
+		},
+	}}, metrics)
+}
+
 func gatherMetrics(g apm.MetricsGatherer) []model.Metrics {
 	tracer := apmtest.NewRecordingTracer()
 	defer tracer.Close()

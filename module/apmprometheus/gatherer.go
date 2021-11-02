@@ -80,8 +80,85 @@ func (g gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 					out.Add(name+".percentile."+strconv.Itoa(p), labels, q.GetValue())
 				}
 			}
+		case dto.MetricType_HISTOGRAM:
+			// For the bucket values, we follow the approach described by Prometheus's
+			// histogram_quantile function (https://prometheus.io/docs/prometheus/latest/querying/functions/#histogram_quantile)
+			// to achieve consistent percentile aggregation results:
+			//
+			// "The histogram_quantile() function interpolates quantile values by assuming a linear
+			// distribution within a bucket. (...) If a quantile is located in the highest bucket,
+			// the upper bound of the second highest bucket is returned. A lower limit of the lowest
+			// bucket is assumed to be 0 if the upper bound of that bucket is greater than 0. In that
+			// case, the usual linear interpolation is applied within that bucket. Otherwise, the upper
+			// bound of the lowest bucket is returned for quantiles located in the lowest bucket."
+			for _, m := range mf.GetMetric() {
+				h := m.GetHistogram()
+				// Total count for all values in this
+				// histogram. We want the per value count.
+				totalCount := h.GetSampleCount()
+				if totalCount == 0 {
+					continue
+				}
+				labels := makeLabels(m.GetLabel())
+				values := h.GetBucket()
+				// The +Inf bucket isn't encoded into the
+				// protobuf representation, but observations
+				// that fall within it are reflected in the
+				// histogram's SampleCount.
+				// We compare the totalCount to the bucketCount
+				// (sum of all CumulativeCount()s per bucket)
+				// to infer if an additional midpoint + count
+				// need to be added to their respective slices.
+				var bucketCount uint64
+				valuesLen := len(values)
+				midpoints := make([]float64, 0, valuesLen)
+				counts := make([]uint64, 0, valuesLen)
+				for i, b := range values {
+					count := b.GetCumulativeCount()
+					le := b.GetUpperBound()
+					if i == 0 {
+						if le > 0 {
+							le /= 2
+						}
+					} else {
+						// apm-server expects non-cumulative
+						// counts. prometheus counts each
+						// bucket cumulatively, ie. bucketN
+						// contains all counts for bucketN and
+						// all counts in preceding values. To
+						// get the current bucket's count we
+						// subtract bucketN-1 from bucketN,
+						// when N>0.
+						count = count - values[i-1].GetCumulativeCount()
+						le = values[i-1].GetUpperBound() + (le-values[i-1].GetUpperBound())/2.0
+					}
+					// we are excluding zero-count
+					// prometheus buckets.
+					// the cumulative count may have
+					// initially been non-zero, but when we
+					// subtract the preceding bucket, it
+					// may end up having a zero count.
+					if count == 0 {
+						continue
+					}
+					bucketCount += count
+					counts = append(counts, count)
+					midpoints = append(midpoints, le)
+				}
+				// Check if there were observations that fell
+				// outside of the defined histogram buckets, so
+				// we need to modify the current final bucket,
+				// and add an additional bucket with these
+				// observations.
+				if infBucketCount := totalCount - bucketCount; infBucketCount > 0 && valuesLen > 0 {
+					// Set the midpoint for the +Inf bucket
+					// to be the final defined bucket value.
+					midpoints = append(midpoints, values[valuesLen-1].GetUpperBound())
+					counts = append(counts, infBucketCount)
+				}
+				out.AddHistogram(name, labels, midpoints, counts)
+			}
 		default:
-			// TODO(axw) MetricType_HISTOGRAM
 		}
 	}
 	return nil

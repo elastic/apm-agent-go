@@ -570,6 +570,28 @@ func TestMarshalCloud(t *testing.T) {
 	assert.Equal(t, expect, decoded)
 }
 
+func TestMarshalMetric(t *testing.T) {
+	histogram := &model.Metric{
+		Type:   "histogram",
+		Values: []float64{0.05, 0.1, 0.5, 1, 5},
+		Counts: []uint64{1, 1, 5, 10, 5},
+	}
+
+	var w fastjson.Writer
+	histogram.MarshalFastJSON(&w)
+	expect := `{"values":[0.05,0.1,0.5,1,5],"counts":[1,1,5,10,5],"type":"histogram"}`
+
+	assert.Equal(t, expect, string(w.Bytes()))
+
+	m := &model.Metric{Value: 1}
+
+	w.Reset()
+	m.MarshalFastJSON(&w)
+	expect = `{"value":1}`
+
+	assert.Equal(t, expect, string(w.Bytes()))
+}
+
 func fakeTransaction() model.Transaction {
 	return model.Transaction{
 		TraceID:   model.TraceID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
