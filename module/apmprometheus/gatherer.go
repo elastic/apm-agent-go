@@ -150,7 +150,7 @@ func (g gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 				// we need to modify the current final bucket,
 				// and add an additional bucket with these
 				// observations.
-				if infBucketCount := totalCount - bucketCount; infBucketCount > 0 {
+				if infBucketCount := totalCount - bucketCount; infBucketCount > 0 && valuesLen > 0 {
 					// Set the midpoint for the +Inf bucket
 					// to be the final defined bucket value.
 					midpoints = append(midpoints, values[valuesLen-1].GetUpperBound())
