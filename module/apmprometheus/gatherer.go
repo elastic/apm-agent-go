@@ -104,11 +104,6 @@ func (g gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 				counts := make([]uint64, 0, len(values))
 				for i, b := range values {
 					count := b.GetCumulativeCount()
-					// we are excluding zero-count
-					// prometheus buckets.
-					if count == 0 {
-						continue
-					}
 					le := b.GetUpperBound()
 					if i == 0 {
 						if le > 0 {
@@ -130,11 +125,12 @@ func (g gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 						// prometheus counts buckets cumulatively.
 						count = count - values[i-1].GetCumulativeCount()
 					}
-					// re-check count. the cumulative count
-					// in the initial check may have been
-					// non-zero, but when we subtract the
-					// preceding bucket, it may end up
-					// having a zero count.
+					// we are excluding zero-count
+					// prometheus buckets.
+					// the cumulative count may have
+					// initially been non-zero, but when we
+					// subtract the preceding bucket, it
+					// may end up having a zero count.
 					if count == 0 {
 						continue
 					}
