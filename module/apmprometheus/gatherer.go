@@ -95,13 +95,24 @@ func (g gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 				h := m.GetHistogram()
 				// Total count for all values in this
 				// histogram. We want the per value count.
-				if h.GetSampleCount() == 0 {
+				totalCount := h.GetSampleCount()
+				if totalCount == 0 {
 					continue
 				}
 				labels := makeLabels(m.GetLabel())
 				values := h.GetBucket()
-				midpoints := make([]float64, 0, len(values))
-				counts := make([]uint64, 0, len(values))
+				// The +Inf bucket isn't encoded into the
+				// protobuf representation, but observations
+				// that fall within it are reflected in the
+				// histogram's SampleCount.
+				// We compare the totalCount to the bucketCount
+				// (sum of all CumulativeCount()s per bucket)
+				// to infer if an additional midpoint + count
+				// need to be added to their respective slices.
+				var bucketCount uint64
+				valuesLen := len(values)
+				midpoints := make([]float64, 0, valuesLen)
+				counts := make([]uint64, 0, valuesLen)
 				for i, b := range values {
 					count := b.GetCumulativeCount()
 					le := b.GetUpperBound()
@@ -109,8 +120,7 @@ func (g gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 						if le > 0 {
 							le /= 2
 						}
-					} else if i == (len(values) - 1) {
-						le = values[i-1].GetUpperBound()
+					} else {
 						// apm-server expects non-cumulative
 						// counts. prometheus counts each
 						// bucket cumulatively, ie. bucketN
@@ -120,10 +130,7 @@ func (g gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 						// subtract bucketN-1 from bucketN,
 						// when N>0.
 						count = count - values[i-1].GetCumulativeCount()
-					} else {
 						le = values[i-1].GetUpperBound() + (le-values[i-1].GetUpperBound())/2.0
-						// prometheus counts buckets cumulatively.
-						count = count - values[i-1].GetCumulativeCount()
 					}
 					// we are excluding zero-count
 					// prometheus buckets.
@@ -134,8 +141,20 @@ func (g gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 					if count == 0 {
 						continue
 					}
+					bucketCount += count
 					counts = append(counts, count)
 					midpoints = append(midpoints, le)
+				}
+				// Check if there were observations that fell
+				// outside of the defined histogram buckets, so
+				// we need to modify the current final bucket,
+				// and add an additional bucket with these
+				// observations.
+				if infBucketCount := totalCount - bucketCount; infBucketCount > 0 {
+					// Set the midpoint for the +Inf bucket
+					// to be the final defined bucket value.
+					midpoints = append(midpoints, values[valuesLen-1].GetUpperBound())
+					counts = append(counts, infBucketCount)
 				}
 				out.AddHistogram(name, labels, midpoints, counts)
 			}
