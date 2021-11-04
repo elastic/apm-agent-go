@@ -261,7 +261,7 @@ func TestServerStream(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
-	s, _, addr := newAccumulatorServer(t, tracer, apmgrpc.WithRecovery())
+	s, accumulatorServer, addr := newAccumulatorServer(t, tracer, apmgrpc.WithRecovery())
 	defer s.GracefulStop()
 
 	conn, client := newAccumulatorClient(t, addr)
@@ -290,6 +290,13 @@ func TestServerStream(t *testing.T) {
 	tracer.Flush(nil)
 	transactions := transport.Payloads().Transactions
 	require.Len(t, transactions, 1)
+
+	// The transaction should have propagated into the accumulatorServer
+	require.NotNil(t, accumulatorServer.transactionFromContext)
+	expectedTraceID := fmt.Sprintf("%x", transactions[0].TraceID)
+	actualTraceID := accumulatorServer.transactionFromContext.TraceContext().Trace.String()
+	require.NotEmpty(t, expectedTraceID)
+	require.Equal(t, expectedTraceID, actualTraceID)
 }
 
 func TestServerTLS(t *testing.T) {
@@ -457,9 +464,12 @@ func (s *helloworldServer) SayHello(ctx context.Context, req *pb.HelloRequest) (
 type accumulator struct {
 	panic bool
 	err   error
+
+	transactionFromContext *apm.Transaction
 }
 
 func (a *accumulator) Accumulate(srv testservice.Accumulator_AccumulateServer) error {
+	a.transactionFromContext = apm.TransactionFromContext(srv.Context())
 	if a.panic {
 		panic(a.err)
 	}

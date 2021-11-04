@@ -36,6 +36,8 @@ import (
 
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/module/apmhttp"
+
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 )
 
 var (
@@ -134,6 +136,9 @@ func NewStreamServerInterceptor(o ...ServerOption) grpc.StreamServerInterceptor 
 		tx, ctx := startTransaction(ctx, opts.tracer, info.FullMethod)
 		defer tx.End()
 
+		wrapped := grpc_middleware.WrapServerStream(stream)
+		wrapped.WrappedContext = ctx
+
 		// TODO(axw) define span context schema for RPC,
 		// including at least the peer address.
 
@@ -153,7 +158,7 @@ func NewStreamServerInterceptor(o ...ServerOption) grpc.StreamServerInterceptor 
 			}
 			setTransactionResult(tx, err)
 		}()
-		return handler(srv, stream)
+		return handler(srv, wrapped)
 	}
 }
 
