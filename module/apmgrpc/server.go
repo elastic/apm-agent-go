@@ -134,6 +134,9 @@ func NewStreamServerInterceptor(o ...ServerOption) grpc.StreamServerInterceptor 
 		tx, ctx := startTransaction(ctx, opts.tracer, info.FullMethod)
 		defer tx.End()
 
+		wrapped := wrapServerStream(stream)
+		wrapped.wrappedContext = ctx
+
 		// TODO(axw) define span context schema for RPC,
 		// including at least the peer address.
 
@@ -153,7 +156,7 @@ func NewStreamServerInterceptor(o ...ServerOption) grpc.StreamServerInterceptor 
 			}
 			setTransactionResult(tx, err)
 		}()
-		return handler(srv, stream)
+		return handler(srv, wrapped)
 	}
 }
 
@@ -310,4 +313,21 @@ func WithServerStreamIgnorer(s StreamIgnorerFunc) ServerOption {
 	return func(o *serverOptions) {
 		o.streamIgnorer = s
 	}
+}
+
+// wrappedServerStream is a thin wrapper around grpc.ServerStream that allows modifying context.
+type wrappedServerStream struct {
+	grpc.ServerStream
+	// wrappedContext is the wrapper's own Context. You can assign it.
+	wrappedContext context.Context
+}
+
+// Context returns the wrapper's WrappedContext, overwriting the nested grpc.ServerStream.Context()
+func (w *wrappedServerStream) Context() context.Context {
+	return w.wrappedContext
+}
+
+// wrapServerStream returns a ServerStream that has the ability to overwrite context.
+func wrapServerStream(stream grpc.ServerStream) *wrappedServerStream {
+	return &wrappedServerStream{ServerStream: stream, wrappedContext: stream.Context()}
 }
