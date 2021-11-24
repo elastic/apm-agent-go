@@ -33,7 +33,6 @@ import (
 	"time"
 
 	"github.com/cucumber/godog"
-	"github.com/cucumber/godog/gherkin"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	pb "google.golang.org/grpc/examples/helloworld/helloworld"
@@ -48,46 +47,44 @@ import (
 	"go.elastic.co/apm/transport"
 )
 
-type featureContext struct {
+var (
 	apiKey      string
 	secretToken string
 	env         []string // for subprocesses
 
-	httpServer  *httptest.Server
-	httpHandler *httpHandler
+	httpServer         *httptest.Server
+	httpHandler        = &mockHTTPHandler{}
+	httpRequestHeaders http.Header
 
 	grpcServer  *grpc.Server
 	grpcClient  *grpc.ClientConn
 	grpcService *helloworldGRPCService
 
-	tracer      *apmtest.RecordingTracer
+	tracer      = apmtest.NewRecordingTracer()
 	span        *apm.Span
 	transaction *apm.Transaction
 
 	cloud *model.Cloud
-}
+)
 
-// InitContext initialises a godoc.Suite with step definitions.
-func InitContext(s *godog.Suite) {
-	c := &featureContext{
-		tracer: apmtest.NewRecordingTracer(),
-	}
-
-	c.httpHandler = &httpHandler{}
-	c.httpServer = httptest.NewServer(
-		apmhttp.Wrap(c.httpHandler, apmhttp.WithTracer(c.tracer.Tracer)),
+// InitScenario initialises sc with step definitions.
+func InitScenario(sc *godog.ScenarioContext) {
+	httpServer = httptest.NewServer(
+		apmhttp.Wrap(httpHandler, apmhttp.WithTracer(tracer.Tracer)),
 	)
 
-	c.grpcServer = grpc.NewServer(grpc.UnaryInterceptor(
+	grpcServer = grpc.NewServer(grpc.UnaryInterceptor(
 		apmgrpc.NewUnaryServerInterceptor(
-			apmgrpc.WithTracer(c.tracer.Tracer),
+			apmgrpc.WithTracer(tracer.Tracer),
 			apmgrpc.WithRecovery(),
 		),
 	))
-	c.grpcService = &helloworldGRPCService{}
-	pb.RegisterGreeterServer(c.grpcServer, c.grpcService)
+	grpcService = &helloworldGRPCService{}
+	pb.RegisterGreeterServer(grpcServer, grpcService)
 	grpcListener := bufconn.Listen(1)
-	grpcClient, err := grpc.Dial("bufconn",
+
+	var err error
+	grpcClient, err = grpc.Dial("bufconn",
 		grpc.WithInsecure(),
 		grpc.WithDialer(func(string, time.Duration) (net.Conn, error) { return grpcListener.Dial() }),
 		grpc.WithUnaryInterceptor(apmgrpc.NewUnaryClientInterceptor()),
@@ -95,114 +92,123 @@ func InitContext(s *godog.Suite) {
 	if err != nil {
 		panic(err)
 	}
-	c.grpcClient = grpcClient
-	go c.grpcServer.Serve(grpcListener)
+	go grpcServer.Serve(grpcListener)
 
-	s.BeforeScenario(func(interface{}) { c.reset() })
-	s.AfterSuite(func() {
-		c.tracer.Close()
-		c.grpcServer.Stop()
-		c.grpcClient.Close()
-		c.httpServer.Close()
+	sc.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
+		apiKey = ""
+		secretToken = ""
+		span = nil
+		transaction = nil
+		httpRequestHeaders = nil
+		httpHandler.panic = false
+		httpHandler.statusCode = http.StatusOK
+		grpcService.panic = false
+		grpcService.err = nil
+		tracer.ResetPayloads()
+		for _, k := range os.Environ() {
+			if strings.HasPrefix(k, "ELASTIC_APM") {
+				os.Unsetenv(k)
+			}
+		}
+		return ctx, nil
 	})
-	s.AfterScenario(func(interface{}, error) {
-		c.env = nil
-		c.cloud = nil
+
+	sc.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
+		env = nil
+		cloud = nil
+		return ctx, nil
 	})
 
-	s.Step("^an agent$", c.anAgent)
-	s.Step("^an api key is not set in the config$", func() error { return nil })
-	s.Step("^an api key is set to '(.*)' in the config$", c.setAPIKey)
-	s.Step("^a secret_token is set to '(.*)' in the config$", c.setSecretToken)
-	s.Step("^the Authorization header is '(.*)'$", c.checkAuthorizationHeader)
+	sc.Step("^an agent$", anAgent)
+	sc.Step("^an agent configured with$", anAgentConfiguredWith)
+	sc.Step("^the agent sends a request to APM server$", sendRequest)
+	sc.Step("^the Authorization header of the request is '(.*)'$", checkAuthorizationHeader)
 
-	s.Step("^an active span$", c.anActiveSpan)
-	s.Step("^an active transaction$", c.anActiveTransaction)
+	sc.Step("^an active span$", anActiveSpan)
+	sc.Step("^an active transaction$", anActiveTransaction)
 
 	// Outcome
-	s.Step("^user sets span outcome to '(.*)'$", c.userSetsSpanOutcome)
-	s.Step("^user sets transaction outcome to '(.*)'$", c.userSetsTransactionOutcome)
-	s.Step("^span terminates with outcome '(.*)'$", c.spanTerminatesWithOutcome)
-	s.Step("^transaction terminates with outcome '(.*)'$", c.transactionTerminatesWithOutcome)
-	s.Step("^span terminates with an error$", func() error { return c.spanTerminatesWithOutcome("failure") })
-	s.Step("^span terminates without error$", func() error { return c.spanTerminatesWithOutcome("success") })
-	s.Step("^transaction terminates with an error$", func() error { return c.transactionTerminatesWithOutcome("failure") })
-	s.Step("^transaction terminates without error$", func() error { return c.transactionTerminatesWithOutcome("success") })
-	s.Step("^span outcome is '(.*)'$", c.spanOutcomeIs)
-	s.Step("^span outcome is \"(.*)\"$", c.spanOutcomeIs)
-	s.Step("^transaction outcome is '(.*)'$", c.transactionOutcomeIs)
-	s.Step("^transaction outcome is \"(.*)\"$", c.transactionOutcomeIs)
+	sc.Step("^a user sets the span outcome to '(.*)'$", userSetsSpanOutcome)
+	sc.Step("^a user sets the transaction outcome to '(.*)'$", userSetsTransactionOutcome)
+	sc.Step("^the agent sets the span outcome to '(.*)'$", agentSetsSpanOutcome)
+	sc.Step("^the agent sets the transaction outcome to '(.*)'$", agentSetsTransactionOutcome)
+	sc.Step("^an error is reported to the span$", anErrorIsReportedToTheSpan)
+	sc.Step("^an error is reported to the transaction$", anErrorIsReportedToTheTransaction)
+	sc.Step("^the span ends$", spanEnds)
+	sc.Step("^the transaction ends$", transactionEnds)
+	sc.Step("^the span outcome is '(.*)'$", spanOutcomeIs)
+	sc.Step("^the transaction outcome is '(.*)'$", transactionOutcomeIs)
 
 	// HTTP
-	s.Step("^an HTTP transaction with (.*) response code$", c.anHTTPTransactionWithStatusCode)
-	s.Step("^an HTTP span with (.*) response code$", c.anHTTPSpanWithStatusCode)
+	sc.Step("^a HTTP call is received that returns (.*)$", anHTTPTransactionWithStatusCode)
+	sc.Step("^a HTTP call is made that returns (.*)$", anHTTPSpanWithStatusCode)
 
 	// gRPC
-	s.Step("^a gRPC transaction with '(.*)' status$", c.aGRPCTransactionWithStatusCode)
-	s.Step("^a gRPC span with '(.*)' status$", c.aGRPCSpanWithStatusCode)
+	sc.Step("^a gRPC call is received that returns '(.*)'$", aGRPCTransactionWithStatusCode)
+	sc.Step("^a gRPC call is made that returns '(.*)'$", aGRPCSpanWithStatusCode)
 
 	// Cloud metadata
-	s.Step("an instrumented application is configured to collect cloud provider metadata for azure", func() error {
+	sc.Step("an instrumented application is configured to collect cloud provider metadata for azure", func() error {
 		return nil
 	})
-	s.Step("the following environment variables are present", func(kv *gherkin.DataTable) error {
+	sc.Step("the following environment variables are present", func(kv *godog.Table) error {
 		for _, row := range kv.Rows[1:] {
-			c.env = append(c.env, row.Cells[0].Value+"="+row.Cells[1].Value)
+			env = append(env, row.Cells[0].Value+"="+row.Cells[1].Value)
 		}
 		return nil
 	})
-	s.Step("cloud metadata is collected", func() error {
-		_, _, _, cloud, _, err := getSubprocessMetadata(append([]string{
+	sc.Step("cloud metadata is collected", func() error {
+		_, _, _, detectedCloud, _, err := getSubprocessMetadata(append([]string{
 			"ELASTIC_APM_CLOUD_PROVIDER=auto", // Explicitly enable cloud metadata detection
 			"http_proxy=http://proxy.invalid", // fail all HTTP requests
-		}, c.env...)...)
+		}, env...)...)
 		if err != nil {
 			return err
 		}
-		if *cloud != (model.Cloud{}) {
-			c.cloud = cloud
+		if *detectedCloud != (model.Cloud{}) {
+			cloud = detectedCloud
 		}
 		return nil
 	})
-	s.Step("cloud metadata is not null", func() error {
-		if c.cloud == nil {
+	sc.Step("cloud metadata is not null", func() error {
+		if cloud == nil {
 			return errors.New("cloud metadata is empty")
 		}
 		return nil
 	})
-	s.Step("cloud metadata is null", func() error {
-		if c.cloud != nil {
-			return fmt.Errorf("cloud metadata is non-empty: %+v", *c.cloud)
+	sc.Step("cloud metadata is null", func() error {
+		if cloud != nil {
+			return fmt.Errorf("cloud metadata is non-empty: %+v", *cloud)
 		}
 		return nil
 	})
-	s.Step("cloud metadata '(.*)' is '(.*)'", func(field, expected string) error {
+	sc.Step("cloud metadata '(.*)' is '(.*)'", func(field, expected string) error {
 		var actual string
 		switch field {
 		case "account.id":
-			if c.cloud.Account == nil {
+			if cloud.Account == nil {
 				return errors.New("cloud.account is nil")
 			}
-			actual = c.cloud.Account.ID
+			actual = cloud.Account.ID
 		case "provider":
-			actual = c.cloud.Provider
+			actual = cloud.Provider
 		case "instance.id":
-			if c.cloud.Instance == nil {
+			if cloud.Instance == nil {
 				return errors.New("cloud.instance is nil")
 			}
-			actual = c.cloud.Instance.ID
+			actual = cloud.Instance.ID
 		case "instance.name":
-			if c.cloud.Instance == nil {
+			if cloud.Instance == nil {
 				return errors.New("cloud.instance is nil")
 			}
-			actual = c.cloud.Instance.Name
+			actual = cloud.Instance.Name
 		case "project.name":
-			if c.cloud.Project == nil {
+			if cloud.Project == nil {
 				return errors.New("cloud.project is nil")
 			}
-			actual = c.cloud.Project.Name
+			actual = cloud.Project.Name
 		case "region":
-			actual = c.cloud.Region
+			actual = cloud.Region
 		default:
 			return fmt.Errorf("unexpected field %q", field)
 		}
@@ -213,49 +219,38 @@ func InitContext(s *godog.Suite) {
 	})
 }
 
-func (c *featureContext) reset() {
-	c.apiKey = ""
-	c.secretToken = ""
-	c.span = nil
-	c.transaction = nil
-	c.httpHandler.panic = false
-	c.httpHandler.statusCode = http.StatusOK
-	c.grpcService.panic = false
-	c.grpcService.err = nil
-	c.tracer.ResetPayloads()
-
-	for _, k := range os.Environ() {
-		if strings.HasPrefix(k, "ELASTIC_APM") {
-			os.Unsetenv(k)
-		}
-	}
-}
-
-func (c *featureContext) anAgent() error {
+func anAgent() error {
 	// No-op; we create the tracer in the suite setup.
 	return nil
 }
 
-func (c *featureContext) setAPIKey(v string) error {
-	c.apiKey = v
+func anAgentConfiguredWith(settings *godog.Table) error {
+	for _, row := range settings.Rows[1:] {
+		setting := row.Cells[0].Value
+		value := row.Cells[1].Value
+		switch setting {
+		case "api_key":
+			apiKey = value
+		case "secret_token":
+			secretToken = value
+		case "cloud_provider":
+			env = append(env, "ELASTIC_APM_CLOUD_PROVIDER="+value)
+		default:
+			return fmt.Errorf("unhandled setting %q", setting)
+		}
+	}
 	return nil
 }
 
-func (c *featureContext) setSecretToken(v string) error {
-	c.secretToken = v
-	return nil
-}
-
-func (c *featureContext) checkAuthorizationHeader(expected string) error {
-	var authHeader []string
+func sendRequest() error {
 	var h http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
-		authHeader = r.Header["Authorization"]
+		httpRequestHeaders = r.Header
 	}
 	server := httptest.NewServer(h)
 	defer server.Close()
 
-	os.Setenv("ELASTIC_APM_SECRET_TOKEN", c.secretToken)
-	os.Setenv("ELASTIC_APM_API_KEY", c.apiKey)
+	os.Setenv("ELASTIC_APM_SECRET_TOKEN", secretToken)
+	os.Setenv("ELASTIC_APM_API_KEY", apiKey)
 	os.Setenv("ELASTIC_APM_SERVER_URL", server.URL)
 	if _, err := transport.InitDefault(); err != nil {
 		return err
@@ -268,7 +263,11 @@ func (c *featureContext) checkAuthorizationHeader(expected string) error {
 
 	tracer.StartTransaction("name", "type").End()
 	tracer.Flush(nil)
+	return nil
+}
 
+func checkAuthorizationHeader(expected string) error {
+	authHeader := httpRequestHeaders["Authorization"]
 	if n := len(authHeader); n != 1 {
 		return fmt.Errorf("got %d Authorization headers, expected 1", n)
 	}
@@ -278,93 +277,114 @@ func (c *featureContext) checkAuthorizationHeader(expected string) error {
 	return nil
 }
 
-func (c *featureContext) anActiveSpan() error {
-	if err := c.anActiveTransaction(); err != nil {
+func anActiveSpan() error {
+	if err := anActiveTransaction(); err != nil {
 		return err
 	}
-	c.span = c.transaction.StartSpan("name", "type", nil)
+	span = transaction.StartSpan("name", "type", nil)
 	return nil
 }
 
-func (c *featureContext) anActiveTransaction() error {
-	c.transaction = c.tracer.StartTransaction("name", "type")
+func anActiveTransaction() error {
+	transaction = tracer.StartTransaction("name", "type")
 	return nil
 }
 
-func (c *featureContext) userSetsSpanOutcome(outcome string) error {
-	c.span.Outcome = outcome
+func userSetsSpanOutcome(outcome string) error {
+	span.Outcome = outcome
 	return nil
 }
 
-func (c *featureContext) userSetsTransactionOutcome(outcome string) error {
-	c.transaction.Outcome = outcome
+func userSetsTransactionOutcome(outcome string) error {
+	transaction.Outcome = outcome
 	return nil
 }
 
-func (c *featureContext) spanTerminatesWithOutcome(outcome string) error {
+func agentSetsSpanOutcome(outcome string) error {
 	switch outcome {
 	case "unknown":
 	case "success":
-		c.span.Context.SetHTTPStatusCode(200)
+		span.Context.SetHTTPStatusCode(200)
 	case "failure":
-		c.span.Context.SetHTTPStatusCode(400)
+		span.Context.SetHTTPStatusCode(400)
 	}
-	c.span.End()
 	return nil
 }
 
-func (c *featureContext) transactionTerminatesWithOutcome(outcome string) error {
+func agentSetsTransactionOutcome(outcome string) error {
 	switch outcome {
 	case "unknown":
 	case "success":
-		c.transaction.Context.SetHTTPStatusCode(200)
+		transaction.Context.SetHTTPStatusCode(200)
 	case "failure":
-		c.transaction.Context.SetHTTPStatusCode(500)
+		transaction.Context.SetHTTPStatusCode(500)
 	}
-	c.transaction.End()
 	return nil
 }
 
-func (c *featureContext) spanOutcomeIs(expected string) error {
-	c.tracer.Flush(nil)
-	payloads := c.tracer.Payloads()
+func anErrorIsReportedToTheSpan() error {
+	e := tracer.NewError(errors.New("an error"))
+	e.SetSpan(span)
+	return nil
+}
+
+func anErrorIsReportedToTheTransaction() error {
+	e := tracer.NewError(errors.New("an error"))
+	e.SetTransaction(transaction)
+	return nil
+}
+
+func spanEnds() error {
+	span.End()
+	tracer.Flush(nil)
+	return nil
+}
+
+func transactionEnds() error {
+	transaction.End()
+	tracer.Flush(nil)
+	return nil
+}
+
+func spanOutcomeIs(expected string) error {
+	payloads := tracer.Payloads()
 	if actual := payloads.Spans[0].Outcome; actual != expected {
 		return fmt.Errorf("expected outcome %q, got %q", expected, actual)
 	}
 	return nil
 }
 
-func (c *featureContext) transactionOutcomeIs(expected string) error {
-	c.tracer.Flush(nil)
-	payloads := c.tracer.Payloads()
+func transactionOutcomeIs(expected string) error {
+	tracer.Flush(nil)
+	payloads := tracer.Payloads()
 	if actual := payloads.Transactions[0].Outcome; actual != expected {
 		return fmt.Errorf("expected outcome %q, got %q", expected, actual)
 	}
 	return nil
 }
 
-func (c *featureContext) anHTTPTransactionWithStatusCode(statusCode int) error {
+func anHTTPTransactionWithStatusCode(statusCode int) error {
 	if statusCode < 0 {
-		c.httpHandler.panic = true
+		httpHandler.panic = true
 	} else {
-		c.httpHandler.statusCode = statusCode
+		httpHandler.statusCode = statusCode
 	}
-	return c.sendHTTPRequest(context.Background())
+	return sendHTTPRequest(context.Background())
 }
 
-func (c *featureContext) anHTTPSpanWithStatusCode(statusCode int) error {
+func anHTTPSpanWithStatusCode(statusCode int) error {
 	if statusCode < 0 {
-		c.httpHandler.panic = true
+		httpHandler.panic = true
 	}
-	tx := c.tracer.StartTransaction("name", "type")
+	tx := tracer.StartTransaction("name", "type")
 	defer tx.End()
 	ctx := apm.ContextWithTransaction(context.Background(), tx)
-	return c.sendHTTPRequest(ctx)
+	return sendHTTPRequest(ctx)
 }
 
-func (c *featureContext) sendHTTPRequest(ctx context.Context) error {
-	client := apmhttp.WrapClient(c.httpServer.Client())
-	req, _ := http.NewRequest("GET", c.httpServer.URL, nil)
+func sendHTTPRequest(ctx context.Context) error {
+	client := apmhttp.WrapClient(httpServer.Client())
+	req, _ := http.NewRequest("GET", httpServer.URL, nil)
 	resp, err := client.Do(req.WithContext(ctx))
 	if err != nil {
 		return err
@@ -372,38 +392,38 @@ func (c *featureContext) sendHTTPRequest(ctx context.Context) error {
 	return resp.Body.Close()
 }
 
-func (c *featureContext) aGRPCTransactionWithStatusCode(statusCode string) error {
+func aGRPCTransactionWithStatusCode(statusCode string) error {
 	if statusCode == "n/a" {
-		c.grpcService.panic = true
+		grpcService.panic = true
 	} else {
 		code, err := parseGRPCStatusCode(statusCode)
 		if err != nil {
 			return err
 		}
 		if code != codes.OK {
-			c.grpcService.err = status.Error(code, code.String())
+			grpcService.err = status.Error(code, code.String())
 		}
 	}
-	pb.NewGreeterClient(c.grpcClient).SayHello(context.Background(), &pb.HelloRequest{Name: "world"})
+	pb.NewGreeterClient(grpcClient).SayHello(context.Background(), &pb.HelloRequest{Name: "world"})
 	return nil
 }
 
-func (c *featureContext) aGRPCSpanWithStatusCode(statusCode string) error {
+func aGRPCSpanWithStatusCode(statusCode string) error {
 	if statusCode == "n/a" {
-		c.grpcService.panic = true
+		grpcService.panic = true
 	} else {
 		code, err := parseGRPCStatusCode(statusCode)
 		if err != nil {
 			return err
 		}
 		if code != codes.OK {
-			c.grpcService.err = status.Error(code, code.String())
+			grpcService.err = status.Error(code, code.String())
 		}
 	}
-	tx := c.tracer.StartTransaction("name", "type")
+	tx := tracer.StartTransaction("name", "type")
 	defer tx.End()
 	ctx := apm.ContextWithTransaction(context.Background(), tx)
-	pb.NewGreeterClient(c.grpcClient).SayHello(ctx, &pb.HelloRequest{Name: "world"})
+	pb.NewGreeterClient(grpcClient).SayHello(ctx, &pb.HelloRequest{Name: "world"})
 	return nil
 }
 
@@ -425,12 +445,12 @@ func (h *helloworldGRPCService) SayHello(ctx context.Context, req *pb.HelloReque
 	return &pb.HelloReply{Message: "hello, " + req.Name}, h.err
 }
 
-type httpHandler struct {
+type mockHTTPHandler struct {
 	panic      bool
 	statusCode int
 }
 
-func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *mockHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if h.panic {
 		panic("boom")
 	}
