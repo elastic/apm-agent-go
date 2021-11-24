@@ -287,6 +287,13 @@ func (tx *Transaction) End() {
 		}
 		if tx.Outcome == "" {
 			tx.Outcome = tx.Context.outcome()
+			if tx.Outcome == "" {
+				if tx.errorCaptured {
+					tx.Outcome = "failure"
+				} else {
+					tx.Outcome = "success"
+				}
+			}
 		}
 		// Hold the transaction data lock to check if the transaction has any
 		// compressed spans in its cache, if so, evict cache and end the span.
@@ -370,6 +377,7 @@ type TransactionData struct {
 	timestamp               time.Time
 
 	mu                sync.Mutex
+	errorCaptured     bool
 	spansCreated      int
 	spansDropped      int
 	childrenTimer     childrenTimer

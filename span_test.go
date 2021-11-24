@@ -26,6 +26,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -1262,4 +1263,34 @@ func TestSpanFastExitNoTransaction(t *testing.T) {
 		Started: 1,
 		Dropped: 0,
 	}, transaction.SpanCount)
+}
+
+func TestSpanOutcome(t *testing.T) {
+	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+		span1, _ := apm.StartSpan(ctx, "name", "type")
+		span1.End()
+
+		span2, _ := apm.StartSpan(ctx, "name", "type")
+		span2.Outcome = "unknown"
+		span2.End()
+
+		span3, _ := apm.StartSpan(ctx, "name", "type")
+		span3.Context.SetHTTPStatusCode(200)
+		span3.End()
+
+		span4, _ := apm.StartSpan(ctx, "name", "type")
+		span4.Context.SetHTTPStatusCode(400)
+		span4.End()
+
+		span5, ctx := apm.StartSpan(ctx, "name", "type")
+		apm.CaptureError(ctx, errors.New("an error")).Send()
+		span5.End()
+	})
+
+	require.Len(t, spans, 5)
+	assert.Equal(t, "success", spans[0].Outcome) // default
+	assert.Equal(t, "unknown", spans[1].Outcome) // specified
+	assert.Equal(t, "success", spans[2].Outcome) // HTTP status < 400
+	assert.Equal(t, "failure", spans[3].Outcome) // HTTP status >= 400
+	assert.Equal(t, "failure", spans[4].Outcome)
 }

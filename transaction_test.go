@@ -26,6 +26,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -511,6 +512,40 @@ func TestTransactionDroppedSpansStats(t *testing.T) {
 			assert.Equal(t, int64(10), span.Duration.Sum.Us)
 		}
 	})
+}
+
+func TestTransactionOutcome(t *testing.T) {
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+
+	tx1 := tracer.StartTransaction("name", "type")
+	tx1.End()
+
+	tx2 := tracer.StartTransaction("name", "type")
+	tx2.Outcome = "unknown"
+	tx2.End()
+
+	tx3 := tracer.StartTransaction("name", "type")
+	tx3.Context.SetHTTPStatusCode(400)
+	tx3.End()
+
+	tx4 := tracer.StartTransaction("name", "type")
+	tx4.Context.SetHTTPStatusCode(500)
+	tx4.End()
+
+	tx5 := tracer.StartTransaction("name", "type")
+	ctx := apm.ContextWithTransaction(context.Background(), tx5)
+	apm.CaptureError(ctx, errors.New("an error")).Send()
+	tx5.End()
+
+	tracer.Flush(nil)
+	transactions := tracer.Payloads().Transactions
+	require.Len(t, transactions, 5)
+	assert.Equal(t, "success", transactions[0].Outcome) // default
+	assert.Equal(t, "unknown", transactions[1].Outcome) // specified
+	assert.Equal(t, "success", transactions[2].Outcome) // HTTP status < 500
+	assert.Equal(t, "failure", transactions[3].Outcome) // HTTP status >= 500
+	assert.Equal(t, "failure", transactions[4].Outcome)
 }
 
 func BenchmarkTransaction(b *testing.B) {
