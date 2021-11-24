@@ -173,7 +173,7 @@ func (c *Context) SetHTTPRequest(req *http.Request) {
 		httpVersion = fmt.Sprintf("%d.%d", req.ProtoMajor, req.ProtoMinor)
 	}
 
-	c.httpRequest = req
+	c.httpRequest = req.Clone(req.Context())
 
 	c.request = model.Request{
 		Body:        c.request.Body,
