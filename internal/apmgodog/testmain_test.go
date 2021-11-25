@@ -15,8 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//go:build go1.9
-// +build go1.9
+//go:build go1.13
+// +build go1.13
 
 package apmgodog_test
 

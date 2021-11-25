@@ -25,7 +25,6 @@ function pin() {
 pin go.uber.org/multierr v1.6.0 https://github.com/uber-go/multierr
 pin github.com/astaxie/beego v1.11.1
 pin github.com/stretchr/testify v1.4.0
-pin github.com/cucumber/godog v0.12.2
 pin github.com/elastic/go-sysinfo v1.3.0
 pin google.golang.org/grpc v1.30.0 https://github.com/grpc/grpc-go
 pin github.com/jinzhu/gorm v1.9.16
