@@ -33,7 +33,6 @@ import (
 	"time"
 
 	"github.com/cucumber/godog"
-	"github.com/cucumber/godog/gherkin"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	pb "google.golang.org/grpc/examples/helloworld/helloworld"
@@ -67,47 +66,68 @@ type featureContext struct {
 	cloud *model.Cloud
 }
 
-// InitContext initialises a godoc.Suite with step definitions.
-func InitContext(s *godog.Suite) {
-	c := &featureContext{
-		tracer: apmtest.NewRecordingTracer(),
+func newFeatureContext() *featureContext {
+	return &featureContext{
+		tracer:      apmtest.NewRecordingTracer(),
+		httpHandler: &httpHandler{},
+		grpcService: &helloworldGRPCService{},
 	}
+}
 
-	c.httpHandler = &httpHandler{}
-	c.httpServer = httptest.NewServer(
-		apmhttp.Wrap(c.httpHandler, apmhttp.WithTracer(c.tracer.Tracer)),
-	)
+// initTestSuite initialises s with before/after suite hooks.
+func (c *featureContext) initTestSuite(s *godog.TestSuiteContext) {
+	s.BeforeSuite(func() {
+		c.httpServer = httptest.NewServer(
+			apmhttp.Wrap(c.httpHandler, apmhttp.WithTracer(c.tracer.Tracer)),
+		)
 
-	c.grpcServer = grpc.NewServer(grpc.UnaryInterceptor(
-		apmgrpc.NewUnaryServerInterceptor(
-			apmgrpc.WithTracer(c.tracer.Tracer),
-			apmgrpc.WithRecovery(),
-		),
-	))
-	c.grpcService = &helloworldGRPCService{}
-	pb.RegisterGreeterServer(c.grpcServer, c.grpcService)
-	grpcListener := bufconn.Listen(1)
-	grpcClient, err := grpc.Dial("bufconn",
-		grpc.WithInsecure(),
-		grpc.WithDialer(func(string, time.Duration) (net.Conn, error) { return grpcListener.Dial() }),
-		grpc.WithUnaryInterceptor(apmgrpc.NewUnaryClientInterceptor()),
-	)
-	if err != nil {
-		panic(err)
-	}
-	c.grpcClient = grpcClient
-	go c.grpcServer.Serve(grpcListener)
-
-	s.BeforeScenario(func(interface{}) { c.reset() })
+		c.grpcServer = grpc.NewServer(grpc.UnaryInterceptor(
+			apmgrpc.NewUnaryServerInterceptor(
+				apmgrpc.WithTracer(c.tracer.Tracer),
+				apmgrpc.WithRecovery(),
+			),
+		))
+		pb.RegisterGreeterServer(c.grpcServer, c.grpcService)
+		grpcListener := bufconn.Listen(1)
+		grpcClient, err := grpc.Dial("bufconn",
+			grpc.WithInsecure(),
+			grpc.WithDialer(func(string, time.Duration) (net.Conn, error) { return grpcListener.Dial() }),
+			grpc.WithUnaryInterceptor(apmgrpc.NewUnaryClientInterceptor()),
+		)
+		if err != nil {
+			panic(err)
+		}
+		c.grpcClient = grpcClient
+		go c.grpcServer.Serve(grpcListener)
+	})
 	s.AfterSuite(func() {
 		c.tracer.Close()
 		c.grpcServer.Stop()
 		c.grpcClient.Close()
 		c.httpServer.Close()
 	})
-	s.AfterScenario(func(interface{}, error) {
+}
+
+// initScenario initialises s with step definitions, and before/after scenario hooks.
+func (c *featureContext) initScenario(s *godog.ScenarioContext) {
+	s.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
 		c.env = nil
 		c.cloud = nil
+		c.apiKey = ""
+		c.secretToken = ""
+		c.span = nil
+		c.transaction = nil
+		c.httpHandler.panic = false
+		c.httpHandler.statusCode = http.StatusOK
+		c.grpcService.panic = false
+		c.grpcService.err = nil
+		c.tracer.ResetPayloads()
+		for _, k := range os.Environ() {
+			if strings.HasPrefix(k, "ELASTIC_APM") {
+				os.Unsetenv(k)
+			}
+		}
+		return ctx, nil
 	})
 
 	s.Step("^an agent$", c.anAgent)
@@ -145,7 +165,7 @@ func InitContext(s *godog.Suite) {
 	s.Step("an instrumented application is configured to collect cloud provider metadata for azure", func() error {
 		return nil
 	})
-	s.Step("the following environment variables are present", func(kv *gherkin.DataTable) error {
+	s.Step("the following environment variables are present", func(kv *godog.Table) error {
 		for _, row := range kv.Rows[1:] {
 			c.env = append(c.env, row.Cells[0].Value+"="+row.Cells[1].Value)
 		}
@@ -211,24 +231,6 @@ func InitContext(s *godog.Suite) {
 		}
 		return nil
 	})
-}
-
-func (c *featureContext) reset() {
-	c.apiKey = ""
-	c.secretToken = ""
-	c.span = nil
-	c.transaction = nil
-	c.httpHandler.panic = false
-	c.httpHandler.statusCode = http.StatusOK
-	c.grpcService.panic = false
-	c.grpcService.err = nil
-	c.tracer.ResetPayloads()
-
-	for _, k := range os.Environ() {
-		if strings.HasPrefix(k, "ELASTIC_APM") {
-			os.Unsetenv(k)
-		}
-	}
 }
 
 func (c *featureContext) anAgent() error {
