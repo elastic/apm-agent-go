@@ -144,10 +144,26 @@ func (c *featureContext) initScenario(s *godog.ScenarioContext) {
 	s.Step("^user sets transaction outcome to '(.*)'$", c.userSetsTransactionOutcome)
 	s.Step("^span terminates with outcome '(.*)'$", c.spanTerminatesWithOutcome)
 	s.Step("^transaction terminates with outcome '(.*)'$", c.transactionTerminatesWithOutcome)
-	s.Step("^span terminates with an error$", func() error { return c.spanTerminatesWithOutcome("failure") })
-	s.Step("^span terminates without error$", func() error { return c.spanTerminatesWithOutcome("success") })
-	s.Step("^transaction terminates with an error$", func() error { return c.transactionTerminatesWithOutcome("failure") })
-	s.Step("^transaction terminates without error$", func() error { return c.transactionTerminatesWithOutcome("success") })
+	s.Step("^span terminates with an error$", func() error {
+		e := c.tracer.NewError(errors.New("an error"))
+		e.SetSpan(c.span)
+		c.span.End()
+		return nil
+	})
+	s.Step("^span terminates without error$", func() error {
+		c.span.End()
+		return nil
+	})
+	s.Step("^transaction terminates with an error$", func() error {
+		e := c.tracer.NewError(errors.New("an error"))
+		e.SetTransaction(c.transaction)
+		c.transaction.End()
+		return nil
+	})
+	s.Step("^transaction terminates without error$", func() error {
+		c.transaction.End()
+		return nil
+	})
 	s.Step("^span outcome is '(.*)'$", c.spanOutcomeIs)
 	s.Step("^span outcome is \"(.*)\"$", c.spanOutcomeIs)
 	s.Step("^transaction outcome is '(.*)'$", c.transactionOutcomeIs)

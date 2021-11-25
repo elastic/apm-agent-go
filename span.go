@@ -293,6 +293,8 @@ func (s *Span) SetStacktrace(skip int) {
 	if s.ended() {
 		return
 	}
+	s.SpanData.mu.Lock()
+	defer s.SpanData.mu.Unlock()
 	s.SpanData.setStacktrace(skip + 1)
 }
 
@@ -346,6 +348,13 @@ func (s *Span) End() {
 	}
 	if s.Outcome == "" {
 		s.Outcome = s.Context.outcome()
+		if s.Outcome == "" {
+			if s.errorCaptured {
+				s.Outcome = "failure"
+			} else {
+				s.Outcome = "success"
+			}
+		}
 	}
 	if !s.dropped() && len(s.stacktrace) == 0 &&
 		s.Duration >= s.stackFramesMinDuration {
@@ -561,7 +570,9 @@ type SpanData struct {
 	// Context describes the context in which span occurs.
 	Context SpanContext
 
-	stacktrace []stacktrace.Frame
+	mu            sync.Mutex
+	stacktrace    []stacktrace.Frame
+	errorCaptured bool
 }
 
 func (s *SpanData) setStacktrace(skip int) {
