@@ -15,6 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
+//go:build go1.13
+// +build go1.13
+
 package apmgodog_test
 
 import (
@@ -30,6 +33,8 @@ import (
 	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/model"
 	"go.elastic.co/fastjson"
+
+	"github.com/cucumber/godog"
 )
 
 var (
@@ -44,6 +49,22 @@ func TestMain(m *testing.M) {
 		os.Exit(0)
 	}
 	os.Exit(m.Run())
+}
+
+func TestFeatures(t *testing.T) {
+	c := newFeatureContext()
+	suite := godog.TestSuite{
+		TestSuiteInitializer: c.initTestSuite,
+		ScenarioInitializer:  c.initScenario,
+		Options: &godog.Options{
+			Format:   "pretty",
+			Paths:    []string{"../.."},
+			TestingT: t,
+		},
+	}
+	if suite.Run() != 0 {
+		t.Fatal("non-zero status returned, failed to run feature tests")
+	}
 }
 
 // getSubprocessMetadata
