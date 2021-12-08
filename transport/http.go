@@ -71,6 +71,37 @@ var (
 	defaultServerTimeout = 30 * time.Second
 )
 
+// HTTPTransportOptions for the HTTPTransport.
+type HTTPTransportOptions struct {
+	// APIKey holds the APIKey base64-encoded string.
+	APIKey string
+
+	// SecretToken holds the secret token configured in the APM Server.
+	SecretToken string
+
+	// ServerTLSCert can be set if you have configured your APM Server with a
+	// self signed TLS certificate, or you want to pin the server certificate,
+	// specify the path to the PEM-encoded certificate with `ServerCACert`.
+	ServerTLSCert string
+
+	// ServerCACert can be set if you want to specify a path to the pem-encoded
+	// Certificate Authority to verify the Server TLS certificate.
+	ServerCACert string
+
+	// ServerURLs holds the URLs for your Elastic APM Server. The Server
+	// supports both HTTP and HTTPS. If you use HTTPS, then you may need to
+	// configure your client machines so that the server certificate can be
+	// verified. You can disable certificate verification with SkipServerVerify.
+	ServerURLs []*url.URL
+
+	// ServerTimeout holds the timeout for requests made to your Elastic APM
+	// server. When set to zero or a negative value, timeouts will be disabled.
+	ServerTimeout time.Duration
+
+	// SkipServerVerify skips TLS certificate validation of the APM Server.
+	SkipServerVerify bool
+}
+
 // HTTPTransport is an implementation of Transport, sending payloads via
 // a net/http client.
 type HTTPTransport struct {
@@ -116,7 +147,6 @@ func NewHTTPTransport() (*HTTPTransport, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	serverTimeout, err := configutil.ParseDurationEnv(envServerTimeout, defaultServerTimeout)
 	if err != nil {
 		return nil, err
@@ -124,18 +154,34 @@ func NewHTTPTransport() (*HTTPTransport, error) {
 	if serverTimeout < 0 {
 		serverTimeout = 0
 	}
-
 	serverURLs, err := initServerURLs()
 	if err != nil {
 		return nil, err
 	}
 
-	tlsConfig := &tls.Config{InsecureSkipVerify: !verifyServerCert}
-	serverCertPath := os.Getenv(envServerCert)
-	if serverCertPath != "" {
-		serverCert, err := loadCertificate(serverCertPath)
+	opts := HTTPTransportOptions{
+		SkipServerVerify: !verifyServerCert,
+		ServerURLs:       serverURLs,
+		ServerTimeout:    serverTimeout,
+		ServerTLSCert:    os.Getenv(envServerCert),
+		ServerCACert:     os.Getenv(envCACert),
+	}
+	if apiKey := os.Getenv(envAPIKey); apiKey != "" {
+		opts.APIKey = apiKey
+	} else if secretToken := os.Getenv(envSecretToken); secretToken != "" {
+		opts.SecretToken = secretToken
+	}
+	return NewHTTPTransportOptions(opts)
+}
+
+// NewHTTPTransportOptions returns a customized HTTPTransport which can be used
+// for streaming data to the APM Server.
+func NewHTTPTransportOptions(opts HTTPTransportOptions) (*HTTPTransport, error) {
+	tlsConfig := tls.Config{InsecureSkipVerify: opts.SkipServerVerify}
+	if opts.ServerTLSCert != "" {
+		serverCert, err := loadCertificate(opts.ServerTLSCert)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to load certificate from %s", serverCertPath)
+			return nil, errors.Wrapf(err, "failed to load certificate from %s", opts.ServerTLSCert)
 		}
 		// Disable standard verification, we'll check that the
 		// server supplies the exact certificate provided.
@@ -144,22 +190,20 @@ func NewHTTPTransport() (*HTTPTransport, error) {
 			return verifyPeerCertificate(rawCerts, serverCert)
 		}
 	}
-
-	caCertPath := os.Getenv(envCACert)
-	if caCertPath != "" {
+	if opts.ServerCACert != "" {
 		rootCAs := x509.NewCertPool()
-		additionalCerts, err := ioutil.ReadFile(caCertPath)
+		additionalCerts, err := ioutil.ReadFile(opts.ServerCACert)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to load root CA file from %s", caCertPath)
+			return nil, errors.Wrapf(err, "failed to load root CA file from %s", opts.ServerCACert)
 		}
 		if !rootCAs.AppendCertsFromPEM(additionalCerts) {
-			return nil, fmt.Errorf("failed to load CA certs from %s", caCertPath)
+			return nil, fmt.Errorf("failed to load CA certs from %s", opts.ServerCACert)
 		}
 		tlsConfig.RootCAs = rootCAs
 	}
 
 	client := &http.Client{
-		Timeout: serverTimeout,
+		Timeout: opts.ServerTimeout,
 		Transport: &http.Transport{
 			Proxy:                 defaultHTTPTransport.Proxy,
 			DialContext:           defaultHTTPTransport.DialContext,
@@ -167,7 +211,7 @@ func NewHTTPTransport() (*HTTPTransport, error) {
 			IdleConnTimeout:       defaultHTTPTransport.IdleConnTimeout,
 			TLSHandshakeTimeout:   defaultHTTPTransport.TLSHandshakeTimeout,
 			ExpectContinueTimeout: defaultHTTPTransport.ExpectContinueTimeout,
-			TLSClientConfig:       tlsConfig,
+			TLSClientConfig:       &tlsConfig,
 		},
 	}
 
@@ -187,12 +231,12 @@ func NewHTTPTransport() (*HTTPTransport, error) {
 		intakeHeaders:  intakeHeaders,
 		profileHeaders: profileHeaders,
 	}
-	if apiKey := os.Getenv(envAPIKey); apiKey != "" {
-		t.SetAPIKey(apiKey)
-	} else if secretToken := os.Getenv(envSecretToken); secretToken != "" {
-		t.SetSecretToken(secretToken)
+	if opts.APIKey != "" {
+		t.SetAPIKey(opts.APIKey)
+	} else if opts.SecretToken != "" {
+		t.SetSecretToken(opts.SecretToken)
 	}
-	t.SetServerURL(serverURLs...)
+	t.SetServerURL(opts.ServerURLs...)
 	return t, nil
 }
 
