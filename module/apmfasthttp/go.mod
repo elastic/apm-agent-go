@@ -6,8 +6,8 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/valyala/bytebufferpool v1.0.0
 	github.com/valyala/fasthttp v1.26.0
-	go.elastic.co/apm v1.14.0
-	go.elastic.co/apm/module/apmhttp v1.14.0
+	go.elastic.co/apm v1.15.0
+	go.elastic.co/apm/module/apmhttp v1.15.0
 )
 
 replace (

@@ -5,8 +5,8 @@ go 1.15
 require (
 	github.com/aws/aws-sdk-go v1.38.14
 	github.com/stretchr/testify v1.7.0
-	go.elastic.co/apm v1.14.0
-	go.elastic.co/apm/module/apmhttp v1.14.0
+	go.elastic.co/apm v1.15.0
+	go.elastic.co/apm/module/apmhttp v1.15.0
 )
 
 replace go.elastic.co/apm => ../..

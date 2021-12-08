@@ -5,8 +5,8 @@ require (
 	github.com/jinzhu/gorm v1.9.10
 	github.com/pkg/errors v0.8.1
 	github.com/stretchr/testify v1.6.1
-	go.elastic.co/apm v1.14.0
-	go.elastic.co/apm/module/apmsql v1.14.0
+	go.elastic.co/apm v1.15.0
+	go.elastic.co/apm/module/apmsql v1.15.0
 )
 
 replace go.elastic.co/apm => ../..
