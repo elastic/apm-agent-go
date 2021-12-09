@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package sqlutil
+package sqlutil // import "go.elastic.co/apm/sqlutil"
 
 import (
 	"database/sql/driver"

@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"sync"
 
-	"go.elastic.co/apm/internal/sqlutil"
+	"go.elastic.co/apm/sqlutil"
 )
 
 // DriverPrefix should be used as a driver name prefix when

@@ -20,7 +20,7 @@ package apmsql // import "go.elastic.co/apm/module/apmsql"
 import (
 	"strings"
 
-	"go.elastic.co/apm/internal/sqlscanner"
+	"go.elastic.co/apm/sqlutil"
 )
 
 // QuerySignature returns the "signature" for a query:
@@ -33,14 +33,14 @@ import (
 // we attempt to extract the first table name. If we are unable
 // to identify the table name, we simply omit it.
 func QuerySignature(query string) string {
-	s := sqlscanner.NewScanner(query)
+	s := sqlutil.NewScanner(query)
 	for s.Scan() {
-		if s.Token() != sqlscanner.COMMENT {
+		if s.Token() != sqlutil.COMMENT {
 			break
 		}
 	}
 
-	scanUntil := func(until sqlscanner.Token) bool {
+	scanUntil := func(until sqlutil.Token) bool {
 		for s.Scan() {
 			if s.Token() == until {
 				return true
@@ -48,12 +48,12 @@ func QuerySignature(query string) string {
 		}
 		return false
 	}
-	scanToken := func(tok sqlscanner.Token) bool {
+	scanToken := func(tok sqlutil.Token) bool {
 		for s.Scan() {
 			switch s.Token() {
 			case tok:
 				return true
-			case sqlscanner.COMMENT:
+			case sqlutil.COMMENT:
 			default:
 				return false
 			}
@@ -62,74 +62,74 @@ func QuerySignature(query string) string {
 	}
 
 	switch s.Token() {
-	case sqlscanner.CALL:
-		if !scanUntil(sqlscanner.IDENT) {
+	case sqlutil.CALL:
+		if !scanUntil(sqlutil.IDENT) {
 			break
 		}
 		return "CALL " + s.Text()
 
-	case sqlscanner.DELETE:
-		if !scanUntil(sqlscanner.FROM) {
+	case sqlutil.DELETE:
+		if !scanUntil(sqlutil.FROM) {
 			break
 		}
-		if !scanToken(sqlscanner.IDENT) {
+		if !scanToken(sqlutil.IDENT) {
 			break
 		}
 		tableName := s.Text()
-		for scanToken(sqlscanner.PERIOD) && scanToken(sqlscanner.IDENT) {
+		for scanToken(sqlutil.PERIOD) && scanToken(sqlutil.IDENT) {
 			tableName += "." + s.Text()
 		}
 		return "DELETE FROM " + tableName
 
-	case sqlscanner.INSERT, sqlscanner.REPLACE:
+	case sqlutil.INSERT, sqlutil.REPLACE:
 		action := s.Text()
-		if !scanUntil(sqlscanner.INTO) {
+		if !scanUntil(sqlutil.INTO) {
 			break
 		}
-		if !scanToken(sqlscanner.IDENT) {
+		if !scanToken(sqlutil.IDENT) {
 			break
 		}
 		tableName := s.Text()
-		for scanToken(sqlscanner.PERIOD) && scanToken(sqlscanner.IDENT) {
+		for scanToken(sqlutil.PERIOD) && scanToken(sqlutil.IDENT) {
 			tableName += "." + s.Text()
 		}
 		return action + " INTO " + tableName
 
-	case sqlscanner.SELECT:
+	case sqlutil.SELECT:
 		var level int
 	scanLoop:
 		for s.Scan() {
 			switch tok := s.Token(); tok {
-			case sqlscanner.LPAREN:
+			case sqlutil.LPAREN:
 				level++
-			case sqlscanner.RPAREN:
+			case sqlutil.RPAREN:
 				level--
-			case sqlscanner.FROM:
+			case sqlutil.FROM:
 				if level != 0 {
 					continue scanLoop
 				}
-				if !scanToken(sqlscanner.IDENT) {
+				if !scanToken(sqlutil.IDENT) {
 					break scanLoop
 				}
 				tableName := s.Text()
-				for scanToken(sqlscanner.PERIOD) && scanToken(sqlscanner.IDENT) {
+				for scanToken(sqlutil.PERIOD) && scanToken(sqlutil.IDENT) {
 					tableName += "." + s.Text()
 				}
 				return "SELECT FROM " + tableName
 			}
 		}
 
-	case sqlscanner.UPDATE:
+	case sqlutil.UPDATE:
 		// Scan for the table name. Some dialects allow
 		// option keywords before the table name.
 		var havePeriod, haveFirstPeriod bool
-		if !scanToken(sqlscanner.IDENT) {
+		if !scanToken(sqlutil.IDENT) {
 			return "UPDATE"
 		}
 		tableName := s.Text()
 		for s.Scan() {
 			switch tok := s.Token(); tok {
-			case sqlscanner.IDENT:
+			case sqlutil.IDENT:
 				if havePeriod {
 					tableName += s.Text()
 					havePeriod = false
@@ -142,7 +142,7 @@ func QuerySignature(query string) string {
 					// the secondary ones, in case they
 					// are unknown keywords.
 				}
-			case sqlscanner.PERIOD:
+			case sqlutil.PERIOD:
 				haveFirstPeriod = true
 				havePeriod = true
 				tableName += "."

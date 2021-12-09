@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package sqlscanner
+package sqlutil // import "go.elastic.co/apm/sqlutil"
 
 import (
 	"strings"

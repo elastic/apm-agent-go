@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package pkgerrorsutil
+package stacktrace // import "go.elastic.co/apm/stacktrace"
 
 import (
 	"reflect"
@@ -23,8 +23,6 @@ import (
 	"unsafe"
 
 	"github.com/pkg/errors"
-
-	"go.elastic.co/apm/stacktrace"
 )
 
 var (
@@ -34,8 +32,48 @@ var (
 	errorsStackTraceFrame   = reflect.TypeOf(*new(errors.Frame)).ConvertibleTo(runtimeFrameType)
 )
 
-// AppendStacktrace appends stack frames to out, based on stackTrace.
-func AppendStacktrace(stackTrace errors.StackTrace, out *[]stacktrace.Frame, limit int) {
+// AppendErrorStacktrace appends at most n entries extracted from err
+// to frames, and returns the extended slice. If n is negative, then
+// all stack frames will be appended.
+func AppendErrorStacktrace(frames []Frame, err error, n int) []Frame {
+	type internalStackTracer interface {
+		StackTrace() []Frame
+	}
+	type errorsStackTracer interface {
+		StackTrace() errors.StackTrace
+	}
+	type runtimeStackTracer interface {
+		StackTrace() *runtime.Frames
+	}
+	switch stackTracer := err.(type) {
+	case internalStackTracer:
+		stackTrace := stackTracer.StackTrace()
+		if n >= 0 && len(stackTrace) > n {
+			stackTrace = stackTrace[:n]
+		}
+		frames = append(frames, stackTrace...)
+	case errorsStackTracer:
+		stackTrace := stackTracer.StackTrace()
+		frames = appendPkgerrorsStacktrace(frames, stackTrace, n)
+	case runtimeStackTracer:
+		runtimeFrames := stackTracer.StackTrace()
+		count := 0
+		for {
+			if n >= 0 && count == n {
+				break
+			}
+			frame, more := runtimeFrames.Next()
+			frames = append(frames, RuntimeFrame(frame))
+			if !more {
+				break
+			}
+			count++
+		}
+	}
+	return frames
+}
+
+func appendPkgerrorsStacktrace(frames []Frame, stackTrace errors.StackTrace, n int) []Frame {
 	// github.com/pkg/errors 0.8.x and earlier represent
 	// stack frames as uintptr; 0.9.0 and later represent
 	// them as runtime.Frames.
@@ -47,14 +85,15 @@ func AppendStacktrace(stackTrace errors.StackTrace, out *[]stacktrace.Frame, lim
 		for i, frame := range stackTrace {
 			pc[i] = *(*uintptr)(unsafe.Pointer(&frame))
 		}
-		*out = stacktrace.AppendCallerFrames(*out, pc, limit)
+		frames = AppendCallerFrames(frames, pc, n)
 	} else if errorsStackTraceFrame {
-		if limit >= 0 && len(stackTrace) > limit {
-			stackTrace = stackTrace[:limit]
+		if n >= 0 && len(stackTrace) > n {
+			stackTrace = stackTrace[:n]
 		}
 		for _, frame := range stackTrace {
 			rf := (*runtime.Frame)(unsafe.Pointer(&frame))
-			*out = append(*out, stacktrace.RuntimeFrame(*rf))
+			frames = append(frames, RuntimeFrame(*rf))
 		}
 	}
+	return frames
 }

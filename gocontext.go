@@ -19,50 +19,45 @@ package apm // import "go.elastic.co/apm"
 
 import (
 	"context"
-
-	"go.elastic.co/apm/internal/apmcontext"
 )
 
 // ContextWithSpan returns a copy of parent in which the given span
 // is stored, associated with the key ContextSpanKey.
 func ContextWithSpan(parent context.Context, s *Span) context.Context {
-	return apmcontext.ContextWithSpan(parent, s)
+	return OverrideContextWithSpan(parent, s)
 }
 
 // ContextWithTransaction returns a copy of parent in which the given
 // transaction is stored, associated with the key ContextTransactionKey.
 func ContextWithTransaction(parent context.Context, t *Transaction) context.Context {
-	return apmcontext.ContextWithTransaction(parent, t)
+	return OverrideContextWithTransaction(parent, t)
 }
 
 // ContextWithBodyCapturer returns a copy of parent in which the given
 // body capturer is stored, associated with the key bodyCapturerKey.
 func ContextWithBodyCapturer(parent context.Context, bc *BodyCapturer) context.Context {
-	return apmcontext.ContextWithBodyCapturer(parent, bc)
+	return OverrideContextWithBodyCapturer(parent, bc)
 }
 
 // SpanFromContext returns the current Span in context, if any. The span must
 // have been added to the context previously using ContextWithSpan, or the
 // top-level StartSpan function.
 func SpanFromContext(ctx context.Context) *Span {
-	value, _ := apmcontext.SpanFromContext(ctx).(*Span)
-	return value
+	return OverrideSpanFromContext(ctx)
 }
 
 // TransactionFromContext returns the current Transaction in context, if any.
 // The transaction must have been added to the context previously using
 // ContextWithTransaction.
 func TransactionFromContext(ctx context.Context) *Transaction {
-	value, _ := apmcontext.TransactionFromContext(ctx).(*Transaction)
-	return value
+	return OverrideTransactionFromContext(ctx)
 }
 
 // BodyCapturerFromContext returns the BodyCapturer in context, if any.
 // The body capturer must have been added to the context previously using
 // ContextWithBodyCapturer.
 func BodyCapturerFromContext(ctx context.Context) *BodyCapturer {
-	value, _ := apmcontext.BodyCapturerFromContext(ctx).(*BodyCapturer)
-	return value
+	return OverrideBodyCapturerFromContext(ctx)
 }
 
 // DetachedContext returns a new context detached from the lifetime
@@ -154,4 +149,90 @@ func CaptureError(ctx context.Context, err error) *Error {
 	} else {
 		return &Error{cause: err, err: err.Error()}
 	}
+}
+
+var (
+	// OverrideOverrideContextWithSpan returns a copy of parent in which
+	// the given span is stored, associated with the key ContextSpanKey.
+	//
+	// OverrideOverrideContextWithSpan is a variable to allow other
+	// packages, such as apmot, to replace it at package init time.
+	OverrideContextWithSpan = defaultContextWithSpan
+
+	// OverrideContextWithTransaction returns a copy of parent in which the
+	// given transaction is stored, associated with the key
+	// ContextTransactionKey.
+	//
+	// ContextWithTransaction is a variable to allow other packages, such as
+	// apmot, to replace it at package init time.
+	OverrideContextWithTransaction = defaultContextWithTransaction
+
+	// OverrideContextWithBodyCapturer returns a copy of parent in which the
+	// given body capturer is stored, associated with the key
+	// bodyCapturerKey.
+	//
+	// OverrideContextWithBodyCapturer is a variable to allow other packages,
+	// such as apmot, to replace it at package init time.
+	OverrideContextWithBodyCapturer = defaultContextWithBodyCapturer
+
+	// OverrideSpanFromContext returns the current Span in context, if any.
+	// The span must have been added to the context previously using
+	// ContextWithSpan, or the top-level StartSpan function.
+	//
+	// SpanFromContext is a variable to allow other packages, such as apmot,
+	// to replace it at package init time.
+	OverrideSpanFromContext = defaultSpanFromContext
+
+	// OverrideTransactionFromContext returns the current Transaction in
+	// context, if any. The transaction must have been added to the context
+	// previously using ContextWithTransaction.
+	//
+	// OverrideTransactionFromContext is a variable to allow other packages,
+	// such as apmot, to replace it at package init time.
+	OverrideTransactionFromContext = defaultTransactionFromContext
+
+	// OverrideBodyCapturerFromContext returns the BodyCapturer in context,
+	// if any. The body capturer must have been added to the context
+	// previously using ContextWithBodyCapturer.
+	//
+	// OverrideBodyCapturerFromContext is a variable to allow other
+	// packages, such as apmot, to replace it at package init time.
+	OverrideBodyCapturerFromContext = defaultBodyCapturerFromContext
+)
+
+type spanKey struct{}
+type transactionKey struct{}
+type bodyCapturerKey struct{}
+
+// defaultContextWithSpan is the default value for ContextWithSpan.
+func defaultContextWithSpan(ctx context.Context, span *Span) context.Context {
+	return context.WithValue(ctx, spanKey{}, span)
+}
+
+// defaultContextWithTransaction is the default value for ContextWithTransaction.
+func defaultContextWithTransaction(ctx context.Context, tx *Transaction) context.Context {
+	return context.WithValue(ctx, transactionKey{}, tx)
+}
+
+// defaultContextWithBodyCapturer is the default value for ContextWithBodyCapturer.
+func defaultContextWithBodyCapturer(ctx context.Context, bc *BodyCapturer) context.Context {
+	return context.WithValue(ctx, bodyCapturerKey{}, bc)
+}
+
+// defaultSpanFromContext is the default value for SpanFromContext.
+func defaultSpanFromContext(ctx context.Context) *Span {
+	span, _ := ctx.Value(spanKey{}).(*Span)
+	return span
+}
+
+// defaultTransactionFromContext is the default value for TransactionFromContext.
+func defaultTransactionFromContext(ctx context.Context) *Transaction {
+	tx, _ := ctx.Value(transactionKey{}).(*Transaction)
+	return tx
+}
+
+// defaultBodyCapturerFromContext is the default value for BodyCapturerFromContext.
+func defaultBodyCapturerFromContext(ctx context.Context) *BodyCapturer {
+	bc, _ := ctx.Value(bodyCapturerKey{}).(*BodyCapturer)
+	return bc
 }
