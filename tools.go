@@ -18,7 +18,7 @@
 //go:build tools
 // +build tools
 
-package apm // import "go.elastic.co/apm"
+package apm // import "go.elastic.co/apm/v2"
 
 import (
 	_ "github.com/jcchavezs/porto"

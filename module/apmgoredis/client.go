@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmgoredis // import "go.elastic.co/apm/module/apmgoredis"
+package apmgoredis // import "go.elastic.co/apm/module/apmgoredis/v2"
 
 import (
 	"context"
@@ -23,7 +23,7 @@ import (
 
 	"github.com/go-redis/redis"
 
-	"go.elastic.co/apm"
+	"go.elastic.co/apm/v2"
 )
 
 // Client is the interface returned by Wrap.

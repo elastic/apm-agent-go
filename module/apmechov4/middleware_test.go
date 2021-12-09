@@ -30,11 +30,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/apmtest"
-	"go.elastic.co/apm/model"
-	apmecho "go.elastic.co/apm/module/apmechov4"
-	"go.elastic.co/apm/transport/transporttest"
+	apmecho "go.elastic.co/apm/module/apmechov4/v2"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/apmtest"
+	"go.elastic.co/apm/v2/model"
+	"go.elastic.co/apm/v2/transport/transporttest"
 )
 
 func TestMiddlewareHTTPSuite(t *testing.T) {

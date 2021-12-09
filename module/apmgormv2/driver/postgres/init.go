@@ -17,13 +17,13 @@
 
 // Package apmpostgres imports the gorm mysql dialect package,
 // and also registers the mysql driver with apmsql.
-package apmpostgres // import "go.elastic.co/apm/module/apmgormv2/driver/postgres"
+package apmpostgres // import "go.elastic.co/apm/module/apmgormv2/v2/driver/postgres"
 
 import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
-	apmpgxv4 "go.elastic.co/apm/module/apmsql/pgxv4"
+	apmpgxv4 "go.elastic.co/apm/module/apmsql/v2/pgxv4"
 )
 
 // Open creates a dialect with apmsql

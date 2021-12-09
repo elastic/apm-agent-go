@@ -28,9 +28,9 @@ import (
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/apmtest"
-	"go.elastic.co/apm/module/apmzap"
+	"go.elastic.co/apm/module/apmzap/v2"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/apmtest"
 )
 
 func TestTraceContext(t *testing.T) {

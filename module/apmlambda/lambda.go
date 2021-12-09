@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmlambda // import "go.elastic.co/apm/module/apmlambda"
+package apmlambda // import "go.elastic.co/apm/module/apmlambda/v2"
 
 import (
 	"log"
@@ -27,8 +27,8 @@ import (
 	"github.com/aws/aws-lambda-go/lambda/messages"
 	"github.com/aws/aws-lambda-go/lambdacontext"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/stacktrace"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/stacktrace"
 )
 
 const (

@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apm // import "go.elastic.co/apm"
+package apm // import "go.elastic.co/apm/v2"
 
 import (
 	"crypto/rand"
@@ -26,8 +26,8 @@ import (
 	"syscall"
 	"time"
 
-	"go.elastic.co/apm/model"
-	"go.elastic.co/apm/stacktrace"
+	"go.elastic.co/apm/v2/model"
+	"go.elastic.co/apm/v2/stacktrace"
 )
 
 const (

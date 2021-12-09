@@ -20,7 +20,7 @@ package apmbeego_test
 import (
 	"github.com/astaxie/beego"
 
-	"go.elastic.co/apm/module/apmbeego"
+	"go.elastic.co/apm/module/apmbeego/v2"
 )
 
 func ExampleMiddleware() {

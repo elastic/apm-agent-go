@@ -1,6 +1,6 @@
 [![Build Status](https://apm-ci.elastic.co/buildStatus/icon?job=apm-agent-go/apm-agent-go-mbp/main)](https://apm-ci.elastic.co/job/apm-agent-go/job/apm-agent-go-mbp/job/main/)
-[![PkgGoDev](https://pkg.go.dev/badge/go.elastic.co/apm)](https://pkg.go.dev/go.elastic.co/apm)
-[![Go Report Card](https://goreportcard.com/badge/go.elastic.co/apm)](https://goreportcard.com/report/go.elastic.co/apm)
+[![PkgGoDev](https://pkg.go.dev/badge/go.elastic.co/apm/v2)](https://pkg.go.dev/go.elastic.co/apm/v2)
+[![Go Report Card](https://goreportcard.com/badge/go.elastic.co/apm/v2)](https://goreportcard.com/report/go.elastic.co/apm/v2)
 [![codecov.io](https://codecov.io/github/elastic/apm-agent-go/coverage.svg?branch=main)](https://codecov.io/github/elastic/apm-agent-go?branch=main)
 
 # apm-agent-go: APM Agent for Go
@@ -16,7 +16,7 @@ We'd love to hear your feedback, please take a minute to fill out our [survey](h
 ## Installation
 
 ```bash
-go get -u go.elastic.co/apm
+go get go.elastic.co/apm/v2
 ```
 
 ## Requirements

@@ -16,4 +16,4 @@
 // under the License.
 
 // Package apmlambda provides tracing for AWS Lambda functions.
-package apmlambda // import "go.elastic.co/apm/module/apmlambda"
+package apmlambda // import "go.elastic.co/apm/module/apmlambda/v2"

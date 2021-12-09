@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmgrpc // import "go.elastic.co/apm/module/apmgrpc"
+package apmgrpc // import "go.elastic.co/apm/module/apmgrpc/v2"
 
 import (
 	"crypto/tls"
@@ -31,8 +31,8 @@ import (
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/module/apmhttp"
+	"go.elastic.co/apm/module/apmhttp/v2"
+	"go.elastic.co/apm/v2"
 )
 
 var (

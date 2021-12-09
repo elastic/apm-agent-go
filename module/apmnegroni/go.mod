@@ -1,14 +1,14 @@
-module go.elastic.co/apm/module/apmnegroni
+module go.elastic.co/apm/module/apmnegroni/v2
 
 go 1.13
 
 require (
 	github.com/stretchr/testify v1.6.1
 	github.com/urfave/negroni v1.0.0
-	go.elastic.co/apm v1.15.0
-	go.elastic.co/apm/module/apmhttp v1.15.0
+	go.elastic.co/apm/module/apmhttp/v2 v2.0.0
+	go.elastic.co/apm/v2 v2.0.0
 )
 
-replace go.elastic.co/apm => ../..
+replace go.elastic.co/apm/v2 => ../..
 
-replace go.elastic.co/apm/module/apmhttp => ../apmhttp
+replace go.elastic.co/apm/module/apmhttp/v2 => ../apmhttp

@@ -20,7 +20,7 @@ package apmrestfulv3_test
 import (
 	"github.com/emicklei/go-restful/v3"
 
-	"go.elastic.co/apm/module/apmrestfulv3"
+	"go.elastic.co/apm/module/apmrestfulv3/v2"
 )
 
 func ExampleFilter() {

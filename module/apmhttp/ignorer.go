@@ -15,14 +15,14 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmhttp // import "go.elastic.co/apm/module/apmhttp"
+package apmhttp // import "go.elastic.co/apm/module/apmhttp/v2"
 
 import (
 	"net/http"
 	"regexp"
 	"sync"
 
-	"go.elastic.co/apm"
+	"go.elastic.co/apm/v2"
 )
 
 const (

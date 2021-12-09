@@ -32,10 +32,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/valyala/fasthttp"
 
-	"go.elastic.co/apm/apmtest"
-	"go.elastic.co/apm/model"
-	"go.elastic.co/apm/module/apmfiber"
-	"go.elastic.co/apm/transport/transporttest"
+	"go.elastic.co/apm/module/apmfiber/v2"
+	"go.elastic.co/apm/v2/apmtest"
+	"go.elastic.co/apm/v2/model"
+	"go.elastic.co/apm/v2/transport/transporttest"
 )
 
 var (

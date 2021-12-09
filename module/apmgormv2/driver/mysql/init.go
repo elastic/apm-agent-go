@@ -17,15 +17,15 @@
 
 // Package apmmysql imports the gorm mysql dialect package,
 // and also registers the mysql driver with apmsql.
-package apmmysql // import "go.elastic.co/apm/module/apmgormv2/driver/mysql"
+package apmmysql // import "go.elastic.co/apm/module/apmgormv2/v2/driver/mysql"
 
 import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
-	"go.elastic.co/apm/module/apmsql"
+	"go.elastic.co/apm/module/apmsql/v2"
 
-	_ "go.elastic.co/apm/module/apmsql/mysql" // register mysql with apmsql
+	_ "go.elastic.co/apm/module/apmsql/v2/mysql" // register mysql with apmsql
 )
 
 // Open creates a dialect with apmsql

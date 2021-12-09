@@ -22,7 +22,7 @@ import (
 	"html/template"
 	"os"
 
-	"go.elastic.co/apm"
+	"go.elastic.co/apm/v2"
 )
 
 func ExampleTransaction_EnsureParent() {

@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package transport // import "go.elastic.co/apm/transport"
+package transport // import "go.elastic.co/apm/v2/transport"
 
 import (
 	"bytes"
@@ -41,9 +41,9 @@ import (
 
 	"github.com/pkg/errors"
 
-	"go.elastic.co/apm/apmconfig"
-	"go.elastic.co/apm/internal/apmversion"
-	"go.elastic.co/apm/internal/configutil"
+	"go.elastic.co/apm/v2/apmconfig"
+	"go.elastic.co/apm/v2/internal/apmversion"
+	"go.elastic.co/apm/v2/internal/configutil"
 )
 
 const (

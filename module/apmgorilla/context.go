@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmgorilla // import "go.elastic.co/apm/module/apmgorilla"
+package apmgorilla // import "go.elastic.co/apm/module/apmgorilla/v2"
 
 import (
 	"bytes"

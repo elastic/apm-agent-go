@@ -20,7 +20,7 @@ package configutil
 import (
 	"strings"
 
-	"go.elastic.co/apm/internal/wildcard"
+	"go.elastic.co/apm/v2/internal/wildcard"
 )
 
 // ParseWildcardPatterns parses s as a comma-separated list of wildcard patterns,

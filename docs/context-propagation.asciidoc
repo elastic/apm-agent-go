@@ -26,9 +26,9 @@ in order to create spans within that transaction, e.g. to measure the duration o
 import (
 	"net/http"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/module/apmhttp"
-	"go.elastic.co/apm/module/apmsql"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/module/apmhttp/v2"
+	"go.elastic.co/apm/module/apmsql/v2"
 	_ "go.elastic.co/apm/module/apmsql/pq"
 )
 

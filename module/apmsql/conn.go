@@ -15,14 +15,14 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmsql // import "go.elastic.co/apm/module/apmsql"
+package apmsql // import "go.elastic.co/apm/module/apmsql/v2"
 
 import (
 	"context"
 	"database/sql/driver"
 	"errors"
 
-	"go.elastic.co/apm"
+	"go.elastic.co/apm/v2"
 )
 
 var _ driver.Validator = (*conn)(nil)

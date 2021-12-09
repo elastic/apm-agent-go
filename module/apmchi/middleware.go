@@ -15,15 +15,15 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmchi // import "go.elastic.co/apm/module/apmchi"
+package apmchi // import "go.elastic.co/apm/module/apmchi/v2"
 
 import (
 	"net/http"
 
 	"github.com/go-chi/chi"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/module/apmhttp"
+	"go.elastic.co/apm/module/apmhttp/v2"
+	"go.elastic.co/apm/v2"
 )
 
 // Middleware returns a new chi middleware handler

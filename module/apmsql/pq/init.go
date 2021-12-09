@@ -15,12 +15,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmpq // import "go.elastic.co/apm/module/apmsql/pq"
+package apmpq // import "go.elastic.co/apm/module/apmsql/v2/pq"
 
 import (
 	"github.com/lib/pq"
 
-	"go.elastic.co/apm/module/apmsql"
+	"go.elastic.co/apm/module/apmsql/v2"
 )
 
 func init() {

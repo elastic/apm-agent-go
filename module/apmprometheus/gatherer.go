@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmprometheus // import "go.elastic.co/apm/module/apmprometheus"
+package apmprometheus // import "go.elastic.co/apm/module/apmprometheus/v2"
 
 import (
 	"context"
@@ -25,7 +25,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 
-	"go.elastic.co/apm"
+	"go.elastic.co/apm/v2"
 )
 
 // Wrap returns an apm.MetricsGatherer wrapping g.

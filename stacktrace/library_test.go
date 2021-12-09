@@ -22,7 +22,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"go.elastic.co/apm/stacktrace"
+	"go.elastic.co/apm/v2/stacktrace"
 )
 
 func TestLibraryPackage(t *testing.T) {
@@ -39,5 +39,5 @@ func TestLibraryPackage(t *testing.T) {
 	assert.False(t, stacktrace.IsLibraryPackage("encoding/jsonzzz/yyy"))
 	assert.False(t, stacktrace.IsLibraryPackage("encoding/jsonzzz/yyy/xxx"))
 
-	assert.True(t, stacktrace.IsLibraryPackage("github.com/elastic/apm-server/vendor/go.elastic.co/apm"))
+	assert.True(t, stacktrace.IsLibraryPackage("github.com/elastic/apm-server/vendor/go.elastic.co/apm/v2"))
 }

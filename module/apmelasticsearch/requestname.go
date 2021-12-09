@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmelasticsearch // import "go.elastic.co/apm/module/apmelasticsearch"
+package apmelasticsearch // import "go.elastic.co/apm/module/apmelasticsearch/v2"
 
 import (
 	"net/http"

@@ -29,11 +29,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
-	"go.elastic.co/apm/apmtest"
-	mysql "go.elastic.co/apm/module/apmgormv2/driver/mysql"
-	postgres "go.elastic.co/apm/module/apmgormv2/driver/postgres"
-	sqlite "go.elastic.co/apm/module/apmgormv2/driver/sqlite"
-	"go.elastic.co/apm/module/apmsql"
+	mysql "go.elastic.co/apm/module/apmgormv2/v2/driver/mysql"
+	postgres "go.elastic.co/apm/module/apmgormv2/v2/driver/postgres"
+	sqlite "go.elastic.co/apm/module/apmgormv2/v2/driver/sqlite"
+	"go.elastic.co/apm/module/apmsql/v2"
+	"go.elastic.co/apm/v2/apmtest"
 )
 
 type Product struct {

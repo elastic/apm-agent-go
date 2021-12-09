@@ -1,4 +1,4 @@
-module go.elastic.co/apm/module/apmelasticsearch/internal/integration
+module apmelasticsearch_integration
 
 require (
 	github.com/elastic/go-elasticsearch/v7 v7.5.0
@@ -6,14 +6,14 @@ require (
 	github.com/mailru/easyjson v0.0.0-20180823135443-60711f1a8329 // indirect
 	github.com/olivere/elastic v6.2.16+incompatible
 	github.com/stretchr/testify v1.6.1
-	go.elastic.co/apm v1.15.0
-	go.elastic.co/apm/module/apmelasticsearch v1.15.0
+	go.elastic.co/apm/module/apmelasticsearch/v2 v2.0.0
+	go.elastic.co/apm/v2 v2.0.0
 )
 
-replace go.elastic.co/apm => ../../../..
+replace go.elastic.co/apm/v2 => ../../../..
 
-replace go.elastic.co/apm/module/apmelasticsearch => ../..
+replace go.elastic.co/apm/module/apmelasticsearch/v2 => ../..
 
-replace go.elastic.co/apm/module/apmhttp => ../../../apmhttp
+replace go.elastic.co/apm/module/apmhttp/v2 => ../../../apmhttp
 
 go 1.13

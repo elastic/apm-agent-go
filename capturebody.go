@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apm // import "go.elastic.co/apm"
+package apm // import "go.elastic.co/apm/v2"
 
 import (
 	"bytes"
@@ -25,8 +25,8 @@ import (
 	"sync"
 	"unicode/utf8"
 
-	"go.elastic.co/apm/internal/apmstrings"
-	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/v2/internal/apmstrings"
+	"go.elastic.co/apm/v2/model"
 )
 
 // CaptureBodyMode holds a value indicating how a tracer should capture

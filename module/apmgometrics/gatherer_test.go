@@ -24,10 +24,10 @@ import (
 	metrics "github.com/rcrowley/go-metrics"
 	"github.com/stretchr/testify/assert"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/apmtest"
-	"go.elastic.co/apm/model"
-	"go.elastic.co/apm/module/apmgometrics"
+	"go.elastic.co/apm/module/apmgometrics/v2"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/apmtest"
+	"go.elastic.co/apm/v2/model"
 )
 
 func TestGatherer(t *testing.T) {

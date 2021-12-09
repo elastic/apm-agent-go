@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmgopg // import "go.elastic.co/apm/module/apmgopg"
+package apmgopg // import "go.elastic.co/apm/module/apmgopg/v2"
 
 import (
 	"errors"
@@ -23,9 +23,9 @@ import (
 
 	"github.com/go-pg/pg"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/module/apmsql"
-	"go.elastic.co/apm/stacktrace"
+	"go.elastic.co/apm/module/apmsql/v2"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/stacktrace"
 )
 
 func init() {

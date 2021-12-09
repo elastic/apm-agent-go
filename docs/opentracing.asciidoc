@@ -18,7 +18,7 @@ To initialize the OpenTracing tracer implementation, you must first import the `
 [source,go]
 ----
 import (
-	"go.elastic.co/apm/module/apmot"
+	"go.elastic.co/apm/module/apmot/v2"
 )
 ----
 
@@ -41,7 +41,7 @@ for documentation on the OpenTracing Go API.
 import (
 	"context"
 
-	"go.elastic.co/apm/module/apmot"
+	"go.elastic.co/apm/module/apmot/v2"
 
 	"github.com/opentracing/opentracing-go"
 )

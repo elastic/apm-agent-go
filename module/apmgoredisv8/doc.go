@@ -16,4 +16,4 @@
 // under the License.
 
 // Package apmgoredisv8 provides helpers for tracing github.com/go-redis/redis/v8 client operations as spans.
-package apmgoredisv8 // import "go.elastic.co/apm/module/apmgoredisv8"
+package apmgoredisv8 // import "go.elastic.co/apm/module/apmgoredisv8/v2"
