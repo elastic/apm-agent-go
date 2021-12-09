@@ -152,11 +152,11 @@ func CaptureError(ctx context.Context, err error) *Error {
 }
 
 var (
-	// OverrideOverrideContextWithSpan returns a copy of parent in which
-	// the given span is stored, associated with the key ContextSpanKey.
+	// OverrideContextWithSpan returns a copy of parent in which the given
+	// span is stored, associated with the key ContextSpanKey.
 	//
-	// OverrideOverrideContextWithSpan is a variable to allow other
-	// packages, such as apmot, to replace it at package init time.
+	// OverrideContextWithSpan is a variable to allow other packages, such
+	// as apmot, to replace it at package init time.
 	OverrideContextWithSpan = defaultContextWithSpan
 
 	// OverrideContextWithTransaction returns a copy of parent in which the
