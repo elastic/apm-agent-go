@@ -20,10 +20,8 @@ package apmzerolog // import "go.elastic.co/apm/module/apmzerolog"
 import (
 	"strconv"
 
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog/pkgerrors"
 
-	"go.elastic.co/apm/internal/pkgerrorsutil"
 	"go.elastic.co/apm/stacktrace"
 )
 
@@ -35,19 +33,10 @@ import (
 //  - the "source" field value may be an absolute path
 //  - the "func" field value will be fully qualified
 func MarshalErrorStack(err error) interface{} {
-	stackTracer, ok := err.(interface {
-		StackTrace() errors.StackTrace
-	})
-	if !ok {
-		return nil
-	}
-
-	var frames []stacktrace.Frame
-	pkgerrorsutil.AppendStacktrace(stackTracer.StackTrace(), &frames, -1)
+	frames := stacktrace.AppendErrorStacktrace(nil, err, -1)
 	if len(frames) == 0 {
 		return nil
 	}
-
 	out := make([]map[string]interface{}, len(frames))
 	for i, frame := range frames {
 		out[i] = map[string]interface{}{

@@ -36,11 +36,13 @@ import (
 // Use WithTracer to specify an alternative tracer.
 func Middleware(o ...Option) func(http.Handler) http.Handler {
 	opts := options{
-		tracer:         apm.DefaultTracer,
-		requestIgnorer: apmhttp.DefaultServerRequestIgnorer(),
+		tracer: apm.DefaultTracer,
 	}
 	for _, o := range o {
 		o(&opts)
+	}
+	if opts.requestIgnorer == nil {
+		opts.requestIgnorer = apmhttp.NewDynamicServerRequestIgnorer(opts.tracer)
 	}
 	return func(h http.Handler) http.Handler {
 		return apmhttp.Wrap(

@@ -23,13 +23,9 @@ import (
 	"net"
 	"os"
 	"reflect"
-	"runtime"
 	"syscall"
 	"time"
 
-	"github.com/pkg/errors"
-
-	"go.elastic.co/apm/internal/pkgerrorsutil"
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/stacktrace"
 )
@@ -476,7 +472,7 @@ func (b *exceptionDataBuilder) init(e *exceptionData, err error) bool {
 	e.Code.String = truncateString(e.Code.String)
 	e.Type.Name = truncateString(e.Type.Name)
 	e.Type.PackagePath = truncateString(e.Type.PackagePath)
-	b.initErrorStacktrace(&e.stacktrace, err)
+	e.stacktrace = stacktrace.AppendErrorStacktrace(e.stacktrace, err, b.stackTraceLimit)
 
 	for _, err := range e.ErrorDetails.Cause {
 		if b.errorCount >= maxErrorTreeNodes {
@@ -488,43 +484,6 @@ func (b *exceptionDataBuilder) init(e *exceptionData, err error) bool {
 		}
 	}
 	return true
-}
-
-func (b *exceptionDataBuilder) initErrorStacktrace(out *[]stacktrace.Frame, err error) {
-	type internalStackTracer interface {
-		StackTrace() []stacktrace.Frame
-	}
-	type errorsStackTracer interface {
-		StackTrace() errors.StackTrace
-	}
-	type runtimeStackTracer interface {
-		StackTrace() *runtime.Frames
-	}
-	switch stackTracer := err.(type) {
-	case internalStackTracer:
-		stackTrace := stackTracer.StackTrace()
-		if b.stackTraceLimit >= 0 && len(stackTrace) > b.stackTraceLimit {
-			stackTrace = stackTrace[:b.stackTraceLimit]
-		}
-		*out = append(*out, stackTrace...)
-	case errorsStackTracer:
-		stackTrace := stackTracer.StackTrace()
-		pkgerrorsutil.AppendStacktrace(stackTrace, out, b.stackTraceLimit)
-	case runtimeStackTracer:
-		frames := stackTracer.StackTrace()
-		count := 0
-		for {
-			if b.stackTraceLimit >= 0 && count == b.stackTraceLimit {
-				break
-			}
-			frame, more := frames.Next()
-			*out = append(*out, stacktrace.RuntimeFrame(frame))
-			if !more {
-				break
-			}
-			count++
-		}
-	}
 }
 
 // SetStacktrace sets the stacktrace for the error,
