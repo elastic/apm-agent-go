@@ -230,15 +230,11 @@ func TestQueryObserverWithoutTransaction(t *testing.T) {
 	session := newSession(t)
 	defer session.Close()
 
-	var queryError error
 	_, spans, errors := apmtest.WithTransaction(func(ctx context.Context) {
-		queryError = execQuery(context.TODO(), session, "ZINGA")
+		_ = execQuery(context.TODO(), session, "ZINGA")
 	})
-	require.Len(t, errors, 1)
-	require.Len(t, spans, 1)
-
-	assert.Equal(t, errors[0].Culprit, "execQuery")
-	assert.EqualError(t, queryError, errors[0].Exception.Message)
+	require.Len(t, errors, 0)
+	require.Len(t, spans, 0)
 }
 
 func execQuery(ctx context.Context, session *gocql.Session, query string) error {
