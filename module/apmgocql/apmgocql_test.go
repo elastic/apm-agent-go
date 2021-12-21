@@ -226,6 +226,21 @@ func TestQueryObserverErrorIntegration(t *testing.T) {
 	assert.EqualError(t, queryError, errors[0].Exception.Message)
 }
 
+func TestQueryObserverWithoutTransaction(t *testing.T) {
+	session := newSession(t)
+	defer session.Close()
+
+	var queryError error
+	_, spans, errors := apmtest.WithTransaction(func(ctx context.Context) {
+		queryError = execQuery(context.TODO(), session, "ZINGA")
+	})
+	require.Len(t, errors, 1)
+	require.Len(t, spans, 1)
+
+	assert.Equal(t, errors[0].Culprit, "execQuery")
+	assert.EqualError(t, queryError, errors[0].Exception.Message)
+}
+
 func execQuery(ctx context.Context, session *gocql.Session, query string) error {
 	return session.Query(query).WithContext(ctx).Exec()
 }
