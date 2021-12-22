@@ -1114,6 +1114,16 @@ func (v *ErrorTransaction) MarshalFastJSON(w *fastjson.Writer) error {
 		}
 		w.String(v.Type)
 	}
+	if v.Name != "" {
+		const prefix = ",\"name\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.String(v.Name)
+	}
 	w.RawByte('}')
 	return nil
 }

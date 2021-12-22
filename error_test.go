@@ -331,7 +331,10 @@ func TestErrorTransactionSampled(t *testing.T) {
 	assertErrorTransactionSampled(t, errors[0], true)
 	assertErrorTransactionSampled(t, errors[1], true)
 	assert.Equal(t, "foo", errors[0].Transaction.Type)
+	assert.Equal(t, "name", errors[0].Transaction.Name)
 	assert.Equal(t, "foo", errors[1].Transaction.Type)
+	assert.Equal(t, "name", errors[1].Transaction.Name)
+
 }
 
 func TestErrorTransactionNotSampled(t *testing.T) {
