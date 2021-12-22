@@ -22,7 +22,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	"unsafe"
 
 	"go.elastic.co/apm/model"
 )
@@ -42,11 +41,6 @@ const (
 	spanSelfTimeCountMetricName = "span.self_time.count"
 	spanSelfTimeSumMetricName   = "span.self_time.sum.us"
 )
-
-type pad32 struct {
-	// Zero-sized on 64-bit architectures, 4 bytes on 32-bit.
-	_ [(unsafe.Alignof(uint64(0)) % 8) / 4]uintptr
-}
 
 var (
 	breakdownMetricsLimitWarning = fmt.Sprintf(`
@@ -68,7 +62,7 @@ type spanTimingsKey struct {
 // the sum of the span durations.
 type spanTiming struct {
 	duration int64
-	count    uintptr
+	count    uint64
 }
 
 // spanTimingsMap records span timings for a transaction group.
@@ -155,13 +149,10 @@ func (k breakdownMetricsKey) hash() uint64 {
 type breakdownTiming struct {
 	// span holds the "span.self_time" metric values.
 	span spanTiming
-
-	// Padding to ensure the span field below is 64-bit aligned.
-	_ pad32
 }
 
 func (lhs *breakdownTiming) accumulate(rhs breakdownTiming) {
-	atomic.AddUintptr(&lhs.span.count, rhs.span.count)
+	atomic.AddUint64(&lhs.span.count, rhs.span.count)
 	atomic.AddInt64(&lhs.span.duration, rhs.span.duration)
 }
 
