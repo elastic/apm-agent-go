@@ -23,7 +23,7 @@ package apmgocql // import "go.elastic.co/apm/module/apmgocql"
 import (
 	"strings"
 
-	"go.elastic.co/apm/internal/sqlscanner"
+	"go.elastic.co/apm/sqlutil"
 )
 
 // querySignature returns the "signature" for a Cassandra query:
@@ -35,14 +35,14 @@ import (
 // an application. For DML statements, we extract and include
 // the table name in the signature.
 func querySignature(query string) string {
-	s := sqlscanner.NewScanner(query)
+	s := sqlutil.NewScanner(query)
 	for s.Scan() {
-		if s.Token() != sqlscanner.COMMENT {
+		if s.Token() != sqlutil.COMMENT {
 			break
 		}
 	}
 
-	scanUntil := func(until sqlscanner.Token) bool {
+	scanUntil := func(until sqlutil.Token) bool {
 		for s.Scan() {
 			if s.Token() == until {
 				return true
@@ -50,12 +50,12 @@ func querySignature(query string) string {
 		}
 		return false
 	}
-	scanToken := func(tok sqlscanner.Token) bool {
+	scanToken := func(tok sqlutil.Token) bool {
 		for s.Scan() {
 			switch s.Token() {
 			case tok:
 				return true
-			case sqlscanner.COMMENT:
+			case sqlutil.COMMENT:
 			default:
 				return false
 			}
@@ -64,72 +64,72 @@ func querySignature(query string) string {
 	}
 
 	switch s.Token() {
-	case sqlscanner.DELETE:
-		if !scanUntil(sqlscanner.FROM) {
+	case sqlutil.DELETE:
+		if !scanUntil(sqlutil.FROM) {
 			break
 		}
-		if !scanToken(sqlscanner.IDENT) {
+		if !scanToken(sqlutil.IDENT) {
 			break
 		}
 		tableName := s.Text()
-		for scanToken(sqlscanner.PERIOD) && scanToken(sqlscanner.IDENT) {
+		for scanToken(sqlutil.PERIOD) && scanToken(sqlutil.IDENT) {
 			tableName += "." + s.Text()
 		}
 		return "DELETE FROM " + tableName
 
-	case sqlscanner.INSERT:
-		if !scanUntil(sqlscanner.INTO) {
+	case sqlutil.INSERT:
+		if !scanUntil(sqlutil.INTO) {
 			break
 		}
-		if !scanToken(sqlscanner.IDENT) {
+		if !scanToken(sqlutil.IDENT) {
 			break
 		}
 		tableName := s.Text()
-		for scanToken(sqlscanner.PERIOD) && scanToken(sqlscanner.IDENT) {
+		for scanToken(sqlutil.PERIOD) && scanToken(sqlutil.IDENT) {
 			tableName += "." + s.Text()
 		}
 		return "INSERT INTO " + tableName
 
-	case sqlscanner.SELECT:
+	case sqlutil.SELECT:
 		var level int
 	scanLoop:
 		for s.Scan() {
 			switch tok := s.Token(); tok {
-			case sqlscanner.LPAREN:
+			case sqlutil.LPAREN:
 				level++
-			case sqlscanner.RPAREN:
+			case sqlutil.RPAREN:
 				level--
-			case sqlscanner.FROM:
+			case sqlutil.FROM:
 				if level != 0 {
 					continue scanLoop
 				}
-				if !scanToken(sqlscanner.IDENT) {
+				if !scanToken(sqlutil.IDENT) {
 					break scanLoop
 				}
 				tableName := s.Text()
-				for scanToken(sqlscanner.PERIOD) && scanToken(sqlscanner.IDENT) {
+				for scanToken(sqlutil.PERIOD) && scanToken(sqlutil.IDENT) {
 					tableName += "." + s.Text()
 				}
 				return "SELECT FROM " + tableName
 			}
 		}
 
-	case sqlscanner.TRUNCATE:
-		if !scanUntil(sqlscanner.IDENT) {
+	case sqlutil.TRUNCATE:
+		if !scanUntil(sqlutil.IDENT) {
 			break
 		}
 		tableName := s.Text()
-		for scanToken(sqlscanner.PERIOD) && scanToken(sqlscanner.IDENT) {
+		for scanToken(sqlutil.PERIOD) && scanToken(sqlutil.IDENT) {
 			tableName += "." + s.Text()
 		}
 		return "TRUNCATE " + tableName
 
-	case sqlscanner.UPDATE:
-		if !scanToken(sqlscanner.IDENT) {
+	case sqlutil.UPDATE:
+		if !scanToken(sqlutil.IDENT) {
 			break
 		}
 		tableName := s.Text()
-		for scanToken(sqlscanner.PERIOD) && scanToken(sqlscanner.IDENT) {
+		for scanToken(sqlutil.PERIOD) && scanToken(sqlutil.IDENT) {
 			tableName += "." + s.Text()
 		}
 		return "UPDATE " + tableName

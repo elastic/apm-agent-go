@@ -29,28 +29,25 @@ import (
 	"github.com/valyala/fasthttp/fasthttpadaptor"
 
 	"go.elastic.co/apm"
-	"go.elastic.co/apm/internal/apmcontext"
 	"go.elastic.co/apm/module/apmhttp"
 )
 
 const txKey = "apmfasthttp_transaction"
 
 func init() {
-	origTransactionFromContext := apmcontext.TransactionFromContext
-	apmcontext.TransactionFromContext = func(ctx context.Context) interface{} {
+	origTransactionFromContext := apm.OverrideTransactionFromContext
+	apm.OverrideTransactionFromContext = func(ctx context.Context) *apm.Transaction {
 		if tx, ok := ctx.Value(txKey).(*txCloser); ok {
 			return tx.tx
 		}
-
 		return origTransactionFromContext(ctx)
 	}
 
-	origBodyCapturerFromContext := apmcontext.BodyCapturerFromContext
-	apmcontext.BodyCapturerFromContext = func(ctx context.Context) interface{} {
+	origBodyCapturerFromContext := apm.OverrideBodyCapturerFromContext
+	apm.OverrideBodyCapturerFromContext = func(ctx context.Context) *apm.BodyCapturer {
 		if tx, ok := ctx.Value(txKey).(*txCloser); ok {
 			return tx.bc
 		}
-
 		return origBodyCapturerFromContext(ctx)
 	}
 }

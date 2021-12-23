@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package sqlscanner
+package sqlutil
 
 import (
 	"encoding/json"
@@ -38,7 +38,7 @@ type test struct {
 
 func TestScanner(t *testing.T) {
 	var tests []test
-	data, err := ioutil.ReadFile("../testdata/json-specs/sql_token_examples.json")
+	data, err := ioutil.ReadFile("../internal/testdata/json-specs/sql_token_examples.json")
 	require.NoError(t, err)
 	err = json.Unmarshal(data, &tests)
 	require.NoError(t, err)

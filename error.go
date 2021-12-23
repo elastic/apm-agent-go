@@ -23,13 +23,9 @@ import (
 	"net"
 	"os"
 	"reflect"
-	"runtime"
 	"syscall"
 	"time"
 
-	"github.com/pkg/errors"
-
-	"go.elastic.co/apm/internal/pkgerrorsutil"
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/stacktrace"
 )
@@ -181,6 +177,7 @@ type ErrorData struct {
 	log                ErrorLogRecord
 	logStacktrace      []stacktrace.Frame
 	transactionSampled bool
+	transactionName    string
 	transactionType    string
 
 	// ID is the unique identifier of the error. This is set by
@@ -253,17 +250,18 @@ func (e *Error) Error() string {
 func (e *Error) SetTransaction(tx *Transaction) {
 	tx.mu.RLock()
 	traceContext := tx.traceContext
-	var txType string
+	var txType, txName string
 	var custom model.IfaceMap
 	if !tx.ended() {
 		txType = tx.Type
+		txName = tx.Name
 		custom = tx.Context.model.Custom
 		tx.TransactionData.mu.Lock()
 		tx.TransactionData.errorCaptured = true
 		tx.TransactionData.mu.Unlock()
 	}
 	tx.mu.RUnlock()
-	e.setSpanData(traceContext, traceContext.Span, txType, custom)
+	e.setSpanData(traceContext, traceContext.Span, txType, txName, custom)
 }
 
 // SetSpan sets TraceID, TransactionID, and ParentID to the span's IDs.
@@ -276,12 +274,13 @@ func (e *Error) SetTransaction(tx *Transaction) {
 // also be carried across to e, but will not override any custom context
 // already recorded on e.
 func (e *Error) SetSpan(s *Span) {
-	var txType string
+	var txType, txName string
 	var custom model.IfaceMap
 	if s.tx != nil {
 		s.tx.mu.RLock()
 		if !s.tx.ended() {
 			txType = s.tx.Type
+			txName = s.tx.Name
 			custom = s.tx.Context.model.Custom
 			s.tx.TransactionData.mu.Lock()
 			s.tx.TransactionData.errorCaptured = true
@@ -297,13 +296,13 @@ func (e *Error) SetSpan(s *Span) {
 		}
 		s.mu.RUnlock()
 	}
-	e.setSpanData(s.traceContext, s.transactionID, txType, custom)
+	e.setSpanData(s.traceContext, s.transactionID, txType, txName, custom)
 }
 
 func (e *Error) setSpanData(
 	traceContext TraceContext,
 	transactionID SpanID,
-	transactionType string,
+	transactionType, transactionName string,
 	customContext model.IfaceMap,
 ) {
 	e.TraceID = traceContext.Trace
@@ -311,6 +310,7 @@ func (e *Error) setSpanData(
 	e.TransactionID = transactionID
 	e.transactionSampled = traceContext.Options.Recorded()
 	if e.transactionSampled {
+		e.transactionName = transactionName
 		e.transactionType = transactionType
 	}
 	if n := len(customContext); n != 0 {
@@ -476,7 +476,7 @@ func (b *exceptionDataBuilder) init(e *exceptionData, err error) bool {
 	e.Code.String = truncateString(e.Code.String)
 	e.Type.Name = truncateString(e.Type.Name)
 	e.Type.PackagePath = truncateString(e.Type.PackagePath)
-	b.initErrorStacktrace(&e.stacktrace, err)
+	e.stacktrace = stacktrace.AppendErrorStacktrace(e.stacktrace, err, b.stackTraceLimit)
 
 	for _, err := range e.ErrorDetails.Cause {
 		if b.errorCount >= maxErrorTreeNodes {
@@ -488,43 +488,6 @@ func (b *exceptionDataBuilder) init(e *exceptionData, err error) bool {
 		}
 	}
 	return true
-}
-
-func (b *exceptionDataBuilder) initErrorStacktrace(out *[]stacktrace.Frame, err error) {
-	type internalStackTracer interface {
-		StackTrace() []stacktrace.Frame
-	}
-	type errorsStackTracer interface {
-		StackTrace() errors.StackTrace
-	}
-	type runtimeStackTracer interface {
-		StackTrace() *runtime.Frames
-	}
-	switch stackTracer := err.(type) {
-	case internalStackTracer:
-		stackTrace := stackTracer.StackTrace()
-		if b.stackTraceLimit >= 0 && len(stackTrace) > b.stackTraceLimit {
-			stackTrace = stackTrace[:b.stackTraceLimit]
-		}
-		*out = append(*out, stackTrace...)
-	case errorsStackTracer:
-		stackTrace := stackTracer.StackTrace()
-		pkgerrorsutil.AppendStacktrace(stackTrace, out, b.stackTraceLimit)
-	case runtimeStackTracer:
-		frames := stackTracer.StackTrace()
-		count := 0
-		for {
-			if b.stackTraceLimit >= 0 && count == b.stackTraceLimit {
-				break
-			}
-			frame, more := frames.Next()
-			*out = append(*out, stacktrace.RuntimeFrame(frame))
-			if !more {
-				break
-			}
-			count++
-		}
-	}
 }
 
 // SetStacktrace sets the stacktrace for the error,

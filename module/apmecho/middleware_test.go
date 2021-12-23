@@ -24,14 +24,13 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"go.elastic.co/apm"
-
 	"github.com/labstack/echo"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"go.elastic.co/apm"
 	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/module/apmecho"
