@@ -65,12 +65,9 @@ func testServerRequestIgnorer(t *testing.T, ignoreURLs string, r *http.Request, 
 			assert.NoError(t, cmd.Run())
 			return
 		}
-		defaultIgnorer := apmhttp.DefaultServerRequestIgnorer()
-		assert.Equal(t, expect, defaultIgnorer(r))
 
 		tracer := newTracer()
 		defer tracer.Close()
-
 		dynamicIgnorer := apmhttp.NewDynamicServerRequestIgnorer(tracer)
 		assert.Equal(t, expect, dynamicIgnorer(r))
 	})
@@ -84,7 +81,11 @@ func TestFallbackDeprecatedRequestIgnorer(t *testing.T) {
 		assert.NoError(t, cmd.Run())
 		return
 	}
+
+	tracer := newTracer()
+	defer tracer.Close()
+	ignorer := apmhttp.NewDynamicServerRequestIgnorer(tracer)
+
 	req := &http.Request{URL: &url.URL{Path: "/foo"}}
-	ignorer := apmhttp.DefaultServerRequestIgnorer()
 	assert.Equal(t, true, ignorer(req))
 }

@@ -27,8 +27,6 @@ import (
 	"testing"
 	"time"
 
-	"go.elastic.co/apm/apmtest"
-
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
@@ -36,6 +34,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"go.elastic.co/apm"
+	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/module/apmot"
 	"go.elastic.co/apm/transport/transporttest"

@@ -24,38 +24,36 @@ import (
 	"github.com/opentracing/opentracing-go/log"
 
 	"go.elastic.co/apm"
-	"go.elastic.co/apm/internal/apmcontext"
 )
 
 func init() {
-	// We override the apmcontext functions so that transactions
+	// We override the apm context functions so that transactions
 	// and spans started with the native API are wrapped and made
 	// available as OpenTracing spans.
-	apmcontext.ContextWithSpan = contextWithSpan
-	apmcontext.ContextWithTransaction = contextWithTransaction
-	apmcontext.SpanFromContext = spanFromContext
-	apmcontext.TransactionFromContext = transactionFromContext
+	apm.OverrideContextWithSpan = contextWithSpan
+	apm.OverrideContextWithTransaction = contextWithTransaction
+	apm.OverrideSpanFromContext = spanFromContext
+	apm.OverrideTransactionFromContext = transactionFromContext
 }
 
-func contextWithSpan(ctx context.Context, apmSpan interface{}) context.Context {
-	tx, _ := transactionFromContext(ctx).(*apm.Transaction)
+func contextWithSpan(ctx context.Context, apmSpan *apm.Span) context.Context {
 	return opentracing.ContextWithSpan(ctx, apmSpanWrapper{
 		spanContext: apmSpanWrapperContext{
-			span:        apmSpan.(*apm.Span),
-			transaction: tx,
+			span:        apmSpan,
+			transaction: transactionFromContext(ctx),
 		},
 	})
 }
 
-func contextWithTransaction(ctx context.Context, apmTransaction interface{}) context.Context {
+func contextWithTransaction(ctx context.Context, apmTransaction *apm.Transaction) context.Context {
 	return opentracing.ContextWithSpan(ctx, apmTransactionWrapper{
 		spanContext: apmTransactionWrapperContext{
-			transaction: apmTransaction.(*apm.Transaction),
+			transaction: apmTransaction,
 		},
 	})
 }
 
-func spanFromContext(ctx context.Context) interface{} {
+func spanFromContext(ctx context.Context) *apm.Span {
 	otSpan, _ := opentracing.SpanFromContext(ctx).(interface {
 		Span() *apm.Span
 	})
@@ -65,7 +63,7 @@ func spanFromContext(ctx context.Context) interface{} {
 	return otSpan.Span()
 }
 
-func transactionFromContext(ctx context.Context) interface{} {
+func transactionFromContext(ctx context.Context) *apm.Transaction {
 	otSpan := opentracing.SpanFromContext(ctx)
 	if otSpan == nil {
 		return nil

@@ -561,6 +561,9 @@ type ErrorTransaction struct {
 
 	// Type holds the transaction type.
 	Type string `json:"type,omitempty"`
+
+	// Name holds the transaction name.
+	Name string `json:"name,omitempty"`
 }
 
 // Exception represents an exception: an error or panic.
