@@ -86,7 +86,7 @@ func testBreakdownMetricsAlignment(t *testing.T, arch string) {
 		breakdownMetricsMapEntryObj.Type(), false, pkg, "breakdownTiming",
 	)
 	require.NotNil(t, breakdownTimingObj)
-	assert.Equal(t, []int{0}, breakdownTimingFieldIndex)
+	assert.Equal(t, []int{1}, breakdownTimingFieldIndex)
 
 	// breakdownTiming.transaction.duration and breakdownTiming.span.duration
 	// should be 64-bit aligned. We know that the breakdownTiming type is
