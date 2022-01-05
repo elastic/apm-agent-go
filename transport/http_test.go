@@ -674,14 +674,29 @@ func TestHTTPTransportOptionsValidation(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, transport)
 	})
-	t.Run("invalid_url", func(t *testing.T) {
+	t.Run("empty_url", func(t *testing.T) {
+		var h recordingHandler
+		server := httptest.NewUnstartedServer(&h)
+		defer server.Close()
+
+		lis, err := net.Listen("tcp", "localhost:8200")
+		if err != nil {
+			t.Skipf("cannot listen on default server address: %s", err)
+		}
+		server.Listener.Close()
+		server.Listener = lis
+		server.Start()
+
 		transport, err := transport.NewHTTPTransportOptions(transport.HTTPTransportOptions{})
-		assert.EqualError(t, err, "apm transport options: ServerURLs must contain at least one entry")
-		assert.Nil(t, transport)
+		require.NoError(t, err)
+		require.NotNil(t, transport)
+
+		err = transport.SendStream(context.Background(), strings.NewReader(""))
+		assert.NoError(t, err)
+		assert.Len(t, h.requests, 1)
 	})
 	t.Run("invalid_timeout", func(t *testing.T) {
 		transport, err := transport.NewHTTPTransportOptions(transport.HTTPTransportOptions{
-			ServerURLs:    []*url.URL{validURL},
 			ServerTimeout: -1,
 		})
 		assert.EqualError(t, err, "apm transport options: ServerTimeout must be greater or equal to 0")

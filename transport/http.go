@@ -93,7 +93,8 @@ type HTTPTransportOptions struct {
 	// supports both HTTP and HTTPS. If you use HTTPS, then you may need to
 	// configure your client machines so that the server certificate can be
 	// verified. You can disable certificate verification with SkipServerVerify.
-	// If unset, an error will be returned.
+	// If no URL is specified, then the transport will use the default URL
+	// "http://localhost:8200".
 	ServerURLs []*url.URL
 
 	// ServerTimeout holds the timeout for requests made to your Elastic APM
@@ -107,9 +108,6 @@ type HTTPTransportOptions struct {
 
 // Validate ensures the HTTPTransportOptions are valid.
 func (opts HTTPTransportOptions) Validate() error {
-	if len(opts.ServerURLs) == 0 {
-		return errors.New("apm transport options: ServerURLs must contain at least one entry")
-	}
 	if opts.ServerTimeout < 0 {
 		return errors.New("apm transport options: ServerTimeout must be greater or equal to 0")
 	}
@@ -260,6 +258,10 @@ func NewHTTPTransportOptions(opts HTTPTransportOptions) (*HTTPTransport, error) 
 		t.SetAPIKey(opts.APIKey)
 	} else if opts.SecretToken != "" {
 		t.SetSecretToken(opts.SecretToken)
+	}
+
+	if len(opts.ServerURLs) == 0 {
+		opts.ServerURLs = []*url.URL{defaultServerURL}
 	}
 	if err := t.SetServerURL(opts.ServerURLs...); err != nil {
 		return nil, err
