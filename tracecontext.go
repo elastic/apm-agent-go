@@ -169,10 +169,34 @@ type TraceState struct {
 
 // NewTraceState returns a TraceState based on entries.
 func NewTraceState(entries ...TraceStateEntry) TraceState {
-	out := TraceState{}
+	var out TraceState
 	var last *TraceStateEntry
+	var modified []TraceStateEntry
+	recorded := make(map[string]uint8)
+	// Range over the entries and find duplicate keys. When a previous key is
+	// found, it is stored in a map with a count that is incremented every time
+	// the key is observed.
+	// When keys are observed more than once, the last value observed is stored
+	// in a slice of the modified keys.
 	for _, e := range entries {
-		e := e // copy
+		if count, ok := recorded[e.Key]; ok {
+			if count > 1 {
+				for i, m := range modified {
+					if m.Key == e.Key {
+						modified[i] = e
+					}
+				}
+			} else {
+				modified = append(modified, e)
+			}
+		}
+		recorded[e.Key]++
+	}
+	// After we've ranged over the whole entry slice, any duplicates present
+	// must be written first in a last to first order, thus we range the slice
+	// backwards.
+	for i := len(modified) - 1; i >= 0; i-- {
+		e := modified[i] // copy
 		if last == nil {
 			out.head = &e
 		} else {
@@ -180,12 +204,26 @@ func NewTraceState(entries ...TraceStateEntry) TraceState {
 		}
 		last = &e
 	}
+	// Now, we can write the rest of the entries in the linked list ignoring
+	// any keys that have already been handled.
+	var parsedESTraceState bool
 	for _, e := range entries {
-		if e.Key != elasticTracestateVendorKey {
+		// If the tracestate entry key has been recorded more than 1 time, it
+		// has already been written to the linked list.
+		if count, ok := recorded[e.Key]; ok && count > 1 {
 			continue
 		}
-		out.parseElasticTracestateError = out.parseElasticTracestate(e)
-		break
+		e := e // copy
+		if last == nil {
+			out.head = &e
+		} else {
+			last.next = &e
+		}
+		last = &e
+		if !parsedESTraceState && e.Key == elasticTracestateVendorKey {
+			out.parseElasticTracestateError = out.parseElasticTracestate(e)
+			parsedESTraceState = true
+		}
 	}
 	return out
 }
@@ -245,14 +283,12 @@ func (s TraceState) String() string {
 
 // Validate validates the trace state.
 //
-// This will return non-nil if any entries are invalid,
-// if there are too many entries, or if an entry key is
-// repeated.
+// This will return non-nil if any entries are invalid or
+// if there are too many entries.
 func (s TraceState) Validate() error {
 	if s.head == nil {
 		return nil
 	}
-	recorded := make(map[string]int)
 	var i int
 	for e := s.head; e != nil; e = e.next {
 		if i == 32 {
@@ -269,10 +305,6 @@ func (s TraceState) Validate() error {
 				return errors.Wrapf(err, "invalid tracestate entry at position %d", i)
 			}
 		}
-		if prev, ok := recorded[e.Key]; ok {
-			return fmt.Errorf("duplicate tracestate key %q at positions %d and %d", e.Key, prev, i)
-		}
-		recorded[e.Key] = i
 		i++
 	}
 	return nil

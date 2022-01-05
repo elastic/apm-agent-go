@@ -76,9 +76,15 @@ func TestTraceStateDuplicateKey(t *testing.T) {
 		apm.TraceStateEntry{Key: "x", Value: "b"},
 		apm.TraceStateEntry{Key: "a", Value: "b"},
 		apm.TraceStateEntry{Key: "y", Value: "b"},
-		apm.TraceStateEntry{Key: "a", Value: "b"},
+		apm.TraceStateEntry{Key: "a", Value: "c"},
+		apm.TraceStateEntry{Key: "z", Value: "w"},
+		apm.TraceStateEntry{Key: "a", Value: "d"},
+		apm.TraceStateEntry{Key: "c", Value: "first"},
+		apm.TraceStateEntry{Key: "r", Value: "first"},
+		apm.TraceStateEntry{Key: "c", Value: "second"},
 	)
-	assert.EqualError(t, ts.Validate(), `duplicate tracestate key "a" at positions 1 and 3`)
+	assert.NoError(t, ts.Validate())
+	assert.Equal(t, "c=second,a=d,x=b,y=b,z=w,r=first", ts.String())
 }
 
 func TestTraceStateInvalidKey(t *testing.T) {
