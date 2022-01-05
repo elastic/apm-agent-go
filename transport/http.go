@@ -73,18 +73,19 @@ var (
 
 // HTTPTransportOptions for the HTTPTransport.
 type HTTPTransportOptions struct {
-	// APIKey holds the APIKey base64-encoded string.
+	// APIKey holds the APIKey base64-encoded string. Specifying an APIKey will
+	// the SecretToken, if set.
 	APIKey string
 
 	// SecretToken holds the secret token configured in the APM Server.
 	SecretToken string
 
-	// ServerTLSCert can be set if you have configured your APM Server with a
-	// self signed TLS certificate, or you want to pin the server certificate,
-	// specify the path to the PEM-encoded certificate with `ServerCACert`.
-	ServerTLSCert string
+	// ServerCert can be set if you have configured your APM Server with a
+	// self signed TLS certificate, or you want to verify the server certificate
+	// matches this exact TLS certificate.
+	ServerCert string
 
-	// ServerCACert can be set if you want to specify a path to the pem-encoded
+	// ServerCACert can be set if you want to specify a path to the PEM-encoded
 	// Certificate Authority to verify the Server TLS certificate.
 	ServerCACert string
 
@@ -92,14 +93,27 @@ type HTTPTransportOptions struct {
 	// supports both HTTP and HTTPS. If you use HTTPS, then you may need to
 	// configure your client machines so that the server certificate can be
 	// verified. You can disable certificate verification with SkipServerVerify.
+	// If unset, an error will be returned.
 	ServerURLs []*url.URL
 
 	// ServerTimeout holds the timeout for requests made to your Elastic APM
-	// server. When set to zero or a negative value, timeouts will be disabled.
+	// server. When set to zero, it will default to 30 seconds. Negative values
+	// are not allowed.
 	ServerTimeout time.Duration
 
 	// SkipServerVerify skips TLS certificate validation of the APM Server.
 	SkipServerVerify bool
+}
+
+// Validate ensures the HTTPTransportOptions are valid.
+func (opts HTTPTransportOptions) Validate() error {
+	if len(opts.ServerURLs) == 0 {
+		return errors.New("apm transport options: ServerURLs must contain at least one entry")
+	}
+	if opts.ServerTimeout < 0 {
+		return errors.New("apm transport options: ServerTimeout must be greater or equal to 0")
+	}
+	return nil
 }
 
 // HTTPTransport is an implementation of Transport, sending payloads via
@@ -129,6 +143,9 @@ type HTTPTransport struct {
 //
 // - ELASTIC_APM_SERVER_TIMEOUT: timeout for requests to the APM Server.
 //   If not specified, defaults to 30 seconds.
+//
+// - ELASTIC_APM_API_KEY: base64-encoded string used for authentication.
+//   Setting this environment variable ignores ELASTIC_APM_SECRET_TOKEN.
 //
 // - ELASTIC_APM_SECRET_TOKEN: used to authenticate the agent.
 //
@@ -163,7 +180,7 @@ func NewHTTPTransport() (*HTTPTransport, error) {
 		SkipServerVerify: !verifyServerCert,
 		ServerURLs:       serverURLs,
 		ServerTimeout:    serverTimeout,
-		ServerTLSCert:    os.Getenv(envServerCert),
+		ServerCert:       os.Getenv(envServerCert),
 		ServerCACert:     os.Getenv(envCACert),
 	}
 	if apiKey := os.Getenv(envAPIKey); apiKey != "" {
@@ -177,11 +194,15 @@ func NewHTTPTransport() (*HTTPTransport, error) {
 // NewHTTPTransportOptions returns a customized HTTPTransport which can be used
 // for streaming data to the APM Server.
 func NewHTTPTransportOptions(opts HTTPTransportOptions) (*HTTPTransport, error) {
+	if err := opts.Validate(); err != nil {
+		return nil, err
+	}
+
 	tlsConfig := tls.Config{InsecureSkipVerify: opts.SkipServerVerify}
-	if opts.ServerTLSCert != "" {
-		serverCert, err := loadCertificate(opts.ServerTLSCert)
+	if opts.ServerCert != "" {
+		serverCert, err := loadCertificate(opts.ServerCert)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to load certificate from %s", opts.ServerTLSCert)
+			return nil, errors.Wrapf(err, "failed to load certificate from %s", opts.ServerCert)
 		}
 		// Disable standard verification, we'll check that the
 		// server supplies the exact certificate provided.
@@ -202,6 +223,10 @@ func NewHTTPTransportOptions(opts HTTPTransportOptions) (*HTTPTransport, error) 
 		tlsConfig.RootCAs = rootCAs
 	}
 
+	// If the ServerTimeout is unspecified, set it to defaultServerTimeout.
+	if opts.ServerTimeout == 0 {
+		opts.ServerTimeout = defaultServerTimeout
+	}
 	client := &http.Client{
 		Timeout: opts.ServerTimeout,
 		Transport: &http.Transport{
@@ -236,16 +261,18 @@ func NewHTTPTransportOptions(opts HTTPTransportOptions) (*HTTPTransport, error) 
 	} else if opts.SecretToken != "" {
 		t.SetSecretToken(opts.SecretToken)
 	}
-	t.SetServerURL(opts.ServerURLs...)
+	if err := t.SetServerURL(opts.ServerURLs...); err != nil {
+		return nil, err
+	}
 	return t, nil
 }
 
 // SetServerURL sets the APM Server URL (or URLs) for sending requests.
 // At least one URL must be specified, or the method will panic. The
 // list will be randomly shuffled.
-func (t *HTTPTransport) SetServerURL(u ...*url.URL) {
+func (t *HTTPTransport) SetServerURL(u ...*url.URL) error {
 	if len(u) == 0 {
-		panic("SetServerURL expects at least one URL")
+		return errors.New("SetServerURL expects at least one URL")
 	}
 	intakeURLs := make([]*url.URL, len(u))
 	configURLs := make([]*url.URL, len(u))
@@ -270,6 +297,7 @@ func (t *HTTPTransport) SetServerURL(u ...*url.URL) {
 	t.configURLs = configURLs
 	t.profileURLs = profileURLs
 	t.urlIndex = 0
+	return nil
 }
 
 // SetUserAgent sets the User-Agent header that will be sent with each request.
