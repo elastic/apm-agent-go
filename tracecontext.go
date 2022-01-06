@@ -171,47 +171,37 @@ type TraceState struct {
 func NewTraceState(entries ...TraceStateEntry) TraceState {
 	var out TraceState
 	var last *TraceStateEntry
-	var modified []TraceStateEntry
-	recorded := make(map[string]uint8)
-	// Range over the entries and find duplicate keys. When a previous key is
-	// found, it is stored in a map with a count that is incremented every time
-	// the key is observed.
-	// When keys are observed more than once, the last value observed is stored
-	// in a slice of the modified keys.
+	var recorded uint8
+	// Range over the entries and find duplicate `es` vendor keys. When 'es'
+	// is found more than once, the new pointer is stored in `last` and the
+	// `recorded` counter is incremented.
 	for _, e := range entries {
-		if count, ok := recorded[e.Key]; ok {
-			if count > 1 {
-				for i, m := range modified {
-					if m.Key == e.Key {
-						modified[i] = e
-					}
-				}
-			} else {
-				modified = append(modified, e)
-			}
-		}
-		recorded[e.Key]++
-	}
-	// After we've ranged over the whole entry slice, any duplicates present
-	// must be written first in a last to first order, thus we range the slice
-	// backwards.
-	for i := len(modified) - 1; i >= 0; i-- {
-		e := modified[i] // copy
-		if last == nil {
-			out.head = &e
-		} else {
-			last.next = &e
-		}
-		last = &e
-	}
-	// Now, we can write the rest of the entries in the linked list ignoring
-	// any keys that have already been handled.
-	var parsedESTraceState bool
-	for _, e := range entries {
-		// If the tracestate entry key has been recorded more than 1 time, it
-		// has already been written to the linked list.
-		if count, ok := recorded[e.Key]; ok && count > 1 {
+		if e.Key != elasticTracestateVendorKey {
 			continue
+		}
+		if recorded > 0 {
+			e := e // copy
+			last = &e
+		}
+		recorded++
+	}
+	// If duplicate 'es' keys have been found, the last observed value is
+	// written at the head of the linked list as per the W3C convention.
+	// Additionally, we parse the elasticTraceState.
+	var parsedESTraceState bool
+	if last != nil {
+		out.head = last
+		out.parseElasticTracestateError = out.parseElasticTracestate(*last)
+		parsedESTraceState = true
+	}
+	for _, e := range entries {
+		if e.Key == elasticTracestateVendorKey {
+			if !parsedESTraceState {
+				out.parseElasticTracestateError = out.parseElasticTracestate(e)
+				parsedESTraceState = true
+			} else {
+				continue
+			}
 		}
 		e := e // copy
 		if last == nil {
@@ -220,10 +210,6 @@ func NewTraceState(entries ...TraceStateEntry) TraceState {
 			last.next = &e
 		}
 		last = &e
-		if !parsedESTraceState && e.Key == elasticTracestateVendorKey {
-			out.parseElasticTracestateError = out.parseElasticTracestate(e)
-			parsedESTraceState = true
-		}
 	}
 	return out
 }
