@@ -175,7 +175,7 @@ func NewTraceState(entries ...TraceStateEntry) TraceState {
 	for _, e := range entries {
 		if e.Key == elasticTracestateVendorKey {
 			if haveElastic {
-				// Discard duplicate `es`` entries; keep the last entry's value.
+				// Discard duplicate `es` entries; keep the last entry's value.
 				out.head.Value = e.Value
 				continue
 			}
@@ -183,7 +183,7 @@ func NewTraceState(entries ...TraceStateEntry) TraceState {
 			e := e            // copy
 			e.next = out.head // move the current head reference to `es`.next.
 			out.head = &e     // swap the head with the current `es` entry.
-			// To preserve the previous entries int he linked list, set the
+			// To preserve the previous entries in the linked list, set the
 			// `last` reference to the current key only when `last` is empty.
 			if last == nil {
 				last = &e
