@@ -15,7 +15,7 @@ pipeline {
     GOPROXY = 'https://proxy.golang.org'
     HOME = "${env.WORKSPACE}"
     GITHUB_CHECK_ITS_NAME = 'Integration Tests'
-    ITS_PIPELINE = 'apm-integration-tests-selector-mbp/master'
+    ITS_PIPELINE = 'apm-integration-tests-selector-mbp/7.x'
     OPBEANS_REPO = 'opbeans-go'
     SLACK_CHANNEL = '#apm-agent-go'
   }
