@@ -76,7 +76,7 @@ func TestTraceStateDuplicateKey(t *testing.T) {
 	// 1. Accept a tracestate with duplicate keys.
 	// 2. Use the last reference.
 	// 3. Discard any duplicate 'es' entries.
-	// 4. Keep any duplicate 3rd party system keys a is.
+	// 4. Keep any duplicate 3rd party system keys as is.
 	ts := apm.NewTraceState(
 		apm.TraceStateEntry{Key: "x", Value: "b"},
 		apm.TraceStateEntry{Key: "a", Value: "b"},
@@ -93,6 +93,16 @@ func TestTraceStateDuplicateKey(t *testing.T) {
 	)
 	assert.NoError(t, ts.Validate())
 	assert.Equal(t, "es=s:0.1;k:v,x=b,a=b,y=b,a=c,z=w,a=d,c=first,r=first,c=second", ts.String())
+}
+
+func TestTraceStateElasticEntryFirst(t *testing.T) {
+	ts := apm.NewTraceState(
+		apm.TraceStateEntry{Key: "es", Value: "s:1;a:b"},
+		apm.TraceStateEntry{Key: "z", Value: "w"},
+		apm.TraceStateEntry{Key: "a", Value: "d"},
+	)
+	assert.NoError(t, ts.Validate())
+	assert.Equal(t, "es=s:1;a:b,z=w,a=d", ts.String())
 }
 
 func TestTraceStateInvalidKey(t *testing.T) {

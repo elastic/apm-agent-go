@@ -171,37 +171,24 @@ type TraceState struct {
 func NewTraceState(entries ...TraceStateEntry) TraceState {
 	var out TraceState
 	var last *TraceStateEntry
-	var recorded uint8
-	// Range over the entries and find duplicate `es` vendor keys. When 'es'
-	// is found more than once, the new pointer is stored in `last` and the
-	// `recorded` counter is incremented.
-	for _, e := range entries {
-		if e.Key != elasticTracestateVendorKey {
-			continue
-		}
-		if recorded > 0 {
-			e := e // copy
-			last = &e
-		}
-		recorded++
-	}
-	// If duplicate 'es' keys have been found, the last observed value is
-	// written at the head of the linked list as per the W3C convention.
-	// Additionally, we parse the elasticTraceState.
-	var parsedESTraceState bool
-	if last != nil {
-		out.head = last
-		out.parseElasticTracestateError = out.parseElasticTracestate(*last)
-		parsedESTraceState = true
-	}
+	var haveElastic bool
 	for _, e := range entries {
 		if e.Key == elasticTracestateVendorKey {
-			if !parsedESTraceState {
-				out.parseElasticTracestateError = out.parseElasticTracestate(e)
-				parsedESTraceState = true
-			} else {
+			if haveElastic {
+				// Discard duplicate `es`` entries; keep the last entry's value.
+				out.head.Value = e.Value
 				continue
 			}
+			haveElastic = true
+			e := e            // copy
+			e.next = out.head // move the current head reference to `es`.next.
+			out.head = &e     // swap the head with the current `es` entry.
+			// To preserve the previous entries int he linked list, set the
+			// `last` reference to the current key only when `last` is empty.
+			if last == nil {
+				last = &e
+			}
+			continue
 		}
 		e := e // copy
 		if last == nil {
@@ -210,6 +197,9 @@ func NewTraceState(entries ...TraceStateEntry) TraceState {
 			last.next = &e
 		}
 		last = &e
+	}
+	if haveElastic {
+		out.parseElasticTracestateError = out.parseElasticTracestate(*out.head)
 	}
 	return out
 }
