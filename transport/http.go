@@ -270,8 +270,8 @@ func NewHTTPTransportOptions(opts HTTPTransportOptions) (*HTTPTransport, error) 
 }
 
 // SetServerURL sets the APM Server URL (or URLs) for sending requests.
-// At least one URL must be specified, or the method will panic. The
-// list will be randomly shuffled.
+// At least one URL must be specified, or the method will return an error.
+// The list will be randomly shuffled.
 func (t *HTTPTransport) SetServerURL(u ...*url.URL) error {
 	if len(u) == 0 {
 		return errors.New("SetServerURL expects at least one URL")
