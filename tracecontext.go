@@ -169,9 +169,27 @@ type TraceState struct {
 
 // NewTraceState returns a TraceState based on entries.
 func NewTraceState(entries ...TraceStateEntry) TraceState {
-	out := TraceState{}
+	var out TraceState
 	var last *TraceStateEntry
+	var haveElastic bool
 	for _, e := range entries {
+		if e.Key == elasticTracestateVendorKey {
+			if haveElastic {
+				// Discard duplicate `es` entries; keep the last entry's value.
+				out.head.Value = e.Value
+				continue
+			}
+			haveElastic = true
+			e := e            // copy
+			e.next = out.head // move the current head reference to `es`.next.
+			out.head = &e     // swap the head with the current `es` entry.
+			// To preserve the previous entries in the linked list, set the
+			// `last` reference to the current key only when `last` is empty.
+			if last == nil {
+				last = &e
+			}
+			continue
+		}
 		e := e // copy
 		if last == nil {
 			out.head = &e
@@ -180,12 +198,8 @@ func NewTraceState(entries ...TraceStateEntry) TraceState {
 		}
 		last = &e
 	}
-	for _, e := range entries {
-		if e.Key != elasticTracestateVendorKey {
-			continue
-		}
-		out.parseElasticTracestateError = out.parseElasticTracestate(e)
-		break
+	if haveElastic {
+		out.parseElasticTracestateError = out.parseElasticTracestate(*out.head)
 	}
 	return out
 }
@@ -245,14 +259,12 @@ func (s TraceState) String() string {
 
 // Validate validates the trace state.
 //
-// This will return non-nil if any entries are invalid,
-// if there are too many entries, or if an entry key is
-// repeated.
+// This will return non-nil if any entries are invalid or
+// if there are too many entries.
 func (s TraceState) Validate() error {
 	if s.head == nil {
 		return nil
 	}
-	recorded := make(map[string]int)
 	var i int
 	for e := s.head; e != nil; e = e.next {
 		if i == 32 {
@@ -269,10 +281,6 @@ func (s TraceState) Validate() error {
 				return errors.Wrapf(err, "invalid tracestate entry at position %d", i)
 			}
 		}
-		if prev, ok := recorded[e.Key]; ok {
-			return fmt.Errorf("duplicate tracestate key %q at positions %d and %d", e.Key, prev, i)
-		}
-		recorded[e.Key] = i
 		i++
 	}
 	return nil
