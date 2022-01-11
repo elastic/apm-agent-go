@@ -37,6 +37,7 @@ pin golang.org/x/net 5f58ad60dda6 https://github.com/golang/net
 pin github.com/santhosh-tekuri/jsonschema v4.0.0
 pin go.uber.org/zap v1.16.0 https://github.com/uber-go/zap
 pin github.com/mattn/go-sqlite3 2b780b4a7fb3
+pin github.com/olivere/elastic v7.0.29
 
 # Go 1.8-1.9
 if (! go run scripts/mingoversion.go 1.10 &>/dev/null); then
@@ -51,6 +52,5 @@ fi
 # Go 1.8 only.
 if (! go run scripts/mingoversion.go 1.9 &>/dev/null); then
   pin github.com/golang/protobuf v1.3.5
-  pin github.com/olivere/elastic release-branch.v6
   pin golang.org/x/sys fc99dfbffb4e https://go.googlesource.com/sys
 fi

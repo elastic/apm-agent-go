@@ -22,7 +22,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	"unsafe"
 
 	"go.elastic.co/apm/model"
 )
@@ -39,17 +38,9 @@ const (
 	appSpanType = "app"
 
 	// Breakdown metric names.
-	transactionDurationCountMetricName  = "transaction.duration.count"
-	transactionDurationSumMetricName    = "transaction.duration.sum.us"
-	transactionBreakdownCountMetricName = "transaction.breakdown.count"
-	spanSelfTimeCountMetricName         = "span.self_time.count"
-	spanSelfTimeSumMetricName           = "span.self_time.sum.us"
+	spanSelfTimeCountMetricName = "span.self_time.count"
+	spanSelfTimeSumMetricName   = "span.self_time.sum.us"
 )
-
-type pad32 struct {
-	// Zero-sized on 64-bit architectures, 4 bytes on 32-bit.
-	_ [(unsafe.Alignof(uint64(0)) % 8) / 4]uintptr
-}
 
 var (
 	breakdownMetricsLimitWarning = fmt.Sprintf(`
@@ -71,7 +62,7 @@ type spanTimingsKey struct {
 // the sum of the span durations.
 type spanTiming struct {
 	duration int64
-	count    uintptr
+	count    uint64
 }
 
 // spanTimingsMap records span timings for a transaction group.
@@ -116,9 +107,9 @@ func newBreakdownMetrics() *breakdownMetrics {
 
 type breakdownMetricsMap struct {
 	mu      sync.RWMutex
-	entries int
 	m       map[uint64][]*breakdownMetricsMapEntry
 	space   []breakdownMetricsMapEntry
+	entries int
 }
 
 func newBreakdownMetricsMap() *breakdownMetricsMap {
@@ -129,8 +120,8 @@ func newBreakdownMetricsMap() *breakdownMetricsMap {
 }
 
 type breakdownMetricsMapEntry struct {
-	breakdownTiming
 	breakdownMetricsKey
+	breakdownTiming
 }
 
 // breakdownMetricsKey identifies a transaction group, and optionally a
@@ -156,27 +147,13 @@ func (k breakdownMetricsKey) hash() uint64 {
 
 // breakdownTiming holds breakdown metrics.
 type breakdownTiming struct {
-	// transaction holds the "transaction.duration" metric values.
-	transaction spanTiming
-
-	// Padding to ensure the span field below is 64-bit aligned.
-	_ pad32
-
 	// span holds the "span.self_time" metric values.
 	span spanTiming
-
-	// breakdownCount records the number of transactions for which we
-	// have calculated breakdown metrics. If breakdown metrics are
-	// enabled, this will be equal transaction.count.
-	breakdownCount uintptr
 }
 
 func (lhs *breakdownTiming) accumulate(rhs breakdownTiming) {
-	atomic.AddUintptr(&lhs.transaction.count, rhs.transaction.count)
-	atomic.AddInt64(&lhs.transaction.duration, rhs.transaction.duration)
-	atomic.AddUintptr(&lhs.span.count, rhs.span.count)
+	atomic.AddUint64(&lhs.span.count, rhs.span.count)
 	atomic.AddInt64(&lhs.span.duration, rhs.span.duration)
-	atomic.AddUintptr(&lhs.breakdownCount, rhs.breakdownCount)
 }
 
 // recordTransaction records breakdown metrics for td into m.
@@ -191,23 +168,20 @@ func (m *breakdownMetrics) recordTransaction(td *TransactionData) bool {
 	k := breakdownMetricsKey{
 		transactionType: td.Type,
 		transactionName: td.Name,
+		spanTimingsKey: spanTimingsKey{
+			spanType: appSpanType,
+		},
 	}
-	k.spanType = appSpanType
 
-	var breakdownCount int
 	var transactionSpanTiming spanTiming
-	var transactionDuration = spanTiming{count: 1, duration: int64(td.Duration)}
 	if td.breakdownMetricsEnabled {
-		breakdownCount = 1
 		endTime := td.timestamp.Add(td.Duration)
 		transactionSelfTime := td.Duration - td.childrenTimer.finalDuration(endTime)
 		transactionSpanTiming = spanTiming{count: 1, duration: int64(transactionSelfTime)}
 	}
 
 	if !m.active.record(k, breakdownTiming{
-		transaction:    transactionDuration,
-		breakdownCount: uintptr(breakdownCount),
-		span:           transactionSpanTiming,
+		span: transactionSpanTiming,
 	}) {
 		// We couldn't record the transaction's metricset, so we won't
 		// be able to record spans for that transaction either.
@@ -281,25 +255,6 @@ func (m *breakdownMetrics) gather(out *Metrics) {
 
 	for hash, entries := range m.inactive.m {
 		for _, entry := range entries {
-			if entry.transaction.count > 0 {
-				out.transactionGroupMetrics = append(out.transactionGroupMetrics, &model.Metrics{
-					Transaction: model.MetricsTransaction{
-						Type: entry.transactionType,
-						Name: entry.transactionName,
-					},
-					Samples: map[string]model.Metric{
-						transactionDurationCountMetricName: {
-							Value: float64(entry.transaction.count),
-						},
-						transactionDurationSumMetricName: {
-							Value: durationMicros(time.Duration(entry.transaction.duration)),
-						},
-						transactionBreakdownCountMetricName: {
-							Value: float64(entry.breakdownCount),
-						},
-					},
-				})
-			}
 			if entry.span.count > 0 {
 				out.transactionGroupMetrics = append(out.transactionGroupMetrics, &model.Metrics{
 					Transaction: model.MetricsTransaction{

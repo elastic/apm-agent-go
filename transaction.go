@@ -418,7 +418,7 @@ func (m droppedSpanTimingsMap) add(dst, outcome string, count int, d time.Durati
 	k := droppedSpanTimingsKey{destination: dst, outcome: outcome}
 	timing, ok := m[k]
 	if ok || maxDroppedSpanStats > len(m) {
-		timing.count += uintptr(count)
+		timing.count += uint64(count)
 		timing.duration += int64(d)
 		m[k] = timing
 	}
