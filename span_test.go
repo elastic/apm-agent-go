@@ -215,6 +215,7 @@ func TestFramesMinDurationSpecialCases(t *testing.T) {
 
 	// verify that stacktraces are always recorded
 	tracer = apmtest.NewRecordingTracer()
+	defer tracer.Close()
 	tracer.SetSpanFramesMinDuration(-1)
 	tx = tracer.StartTransaction("name", "type")
 	span = tx.StartSpan("span2", "span2", nil)
