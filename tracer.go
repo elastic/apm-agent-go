@@ -35,7 +35,6 @@ import (
 	"go.elastic.co/apm/internal/ringbuffer"
 	"go.elastic.co/apm/internal/wildcard"
 	"go.elastic.co/apm/model"
-	"go.elastic.co/apm/stacktrace"
 	"go.elastic.co/apm/transport"
 	"go.elastic.co/fastjson"
 )
@@ -525,7 +524,6 @@ type tracerConfig struct {
 	metricsInterval         time.Duration
 	logger                  WarningLogger
 	metricsGatherers        []MetricsGatherer
-	contextSetter           stacktrace.ContextSetter
 	preContext, postContext int
 	disabledMetrics         wildcard.Matchers
 	cpuProfileDuration      time.Duration
@@ -601,15 +599,6 @@ func (t *Tracer) SetRequestDuration(d time.Duration) {
 func (t *Tracer) SetMetricsInterval(d time.Duration) {
 	t.sendConfigCommand(func(cfg *tracerConfig) {
 		cfg.metricsInterval = d
-	})
-}
-
-// SetContextSetter sets the stacktrace.ContextSetter to be used for
-// setting stacktrace source context. If nil (which is the initial
-// value), no context will be set.
-func (t *Tracer) SetContextSetter(setter stacktrace.ContextSetter) {
-	t.sendConfigCommand(func(cfg *tracerConfig) {
-		cfg.contextSetter = setter
 	})
 }
 
