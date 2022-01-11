@@ -15,7 +15,7 @@ pipeline {
     GOPROXY = 'https://proxy.golang.org'
     HOME = "${env.WORKSPACE}"
     GITHUB_CHECK_ITS_NAME = 'Integration Tests'
-    ITS_PIPELINE = 'apm-integration-tests-selector-mbp/master'
+    ITS_PIPELINE = 'apm-integration-tests-selector-mbp/main'
     OPBEANS_REPO = 'opbeans-go'
     SLACK_CHANNEL = '#apm-agent-go'
   }
@@ -260,8 +260,9 @@ pipeline {
           steps {
             deleteDir()
             dir("${OPBEANS_REPO}"){
-              git credentialsId: 'f6c7695a-671e-4f4f-a331-acdce44ff9ba',
-                  url: "git@github.com:elastic/${OPBEANS_REPO}.git"
+              git(credentialsId: 'f6c7695a-671e-4f4f-a331-acdce44ff9ba',
+                  url: "git@github.com:elastic/${OPBEANS_REPO}.git",
+                  branch: 'main')
               sh script: ".ci/bump-version.sh ${env.BRANCH_NAME}", label: 'Bump version'
               // The opbeans-go pipeline will trigger a release for the master branch
               gitPush()
