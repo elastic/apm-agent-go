@@ -80,7 +80,7 @@ func (o *Observer) ObserveBatch(ctx context.Context, batch gocql.ObservedBatch) 
 		span.End()
 	}
 
-	if e := apm.CaptureError(ctx, batch.Err); e != nil {
+	if e := apm.CaptureError(ctx, batch.Err); e != nil && e.ErrorData != nil {
 		e.Timestamp = batch.End
 		e.Send()
 	}
@@ -97,7 +97,7 @@ func (o *Observer) ObserveQuery(ctx context.Context, query gocql.ObservedQuery) 
 		Instance:  query.Keyspace,
 		Statement: query.Statement,
 	})
-	if e := apm.CaptureError(ctx, query.Err); e != nil {
+	if e := apm.CaptureError(ctx, query.Err); e != nil && e.ErrorData != nil {
 		e.Timestamp = query.End
 		e.Send()
 	}

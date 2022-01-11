@@ -176,6 +176,7 @@ func (w *modelWriter) buildModelError(out *model.Error, e *ErrorData) {
 		out.Transaction.Sampled = &e.transactionSampled
 		if e.transactionSampled {
 			out.Transaction.Type = e.transactionType
+			out.Transaction.Name = e.transactionName
 		}
 	}
 
