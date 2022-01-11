@@ -196,6 +196,38 @@ func TestStartExitSpan(t *testing.T) {
 	assert.True(t, span.IsExitSpan())
 }
 
+func TestFramesMinDurationSpecialCases(t *testing.T) {
+	tracer := apmtest.NewRecordingTracer()
+
+	// verify that no stacktraces are recorded
+	tracer.SetSpanFramesMinDuration(0)
+	tx := tracer.StartTransaction("name", "type")
+	span := tx.StartSpan("span", "span", nil)
+	span.End()
+	tx.End()
+
+	tracer.Flush(nil)
+	tracer.Close()
+
+	spans := tracer.Payloads().Spans
+	require.Len(t, spans, 1)
+	assert.Len(t, spans[0].Stacktrace, 0)
+
+	// verify that stacktraces are always recorded
+	tracer = apmtest.NewRecordingTracer()
+	tracer.SetSpanFramesMinDuration(-1)
+	tx = tracer.StartTransaction("name", "type")
+	span = tx.StartSpan("span2", "span2", nil)
+	span.End()
+	tx.End()
+
+	tracer.Flush(nil)
+
+	spans = tracer.Payloads().Spans
+	require.Len(t, spans, 1)
+	assert.Len(t, spans[0].Stacktrace, 4)
+}
+
 func TestCompressSpanNonSiblings(t *testing.T) {
 	// Asserts that non sibling spans are not compressed.
 	tracer := apmtest.NewRecordingTracer()
