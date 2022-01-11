@@ -39,11 +39,11 @@ import (
 // This middleware will recover and report panics, so it can
 // be used instead of echo/middleware.Recover.
 //
-// By default, the middleware will use apm.DefaultTracer.
+// By default, the middleware will use apm.DefaultTracer().
 // Use WithTracer to specify an alternative tracer.
 func Middleware(o ...Option) echo.MiddlewareFunc {
 	opts := options{
-		tracer: apm.DefaultTracer,
+		tracer: apm.DefaultTracer(),
 	}
 	for _, o := range o {
 		o(&opts)

@@ -35,11 +35,11 @@ import (
 // The server request name will use the fully matched,
 // parametrized route.
 //
-// By default, the middleware will use apm.DefaultTracer.
+// By default, the middleware will use apm.DefaultTracer().
 // Use WithTracer to specify an alternative tracer.
 func Middleware(o ...Option) func(http.Handler) http.Handler {
 	opts := options{
-		tracer: apm.DefaultTracer,
+		tracer: apm.DefaultTracer(),
 	}
 	for _, o := range o {
 		o(&opts)

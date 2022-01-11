@@ -51,12 +51,12 @@ var (
 // each incoming request. The transaction will be added to the context,
 // so server methods can use apm.StartSpan with the provided context.
 //
-// By default, the interceptor will trace with apm.DefaultTracer,
+// By default, the interceptor will trace with apm.DefaultTracer(),
 // and will not recover any panics. Use WithTracer to specify an
 // alternative tracer, and WithRecovery to enable panic recovery.
 func NewUnaryServerInterceptor(o ...ServerOption) grpc.UnaryServerInterceptor {
 	opts := serverOptions{
-		tracer:         apm.DefaultTracer,
+		tracer:         apm.DefaultTracer(),
 		recover:        false,
 		requestIgnorer: DefaultServerRequestIgnorer(),
 		streamIgnorer:  DefaultServerStreamIgnorer(),
@@ -108,12 +108,12 @@ func NewUnaryServerInterceptor(o ...ServerOption) grpc.UnaryServerInterceptor {
 // incoming stream request. The transaction will be added to the context, so
 // server methods can use apm.StartSpan with the provided context.
 //
-// By default, the interceptor will trace with apm.DefaultTracer, and will
+// By default, the interceptor will trace with apm.DefaultTracer(), and will
 // not recover any panics. Use WithTracer to specify an alternative tracer,
 // and WithRecovery to enable panic recovery.
 func NewStreamServerInterceptor(o ...ServerOption) grpc.StreamServerInterceptor {
 	opts := serverOptions{
-		tracer:        apm.DefaultTracer,
+		tracer:        apm.DefaultTracer(),
 		recover:       false,
 		streamIgnorer: DefaultServerStreamIgnorer(),
 	}

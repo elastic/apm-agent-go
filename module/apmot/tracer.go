@@ -32,14 +32,14 @@ import (
 // New returns a new opentracing.Tracer backed by the supplied
 // Elastic APM tracer.
 //
-// By default, the returned tracer will use apm.DefaultTracer.
+// By default, the returned tracer will use apm.DefaultTracer().
 // This can be overridden by using a WithTracer option.
 // The option WithSpanRefValidator allows one to override the
 // set of spans that are recorded. By default only child-of
 // spans are recorded.
 func New(opts ...Option) opentracing.Tracer {
 	t := &otTracer{
-		tracer:         apm.DefaultTracer,
+		tracer:         apm.DefaultTracer(),
 		isValidSpanRef: isChildOfSpanRef,
 	}
 	for _, opt := range opts {

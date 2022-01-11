@@ -46,7 +46,7 @@ type Observer struct {
 // observed gocql queries.
 func NewObserver(o ...Option) *Observer {
 	opts := options{
-		tracer: apm.DefaultTracer,
+		tracer: apm.DefaultTracer(),
 	}
 	for _, o := range o {
 		o(&opts)

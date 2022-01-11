@@ -51,7 +51,7 @@ func init() {
 // with them.
 type Hook struct {
 	// Tracer is the apm.Tracer to use for reporting errors.
-	// If Tracer is nil, then apm.DefaultTracer will be used.
+	// If Tracer is nil, then apm.DefaultTracer() will be used.
 	Tracer *apm.Tracer
 
 	// LogLevels holds the log levels to report as errors.
@@ -70,7 +70,7 @@ type Hook struct {
 func (h *Hook) tracer() *apm.Tracer {
 	tracer := h.Tracer
 	if tracer == nil {
-		tracer = apm.DefaultTracer
+		tracer = apm.DefaultTracer()
 	}
 	return tracer
 }

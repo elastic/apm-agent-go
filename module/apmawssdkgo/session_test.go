@@ -187,7 +187,7 @@ func TestUnsupportedServices(t *testing.T) {
 	wrapped := WrapSession(session)
 	svc := athena.New(wrapped)
 
-	tx := apm.DefaultTracer.StartTransaction("send-email", "test-tx")
+	tx := apm.DefaultTracer().StartTransaction("send-email", "test-tx")
 	span := tx.StartSpan("test-span", "send-email", nil)
 	defer span.End()
 
