@@ -48,6 +48,7 @@ const (
 )
 
 var (
+	tracerMu      sync.RWMutex
 	defaultTracer *Tracer
 )
 
@@ -58,7 +59,13 @@ var (
 // environment variables are invalid, the corresponding errors will be logged
 // to stderr and the default values will be used instead.
 func DefaultTracer() *Tracer {
+	tracerMu.RLock()
+	defer tracerMu.RUnlock()
+
 	if defaultTracer == nil {
+		tracerMu.Lock()
+		defer tracerMu.Unlock()
+
 		var opts TracerOptions
 		opts.initDefaults(true)
 		defaultTracer = newTracer(opts)
@@ -70,6 +77,9 @@ func DefaultTracer() *Tracer {
 // tracer has already been initialized, any events are flushed and the tracer
 // closed.
 func SetDefaultTracer(t *Tracer) {
+	tracerMu.Lock()
+	defer tracerMu.Unlock()
+
 	if defaultTracer != nil {
 		defaultTracer.Flush(nil)
 		defaultTracer.Close()
