@@ -35,14 +35,11 @@ import (
 	"go.elastic.co/apm/internal/ringbuffer"
 	"go.elastic.co/apm/internal/wildcard"
 	"go.elastic.co/apm/model"
-	"go.elastic.co/apm/stacktrace"
 	"go.elastic.co/apm/transport"
 	"go.elastic.co/fastjson"
 )
 
 const (
-	defaultPreContext     = 3
-	defaultPostContext    = 3
 	gracePeriodJitter     = 0.1 // +/- 10%
 	tracerEventChannelCap = 1000
 )
@@ -503,8 +500,6 @@ func newTracer(opts TracerOptions) *Tracer {
 		cfg.requestDuration = opts.requestDuration
 		cfg.requestSize = opts.requestSize
 		cfg.disabledMetrics = opts.disabledMetrics
-		cfg.preContext = defaultPreContext
-		cfg.postContext = defaultPostContext
 		cfg.metricsGatherers = []MetricsGatherer{newBuiltinMetricsGatherer(t)}
 		if apmlog.DefaultLogger != nil {
 			cfg.logger = apmlog.DefaultLogger
@@ -519,18 +514,16 @@ func newTracer(opts TracerOptions) *Tracer {
 // tracerConfig holds the tracer's runtime configuration, which may be modified
 // by sending a tracerConfigCommand to the tracer's configCommands channel.
 type tracerConfig struct {
-	recording               bool
-	requestSize             int
-	requestDuration         time.Duration
-	metricsInterval         time.Duration
-	logger                  WarningLogger
-	metricsGatherers        []MetricsGatherer
-	contextSetter           stacktrace.ContextSetter
-	preContext, postContext int
-	disabledMetrics         wildcard.Matchers
-	cpuProfileDuration      time.Duration
-	cpuProfileInterval      time.Duration
-	heapProfileInterval     time.Duration
+	recording           bool
+	requestSize         int
+	requestDuration     time.Duration
+	metricsInterval     time.Duration
+	logger              WarningLogger
+	metricsGatherers    []MetricsGatherer
+	disabledMetrics     wildcard.Matchers
+	cpuProfileDuration  time.Duration
+	cpuProfileInterval  time.Duration
+	heapProfileInterval time.Duration
 }
 
 type tracerConfigCommand func(*tracerConfig)
@@ -601,15 +594,6 @@ func (t *Tracer) SetRequestDuration(d time.Duration) {
 func (t *Tracer) SetMetricsInterval(d time.Duration) {
 	t.sendConfigCommand(func(cfg *tracerConfig) {
 		cfg.metricsInterval = d
-	})
-}
-
-// SetContextSetter sets the stacktrace.ContextSetter to be used for
-// setting stacktrace source context. If nil (which is the initial
-// value), no context will be set.
-func (t *Tracer) SetContextSetter(setter stacktrace.ContextSetter) {
-	t.sendConfigCommand(func(cfg *tracerConfig) {
-		cfg.contextSetter = setter
 	})
 }
 
