@@ -57,9 +57,10 @@ var (
 // to stderr and the default values will be used instead.
 func DefaultTracer() *Tracer {
 	tracerMu.RLock()
-	defer tracerMu.RUnlock()
+	dt := defaultTracer
+	tracerMu.RUnlock()
 
-	if defaultTracer == nil {
+	if dt == nil {
 		var opts TracerOptions
 		opts.initDefaults(true)
 		SetDefaultTracer(newTracer(opts))
