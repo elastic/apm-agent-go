@@ -32,7 +32,6 @@ type TracerStats struct {
 
 // TracerStatsErrors holds error statistics for a Tracer.
 type TracerStatsErrors struct {
-	SetContext uint64
 	SendStream uint64
 }
 
@@ -43,7 +42,6 @@ func (s TracerStats) isZero() bool {
 // accumulate updates the stats by accumulating them with
 // the values in rhs.
 func (s *TracerStats) accumulate(rhs TracerStats) {
-	atomic.AddUint64(&s.Errors.SetContext, rhs.Errors.SetContext)
 	atomic.AddUint64(&s.Errors.SendStream, rhs.Errors.SendStream)
 	atomic.AddUint64(&s.ErrorsSent, rhs.ErrorsSent)
 	atomic.AddUint64(&s.ErrorsDropped, rhs.ErrorsDropped)
@@ -57,7 +55,6 @@ func (s *TracerStats) accumulate(rhs TracerStats) {
 func (s *TracerStats) copy() TracerStats {
 	return TracerStats{
 		Errors: TracerStatsErrors{
-			SetContext: atomic.LoadUint64(&s.Errors.SetContext),
 			SendStream: atomic.LoadUint64(&s.Errors.SendStream),
 		},
 		ErrorsSent:          atomic.LoadUint64(&s.ErrorsSent),

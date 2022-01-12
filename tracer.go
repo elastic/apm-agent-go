@@ -40,8 +40,6 @@ import (
 )
 
 const (
-	defaultPreContext     = 3
-	defaultPostContext    = 3
 	gracePeriodJitter     = 0.1 // +/- 10%
 	tracerEventChannelCap = 1000
 )
@@ -502,8 +500,6 @@ func newTracer(opts TracerOptions) *Tracer {
 		cfg.requestDuration = opts.requestDuration
 		cfg.requestSize = opts.requestSize
 		cfg.disabledMetrics = opts.disabledMetrics
-		cfg.preContext = defaultPreContext
-		cfg.postContext = defaultPostContext
 		cfg.metricsGatherers = []MetricsGatherer{newBuiltinMetricsGatherer(t)}
 		if apmlog.DefaultLogger != nil {
 			cfg.logger = apmlog.DefaultLogger
@@ -518,17 +514,16 @@ func newTracer(opts TracerOptions) *Tracer {
 // tracerConfig holds the tracer's runtime configuration, which may be modified
 // by sending a tracerConfigCommand to the tracer's configCommands channel.
 type tracerConfig struct {
-	recording               bool
-	requestSize             int
-	requestDuration         time.Duration
-	metricsInterval         time.Duration
-	logger                  WarningLogger
-	metricsGatherers        []MetricsGatherer
-	preContext, postContext int
-	disabledMetrics         wildcard.Matchers
-	cpuProfileDuration      time.Duration
-	cpuProfileInterval      time.Duration
-	heapProfileInterval     time.Duration
+	recording           bool
+	requestSize         int
+	requestDuration     time.Duration
+	metricsInterval     time.Duration
+	logger              WarningLogger
+	metricsGatherers    []MetricsGatherer
+	disabledMetrics     wildcard.Matchers
+	cpuProfileDuration  time.Duration
+	cpuProfileInterval  time.Duration
+	heapProfileInterval time.Duration
 }
 
 type tracerConfigCommand func(*tracerConfig)
