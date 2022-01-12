@@ -356,9 +356,17 @@ func (s *Span) End() {
 			}
 		}
 	}
-	if !s.dropped() && len(s.stacktrace) == 0 &&
-		s.Duration >= s.stackFramesMinDuration {
+	switch s.stackFramesMinDuration {
+	case -1:
+		// Always set stacktrace
 		s.setStacktrace(1)
+	case 0:
+		// If s.stackFramesMinDuration == 0, we never set stacktrace.
+	default:
+		if !s.dropped() && len(s.stacktrace) == 0 &&
+			s.Duration >= s.stackFramesMinDuration {
+			s.setStacktrace(1)
+		}
 	}
 	// If this span has a parent span, lock it before proceeding to
 	// prevent deadlocking when concurrently ending parent and child.
