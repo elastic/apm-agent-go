@@ -172,10 +172,7 @@ func getCloudMetadata() *model.Cloud {
 	// package initialisation time. Instead, we defer until it is
 	// first requested by the tracer.
 	cloudMetadataOnce.Do(func() {
-		var logger apmcloudutil.Logger
-		if apmlog.DefaultLogger != nil {
-			logger = apmlog.DefaultLogger
-		}
+		logger := apmlog.DefaultLogger()
 		provider := apmcloudutil.Auto
 		if str := os.Getenv(envCloudProvider); str != "" {
 			var err error

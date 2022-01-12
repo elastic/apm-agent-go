@@ -475,12 +475,12 @@ func newTracer(opts TracerOptions) *Tracer {
 	t.setLocalInstrumentationConfig(envExitSpanMinDuration, func(cfg *instrumentationConfigValues) {
 		cfg.exitSpanMinDuration = opts.exitSpanMinDuration
 	})
-	if apmlog.DefaultLogger != nil {
-		defaultLogLevel := apmlog.DefaultLogger.Level()
+	if logger := apmlog.DefaultLogger(); logger != nil {
+		defaultLogLevel := logger.Level()
 		t.setLocalInstrumentationConfig(apmlog.EnvLogLevel, func(cfg *instrumentationConfigValues) {
 			// Revert to the original, local, log level when
 			// the centrally defined log level is removed.
-			apmlog.DefaultLogger.SetLevel(defaultLogLevel)
+			logger.SetLevel(defaultLogLevel)
 		})
 	}
 
@@ -501,8 +501,8 @@ func newTracer(opts TracerOptions) *Tracer {
 		cfg.requestSize = opts.requestSize
 		cfg.disabledMetrics = opts.disabledMetrics
 		cfg.metricsGatherers = []MetricsGatherer{newBuiltinMetricsGatherer(t)}
-		if apmlog.DefaultLogger != nil {
-			cfg.logger = apmlog.DefaultLogger
+		if logger := apmlog.DefaultLogger(); logger != nil {
+			cfg.logger = logger
 		}
 	}
 	if opts.configWatcher != nil {
