@@ -127,7 +127,7 @@ func NewStreamClientInterceptor(o ...ClientOption) grpc.StreamClientInterceptor 
 				span.End()
 			} else if stream != nil {
 				wrapped := &clientStream{ClientStream: stream}
-				go func() {
+				go func(stream grpc.ClientStream) {
 					defer span.End()
 					// Header blocks until headers are available
 					// or the stream is ended. Either way, after
@@ -137,7 +137,7 @@ func NewStreamClientInterceptor(o ...ClientOption) grpc.StreamClientInterceptor 
 					err := wrapped.getError()
 					setSpanOutcome(span, err)
 					setSpanContext(span, peer)
-				}()
+				}(stream)
 				stream = wrapped
 			}
 		}
