@@ -60,12 +60,9 @@ func DefaultTracer() *Tracer {
 	defer tracerMu.RUnlock()
 
 	if defaultTracer == nil {
-		tracerMu.Lock()
-		defer tracerMu.Unlock()
-
 		var opts TracerOptions
 		opts.initDefaults(true)
-		defaultTracer = newTracer(opts)
+		SetDefaultTracer(newTracer(opts))
 	}
 	return defaultTracer
 }
