@@ -1094,6 +1094,16 @@ func (v *Error) MarshalFastJSON(w *fastjson.Writer) error {
 func (v *ErrorTransaction) MarshalFastJSON(w *fastjson.Writer) error {
 	w.RawByte('{')
 	first := true
+	if v.Name != "" {
+		const prefix = ",\"name\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.String(v.Name)
+	}
 	if v.Sampled != nil {
 		const prefix = ",\"sampled\":"
 		if first {
@@ -1113,16 +1123,6 @@ func (v *ErrorTransaction) MarshalFastJSON(w *fastjson.Writer) error {
 			w.RawString(prefix)
 		}
 		w.String(v.Type)
-	}
-	if v.Name != "" {
-		const prefix = ",\"name\":"
-		if first {
-			first = false
-			w.RawString(prefix[1:])
-		} else {
-			w.RawString(prefix)
-		}
-		w.String(v.Name)
 	}
 	w.RawByte('}')
 	return nil

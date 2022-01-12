@@ -15,9 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//go:build go1.14
-// +build go1.14
-
 package apmgopgv10 // import "go.elastic.co/apm/module/apmgopgv10"
 
 import (
