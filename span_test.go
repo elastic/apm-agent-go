@@ -226,7 +226,7 @@ func TestFramesMinDurationSpecialCases(t *testing.T) {
 
 	spans = tracer.Payloads().Spans
 	require.Len(t, spans, 1)
-	assert.Len(t, spans[0].Stacktrace, 4)
+	assert.NotEmpty(t, spans[0].Stacktrace)
 }
 
 func TestCompressSpanNonSiblings(t *testing.T) {
