@@ -158,7 +158,7 @@ func init() {
 	srv := rpc.NewServer()
 	srv.Register(&Function{
 		client: rpcClient,
-		tracer: apm.DefaultTracer,
+		tracer: apm.DefaultTracer(),
 	})
 	go srv.Accept(lis)
 

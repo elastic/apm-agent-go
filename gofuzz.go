@@ -53,7 +53,7 @@ func Fuzz(data []byte) int {
 		return 0
 	}
 
-	tracer := DefaultTracer
+	tracer := DefaultTracer()
 	tracer.Transport = &gofuzzTransport{}
 	tracer.SetCaptureBody(CaptureBodyAll)
 

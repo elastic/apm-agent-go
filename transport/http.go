@@ -456,10 +456,6 @@ func (t *HTTPTransport) sendProfileRequest(req *http.Request) error {
 // WatchConfig polls the APM Server for agent config changes, sending
 // them over the returned channel.
 func (t *HTTPTransport) WatchConfig(ctx context.Context, args apmconfig.WatchParams) <-chan apmconfig.Change {
-	// We have an initial delay to allow application initialisation code
-	// to close apm.DefaultTracer, which would cancel watching config.
-	const initialDelay = 1 * time.Second
-
 	changes := make(chan apmconfig.Change)
 	go func() {
 		defer close(changes)
@@ -467,7 +463,7 @@ func (t *HTTPTransport) WatchConfig(ctx context.Context, args apmconfig.WatchPar
 		var etag string
 		var out chan apmconfig.Change
 		var change apmconfig.Change
-		timer := time.NewTimer(initialDelay)
+		timer := time.NewTimer(0)
 		for {
 			select {
 			case <-ctx.Done():

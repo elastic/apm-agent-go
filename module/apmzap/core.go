@@ -41,7 +41,7 @@ func init() {
 // to the log records, the errors reported will be associated with them.
 type Core struct {
 	// Tracer is the apm.Tracer to use for reporting errors.
-	// If Tracer is nil, then apm.DefaultTracer will be used.
+	// If Tracer is nil, then apm.DefaultTracer() will be used.
 	Tracer *apm.Tracer
 
 	// FatalFlushTimeout is the amount of time to wait while
@@ -55,7 +55,7 @@ type Core struct {
 func (c *Core) tracer() *apm.Tracer {
 	tracer := c.Tracer
 	if tracer == nil {
-		tracer = apm.DefaultTracer
+		tracer = apm.DefaultTracer()
 	}
 	return tracer
 }

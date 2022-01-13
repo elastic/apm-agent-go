@@ -29,7 +29,7 @@ import (
 // Wrap wraps h such that it will report requests as transactions
 // to Elastic APM, using route in the transaction name.
 //
-// By default, the returned Handle will use apm.DefaultTracer.
+// By default, the returned Handle will use apm.DefaultTracer().
 // Use WithTracer to specify an alternative tracer.
 //
 // By default, the returned Handle will recover panics, reporting
@@ -95,7 +95,7 @@ func wrapHandlerUnknownRoute(h http.Handler, o ...Option) http.Handler {
 
 func gatherOptions(o ...Option) options {
 	opts := options{
-		tracer: apm.DefaultTracer,
+		tracer: apm.DefaultTracer(),
 	}
 	for _, o := range o {
 		o(&opts)

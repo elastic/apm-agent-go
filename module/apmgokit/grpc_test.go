@@ -89,7 +89,7 @@ func Example_grpcClient() {
 		&pb.HelloReply{},
 	)
 
-	tx := apm.DefaultTracer.StartTransaction("name", "type")
+	tx := apm.DefaultTracer().StartTransaction("name", "type")
 	ctx := apm.ContextWithTransaction(context.Background(), tx)
 	defer tx.End()
 
