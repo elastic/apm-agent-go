@@ -56,6 +56,12 @@ func Middleware(engine *gin.Engine, o ...Option) gin.HandlerFunc {
 	return m.handle
 }
 
+type middleware struct {
+	engine         *gin.Engine
+	tracer         *apm.Tracer
+	requestIgnorer apmhttp.RequestIgnorerFunc
+}
+
 func (m *middleware) handle(c *gin.Context) {
 	if !m.tracer.Recording() || m.requestIgnorer(c.Request) {
 		c.Next()
@@ -96,6 +102,13 @@ func (m *middleware) handle(c *gin.Context) {
 		body.Discard()
 	}()
 	c.Next()
+}
+
+func (m *middleware) getRequestName(c *gin.Context) string {
+	if fullPath := c.FullPath(); fullPath != "" {
+		return c.Request.Method + " " + fullPath
+	}
+	return apmhttp.UnknownRouteRequestName(c.Request)
 }
 
 func setContext(ctx *apm.Context, c *gin.Context, body *apm.BodyCapturer) {

@@ -15,9 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//go:build go1.14
-// +build go1.14
-
 // Package apmpostgres imports the gorm mysql dialect package,
 // and also registers the mysql driver with apmsql.
 package apmpostgres // import "go.elastic.co/apm/module/apmgormv2/driver/postgres"

@@ -25,6 +25,8 @@ import (
 	"go.elastic.co/apm"
 )
 
+var _ driver.Validator = (*conn)(nil)
+
 func newConn(in driver.Conn, d *tracingDriver, dsnInfo DSNInfo) driver.Conn {
 	conn := &conn{Conn: in, driver: d}
 	conn.dsnInfo = dsnInfo
@@ -36,8 +38,8 @@ func newConn(in driver.Conn, d *tracingDriver, dsnInfo DSNInfo) driver.Conn {
 	conn.execer, _ = in.(driver.Execer)
 	conn.execerContext, _ = in.(driver.ExecerContext)
 	conn.connBeginTx, _ = in.(driver.ConnBeginTx)
-	conn.connGo110.init(in)
-	conn.connGo115.init(in)
+	conn.sessionResetter, _ = in.(driver.SessionResetter)
+	conn.validator, _ = in.(driver.Validator)
 	if in, ok := in.(driver.ConnBeginTx); ok {
 		return &connBeginTx{conn, in}
 	}
@@ -46,8 +48,6 @@ func newConn(in driver.Conn, d *tracingDriver, dsnInfo DSNInfo) driver.Conn {
 
 type conn struct {
 	driver.Conn
-	connGo110
-	connGo115
 	driver  *tracingDriver
 	dsnInfo DSNInfo
 
@@ -59,6 +59,8 @@ type conn struct {
 	execer             driver.Execer
 	execerContext      driver.ExecerContext
 	connBeginTx        driver.ConnBeginTx
+	sessionResetter    driver.SessionResetter
+	validator          driver.Validator
 }
 
 func (c *conn) startStmtSpan(ctx context.Context, stmt, spanType string) (*apm.Span, context.Context) {
@@ -204,6 +206,20 @@ func (*conn) Exec(query string, args []driver.Value) (driver.Result, error) {
 
 func (c *conn) CheckNamedValue(nv *driver.NamedValue) error {
 	return checkNamedValue(nv, c.namedValueChecker)
+}
+
+func (c *conn) ResetSession(ctx context.Context) error {
+	if c.sessionResetter != nil {
+		return c.sessionResetter.ResetSession(ctx)
+	}
+	return nil
+}
+
+func (c *conn) IsValid() bool {
+	if c.validator != nil {
+		return c.validator.IsValid()
+	}
+	return true
 }
 
 type connBeginTx struct {

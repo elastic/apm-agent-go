@@ -15,8 +15,5 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//go:build go1.11
-// +build go1.11
-
 // Package apmgopg provides wrappers for tracing go-pg operations.
 package apmgopg // import "go.elastic.co/apm/module/apmgopg"

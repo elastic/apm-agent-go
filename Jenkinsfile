@@ -113,7 +113,6 @@ pipeline {
               deleteDir()
               unstash 'source'
               dir("${BASE_DIR}"){
-                sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
                 sh script: './scripts/jenkins/docker-test.sh', label: 'Docker tests'
               }
             }
@@ -150,7 +149,6 @@ pipeline {
               deleteDir()
               unstash 'source'
               dir("${BASE_DIR}"){
-                sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
                 sh script: './scripts/jenkins/bench.sh', label: 'Benchmarking'
                 sendBenchmarks(file: 'build/bench.out', index: 'benchmark-go')
               }
@@ -200,9 +198,6 @@ pipeline {
               retry(3) {
                 deleteDir()
                 unstash 'source'
-                dir("${BASE_DIR}"){
-                  sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
-                }
               }
               retry(3) {
                 dir("${BASE_DIR}"){
@@ -297,9 +292,6 @@ def generateStep(version){
           retry(3) {
             deleteDir()
             unstash 'source'
-            dir("${BASE_DIR}"){
-              sh script: './scripts/jenkins/before_install.sh', label: 'Install dependencies'
-            }
           }
           retry(3) {
             dir("${BASE_DIR}"){

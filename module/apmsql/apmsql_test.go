@@ -326,6 +326,22 @@ func TestContextCanceled(t *testing.T) {
 	assert.Len(t, errors, 0) // no "context canceled" errors reported
 }
 
+func TestConnect(t *testing.T) {
+	db, err := apmsql.Open("sqlite3", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+
+	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+		err := db.PingContext(ctx)
+		assert.NoError(t, err)
+	})
+	require.Len(t, spans, 2)
+	assert.Equal(t, "connect", spans[0].Name)
+	assert.Equal(t, "connect", spans[0].Action)
+	assert.Equal(t, "ping", spans[1].Name)
+	assert.Equal(t, "ping", spans[1].Action)
+}
+
 type sqlite3TestDriver struct {
 	sqlite3.SQLiteDriver
 }
