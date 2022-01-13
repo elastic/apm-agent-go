@@ -65,6 +65,14 @@ func DefaultLogger() *LevelLogger {
 
 	loggerMu.Lock()
 	defer loggerMu.Unlock()
+	// Releasing the RLock could allow another goroutine to call
+	// SetDefaultLogger() before trying to take the write Lock; double
+	// check that DefaultLogger is still nil after acquiring the write
+	// lock.
+	if defaultLogger != nil {
+		defer loggerMu.RUnlock()
+		return defaultLogger
+	}
 
 	fileStr := strings.TrimSpace(os.Getenv(EnvLogFile))
 	if fileStr == "" {
