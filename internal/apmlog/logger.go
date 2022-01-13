@@ -70,13 +70,11 @@ func DefaultLogger() *LevelLogger {
 	// check that DefaultLogger is still nil after acquiring the write
 	// lock.
 	if defaultLogger != nil {
-		defer loggerMu.RUnlock()
 		return defaultLogger
 	}
 
 	fileStr := strings.TrimSpace(os.Getenv(EnvLogFile))
 	if fileStr == "" {
-		defaultLogger = nil
 		return defaultLogger
 	}
 
