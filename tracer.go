@@ -76,7 +76,6 @@ func SetDefaultTracer(t *Tracer) {
 	defer tracerMu.Unlock()
 
 	if defaultTracer != nil {
-		defaultTracer.Flush(nil)
 		defaultTracer.Close()
 	}
 	defaultTracer = t
