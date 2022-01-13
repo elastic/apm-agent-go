@@ -26,7 +26,7 @@ import (
 // Wrap returns a fasthttp.RequestHandler wrapping handler, reporting each request as
 // a transaction to Elastic APM.
 //
-// By default, the returned RequestHandler will use apm.DefaultTracer.
+// By default, the returned RequestHandler will use apm.DefaultTracer().
 // Use WithTracer to specify an alternative tracer.
 //
 // By default, the returned RequestHandler will recover panics, reporting
@@ -41,7 +41,7 @@ func Wrap(handler fasthttp.RequestHandler, options ...ServerOption) fasthttp.Req
 	}
 
 	if h.tracer == nil {
-		h.tracer = apm.DefaultTracer
+		h.tracer = apm.DefaultTracer()
 	}
 
 	if h.requestName == nil {

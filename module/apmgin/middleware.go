@@ -40,12 +40,12 @@ func init() {
 // This middleware will recover and report panics, so it can
 // be used instead of the standard gin.Recovery middleware.
 //
-// By default, the middleware will use apm.DefaultTracer.
+// By default, the middleware will use apm.DefaultTracer().
 // Use WithTracer to specify an alternative tracer.
 func Middleware(engine *gin.Engine, o ...Option) gin.HandlerFunc {
 	m := &middleware{
 		engine: engine,
-		tracer: apm.DefaultTracer,
+		tracer: apm.DefaultTracer(),
 	}
 	for _, o := range o {
 		o(m)

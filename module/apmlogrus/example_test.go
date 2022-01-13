@@ -30,7 +30,7 @@ func ExampleHook() {
 	logger := logrus.New()
 
 	// Report "error", "panic", and "fatal" log messages
-	// to Elastic APM using apm.DefaultTracer.
+	// to Elastic APM using apm.DefaultTracer().
 	logger.AddHook(&apmlogrus.Hook{})
 
 	// Report "error", "panic", and "fatal" log messages
@@ -41,7 +41,7 @@ func ExampleHook() {
 	})
 
 	// Report only "panic" log messages to Elastic APM
-	// using apm.DefaultTracer.
+	// using apm.DefaultTracer().
 	logger.AddHook(&apmlogrus.Hook{
 		LogLevels: []logrus.Level{logrus.PanicLevel},
 	})
@@ -50,7 +50,7 @@ func ExampleHook() {
 func ExampleTraceContext() {
 	logger := logrus.New()
 
-	tx := apm.DefaultTracer.StartTransaction("name", "type")
+	tx := apm.DefaultTracer().StartTransaction("name", "type")
 	defer tx.End()
 
 	ctx := apm.ContextWithTransaction(context.Background(), tx)

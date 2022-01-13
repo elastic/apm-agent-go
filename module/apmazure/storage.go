@@ -46,7 +46,7 @@ func WrapPipeline(next pipeline.Pipeline, options ...ServerOption) pipeline.Pipe
 		opt(p)
 	}
 	if p.tracer == nil {
-		p.tracer = apm.DefaultTracer
+		p.tracer = apm.DefaultTracer()
 	}
 	return p
 }

@@ -24,7 +24,7 @@ import (
 
 The apmot package exports a function, "New", which returns an implementation of the
 `opentracing.Tracer` interface. If you call `apmot.New()` without any arguments,
-the returned tracer will wrap `apm.DefaultTracer`. If you wish to use a different
+the returned tracer will wrap `apm.DefaultTracer()`. If you wish to use a different
 `apm.Tracer`, then you can pass it with `apmot.New(apmot.WithTracer(t))`.
 
 [source,go]
@@ -67,7 +67,7 @@ native and OpenTracing APIs. e.g.:
 [source,go]
 ----
 // Transaction created through native API.
-transaction := apm.DefaultTracer.StartTransaction("GET /", "request")
+transaction := apm.DefaultTracer().StartTransaction("GET /", "request")
 ctx := apm.ContextWithTransaction(context.Background(), transaction)
 
 // Span created through OpenTracing API will be a child of the transaction.

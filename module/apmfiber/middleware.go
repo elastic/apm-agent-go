@@ -33,13 +33,13 @@ import (
 // This middleware will recover and report panics, so it can
 // be used instead of default recover middleware.
 //
-// By default, the middleware will use apm.DefaultTracer.
+// By default, the middleware will use apm.DefaultTracer().
 // Use WithTracer to specify an alternative tracer.
 // Use WithPanicPropagation to disable panic recover.
 func Middleware(o ...Option) fiber.Handler {
 	m := &middleware{
-		tracer:           apm.DefaultTracer,
-		requestIgnorer:   apmfasthttp.NewDynamicServerRequestIgnorer(apm.DefaultTracer),
+		tracer:           apm.DefaultTracer(),
+		requestIgnorer:   apmfasthttp.NewDynamicServerRequestIgnorer(apm.DefaultTracer()),
 		panicPropagation: false,
 	}
 
