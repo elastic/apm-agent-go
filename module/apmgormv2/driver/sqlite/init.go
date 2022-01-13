@@ -15,9 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//go:build go1.14
-// +build go1.14
-
 // Package apmsqlite imports the gorm sqlite dialect package,
 // and also registers the sqlite3 driver with apmsql.
 package apmsqlite // import "go.elastic.co/apm/module/apmgormv2/driver/sqlite"

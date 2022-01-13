@@ -15,8 +15,5 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//go:build go1.9
-// +build go1.9
-
 // Package apmgocql provides an observer for tracing gocql (Cassandra) query spans.
 package apmgocql // import "go.elastic.co/apm/module/apmgocql"
