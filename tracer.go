@@ -71,8 +71,9 @@ func DefaultTracer() *Tracer {
 }
 
 // SetDefaultTracer sets the tracer returned by DefaultTracer(). If another
-// tracer has already been initialized, any events are flushed and the tracer
-// closed.
+// tracer has already been initialized, it is closed. Any queued events are not
+// flushed; it is the responsibility of the caller to call
+// DefaultTracer().Flush().
 func SetDefaultTracer(t *Tracer) {
 	tracerMu.Lock()
 	defer tracerMu.Unlock()
