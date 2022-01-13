@@ -15,9 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//go:build go1.13
-// +build go1.13
-
 package apmfiber // import "go.elastic.co/apm/module/apmfiber"
 
 import (

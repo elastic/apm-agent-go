@@ -15,9 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//go:build go1.11
-// +build go1.11
-
 package apmgoredis // import "go.elastic.co/apm/module/apmgoredis"
 
 import (

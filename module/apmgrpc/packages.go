@@ -15,9 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//go:build go1.9
-// +build go1.9
-
 package apmgrpc // import "go.elastic.co/apm/module/apmgrpc"
 
 import "go.elastic.co/apm/stacktrace"
