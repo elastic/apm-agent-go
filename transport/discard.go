@@ -22,6 +22,18 @@ import (
 	"io"
 )
 
+var (
+	// Discard is a Transport on which all operations
+	// succeed without doing anything.
+	Discard = discardTransport{}
+)
+
+// NewDiscardTransport returns a Transport that returns the given
+// error from all operations.
+func NewDiscardTransport(err error) Transport {
+	return discardTransport{err}
+}
+
 type discardTransport struct {
 	err error
 }

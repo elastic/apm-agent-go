@@ -34,6 +34,7 @@ import (
 	"go.elastic.co/apm/internal/configutil"
 	"go.elastic.co/apm/internal/wildcard"
 	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/transport"
 )
 
 const (
@@ -137,6 +138,15 @@ var (
 		return labels
 	}()
 )
+
+func initialTransport(serviceName, serviceVersion string) (transport.Transport, error) {
+	// TODO(axw) pass service name and version, to append to the User-Agent header.
+	httpTransport, err := transport.NewHTTPTransport()
+	if err != nil {
+		return nil, err
+	}
+	return httpTransport, nil
+}
 
 func initialRequestDuration() (time.Duration, error) {
 	return configutil.ParseDurationEnv(envAPIRequestTime, defaultAPIRequestTime)
