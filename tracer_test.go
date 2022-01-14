@@ -492,6 +492,46 @@ func TestTracerCaptureHeaders(t *testing.T) {
 	}
 }
 
+func TestTracerDefaultTransport(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/intake/v2/events", func(w http.ResponseWriter, r *http.Request) {})
+	srv := httptest.NewServer(mux)
+
+	t.Run("valid", func(t *testing.T) {
+		os.Setenv("ELASTIC_APM_SERVER_URL", srv.URL)
+		defer os.Unsetenv("ELASTIC_APM_SERVER_URL")
+		tracer, err := apm.NewTracer("", "")
+		require.NoError(t, err)
+		defer tracer.Close()
+
+		tracer.StartTransaction("name", "type").End()
+		tracer.Flush(nil)
+		assert.Equal(t, apm.TracerStats{TransactionsSent: 1}, tracer.Stats())
+	})
+
+	t.Run("invalid", func(t *testing.T) {
+		os.Setenv("ELASTIC_APM_SERVER_TIMEOUT", "never")
+		defer os.Unsetenv("ELASTIC_APM_SERVER_TIMEOUT")
+
+		// NewTracer returns errors.
+		tracer, err := apm.NewTracer("", "")
+		require.Error(t, err)
+		assert.EqualError(t, err, "failed to parse ELASTIC_APM_SERVER_TIMEOUT: invalid duration never")
+
+		// Implicitly created Tracers will have a discard tracer.
+		apm.SetDefaultTracer(nil)
+		tracer = apm.DefaultTracer()
+
+		tracer.StartTransaction("name", "type").End()
+		tracer.Flush(nil)
+		assert.Equal(t, apm.TracerStats{
+			Errors: apm.TracerStatsErrors{
+				SendStream: 1,
+			},
+		}, tracer.Stats())
+	})
+}
+
 type blockedTransport struct {
 	transport.Transport
 	unblocked chan struct{}

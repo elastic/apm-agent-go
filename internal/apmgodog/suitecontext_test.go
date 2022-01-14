@@ -41,7 +41,6 @@ import (
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/module/apmgrpc"
 	"go.elastic.co/apm/module/apmhttp"
-	"go.elastic.co/apm/transport"
 )
 
 type featureContext struct {
@@ -272,9 +271,6 @@ func (c *featureContext) checkAuthorizationHeader(expected string) error {
 	os.Setenv("ELASTIC_APM_SECRET_TOKEN", c.secretToken)
 	os.Setenv("ELASTIC_APM_API_KEY", c.apiKey)
 	os.Setenv("ELASTIC_APM_SERVER_URL", server.URL)
-	if _, err := transport.InitDefault(); err != nil {
-		return err
-	}
 	tracer, err := apm.NewTracer("godog", "")
 	if err != nil {
 		return err
