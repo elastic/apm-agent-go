@@ -662,6 +662,84 @@ func TestHTTPTransportSendProfile(t *testing.T) {
 	)
 }
 
+func TestHTTPTransportOptionsValidation(t *testing.T) {
+	validURL, err := url.Parse("http://localhost:8200")
+	require.NoError(t, err)
+
+	t.Run("valid", func(t *testing.T) {
+		transport, err := transport.NewHTTPTransportOptions(transport.HTTPTransportOptions{
+			ServerURLs:    []*url.URL{validURL},
+			ServerTimeout: 30 * time.Second,
+		})
+		assert.NoError(t, err)
+		assert.NotNil(t, transport)
+	})
+	t.Run("invalid_timeout", func(t *testing.T) {
+		transport, err := transport.NewHTTPTransportOptions(transport.HTTPTransportOptions{
+			ServerTimeout: -1,
+		})
+		assert.EqualError(t, err, "apm transport options: ServerTimeout must be greater or equal to 0")
+		assert.Nil(t, transport)
+	})
+}
+
+func TestHTTPTransportOptionsEmptyURL(t *testing.T) {
+	var h recordingHandler
+	server := httptest.NewUnstartedServer(&h)
+	defer server.Close()
+
+	lis, err := net.Listen("tcp", "localhost:8200")
+	if err != nil {
+		t.Skipf("cannot listen on default server address: %s", err)
+	}
+	server.Listener.Close()
+	server.Listener = lis
+	server.Start()
+
+	transport, err := transport.NewHTTPTransportOptions(transport.HTTPTransportOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, transport)
+
+	err = transport.SendStream(context.Background(), strings.NewReader(""))
+	assert.NoError(t, err)
+	assert.Len(t, h.requests, 1)
+}
+
+func TestHTTPTransportOptionsDefaults(t *testing.T) {
+	validURL, err := url.Parse("http://localhost:8200")
+	require.NoError(t, err)
+	transport, err := transport.NewHTTPTransportOptions(transport.HTTPTransportOptions{
+		ServerURLs: []*url.URL{validURL},
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, transport.Client.Timeout, 30*time.Second)
+}
+
+func TestSetServerURL(t *testing.T) {
+	t.Run("valid", func(t *testing.T) {
+		validURL, err := url.Parse("http://localhost:8200")
+		require.NoError(t, err)
+		transport, err := transport.NewHTTPTransportOptions(transport.HTTPTransportOptions{
+			ServerURLs: []*url.URL{validURL},
+		})
+		anotherURL, err := url.Parse("http://somethingelse:8200")
+		require.NoError(t, err)
+
+		err = transport.SetServerURL(anotherURL)
+		require.NoError(t, err)
+	})
+	t.Run("invalid", func(t *testing.T) {
+		validURL, err := url.Parse("http://localhost:8200")
+		require.NoError(t, err)
+		transport, err := transport.NewHTTPTransportOptions(transport.HTTPTransportOptions{
+			ServerURLs: []*url.URL{validURL},
+		})
+
+		err = transport.SetServerURL()
+		require.EqualError(t, err, "SetServerURL expects at least one URL")
+	})
+}
+
 func newHTTPTransport(t *testing.T, handler http.Handler) (*transport.HTTPTransport, *httptest.Server) {
 	server := httptest.NewServer(handler)
 	transport, err := transport.NewHTTPTransport()

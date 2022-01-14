@@ -22,7 +22,6 @@ import (
 
 	"go.elastic.co/apm/internal/ringbuffer"
 	"go.elastic.co/apm/model"
-	"go.elastic.co/apm/stacktrace"
 	"go.elastic.co/fastjson"
 )
 
@@ -162,7 +161,6 @@ func (w *modelWriter) buildModelSpan(out *model.Span, span *Span, sd *SpanData) 
 
 	w.modelStacktrace = appendModelStacktraceFrames(w.modelStacktrace, sd.stacktrace)
 	out.Stacktrace = w.modelStacktrace
-	w.setStacktraceContext(out.Stacktrace)
 }
 
 func (w *modelWriter) buildModelError(out *model.Error, e *ErrorData) {
@@ -197,7 +195,6 @@ func (w *modelWriter) buildModelError(out *model.Error, e *ErrorData) {
 	if len(e.logStacktrace) != 0 {
 		w.modelStacktrace = appendModelStacktraceFrames(w.modelStacktrace, e.logStacktrace)
 	}
-	w.setStacktraceContext(w.modelStacktrace)
 
 	var modelStacktraceOffset int
 	if e.exception.message != "" {
@@ -260,19 +257,6 @@ func stacktraceCulprit(frames []model.StacktraceFrame) string {
 		}
 	}
 	return ""
-}
-
-func (w *modelWriter) setStacktraceContext(stack []model.StacktraceFrame) {
-	if w.cfg.contextSetter == nil || len(stack) == 0 {
-		return
-	}
-	err := stacktrace.SetContext(w.cfg.contextSetter, stack, w.cfg.preContext, w.cfg.postContext)
-	if err != nil {
-		if w.cfg.logger != nil {
-			w.cfg.logger.Debugf("setting context failed: %v", err)
-		}
-		w.stats.Errors.SetContext++
-	}
 }
 
 func normalizeOutcome(outcome string) string {

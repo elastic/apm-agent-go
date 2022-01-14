@@ -35,33 +35,53 @@ import (
 	"go.elastic.co/apm/internal/ringbuffer"
 	"go.elastic.co/apm/internal/wildcard"
 	"go.elastic.co/apm/model"
-	"go.elastic.co/apm/stacktrace"
 	"go.elastic.co/apm/transport"
 	"go.elastic.co/fastjson"
 )
 
 const (
-	defaultPreContext     = 3
-	defaultPostContext    = 3
 	gracePeriodJitter     = 0.1 // +/- 10%
 	tracerEventChannelCap = 1000
 )
 
 var (
-	// DefaultTracer is the default global Tracer, set at package
-	// initialization time, configured via environment variables.
-	//
-	// This will always be initialized to a non-nil value. If any
-	// of the environment variables are invalid, the corresponding
-	// errors will be logged to stderr and the default values will
-	// be used instead.
-	DefaultTracer *Tracer
+	tracerMu      sync.RWMutex
+	defaultTracer *Tracer
 )
 
-func init() {
+// DefaultTracer returns the default global Tracer, set the first time the
+// function is called. It is configured via environment variables.
+//
+// This will always be initialized to a non-nil value. If any of the
+// environment variables are invalid, the corresponding errors will be logged
+// to stderr and the default values will be used instead.
+func DefaultTracer() *Tracer {
+	tracerMu.RLock()
+	tracer := defaultTracer
+	tracerMu.RUnlock()
+	if tracer != nil {
+		return tracer
+	}
+
 	var opts TracerOptions
 	opts.initDefaults(true)
-	DefaultTracer = newTracer(opts)
+	tracer = newTracer(opts)
+	SetDefaultTracer(tracer)
+	return tracer
+}
+
+// SetDefaultTracer sets the tracer returned by DefaultTracer(). If another
+// tracer has already been initialized, it is closed. Any queued events are not
+// flushed; it is the responsibility of the caller to call
+// DefaultTracer().Flush().
+func SetDefaultTracer(t *Tracer) {
+	tracerMu.Lock()
+	defer tracerMu.Unlock()
+
+	if defaultTracer != nil {
+		defaultTracer.Close()
+	}
+	defaultTracer = t
 }
 
 // TracerOptions holds initial tracer options, for passing to NewTracerOptions.
@@ -87,7 +107,8 @@ type TracerOptions struct {
 
 	// Transport holds the transport to use for sending events.
 	//
-	// If Transport is nil, transport.Default will be used.
+	// If Transport is nil, a new HTTP transport will be created from environment
+	// variables.
 	//
 	// If Transport implements apmconfig.Watcher, the tracer will begin watching
 	// for remote changes immediately. This behaviour can be disabled by setting
@@ -253,6 +274,26 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 		}
 	}
 
+	serviceName, serviceVersion, serviceEnvironment := initialService()
+	if opts.ServiceName == "" {
+		opts.ServiceName = serviceName
+	}
+	if opts.ServiceVersion == "" {
+		opts.ServiceVersion = serviceVersion
+	}
+	if opts.ServiceEnvironment == "" {
+		opts.ServiceEnvironment = serviceEnvironment
+	}
+
+	if opts.Transport == nil {
+		initialTransport, err := initialTransport(opts.ServiceName, opts.ServiceVersion)
+		if failed(err) {
+			opts.Transport = transport.NewDiscardTransport(err)
+		} else {
+			opts.Transport = initialTransport
+		}
+	}
+
 	if len(errs) != 0 && !continueOnError {
 		return errs[0]
 	}
@@ -284,9 +325,6 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 	opts.recording = recording
 	opts.propagateLegacyHeader = propagateLegacyHeader
 	opts.exitSpanMinDuration = exitSpanMinDuration
-	if opts.Transport == nil {
-		opts.Transport = transport.Default
-	}
 	if centralConfigEnabled {
 		if cw, ok := opts.Transport.(apmconfig.Watcher); ok {
 			opts.configWatcher = cw
@@ -297,17 +335,6 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 		opts.cpuProfileInterval = cpuProfileInterval
 		opts.cpuProfileDuration = cpuProfileDuration
 		opts.heapProfileInterval = heapProfileInterval
-	}
-
-	serviceName, serviceVersion, serviceEnvironment := initialService()
-	if opts.ServiceName == "" {
-		opts.ServiceName = serviceName
-	}
-	if opts.ServiceVersion == "" {
-		opts.ServiceVersion = serviceVersion
-	}
-	if opts.ServiceEnvironment == "" {
-		opts.ServiceEnvironment = serviceEnvironment
 	}
 	return nil
 }
@@ -378,12 +405,6 @@ type Tracer struct {
 // This is equivalent to calling NewTracerOptions with a
 // TracerOptions having ServiceName and ServiceVersion set to
 // the provided arguments.
-//
-// NOTE when this package is imported, DefaultTracer is initialised
-// using environment variables for configuration. When creating a
-// tracer with NewTracer or NewTracerOptions, you should close
-// apm.DefaultTracer if it is not needed, e.g. by calling
-// apm.DefaultTracer.Close() in an init function.
 func NewTracer(serviceName, serviceVersion string) (*Tracer, error) {
 	return NewTracerOptions(TracerOptions{
 		ServiceName:    serviceName,
@@ -394,12 +415,6 @@ func NewTracer(serviceName, serviceVersion string) (*Tracer, error) {
 // NewTracerOptions returns a new Tracer using the provided options.
 // See TracerOptions for details on the options, and their default
 // values.
-//
-// NOTE when this package is imported, DefaultTracer is initialised
-// using environment variables for configuration. When creating a
-// tracer with NewTracer or NewTracerOptions, you should close
-// apm.DefaultTracer if it is not needed, e.g. by calling
-// apm.DefaultTracer.Close() in an init function.
 func NewTracerOptions(opts TracerOptions) (*Tracer, error) {
 	if err := opts.initDefaults(false); err != nil {
 		return nil, err
@@ -503,8 +518,6 @@ func newTracer(opts TracerOptions) *Tracer {
 		cfg.requestDuration = opts.requestDuration
 		cfg.requestSize = opts.requestSize
 		cfg.disabledMetrics = opts.disabledMetrics
-		cfg.preContext = defaultPreContext
-		cfg.postContext = defaultPostContext
 		cfg.metricsGatherers = []MetricsGatherer{newBuiltinMetricsGatherer(t)}
 		if apmlog.DefaultLogger != nil {
 			cfg.logger = apmlog.DefaultLogger
@@ -519,18 +532,16 @@ func newTracer(opts TracerOptions) *Tracer {
 // tracerConfig holds the tracer's runtime configuration, which may be modified
 // by sending a tracerConfigCommand to the tracer's configCommands channel.
 type tracerConfig struct {
-	recording               bool
-	requestSize             int
-	requestDuration         time.Duration
-	metricsInterval         time.Duration
-	logger                  WarningLogger
-	metricsGatherers        []MetricsGatherer
-	contextSetter           stacktrace.ContextSetter
-	preContext, postContext int
-	disabledMetrics         wildcard.Matchers
-	cpuProfileDuration      time.Duration
-	cpuProfileInterval      time.Duration
-	heapProfileInterval     time.Duration
+	recording           bool
+	requestSize         int
+	requestDuration     time.Duration
+	metricsInterval     time.Duration
+	logger              WarningLogger
+	metricsGatherers    []MetricsGatherer
+	disabledMetrics     wildcard.Matchers
+	cpuProfileDuration  time.Duration
+	cpuProfileInterval  time.Duration
+	heapProfileInterval time.Duration
 }
 
 type tracerConfigCommand func(*tracerConfig)
@@ -601,15 +612,6 @@ func (t *Tracer) SetRequestDuration(d time.Duration) {
 func (t *Tracer) SetMetricsInterval(d time.Duration) {
 	t.sendConfigCommand(func(cfg *tracerConfig) {
 		cfg.metricsInterval = d
-	})
-}
-
-// SetContextSetter sets the stacktrace.ContextSetter to be used for
-// setting stacktrace source context. If nil (which is the initial
-// value), no context will be set.
-func (t *Tracer) SetContextSetter(setter stacktrace.ContextSetter) {
-	t.sendConfigCommand(func(cfg *tracerConfig) {
-		cfg.contextSetter = setter
 	})
 }
 

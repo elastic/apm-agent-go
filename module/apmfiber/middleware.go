@@ -15,16 +15,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//go:build go1.13
-// +build go1.13
-
 package apmfiber // import "go.elastic.co/apm/module/apmfiber"
 
 import (
 	"net/http"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/valyala/fasthttp"
 
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/module/apmfasthttp"
@@ -37,13 +33,13 @@ import (
 // This middleware will recover and report panics, so it can
 // be used instead of default recover middleware.
 //
-// By default, the middleware will use apm.DefaultTracer.
+// By default, the middleware will use apm.DefaultTracer().
 // Use WithTracer to specify an alternative tracer.
 // Use WithPanicPropagation to disable panic recover.
 func Middleware(o ...Option) fiber.Handler {
 	m := &middleware{
-		tracer:           apm.DefaultTracer,
-		requestIgnorer:   apmfasthttp.NewDynamicServerRequestIgnorer(apm.DefaultTracer),
+		tracer:           apm.DefaultTracer(),
+		requestIgnorer:   apmfasthttp.NewDynamicServerRequestIgnorer(apm.DefaultTracer()),
 		panicPropagation: false,
 	}
 
@@ -69,7 +65,7 @@ func (m *middleware) handle(c *fiber.Ctx) error {
 	name := string(reqCtx.Method()) + " " + c.Path()
 	tx, body, err := apmfasthttp.StartTransactionWithBody(reqCtx, m.tracer, name)
 	if err != nil {
-		reqCtx.Error(err.Error(), fasthttp.StatusInternalServerError)
+		reqCtx.Error(err.Error(), http.StatusInternalServerError)
 
 		return err
 	}

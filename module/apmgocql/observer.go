@@ -15,9 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//go:build go1.9
-// +build go1.9
-
 package apmgocql // import "go.elastic.co/apm/module/apmgocql"
 
 import (
@@ -46,7 +43,7 @@ type Observer struct {
 // observed gocql queries.
 func NewObserver(o ...Option) *Observer {
 	opts := options{
-		tracer: apm.DefaultTracer,
+		tracer: apm.DefaultTracer(),
 	}
 	for _, o := range o {
 		o(&opts)
@@ -80,7 +77,7 @@ func (o *Observer) ObserveBatch(ctx context.Context, batch gocql.ObservedBatch) 
 		span.End()
 	}
 
-	if e := apm.CaptureError(ctx, batch.Err); e != nil {
+	if e := apm.CaptureError(ctx, batch.Err); e != nil && e.ErrorData != nil {
 		e.Timestamp = batch.End
 		e.Send()
 	}
@@ -97,7 +94,7 @@ func (o *Observer) ObserveQuery(ctx context.Context, query gocql.ObservedQuery) 
 		Instance:  query.Keyspace,
 		Statement: query.Statement,
 	})
-	if e := apm.CaptureError(ctx, query.Err); e != nil {
+	if e := apm.CaptureError(ctx, query.Err); e != nil && e.ErrorData != nil {
 		e.Timestamp = query.End
 		e.Send()
 	}

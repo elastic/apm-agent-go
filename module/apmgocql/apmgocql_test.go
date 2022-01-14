@@ -15,9 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//go:build go1.9
-// +build go1.9
-
 package apmgocql_test
 
 import (
@@ -224,6 +221,17 @@ func TestQueryObserverErrorIntegration(t *testing.T) {
 
 	assert.Equal(t, errors[0].Culprit, "execQuery")
 	assert.EqualError(t, queryError, errors[0].Exception.Message)
+}
+
+func TestQueryObserverWithoutTransaction(t *testing.T) {
+	session := newSession(t)
+	defer session.Close()
+
+	_, spans, errors := apmtest.WithTransaction(func(ctx context.Context) {
+		_ = execQuery(context.TODO(), session, "ZINGA")
+	})
+	require.Len(t, errors, 0)
+	require.Len(t, spans, 0)
 }
 
 func execQuery(ctx context.Context, session *gocql.Session, query string) error {

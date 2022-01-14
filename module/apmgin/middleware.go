@@ -40,12 +40,12 @@ func init() {
 // This middleware will recover and report panics, so it can
 // be used instead of the standard gin.Recovery middleware.
 //
-// By default, the middleware will use apm.DefaultTracer.
+// By default, the middleware will use apm.DefaultTracer().
 // Use WithTracer to specify an alternative tracer.
 func Middleware(engine *gin.Engine, o ...Option) gin.HandlerFunc {
 	m := &middleware{
 		engine: engine,
-		tracer: apm.DefaultTracer,
+		tracer: apm.DefaultTracer(),
 	}
 	for _, o := range o {
 		o(m)
@@ -54,6 +54,12 @@ func Middleware(engine *gin.Engine, o ...Option) gin.HandlerFunc {
 		m.requestIgnorer = apmhttp.NewDynamicServerRequestIgnorer(m.tracer)
 	}
 	return m.handle
+}
+
+type middleware struct {
+	engine         *gin.Engine
+	tracer         *apm.Tracer
+	requestIgnorer apmhttp.RequestIgnorerFunc
 }
 
 func (m *middleware) handle(c *gin.Context) {
@@ -96,6 +102,13 @@ func (m *middleware) handle(c *gin.Context) {
 		body.Discard()
 	}()
 	c.Next()
+}
+
+func (m *middleware) getRequestName(c *gin.Context) string {
+	if fullPath := c.FullPath(); fullPath != "" {
+		return c.Request.Method + " " + fullPath
+	}
+	return apmhttp.UnknownRouteRequestName(c.Request)
 }
 
 func setContext(ctx *apm.Context, c *gin.Context, body *apm.BodyCapturer) {

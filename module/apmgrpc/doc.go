@@ -15,8 +15,5 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//go:build go1.9
-// +build go1.9
-
 // Package apmgrpc provides interceptors for tracing gRPC.
 package apmgrpc // import "go.elastic.co/apm/module/apmgrpc"

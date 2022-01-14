@@ -15,9 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//go:build go1.14
-// +build go1.14
-
 package apm
 
 import (
@@ -86,7 +83,7 @@ func testBreakdownMetricsAlignment(t *testing.T, arch string) {
 		breakdownMetricsMapEntryObj.Type(), false, pkg, "breakdownTiming",
 	)
 	require.NotNil(t, breakdownTimingObj)
-	assert.Equal(t, []int{0}, breakdownTimingFieldIndex)
+	assert.Equal(t, []int{1}, breakdownTimingFieldIndex)
 
 	// breakdownTiming.transaction.duration and breakdownTiming.span.duration
 	// should be 64-bit aligned. We know that the breakdownTiming type is

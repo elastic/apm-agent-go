@@ -45,8 +45,7 @@ func NewDiscardTracer() *apm.Tracer {
 }
 
 func init() {
-	apm.DefaultTracer.Close()
 	tracer := NewDiscardTracer()
 	DiscardTracer = tracer
-	apm.DefaultTracer = DiscardTracer
+	apm.SetDefaultTracer(DiscardTracer)
 }

@@ -15,9 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//go:build go1.14
-// +build go1.14
-
 package apmazure // import "go.elastic.co/apm/module/apmazure"
 
 import (
@@ -49,7 +46,7 @@ func WrapPipeline(next pipeline.Pipeline, options ...ServerOption) pipeline.Pipe
 		opt(p)
 	}
 	if p.tracer == nil {
-		p.tracer = apm.DefaultTracer
+		p.tracer = apm.DefaultTracer()
 	}
 	return p
 }

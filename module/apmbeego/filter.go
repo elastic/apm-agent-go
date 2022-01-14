@@ -42,7 +42,7 @@ func init() {
 // Middleware returns a beego.MiddleWare that traces requests and reports panics to Elastic APM.
 func Middleware(o ...Option) func(http.Handler) http.Handler {
 	opts := options{
-		tracer: apm.DefaultTracer,
+		tracer: apm.DefaultTracer(),
 	}
 	for _, o := range o {
 		o(&opts)

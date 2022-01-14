@@ -555,6 +555,22 @@ func TestErrorCauseCycle(t *testing.T) {
 	assert.Equal(t, "errorslice", payloads.Errors[0].Exception.Cause[0].Cause[0].Message)
 }
 
+func TestErrorCauseUnwrap(t *testing.T) {
+	err := fmt.Errorf("%w", errors.New("cause"))
+
+	tracer, recorder := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+	tracer.NewError(err).Send()
+	tracer.Flush(nil)
+
+	payloads := recorder.Payloads()
+	require.Len(t, payloads.Errors, 1)
+	assert.Equal(t, "TestErrorCauseUnwrap", payloads.Errors[0].Culprit)
+
+	require.Len(t, payloads.Errors[0].Exception.Cause, 1)
+	assert.Equal(t, "cause", payloads.Errors[0].Exception.Cause[0].Message)
+}
+
 func assertErrorTransactionSampled(t *testing.T, e model.Error, sampled bool) {
 	assert.Equal(t, &sampled, e.Transaction.Sampled)
 	if sampled {

@@ -68,7 +68,7 @@ func Example_httpClient() {
 		kithttp.SetClient(apmhttp.WrapClient(http.DefaultClient)),
 	)
 
-	tx := apm.DefaultTracer.StartTransaction("name", "type")
+	tx := apm.DefaultTracer().StartTransaction("name", "type")
 	ctx := apm.ContextWithTransaction(context.Background(), tx)
 	defer tx.End()
 

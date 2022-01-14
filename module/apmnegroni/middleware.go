@@ -40,7 +40,7 @@ func init() {
 // This middleware will recover and report panics, so it can
 // be used instead of the standard negroni.Recovery middleware.
 //
-// By default, the middleware will use apm.DefaultTracer.
+// By default, the middleware will use apm.DefaultTracer().
 // Use WithTracer to specify an alternative tracer.
 func Middleware(o ...Option) negroni.Handler {
 	m := &middleware{

@@ -62,7 +62,7 @@ func init() {
 // convey the complete file location and fully qualified function name.
 type Writer struct {
 	// Tracer is the apm.Tracer to use for reporting errors.
-	// If Tracer is nil, then apm.DefaultTracer will be used.
+	// If Tracer is nil, then apm.DefaultTracer() will be used.
 	Tracer *apm.Tracer
 
 	// FatalFlushTimeout is the amount of time to wait while
@@ -84,7 +84,7 @@ type Writer struct {
 func (w *Writer) tracer() *apm.Tracer {
 	tracer := w.Tracer
 	if tracer == nil {
-		tracer = apm.DefaultTracer
+		tracer = apm.DefaultTracer()
 	}
 	return tracer
 }

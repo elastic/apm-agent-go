@@ -370,6 +370,30 @@ func TestWithClientSpanType(t *testing.T) {
 	assert.Equal(t, "cache", span.Type)
 }
 
+func TestClientCloseIdleConnections(t *testing.T) {
+	var closed bool
+	transport := &idleConnectionsCloser{
+		RoundTripper: http.DefaultTransport,
+		closeIdleConnections: func() {
+			closed = true
+		},
+	}
+	client := &http.Client{
+		Transport: apmhttp.WrapRoundTripper(transport),
+	}
+	client.CloseIdleConnections()
+	assert.True(t, closed)
+}
+
+type idleConnectionsCloser struct {
+	http.RoundTripper
+	closeIdleConnections func()
+}
+
+func (c *idleConnectionsCloser) CloseIdleConnections() {
+	c.closeIdleConnections()
+}
+
 func mustGET(ctx context.Context, url string, o ...apmhttp.ClientOption) (statusCode int, responseBody string) {
 	client := apmhttp.WrapClient(http.DefaultClient, o...)
 	resp, err := ctxhttp.Get(ctx, client, url)

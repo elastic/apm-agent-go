@@ -15,9 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//go:build go1.13
-// +build go1.13
-
 package apmawssdkgo // import "go.elastic.co/apm/module/apmawssdkgo"
 
 import (
@@ -187,7 +184,7 @@ func TestUnsupportedServices(t *testing.T) {
 	wrapped := WrapSession(session)
 	svc := athena.New(wrapped)
 
-	tx := apm.DefaultTracer.StartTransaction("send-email", "test-tx")
+	tx := apm.DefaultTracer().StartTransaction("send-email", "test-tx")
 	span := tx.StartSpan("test-span", "send-email", nil)
 	defer span.End()
 

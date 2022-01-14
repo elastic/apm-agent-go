@@ -15,9 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//go:build go1.11
-// +build go1.11
-
 package apmrestfulv3 // import "go.elastic.co/apm/module/apmrestfulv3"
 
 import (
@@ -32,11 +29,11 @@ import (
 // Filter returns a new restful.Filter for tracing requests
 // and recovering and reporting panics to Elastic APM.
 //
-// By default, the filter will use apm.DefaultTracer.
+// By default, the filter will use apm.DefaultTracer().
 // Use WithTracer to specify an alternative tracer.
 func Filter(o ...Option) restful.FilterFunction {
 	opts := options{
-		tracer: apm.DefaultTracer,
+		tracer: apm.DefaultTracer(),
 	}
 	for _, o := range o {
 		o(&opts)

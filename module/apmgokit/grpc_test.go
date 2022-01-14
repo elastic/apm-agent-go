@@ -15,9 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//go:build go1.9
-// +build go1.9
-
 package apmgokit_test
 
 import (
@@ -92,7 +89,7 @@ func Example_grpcClient() {
 		&pb.HelloReply{},
 	)
 
-	tx := apm.DefaultTracer.StartTransaction("name", "type")
+	tx := apm.DefaultTracer().StartTransaction("name", "type")
 	ctx := apm.ContextWithTransaction(context.Background(), tx)
 	defer tx.End()
 
