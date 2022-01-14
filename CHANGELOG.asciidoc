@@ -32,7 +32,7 @@ https://github.com/elastic/apm-agent-go/compare/v1.15.0...master[View commits]
 - Remove stacktrace.ContextSetter {pull}1187[#(1187)]
 - Drop support for versions of Go prior to 1.15.0 {pull}1190[#(1190)]
 - Replace apm.DefaultTracer with an initialization function {pull}1189[#(1189)]
-- Remove transport.Default, construct a new Transport in each new tracer {pull}[#()]
+- Remove transport.Default, construct a new Transport in each new tracer {pull}1195[#(1195)]
 
 [[release-notes-1.x]]
 === Go Agent version 1.x
