@@ -23,6 +23,17 @@ endif::[]
 
 https://github.com/elastic/apm-agent-go/compare/v1.15.0...master[View commits]
 
+- Record `transaction.name` on errors {pull}1177[#(1177)]
+- Fix panic in apmgocql {pull}1180[#(1180)]
+- Stop recording unused `transaction.duration.*` and `transaction.breakdown.count` metrics {pull}1167[#(1167)]
+- Make tracestate parsing more lenient, according to W3c spec, allowing duplicate vendor keys {pull}1183[#(1183)]
+- Introduced `transport.NewHTTPTransportOptions` {pull}1168[#(1168)]
+- Change `ELASTIC_APM_SPAN_FRAMES_MIN_DURATION` special cases to match agent spec {pull}1188[#(1188)]
+- Remove stacktrace.ContextSetter {pull}1187[#(1187)]
+- Drop support for versions of Go prior to 1.15.0 {pull}1190[#(1190)]
+- Replace apm.DefaultTracer with an initialization function {pull}1189[#(1189)]
+- Remove transport.Default, construct a new Transport in each new tracer {pull}[#()]
+
 [[release-notes-1.x]]
 === Go Agent version 1.x
 
