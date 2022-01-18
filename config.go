@@ -18,6 +18,7 @@
 package apm // import "go.elastic.co/apm"
 
 import (
+	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -140,9 +141,14 @@ var (
 )
 
 func initialTransport(serviceName, serviceVersion string) (transport.Transport, error) {
-	// TODO(axw) pass service name and version, to append to the User-Agent header.
+	// User-Agent should be "apm-agent-go/<agent-version> (service-name service-version)".
+	service := serviceName
+	if serviceVersion != "" {
+		service += " " + serviceVersion
+	}
+	userAgent := fmt.Sprintf("%s (%s)", transport.DefaultUserAgent(), service)
 	httpTransport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{
-		UserAgent: "user-agent",
+		UserAgent: userAgent,
 	})
 	if err != nil {
 		return nil, err

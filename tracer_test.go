@@ -39,6 +39,7 @@ import (
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/apmtest"
 	"go.elastic.co/apm/internal/apmhostutil"
+	"go.elastic.co/apm/internal/apmversion"
 	"go.elastic.co/apm/model"
 	"go.elastic.co/apm/transport"
 	"go.elastic.co/apm/transport/transporttest"
@@ -55,6 +56,30 @@ func TestTracerStats(t *testing.T) {
 	assert.Equal(t, apm.TracerStats{
 		TransactionsSent: 500,
 	}, tracer.Stats())
+}
+
+func TestTracerUserAgent(t *testing.T) {
+	sendRequest := func(serviceVersion string) (userAgent string) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			userAgent = r.UserAgent()
+		}))
+		defer srv.Close()
+
+		os.Setenv("ELASTIC_APM_SERVER_URL", srv.URL)
+		defer os.Unsetenv("ELASTIC_APM_SERVER_URL")
+		tracer, err := apm.NewTracerOptions(apm.TracerOptions{
+			ServiceName:    "apmtest",
+			ServiceVersion: serviceVersion,
+		})
+		require.NoError(t, err)
+		defer tracer.Close()
+
+		tracer.StartTransaction("name", "type").End()
+		tracer.Flush(nil)
+		return userAgent
+	}
+	assert.Equal(t, fmt.Sprintf("apm-agent-go/%s (apmtest)", apmversion.AgentVersion), sendRequest(""))
+	assert.Equal(t, fmt.Sprintf("apm-agent-go/%s (apmtest 1.0.0)", apmversion.AgentVersion), sendRequest("1.0.0"))
 }
 
 func TestTracerClosedSendNonBlocking(t *testing.T) {
