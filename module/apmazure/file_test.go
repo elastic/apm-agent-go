@@ -68,7 +68,7 @@ func TestFileGetOperation(t *testing.T) {
 		want   string
 		values url.Values
 	}{
-		// https://github.com/elastic/apm/blob/master/specs/agents/tracing-instrumentation-azure.md#determining-operations-3
+		// https://github.com/elastic/apm/blob/main/specs/agents/tracing-instrumentation-azure.md#determining-operations-3
 		{
 			want:   "Download",
 			values: url.Values{},
@@ -119,7 +119,7 @@ func TestFileHeadOperation(t *testing.T) {
 		want   string
 		values url.Values
 	}{
-		// https://github.com/elastic/apm/blob/master/specs/agents/tracing-instrumentation-azure.md#determining-operations-3
+		// https://github.com/elastic/apm/blob/main/specs/agents/tracing-instrumentation-azure.md#determining-operations-3
 		{
 			want:   "GetProperties",
 			values: url.Values{},
@@ -150,7 +150,7 @@ func TestFilePutOperation(t *testing.T) {
 		values url.Values
 		header http.Header
 	}{
-		// https://github.com/elastic/apm/blob/master/specs/agents/tracing-instrumentation-azure.md#determining-operations
+		// https://github.com/elastic/apm/blob/main/specs/agents/tracing-instrumentation-azure.md#determining-operations
 		{
 			want:   "Copy",
 			header: http.Header{"x-ms-copy-source": []string{}},

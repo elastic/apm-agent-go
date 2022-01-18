@@ -1,7 +1,7 @@
-[![Build Status](https://apm-ci.elastic.co/buildStatus/icon?job=apm-agent-go/apm-agent-go-mbp/master)](https://apm-ci.elastic.co/job/apm-agent-go/job/apm-agent-go-mbp/job/master/)
+[![Build Status](https://apm-ci.elastic.co/buildStatus/icon?job=apm-agent-go/apm-agent-go-mbp/main)](https://apm-ci.elastic.co/job/apm-agent-go/job/apm-agent-go-mbp/job/main/)
 [![PkgGoDev](https://pkg.go.dev/badge/go.elastic.co/apm)](https://pkg.go.dev/go.elastic.co/apm)
 [![Go Report Card](https://goreportcard.com/badge/go.elastic.co/apm)](https://goreportcard.com/report/go.elastic.co/apm)
-[![codecov.io](https://codecov.io/github/elastic/apm-agent-go/coverage.svg?branch=master)](https://codecov.io/github/elastic/apm-agent-go?branch=master)
+[![codecov.io](https://codecov.io/github/elastic/apm-agent-go/coverage.svg?branch=main)](https://codecov.io/github/elastic/apm-agent-go?branch=main)
 
 # apm-agent-go: APM Agent for Go
 
