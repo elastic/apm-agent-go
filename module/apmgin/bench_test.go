@@ -69,11 +69,12 @@ func newTracer() *apm.Tracer {
 	if err != nil {
 		panic(err)
 	}
-	httpTransport, err := transport.NewHTTPTransport()
+	httpTransport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{
+		ServerURLs: []*url.URL{invalidServerURL},
+	})
 	if err != nil {
 		panic(err)
 	}
-	httpTransport.SetServerURL(invalidServerURL)
 	tracer, err := apm.NewTracerOptions(apm.TracerOptions{
 		ServiceName:    "apmgin_test",
 		ServiceVersion: "0.1",

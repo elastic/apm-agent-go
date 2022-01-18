@@ -141,7 +141,9 @@ var (
 
 func initialTransport(serviceName, serviceVersion string) (transport.Transport, error) {
 	// TODO(axw) pass service name and version, to append to the User-Agent header.
-	httpTransport, err := transport.NewHTTPTransport()
+	httpTransport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{
+		UserAgent: "user-agent",
+	})
 	if err != nil {
 		return nil, err
 	}

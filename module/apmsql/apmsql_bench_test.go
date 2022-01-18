@@ -51,9 +51,10 @@ func BenchmarkStmtQueryContext(b *testing.B) {
 		if err != nil {
 			panic(err)
 		}
-		httpTransport, err := transport.NewHTTPTransport()
+		httpTransport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{
+			ServerURLs: []*url.URL{invalidServerURL},
+		})
 		require.NoError(b, err)
-		httpTransport.SetServerURL(invalidServerURL)
 
 		tracer, err := apm.NewTracerOptions(apm.TracerOptions{
 			ServiceName:    "apmhttp_test",
@@ -99,9 +100,10 @@ func BenchmarkStmtExecContext(b *testing.B) {
 		if err != nil {
 			panic(err)
 		}
-		httpTransport, err := transport.NewHTTPTransport()
+		httpTransport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{
+			ServerURLs: []*url.URL{invalidServerURL},
+		})
 		require.NoError(b, err)
-		httpTransport.SetServerURL(invalidServerURL)
 
 		tracer, err := apm.NewTracerOptions(apm.TracerOptions{
 			ServiceName:    "apmhttp_test",
