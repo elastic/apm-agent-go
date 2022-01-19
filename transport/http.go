@@ -86,23 +86,6 @@ type HTTPTransportOptions struct {
 	// ELASTIC_APM_SECRET_TOKEN envirohnment variable.
 	SecretToken string
 
-	// ServerCert holds the path to a PEM-encoded TLS certificate that must
-	// match the APM Server-supplied certificate. This can be used to pin a
-	// self signed certificate. If this is set, then SkipServerVerify will be
-	// ignored.
-	//
-	// If unspecified, ServerCert will be initialized using the
-	// ELASTIC_APM_SERVER_CERT environment variable.
-	ServerCert string
-
-	// ServerCACert holds the path to a PEM-encoded Certificate Authority
-	// certificate that will be used for verifying the server's TLS certificate
-	// chain.
-	//
-	// If unspecified, ServerCACert will be initialized using the
-	// ELASTIC_APM_SERVER_CA_CERT_FILE environment variable.
-	ServerCACert string
-
 	// ServerURLs holds the URLs for your Elastic APM Server. The Server
 	// supports both HTTP and HTTPS. If you use HTTPS, then you may need to
 	// configure your client machines so that the server certificate can be
@@ -125,12 +108,23 @@ type HTTPTransportOptions struct {
 	// not allowed, and will cause NewHTTPTransport to return an error.
 	ServerTimeout time.Duration
 
-	// SkipServerVerify skips TLS certificate verification of the APM Server.
-	// By default, the server's TLS certificate will be verified.
+	// TLSClientConfig holds client TLS configuration for use in the HTTP client.
 	//
-	// If false, SkipServerVerify will be initialized using the
-	// ELASTIC_APM_VERIFY_SERVER_CERT environment variable.
-	SkipServerVerify bool
+	// If TLS is nil, TLS will be constructed using the following environment
+	// variables:
+	//
+	// - ELASTIC_APM_SERVER_CERT: the path to a PEM-encoded TLS certificate
+	//   that must match the APM Server-supplied certificate. This can be used
+	//   to pin a self signed certificate.
+	//
+	// - ELASTIC_APM_SERVER_CA_CERT_FILE: the path to a PEM-encoded TLS
+	//   Certificate Authority certificate that will be used for verifying
+	//   the server's TLS certificate chain.
+	//
+	// - ELASTIC_APM_VERIFY_SERVER_CERT: flag to control verification of the
+	//   APM Server's TLS certificates. If ELASTIC_APM_SERVER_CERT is defined,
+	//   ELASTIC_APM_VERIFY_SERVER_CERT is ignored.
+	TLSClientConfig *tls.Config
 
 	// UserAgent holds the value to use for the User-Agent header.
 	//
@@ -177,11 +171,12 @@ func NewHTTPTransport(opts HTTPTransportOptions) (*HTTPTransport, error) {
 		}
 		opts.ServerURLs = serverURLs
 	}
-	if opts.ServerCert == "" {
-		opts.ServerCert = os.Getenv(envServerCert)
-	}
-	if opts.ServerCACert == "" {
-		opts.ServerCACert = os.Getenv(envServerCACert)
+	if opts.TLSClientConfig == nil {
+		tlsClientConfig, err := newEnvTLSClientConfig()
+		if err != nil {
+			return nil, err
+		}
+		opts.TLSClientConfig = tlsClientConfig
 	}
 	if opts.SecretToken == "" && opts.APIKey == "" {
 		opts.SecretToken = os.Getenv(envSecretToken)
@@ -193,13 +188,6 @@ func NewHTTPTransport(opts HTTPTransportOptions) (*HTTPTransport, error) {
 		}
 		opts.ServerTimeout = serverTimeout
 	}
-	if !opts.SkipServerVerify {
-		verifyServerCert, err := configutil.ParseBoolEnv(envVerifyServerCert, true)
-		if err != nil {
-			return nil, err
-		}
-		opts.SkipServerVerify = !verifyServerCert
-	}
 	return newHTTPTransportOptions(opts)
 }
 
@@ -208,35 +196,7 @@ func newHTTPTransportOptions(opts HTTPTransportOptions) (*HTTPTransport, error) 
 		return nil, err
 	}
 
-	tlsConfig := tls.Config{InsecureSkipVerify: opts.SkipServerVerify}
-	if opts.ServerCert != "" {
-		serverCert, err := loadCertificate(opts.ServerCert)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to load certificate from %s", opts.ServerCert)
-		}
-		// Disable standard verification, we'll check that the
-		// server supplies the exact certificate provided.
-		tlsConfig.InsecureSkipVerify = true
-		tlsConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-			return verifyPeerCertificate(rawCerts, serverCert)
-		}
-	}
-	if opts.ServerCACert != "" {
-		rootCAs := x509.NewCertPool()
-		additionalCerts, err := ioutil.ReadFile(opts.ServerCACert)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to load root CA file from %s", opts.ServerCACert)
-		}
-		if !rootCAs.AppendCertsFromPEM(additionalCerts) {
-			return nil, fmt.Errorf("failed to load CA certs from %s", opts.ServerCACert)
-		}
-		tlsConfig.RootCAs = rootCAs
-	}
-
 	// If the ServerTimeout is unspecified, set it to defaultServerTimeout.
-	if opts.ServerTimeout == 0 {
-		opts.ServerTimeout = defaultServerTimeout
-	}
 	client := &http.Client{
 		Timeout: opts.ServerTimeout,
 		Transport: &http.Transport{
@@ -246,7 +206,7 @@ func newHTTPTransportOptions(opts HTTPTransportOptions) (*HTTPTransport, error) 
 			IdleConnTimeout:       defaultHTTPTransport.IdleConnTimeout,
 			TLSHandshakeTimeout:   defaultHTTPTransport.TLSHandshakeTimeout,
 			ExpectContinueTimeout: defaultHTTPTransport.ExpectContinueTimeout,
-			TLSClientConfig:       &tlsConfig,
+			TLSClientConfig:       opts.TLSClientConfig,
 		},
 	}
 
@@ -283,6 +243,38 @@ func newHTTPTransportOptions(opts HTTPTransportOptions) (*HTTPTransport, error) 
 		return nil, err
 	}
 	return t, nil
+}
+
+func newEnvTLSClientConfig() (*tls.Config, error) {
+	verifyServerCert, err := configutil.ParseBoolEnv(envVerifyServerCert, true)
+	if err != nil {
+		return nil, err
+	}
+	tlsClientConfig := &tls.Config{InsecureSkipVerify: !verifyServerCert}
+	if serverCertPath := os.Getenv(envServerCert); serverCertPath != "" {
+		serverCert, err := loadCertificate(serverCertPath)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to load certificate from %s", serverCertPath)
+		}
+		// Disable standard verification, we'll check that the
+		// server supplies the exact certificate provided.
+		tlsClientConfig.InsecureSkipVerify = true
+		tlsClientConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+			return verifyPeerCertificate(rawCerts, serverCert)
+		}
+	}
+	if serverCACertPath := os.Getenv(envServerCACert); serverCACertPath != "" {
+		rootCAs := x509.NewCertPool()
+		additionalCerts, err := ioutil.ReadFile(serverCACertPath)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to load root CA file from %s", serverCACertPath)
+		}
+		if !rootCAs.AppendCertsFromPEM(additionalCerts) {
+			return nil, fmt.Errorf("failed to load CA certs from %s", serverCACertPath)
+		}
+		tlsClientConfig.RootCAs = rootCAs
+	}
+	return tlsClientConfig, nil
 }
 
 // SetServerURL sets the APM Server URL (or URLs) for sending requests.
