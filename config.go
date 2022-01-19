@@ -144,7 +144,7 @@ var (
 // Regular expression matching comment characters to escape in the User-Agent header value.
 //
 // See https://httpwg.org/specs/rfc7230.html#field.components
-var httpComment, _ = regexp.Compile("[^\\t \\x21-\\x27\\x2a-\\x5b\\x5d-\\x7e\\x80-\\xff]")
+var httpComment = regexp.MustCompile("[^\\t \\x21-\\x27\\x2a-\\x5b\\x5d-\\x7e\\x80-\\xff]")
 
 func initialTransport(serviceName, serviceVersion string) (transport.Transport, error) {
 	// User-Agent should be "apm-agent-go/<agent-version> (service-name service-version)".
