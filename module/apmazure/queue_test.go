@@ -93,7 +93,7 @@ func TestQueueGetOperation(t *testing.T) {
 		want   string
 		values url.Values
 	}{
-		// https://github.com/elastic/apm/blob/master/specs/agents/tracing-instrumentation-azure.md#determining-operations-1
+		// https://github.com/elastic/apm/blob/main/specs/agents/tracing-instrumentation-azure.md#determining-operations-1
 		{
 			want:   "RECEIVE",
 			values: url.Values{},
@@ -135,7 +135,7 @@ func TestQueueHeadOperation(t *testing.T) {
 		want   string
 		values url.Values
 	}{
-		// https://github.com/elastic/apm/blob/master/specs/agents/tracing-instrumentation-azure.md#determining-operations-1
+		// https://github.com/elastic/apm/blob/main/specs/agents/tracing-instrumentation-azure.md#determining-operations-1
 		{
 			want:   "GETMETADATA",
 			values: url.Values{"comp": []string{"metadata"}},
@@ -157,7 +157,7 @@ func TestQueuePostOperation(t *testing.T) {
 		want   string
 		values url.Values
 	}{
-		// https://github.com/elastic/apm/blob/master/specs/agents/tracing-instrumentation-azure.md#determining-operations-1
+		// https://github.com/elastic/apm/blob/main/specs/agents/tracing-instrumentation-azure.md#determining-operations-1
 		{
 			want:   "SEND",
 			values: url.Values{},
@@ -175,7 +175,7 @@ func TestQueuePutOperation(t *testing.T) {
 		want   string
 		values url.Values
 	}{
-		// https://github.com/elastic/apm/blob/master/specs/agents/tracing-instrumentation-azure.md#determining-operations-1
+		// https://github.com/elastic/apm/blob/main/specs/agents/tracing-instrumentation-azure.md#determining-operations-1
 		{
 			want:   "SETMETADATA",
 			values: url.Values{"comp": []string{"metadata"}},
