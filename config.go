@@ -18,9 +18,11 @@
 package apm // import "go.elastic.co/apm"
 
 import (
+	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -139,9 +141,21 @@ var (
 	}()
 )
 
+// Regular expression matching comment characters to escape in the User-Agent header value.
+//
+// See https://httpwg.org/specs/rfc7230.html#field.components
+var httpComment = regexp.MustCompile("[^\\t \\x21-\\x27\\x2a-\\x5b\\x5d-\\x7e\\x80-\\xff]")
+
 func initialTransport(serviceName, serviceVersion string) (transport.Transport, error) {
-	// TODO(axw) pass service name and version, to append to the User-Agent header.
-	httpTransport, err := transport.NewHTTPTransport()
+	// User-Agent should be "apm-agent-go/<agent-version> (service-name service-version)".
+	service := serviceName
+	if serviceVersion != "" {
+		service += " " + httpComment.ReplaceAllString(serviceVersion, "_")
+	}
+	userAgent := fmt.Sprintf("%s (%s)", transport.DefaultUserAgent(), service)
+	httpTransport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{
+		UserAgent: userAgent,
+	})
 	if err != nil {
 		return nil, err
 	}

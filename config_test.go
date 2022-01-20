@@ -216,9 +216,8 @@ func testTracerCentralConfigUpdate(t *testing.T, logger apm.Logger, serverRespon
 	defer server.Close()
 	serverURL, _ := url.Parse(server.URL)
 
-	httpTransport, err := transport.NewHTTPTransport()
+	httpTransport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{ServerURLs: []*url.URL{serverURL}})
 	require.NoError(t, err)
-	httpTransport.SetServerURL(serverURL)
 
 	tracer := &apmtest.RecordingTracer{}
 	var testTransport struct {
@@ -279,7 +278,7 @@ func TestTracerCentralConfigUpdateDisabled(t *testing.T) {
 	os.Setenv("ELASTIC_APM_CENTRAL_CONFIG", "false")
 	defer os.Unsetenv("ELASTIC_APM_CENTRAL_CONFIG")
 
-	httpTransport, err := transport.NewHTTPTransport()
+	httpTransport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{})
 	require.NoError(t, err)
 	tracer, err := apm.NewTracerOptions(apm.TracerOptions{Transport: httpTransport})
 	require.NoError(t, err)

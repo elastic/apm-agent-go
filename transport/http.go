@@ -34,7 +34,6 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -59,7 +58,7 @@ const (
 	envServerTimeout    = "ELASTIC_APM_SERVER_TIMEOUT"
 	envServerCert       = "ELASTIC_APM_SERVER_CERT"
 	envVerifyServerCert = "ELASTIC_APM_VERIFY_SERVER_CERT"
-	envCACert           = "ELASTIC_APM_SERVER_CA_CERT_FILE"
+	envServerCACert     = "ELASTIC_APM_SERVER_CA_CERT_FILE"
 )
 
 var (
@@ -73,37 +72,65 @@ var (
 
 // HTTPTransportOptions for the HTTPTransport.
 type HTTPTransportOptions struct {
-	// APIKey holds the APIKey base64-encoded string. Specifying an APIKey will
-	// the SecretToken, if set.
+	// APIKey holds the base64-encoded API Key credential string, used for
+	// authenticating the agent. APIKey takes precedence over SecretToken.
+	//
+	// If unspecified, APIKey will be initialized using the
+	// ELASTIC_APM_API_KEY environment variable.
 	APIKey string
 
-	// SecretToken holds the secret token configured in the APM Server.
+	// SecretToken holds the secret token configured in the APM Server, used
+	// for authenticating the agent.
+	//
+	// If unspecified, SecretToken will be initialized using the
+	// ELASTIC_APM_SECRET_TOKEN envirohnment variable.
 	SecretToken string
-
-	// ServerCert can be set if you have configured your APM Server with a
-	// self signed TLS certificate, or you want to verify the server certificate
-	// matches this exact TLS certificate.
-	ServerCert string
-
-	// ServerCACert can be set if you want to specify a path to the PEM-encoded
-	// Certificate Authority to verify the Server TLS certificate.
-	ServerCACert string
 
 	// ServerURLs holds the URLs for your Elastic APM Server. The Server
 	// supports both HTTP and HTTPS. If you use HTTPS, then you may need to
 	// configure your client machines so that the server certificate can be
 	// verified. You can disable certificate verification with SkipServerVerify.
-	// If no URL is specified, then the transport will use the default URL
-	// "http://localhost:8200".
+	//
+	// If no URLs are specified, then ServerURLs will be initialized using the
+	// ELASTIC_APM_SERVER_URL environment variable, defaulting to
+	// "http://localhost:8200" if the environment variable is not set.
 	ServerURLs []*url.URL
 
 	// ServerTimeout holds the timeout for requests made to your Elastic APM
-	// server. When set to zero, it will default to 30 seconds. Negative values
+	// server.
+	//
+	// When set to zero, it will default to 30 seconds. Negative values
 	// are not allowed.
+	//
+	// If ServerTimeout is zero, then it will be initialized using the
+	// ELASTIC_APM_SERVER_TIMEOUT environment variable, defaulting to
+	// 30 seconds if the environment variable is not set. Negative values are
+	// not allowed, and will cause NewHTTPTransport to return an error.
 	ServerTimeout time.Duration
 
-	// SkipServerVerify skips TLS certificate validation of the APM Server.
-	SkipServerVerify bool
+	// TLSClientConfig holds client TLS configuration for use in the HTTP client.
+	//
+	// If TLS is nil, TLS will be constructed using the following environment
+	// variables:
+	//
+	// - ELASTIC_APM_SERVER_CERT: the path to a PEM-encoded TLS certificate
+	//   that must match the APM Server-supplied certificate. This can be used
+	//   to pin a self signed certificate.
+	//
+	// - ELASTIC_APM_SERVER_CA_CERT_FILE: the path to a PEM-encoded TLS
+	//   Certificate Authority certificate that will be used for verifying
+	//   the server's TLS certificate chain.
+	//
+	// - ELASTIC_APM_VERIFY_SERVER_CERT: flag to control verification of the
+	//   APM Server's TLS certificates. If ELASTIC_APM_SERVER_CERT is defined,
+	//   ELASTIC_APM_VERIFY_SERVER_CERT is ignored.
+	TLSClientConfig *tls.Config
+
+	// UserAgent holds the value to use for the User-Agent header.
+	//
+	// If unspecified, UserAgent will be set to the value returned by
+	// DefaultUserAgent().
+	UserAgent string
 }
 
 // Validate ensures the HTTPTransportOptions are valid.
@@ -131,100 +158,45 @@ type HTTPTransport struct {
 	profileURLs []*url.URL
 }
 
-// NewHTTPTransport returns a new HTTPTransport which can be used for
-// streaming data to the APM Server. The returned HTTPTransport will be
-// initialized using the following environment variables:
-//
-// - ELASTIC_APM_SERVER_URL: the APM Server URL used for sending
-//   requests. If no URL is specified, then the transport will use the
-//   default URL "http://localhost:8200".
-//
-// - ELASTIC_APM_SERVER_TIMEOUT: timeout for requests to the APM Server.
-//   If not specified, defaults to 30 seconds.
-//
-// - ELASTIC_APM_API_KEY: base64-encoded string used for authentication.
-//   Setting this environment variable ignores ELASTIC_APM_SECRET_TOKEN.
-//
-// - ELASTIC_APM_SECRET_TOKEN: used to authenticate the agent.
-//
-// - ELASTIC_APM_SERVER_CERT: path to a PEM-encoded certificate that
-//   must match the APM Server-supplied certificate. This can be used
-//   to pin a self signed certificate. If this is set, then
-//   ELASTIC_APM_VERIFY_SERVER_CERT is ignored.
-//
-// - ELASTIC_APM_VERIFY_SERVER_CERT: if set to "false", the transport
-//   will not verify the APM Server's TLS certificate. Only relevant
-//   when using HTTPS. By default, the transport will verify server
-//   certificates.
-//
-func NewHTTPTransport() (*HTTPTransport, error) {
-	verifyServerCert, err := configutil.ParseBoolEnv(envVerifyServerCert, true)
-	if err != nil {
-		return nil, err
+// NewHTTPTransport returns a new HTTPTransport, initialized with opts,
+// which can be used for streaming data to the APM Server.
+func NewHTTPTransport(opts HTTPTransportOptions) (*HTTPTransport, error) {
+	if opts.APIKey == "" {
+		opts.APIKey = os.Getenv(envAPIKey)
 	}
-	serverTimeout, err := configutil.ParseDurationEnv(envServerTimeout, defaultServerTimeout)
-	if err != nil {
-		return nil, err
+	if len(opts.ServerURLs) == 0 {
+		serverURLs, err := initServerURLs()
+		if err != nil {
+			return nil, err
+		}
+		opts.ServerURLs = serverURLs
 	}
-	if serverTimeout < 0 {
-		serverTimeout = 0
+	if opts.TLSClientConfig == nil {
+		tlsClientConfig, err := newEnvTLSClientConfig()
+		if err != nil {
+			return nil, err
+		}
+		opts.TLSClientConfig = tlsClientConfig
 	}
-	serverURLs, err := initServerURLs()
-	if err != nil {
-		return nil, err
+	if opts.SecretToken == "" && opts.APIKey == "" {
+		opts.SecretToken = os.Getenv(envSecretToken)
 	}
-
-	opts := HTTPTransportOptions{
-		SkipServerVerify: !verifyServerCert,
-		ServerURLs:       serverURLs,
-		ServerTimeout:    serverTimeout,
-		ServerCert:       os.Getenv(envServerCert),
-		ServerCACert:     os.Getenv(envCACert),
+	if opts.ServerTimeout == 0 {
+		serverTimeout, err := configutil.ParseDurationEnv(envServerTimeout, defaultServerTimeout)
+		if err != nil {
+			return nil, err
+		}
+		opts.ServerTimeout = serverTimeout
 	}
-	if apiKey := os.Getenv(envAPIKey); apiKey != "" {
-		opts.APIKey = apiKey
-	} else if secretToken := os.Getenv(envSecretToken); secretToken != "" {
-		opts.SecretToken = secretToken
-	}
-	return NewHTTPTransportOptions(opts)
+	return newHTTPTransportOptions(opts)
 }
 
-// NewHTTPTransportOptions returns a customized HTTPTransport which can be used
-// for streaming data to the APM Server.
-func NewHTTPTransportOptions(opts HTTPTransportOptions) (*HTTPTransport, error) {
+func newHTTPTransportOptions(opts HTTPTransportOptions) (*HTTPTransport, error) {
 	if err := opts.Validate(); err != nil {
 		return nil, err
 	}
 
-	tlsConfig := tls.Config{InsecureSkipVerify: opts.SkipServerVerify}
-	if opts.ServerCert != "" {
-		serverCert, err := loadCertificate(opts.ServerCert)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to load certificate from %s", opts.ServerCert)
-		}
-		// Disable standard verification, we'll check that the
-		// server supplies the exact certificate provided.
-		tlsConfig.InsecureSkipVerify = true
-		tlsConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-			return verifyPeerCertificate(rawCerts, serverCert)
-		}
-	}
-	if opts.ServerCACert != "" {
-		rootCAs := x509.NewCertPool()
-		additionalCerts, err := ioutil.ReadFile(opts.ServerCACert)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to load root CA file from %s", opts.ServerCACert)
-		}
-		if !rootCAs.AppendCertsFromPEM(additionalCerts) {
-			return nil, fmt.Errorf("failed to load CA certs from %s", opts.ServerCACert)
-		}
-		tlsConfig.RootCAs = rootCAs
-	}
-
 	// If the ServerTimeout is unspecified, set it to defaultServerTimeout.
-	if opts.ServerTimeout == 0 {
-		opts.ServerTimeout = defaultServerTimeout
-	}
 	client := &http.Client{
 		Timeout: opts.ServerTimeout,
 		Transport: &http.Transport{
@@ -234,12 +206,16 @@ func NewHTTPTransportOptions(opts HTTPTransportOptions) (*HTTPTransport, error) 
 			IdleConnTimeout:       defaultHTTPTransport.IdleConnTimeout,
 			TLSHandshakeTimeout:   defaultHTTPTransport.TLSHandshakeTimeout,
 			ExpectContinueTimeout: defaultHTTPTransport.ExpectContinueTimeout,
-			TLSClientConfig:       &tlsConfig,
+			TLSClientConfig:       opts.TLSClientConfig,
 		},
 	}
 
 	commonHeaders := make(http.Header)
-	commonHeaders.Set("User-Agent", defaultUserAgent())
+
+	if opts.UserAgent == "" {
+		opts.UserAgent = DefaultUserAgent()
+	}
+	commonHeaders.Set("User-Agent", opts.UserAgent)
 
 	intakeHeaders := copyHeaders(commonHeaders)
 	intakeHeaders.Set("Content-Type", "application/x-ndjson")
@@ -267,6 +243,38 @@ func NewHTTPTransportOptions(opts HTTPTransportOptions) (*HTTPTransport, error) 
 		return nil, err
 	}
 	return t, nil
+}
+
+func newEnvTLSClientConfig() (*tls.Config, error) {
+	verifyServerCert, err := configutil.ParseBoolEnv(envVerifyServerCert, true)
+	if err != nil {
+		return nil, err
+	}
+	tlsClientConfig := &tls.Config{InsecureSkipVerify: !verifyServerCert}
+	if serverCertPath := os.Getenv(envServerCert); serverCertPath != "" {
+		serverCert, err := loadCertificate(serverCertPath)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to load certificate from %s", serverCertPath)
+		}
+		// Disable standard verification, we'll check that the
+		// server supplies the exact certificate provided.
+		tlsClientConfig.InsecureSkipVerify = true
+		tlsClientConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+			return verifyPeerCertificate(rawCerts, serverCert)
+		}
+	}
+	if serverCACertPath := os.Getenv(envServerCACert); serverCACertPath != "" {
+		rootCAs := x509.NewCertPool()
+		additionalCerts, err := ioutil.ReadFile(serverCACertPath)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to load root CA file from %s", serverCACertPath)
+		}
+		if !rootCAs.AppendCertsFromPEM(additionalCerts) {
+			return nil, fmt.Errorf("failed to load CA certs from %s", serverCACertPath)
+		}
+		tlsClientConfig.RootCAs = rootCAs
+	}
+	return tlsClientConfig, nil
 }
 
 // SetServerURL sets the APM Server URL (or URLs) for sending requests.
@@ -678,8 +686,10 @@ func verifyPeerCertificate(rawCerts [][]byte, trusted *x509.Certificate) error {
 	return nil
 }
 
-func defaultUserAgent() string {
-	return fmt.Sprintf("elasticapm-go/%s go/%s", apmversion.AgentVersion, runtime.Version())
+// DefaultUserAgent returns the default value to use for the User-Agent header:
+// apm-agent-go/<agent-version>.
+func DefaultUserAgent() string {
+	return fmt.Sprintf("apm-agent-go/%s", apmversion.AgentVersion)
 }
 
 func copyHeaders(in http.Header) http.Header {

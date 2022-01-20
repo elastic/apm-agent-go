@@ -67,7 +67,7 @@ func TestNewHTTPTransportDefaultURL(t *testing.T) {
 	server.Listener = lis
 	server.Start()
 
-	transport, err := transport.NewHTTPTransport()
+	transport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{})
 	assert.NoError(t, err)
 	err = transport.SendStream(context.Background(), strings.NewReader(""))
 	assert.NoError(t, err)
@@ -80,7 +80,7 @@ func TestHTTPTransportUserAgent(t *testing.T) {
 	defer server.Close()
 	defer patchEnv("ELASTIC_APM_SERVER_URL", server.URL)()
 
-	transport, err := transport.NewHTTPTransport()
+	transport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{})
 	assert.NoError(t, err)
 	err = transport.SendStream(context.Background(), strings.NewReader(""))
 	assert.NoError(t, err)
@@ -91,7 +91,7 @@ func TestHTTPTransportUserAgent(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, h.requests, 2)
 
-	assert.Regexp(t, "elasticapm-go/.* go/.*", h.requests[0].UserAgent())
+	assert.Regexp(t, "apm-agent-go/.*", h.requests[0].UserAgent())
 	assert.Equal(t, "foo", h.requests[1].UserAgent())
 }
 
@@ -101,7 +101,7 @@ func TestHTTPTransportSecretToken(t *testing.T) {
 	defer server.Close()
 	defer patchEnv("ELASTIC_APM_SERVER_URL", server.URL)()
 
-	transport, err := transport.NewHTTPTransport()
+	transport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{})
 	transport.SetSecretToken("hunter2")
 	assert.NoError(t, err)
 	transport.SendStream(context.Background(), strings.NewReader(""))
@@ -117,7 +117,7 @@ func TestHTTPTransportEnvSecretToken(t *testing.T) {
 	defer patchEnv("ELASTIC_APM_SERVER_URL", server.URL)()
 	defer patchEnv("ELASTIC_APM_SECRET_TOKEN", "hunter2")()
 
-	transport, err := transport.NewHTTPTransport()
+	transport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{})
 	assert.NoError(t, err)
 	transport.SendStream(context.Background(), strings.NewReader(""))
 
@@ -131,7 +131,7 @@ func TestHTTPTransportAPIKey(t *testing.T) {
 	defer server.Close()
 	defer patchEnv("ELASTIC_APM_SERVER_URL", server.URL)()
 
-	transport, err := transport.NewHTTPTransport()
+	transport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{})
 	transport.SetAPIKey("hunter2")
 	assert.NoError(t, err)
 	transport.SendStream(context.Background(), strings.NewReader(""))
@@ -148,7 +148,7 @@ func TestHTTPTransportEnvAPIKey(t *testing.T) {
 	defer patchEnv("ELASTIC_APM_API_KEY", "api_key_wins")()
 	defer patchEnv("ELASTIC_APM_SECRET_TOKEN", "secret_token_loses")()
 
-	transport, err := transport.NewHTTPTransport()
+	transport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{})
 	assert.NoError(t, err)
 	transport.SendStream(context.Background(), strings.NewReader(""))
 
@@ -175,7 +175,7 @@ func TestHTTPTransportTLS(t *testing.T) {
 	defer server.Close()
 	defer patchEnv("ELASTIC_APM_SERVER_URL", server.URL)()
 
-	transport, err := transport.NewHTTPTransport()
+	transport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{})
 	assert.NoError(t, err)
 
 	p := strings.NewReader("")
@@ -209,7 +209,7 @@ func TestHTTPTransportEnvVerifyServerCert(t *testing.T) {
 	defer patchEnv("ELASTIC_APM_SERVER_URL", server.URL)()
 	defer patchEnv("ELASTIC_APM_VERIFY_SERVER_CERT", "false")()
 
-	transport, err := transport.NewHTTPTransport()
+	transport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{})
 	assert.NoError(t, err)
 
 	assert.NotNil(t, transport.Client)
@@ -239,7 +239,7 @@ func TestHTTPTransportContent(t *testing.T) {
 	defer server.Close()
 	defer patchEnv("ELASTIC_APM_SERVER_URL", server.URL)()
 
-	transport, err := transport.NewHTTPTransport()
+	transport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{})
 	assert.NoError(t, err)
 	transport.SendStream(context.Background(), strings.NewReader("request-body"))
 
@@ -258,7 +258,7 @@ func TestHTTPTransportServerTimeout(t *testing.T) {
 	defer patchEnv("ELASTIC_APM_SERVER_TIMEOUT", "50ms")()
 
 	before := time.Now()
-	transport, err := transport.NewHTTPTransport()
+	transport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{})
 	assert.NoError(t, err)
 	err = transport.SendStream(context.Background(), strings.NewReader(""))
 	taken := time.Since(before)
@@ -284,7 +284,7 @@ func TestHTTPTransportServerFailover(t *testing.T) {
 	server2 := httptest.NewTLSServer(errorHandler)
 	defer server2.Close()
 
-	transport, err := transport.NewHTTPTransport()
+	transport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{})
 	require.NoError(t, err)
 	transport.SetServerURL(mustParseURL(server1.URL), mustParseURL(server2.URL))
 
@@ -306,7 +306,7 @@ func TestHTTPTransportV2NotFound(t *testing.T) {
 	server := httptest.NewServer(http.NotFoundHandler())
 	defer server.Close()
 
-	transport, err := transport.NewHTTPTransport()
+	transport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{})
 	require.NoError(t, err)
 	transport.SetServerURL(mustParseURL(server.URL))
 
@@ -326,7 +326,7 @@ func TestHTTPTransportCACert(t *testing.T) {
 
 	// SendStream should fail, because we haven't told the client about
 	// the server certificate, nor disabled certificate verification.
-	trans, err := transport.NewHTTPTransport()
+	trans, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, trans)
 	err = trans.SendStream(context.Background(), p)
@@ -334,7 +334,7 @@ func TestHTTPTransportCACert(t *testing.T) {
 
 	// Set the env var to a file that doesn't exist, should get an error
 	defer patchEnv("ELASTIC_APM_SERVER_CA_CERT_FILE", "./testdata/file_that_doesnt_exist.pem")()
-	trans, err = transport.NewHTTPTransport()
+	trans, err = transport.NewHTTPTransport(transport.HTTPTransportOptions{})
 	assert.Error(t, err)
 	assert.Nil(t, trans)
 
@@ -344,13 +344,13 @@ func TestHTTPTransportCACert(t *testing.T) {
 	defer os.Remove(f.Name())
 	defer f.Close()
 	defer patchEnv("ELASTIC_APM_SERVER_CA_CERT_FILE", f.Name())()
-	trans, err = transport.NewHTTPTransport()
+	trans, err = transport.NewHTTPTransport(transport.HTTPTransportOptions{})
 	assert.Error(t, err)
 	assert.Nil(t, trans)
 
 	// Set a certificate that doesn't match, SendStream should still fail
 	defer patchEnv("ELASTIC_APM_SERVER_CA_CERT_FILE", "./testdata/cert.pem")()
-	trans, err = transport.NewHTTPTransport()
+	trans, err = transport.NewHTTPTransport(transport.HTTPTransportOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, trans)
 	err = trans.SendStream(context.Background(), p)
@@ -368,7 +368,7 @@ func TestHTTPTransportCACert(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	trans, err = transport.NewHTTPTransport()
+	trans, err = transport.NewHTTPTransport(transport.HTTPTransportOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, trans)
 	err = trans.SendStream(context.Background(), p)
@@ -386,7 +386,7 @@ func TestHTTPTransportServerCert(t *testing.T) {
 	p := strings.NewReader("")
 
 	newTransport := func() *transport.HTTPTransport {
-		transport, err := transport.NewHTTPTransport()
+		transport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{})
 		require.NoError(t, err)
 		return transport
 	}
@@ -436,7 +436,7 @@ garbage
 -----END GARBAGE-----
 `[1:])
 
-	_, err = transport.NewHTTPTransport()
+	_, err = transport.NewHTTPTransport(transport.HTTPTransportOptions{})
 	assert.EqualError(t, err, fmt.Sprintf("failed to load certificate from %s: missing or invalid certificate", f.Name()))
 }
 
@@ -667,7 +667,7 @@ func TestHTTPTransportOptionsValidation(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("valid", func(t *testing.T) {
-		transport, err := transport.NewHTTPTransportOptions(transport.HTTPTransportOptions{
+		transport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{
 			ServerURLs:    []*url.URL{validURL},
 			ServerTimeout: 30 * time.Second,
 		})
@@ -675,7 +675,7 @@ func TestHTTPTransportOptionsValidation(t *testing.T) {
 		assert.NotNil(t, transport)
 	})
 	t.Run("invalid_timeout", func(t *testing.T) {
-		transport, err := transport.NewHTTPTransportOptions(transport.HTTPTransportOptions{
+		transport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{
 			ServerTimeout: -1,
 		})
 		assert.EqualError(t, err, "apm transport options: ServerTimeout must be greater or equal to 0")
@@ -696,7 +696,7 @@ func TestHTTPTransportOptionsEmptyURL(t *testing.T) {
 	server.Listener = lis
 	server.Start()
 
-	transport, err := transport.NewHTTPTransportOptions(transport.HTTPTransportOptions{})
+	transport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{})
 	require.NoError(t, err)
 	require.NotNil(t, transport)
 
@@ -708,7 +708,7 @@ func TestHTTPTransportOptionsEmptyURL(t *testing.T) {
 func TestHTTPTransportOptionsDefaults(t *testing.T) {
 	validURL, err := url.Parse("http://localhost:8200")
 	require.NoError(t, err)
-	transport, err := transport.NewHTTPTransportOptions(transport.HTTPTransportOptions{
+	transport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{
 		ServerURLs: []*url.URL{validURL},
 	})
 	assert.NoError(t, err)
@@ -719,7 +719,7 @@ func TestSetServerURL(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		validURL, err := url.Parse("http://localhost:8200")
 		require.NoError(t, err)
-		transport, err := transport.NewHTTPTransportOptions(transport.HTTPTransportOptions{
+		transport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{
 			ServerURLs: []*url.URL{validURL},
 		})
 		anotherURL, err := url.Parse("http://somethingelse:8200")
@@ -731,7 +731,7 @@ func TestSetServerURL(t *testing.T) {
 	t.Run("invalid", func(t *testing.T) {
 		validURL, err := url.Parse("http://localhost:8200")
 		require.NoError(t, err)
-		transport, err := transport.NewHTTPTransportOptions(transport.HTTPTransportOptions{
+		transport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{
 			ServerURLs: []*url.URL{validURL},
 		})
 
@@ -742,12 +742,13 @@ func TestSetServerURL(t *testing.T) {
 
 func newHTTPTransport(t *testing.T, handler http.Handler) (*transport.HTTPTransport, *httptest.Server) {
 	server := httptest.NewServer(handler)
-	transport, err := transport.NewHTTPTransport()
+	transport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{
+		ServerURLs: []*url.URL{mustParseURL(server.URL)},
+	})
 	if !assert.NoError(t, err) {
 		server.Close()
 		t.FailNow()
 	}
-	transport.SetServerURL(mustParseURL(server.URL))
 	return transport, server
 }
 
