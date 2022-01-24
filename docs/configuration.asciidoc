@@ -129,7 +129,7 @@ could be observed by an attacker.
 |============
 
 This base64-encoded string is used to ensure that only your agents can send data to your APM server.
-The API key must be created using the APM Server {apm-server-ref-v}/api-key.html[command line tool].
+The API key must be created using the APM Server {apm-guide-ref}/api-key.html[command line tool].
 
 WARNING: The API Key is sent as plain-text in every request to the server, so you should also secure
 your communications using HTTPS. Unless you do so, your API Key could be observed by an attacker.
@@ -604,7 +604,7 @@ NOTE: This feature requires APM Server v7.3 or later and that the APM Server is 
 | `ELASTIC_APM_USE_ELASTIC_TRACEPARENT_HEADER` | `true`
 |============
 
-To enable {apm-overview-ref-v}/distributed-tracing.html[distributed tracing], the agent
+To enable {apm-guide-ref}/apm-distributed-tracing.html[distributed tracing], the agent
 adds trace context headers to outgoing HTTP requests made with <<builtin-modules-apmhttp>>.
 These headers (`traceparent` and `tracestate`) are defined in the
 https://www.w3.org/TR/trace-context-1/[W3C Trace Context] specification.

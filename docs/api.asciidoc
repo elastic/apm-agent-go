@@ -361,7 +361,7 @@ String values longer than 1024 characters will be truncated. Labels are
 indexed in Elasticsearch as keyword fields.
 
 TIP: Before using labels, ensure you understand the different types of
-{apm-overview-ref-v}/metadata.html[metadata] that are available.
+{apm-guide-ref}/data-model-metadata.html[metadata] that are available.
 
 WARNING: Avoid defining too many user-specified labels.
 Defining too many unique fields in an index is a condition that can lead to a
@@ -383,7 +383,7 @@ to help you quickly debug performance issues or errors.
 The value can be of any type that can be encoded using `encoding/json`.
 
 TIP: Before using custom context, ensure you understand the different types of
-{apm-overview-ref-v}/metadata.html[metadata] that are available.
+{apm-guide-ref}/data-model-metadata.html[metadata] that are available.
 
 [float]
 [[context-set-username]]
