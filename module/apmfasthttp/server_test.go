@@ -79,7 +79,7 @@ func testServer(t *testing.T, s *fasthttp.Server, wg *sync.WaitGroup, assertFn a
 		// transaction to have ended.
 		// This is unique to fasthttp's implementation.
 		if count > 10 {
-			t.Fatal("no transaction found")
+			t.Fatal("no transactions found")
 		}
 
 		count++
