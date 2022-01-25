@@ -412,8 +412,8 @@ with apmsql.Register:
 ----
 import (
 	"go.elastic.co/apm/module/apmsql/v2"
-	_ "go.elastic.co/apm/module/apmsql/pq"
-	_ "go.elastic.co/apm/module/apmsql/sqlite3"
+	_ "go.elastic.co/apm/module/apmsql/v2/pq"
+	_ "go.elastic.co/apm/module/apmsql/v2/sqlite3"
 )
 
 func main() {
