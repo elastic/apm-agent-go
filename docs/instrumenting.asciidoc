@@ -512,7 +512,7 @@ propagate a context containing a transaction to the operations:
 ----
 import (
 	"gorm.io/gorm"
-	postgres "go.elastic.co/apm/module/apmgormv2/driver/postgres"
+	postgres "go.elastic.co/apm/module/apmgormv2/v2/driver/postgres"
 )
 
 func main() {

@@ -29,7 +29,7 @@ import (
 	"go.elastic.co/apm/v2"
 	"go.elastic.co/apm/module/apmhttp/v2"
 	"go.elastic.co/apm/module/apmsql/v2"
-	_ "go.elastic.co/apm/module/apmsql/pq"
+	_ "go.elastic.co/apm/module/apmsql/v2/pq"
 )
 
 var db *sql.DB
