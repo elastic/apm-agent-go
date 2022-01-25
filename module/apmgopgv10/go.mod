@@ -13,3 +13,10 @@ replace go.elastic.co/apm/v2 => ../..
 replace go.elastic.co/apm/module/apmsql/v2 => ../apmsql
 
 go 1.14
+
+exclude (
+	gopkg.in/yaml.v2 v2.2.1
+	gopkg.in/yaml.v2 v2.2.2
+	gopkg.in/yaml.v2 v2.2.4
+	gopkg.in/yaml.v2 v2.2.7
+)

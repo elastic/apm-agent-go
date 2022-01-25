@@ -14,7 +14,14 @@ require (
 	github.com/stretchr/testify v1.6.1
 	go.elastic.co/apm/v2 v2.0.0
 	golang.org/x/tools v0.1.8 // indirect
-	gopkg.in/yaml.v2 v2.2.2 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
 replace go.elastic.co/apm/v2 => ../..
+
+exclude (
+	gopkg.in/yaml.v2 v2.2.1
+	gopkg.in/yaml.v2 v2.2.2
+	gopkg.in/yaml.v2 v2.2.4
+	gopkg.in/yaml.v2 v2.2.7
+)

@@ -8,6 +8,7 @@ require (
 	github.com/stretchr/testify v1.6.1
 	go.elastic.co/apm/module/apmsql/v2 v2.0.0
 	go.elastic.co/apm/v2 v2.0.0
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 	mellium.im/sasl v0.2.1 // indirect
 )
 
@@ -16,3 +17,10 @@ replace go.elastic.co/apm/v2 => ../..
 replace go.elastic.co/apm/module/apmsql/v2 => ../apmsql
 
 go 1.15
+
+exclude (
+	gopkg.in/yaml.v2 v2.2.1
+	gopkg.in/yaml.v2 v2.2.2
+	gopkg.in/yaml.v2 v2.2.4
+	gopkg.in/yaml.v2 v2.2.7
+)

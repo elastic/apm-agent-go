@@ -15,4 +15,14 @@ require (
 	golang.org/x/tools v0.0.0-20200509030707-2212a7e161a5
 )
 
+exclude (
+	// gopkg.in/yaml.v2 v2.2.1, which has a known vulnerability,
+	// is required by howett.net/plist; it is only required for
+	// a package which we do not rely on. Exclude it.
+	gopkg.in/yaml.v2 v2.2.1
+	gopkg.in/yaml.v2 v2.2.2
+	gopkg.in/yaml.v2 v2.2.4
+	gopkg.in/yaml.v2 v2.2.7
+)
+
 go 1.15
