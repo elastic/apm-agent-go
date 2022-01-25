@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmazure // import "go.elastic.co/apm/module/apmazure"
+package apmazure // import "go.elastic.co/apm/module/apmazure/v2"
 
 import (
 	"context"
@@ -27,9 +27,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"go.elastic.co/apm/apmtest"
-	"go.elastic.co/apm/model"
-	"go.elastic.co/apm/transport/transporttest"
+	"go.elastic.co/apm/v2/apmtest"
+	"go.elastic.co/apm/v2/model"
+	"go.elastic.co/apm/v2/transport/transporttest"
 )
 
 func TestQueueSend(t *testing.T) {

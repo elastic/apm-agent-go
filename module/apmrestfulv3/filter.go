@@ -15,15 +15,15 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmrestfulv3 // import "go.elastic.co/apm/module/apmrestfulv3"
+package apmrestfulv3 // import "go.elastic.co/apm/module/apmrestfulv3/v2"
 
 import (
 	"net/http"
 
 	"github.com/emicklei/go-restful/v3"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/module/apmhttp"
+	"go.elastic.co/apm/module/apmhttp/v2"
+	"go.elastic.co/apm/v2"
 )
 
 // Filter returns a new restful.Filter for tracing requests

@@ -17,4 +17,4 @@
 
 //go:generate go run gendockerfile.go -base=..
 
-package scripts // import "go.elastic.co/apm/scripts"
+package scripts // import "go.elastic.co/apm/v2/scripts"

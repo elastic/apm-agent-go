@@ -15,14 +15,14 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmzerolog // import "go.elastic.co/apm/module/apmzerolog"
+package apmzerolog // import "go.elastic.co/apm/module/apmzerolog/v2"
 
 import (
 	"strconv"
 
 	"github.com/rs/zerolog/pkgerrors"
 
-	"go.elastic.co/apm/stacktrace"
+	"go.elastic.co/apm/v2/stacktrace"
 )
 
 // MarshalErrorStack marshals the stack trace in err, if err

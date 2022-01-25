@@ -15,14 +15,14 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package transporttest // import "go.elastic.co/apm/transport/transporttest"
+package transporttest // import "go.elastic.co/apm/v2/transport/transporttest"
 
 import (
 	"context"
 	"io"
 	"io/ioutil"
 
-	"go.elastic.co/apm/transport"
+	"go.elastic.co/apm/v2/transport"
 )
 
 // Discard is a transport.Transport which discards

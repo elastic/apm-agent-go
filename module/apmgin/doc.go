@@ -17,4 +17,4 @@
 
 // Package apmgin provides middleware for the Gin framework,
 // for tracing HTTP requests.
-package apmgin // import "go.elastic.co/apm/module/apmgin"
+package apmgin // import "go.elastic.co/apm/module/apmgin/v2"

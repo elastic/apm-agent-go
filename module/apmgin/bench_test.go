@@ -26,9 +26,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/module/apmgin"
-	"go.elastic.co/apm/transport"
+	"go.elastic.co/apm/module/apmgin/v2"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/transport"
 )
 
 var benchmarkPaths = []string{"/hello/world", "/sleep/1ms"}

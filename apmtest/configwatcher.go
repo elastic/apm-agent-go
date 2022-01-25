@@ -15,12 +15,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmtest // import "go.elastic.co/apm/apmtest"
+package apmtest // import "go.elastic.co/apm/v2/apmtest"
 
 import (
 	"context"
 
-	"go.elastic.co/apm/apmconfig"
+	"go.elastic.co/apm/v2/apmconfig"
 )
 
 // WatchConfigFunc is a function type that implements apmconfig.Watcher.

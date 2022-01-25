@@ -16,4 +16,4 @@
 // under the License.
 
 // Package apmgrpc provides interceptors for tracing gRPC.
-package apmgrpc // import "go.elastic.co/apm/module/apmgrpc"
+package apmgrpc // import "go.elastic.co/apm/module/apmgrpc/v2"

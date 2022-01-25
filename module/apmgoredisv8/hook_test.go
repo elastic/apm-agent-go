@@ -27,8 +27,8 @@ import (
 
 	"github.com/go-redis/redis/v8"
 
-	"go.elastic.co/apm/apmtest"
-	apmgoredis "go.elastic.co/apm/module/apmgoredisv8"
+	apmgoredis "go.elastic.co/apm/module/apmgoredisv8/v2"
+	"go.elastic.co/apm/v2/apmtest"
 )
 
 const (

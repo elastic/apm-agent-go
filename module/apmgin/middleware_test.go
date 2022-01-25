@@ -25,18 +25,17 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"go.elastic.co/apm"
-
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"go.elastic.co/apm/apmtest"
-	"go.elastic.co/apm/model"
-	"go.elastic.co/apm/module/apmgin"
-	"go.elastic.co/apm/transport/transporttest"
+	"go.elastic.co/apm/module/apmgin/v2"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/apmtest"
+	"go.elastic.co/apm/v2/model"
+	"go.elastic.co/apm/v2/transport/transporttest"
 )
 
 var (

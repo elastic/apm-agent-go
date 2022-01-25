@@ -29,8 +29,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/valyala/fasthttp"
 
-	"go.elastic.co/apm/module/apmfasthttp"
-	"go.elastic.co/apm/transport/transporttest"
+	"go.elastic.co/apm/module/apmfasthttp/v2"
+	"go.elastic.co/apm/v2/transport/transporttest"
 )
 
 func TestServerHTTPResponse(t *testing.T) {

@@ -28,9 +28,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/apmtest"
-	"go.elastic.co/apm/module/apmzerolog"
+	"go.elastic.co/apm/module/apmzerolog/v2"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/apmtest"
 )
 
 func ExampleTraceContextHook() {

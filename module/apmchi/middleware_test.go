@@ -27,10 +27,10 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/stretchr/testify/assert"
 
-	"go.elastic.co/apm/apmtest"
-	"go.elastic.co/apm/model"
-	"go.elastic.co/apm/module/apmchi"
-	"go.elastic.co/apm/module/apmhttp"
+	"go.elastic.co/apm/module/apmchi/v2"
+	"go.elastic.co/apm/module/apmhttp/v2"
+	"go.elastic.co/apm/v2/apmtest"
+	"go.elastic.co/apm/v2/model"
 )
 
 func TestMiddleware(t *testing.T) {

@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package stacktrace // import "go.elastic.co/apm/stacktrace"
+package stacktrace // import "go.elastic.co/apm/v2/stacktrace"
 
 import (
 	"reflect"
@@ -79,7 +79,7 @@ func appendPkgerrorsStacktrace(frames []Frame, stackTrace errors.StackTrace, n i
 	// them as runtime.Frames.
 	//
 	// TODO(axw) drop support for older github.com/pkg/errors
-	// versions when we release go.elastic.co/apm v2.0.0.
+	// versions when we release go.elastic.co/apm/v2 v2.0.0.
 	if errorsStackTraceUintptr {
 		pc := make([]uintptr, len(stackTrace))
 		for i, frame := range stackTrace {

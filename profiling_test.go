@@ -29,7 +29,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"go.elastic.co/apm/apmtest"
+	"go.elastic.co/apm/v2/apmtest"
 )
 
 func TestTracerCPUProfiling(t *testing.T) {

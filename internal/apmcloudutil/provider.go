@@ -24,7 +24,7 @@ import (
 	"net/http"
 	"time"
 
-	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/v2/model"
 )
 
 // defaultClient is essentially the same as http.DefaultTransport, except

@@ -27,8 +27,8 @@ import (
 	"strings"
 	"testing"
 
-	"go.elastic.co/apm/apmtest"
-	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/v2/apmtest"
+	"go.elastic.co/apm/v2/model"
 	"go.elastic.co/fastjson"
 
 	"github.com/cucumber/godog"

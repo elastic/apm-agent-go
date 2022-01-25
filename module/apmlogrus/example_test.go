@@ -22,8 +22,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/module/apmlogrus"
+	"go.elastic.co/apm/module/apmlogrus/v2"
+	"go.elastic.co/apm/v2"
 )
 
 func ExampleHook() {

@@ -28,8 +28,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"go.elastic.co/apm/apmtest"
-	"go.elastic.co/apm/module/apmgopg"
+	"go.elastic.co/apm/module/apmgopg/v2"
+	"go.elastic.co/apm/v2/apmtest"
 )
 
 type User struct {

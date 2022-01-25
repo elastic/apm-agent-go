@@ -17,4 +17,4 @@
 
 // Package apmpgxv4 registers the "postgres" driver with
 // apmsql, so that you can trace pgx/v4 database connections.
-package apmpgxv4 // import "go.elastic.co/apm/module/apmsql/pgxv4"
+package apmpgxv4 // import "go.elastic.co/apm/module/apmsql/v2/pgxv4"

@@ -15,12 +15,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmsqlite3 // import "go.elastic.co/apm/module/apmsql/sqlite3"
+package apmsqlite3 // import "go.elastic.co/apm/module/apmsql/v2/sqlite3"
 
 import (
 	sqlite3 "github.com/mattn/go-sqlite3"
 
-	"go.elastic.co/apm/module/apmsql"
+	"go.elastic.co/apm/module/apmsql/v2"
 )
 
 func init() {

@@ -15,15 +15,15 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmgorilla // import "go.elastic.co/apm/module/apmgorilla"
+package apmgorilla // import "go.elastic.co/apm/module/apmgorilla/v2"
 
 import (
 	"net/http"
 
 	"github.com/gorilla/mux"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/module/apmhttp"
+	"go.elastic.co/apm/module/apmhttp/v2"
+	"go.elastic.co/apm/v2"
 )
 
 // Instrument instruments the mux.Router so that requests are traced.

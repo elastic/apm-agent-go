@@ -4,7 +4,7 @@
 This section describes the most commonly used parts of the API.
 
 The Go agent is documented using standard godoc. For complete documentation,
-refer to the documentation at https://godoc.org/go.elastic.co/apm/[godoc.org/go.elastic.co/apm],
+refer to the documentation at https://pkg.go.dev/go.elastic.co/apm/v2[pkg.go.dev/go.elastic.co/apm/v2],
 or by using the "godoc" tool.
 
 [float]
@@ -26,7 +26,7 @@ details.
 [source,go]
 ----
 import (
-	"go.elastic.co/apm"
+	"go.elastic.co/apm/v2"
 )
 
 func main() {
@@ -445,7 +445,7 @@ type ErrorsStacktracer interface {
 // Errors implementing Stacktracer will have their stacktrace
 // set based on the result of the StackTrace method.
 type Stacktracer interface {
-    StackTrace() []go.elastic.co/apm/stacktrace.Frame
+    StackTrace() []go.elastic.co/apm/v2/stacktrace.Frame
 }
 
 // Errors implementing Typer will have a "type" field set to the
@@ -611,6 +611,6 @@ e.Send()
 ==== Tracer Config
 
 Many configuration attributes can be be updated dynamically via `apm.Tracer` method calls.
-Please refer to the documentation at https://godoc.org/go.elastic.co/apm#Tracer[godoc.org/go.elastic.co/apm#Tracer]
+Please refer to the documentation at https://pkg.go.dev/go.elastic.co/apm/v2#Tracer[pkg.go.dev/go.elastic.co/apm/v2#Tracer]
 for details. The configuration methods are primarily prefixed with `Set`, such as
-https://godoc.org/go.elastic.co/apm#Tracer.SetLogger[apm#Tracer.SetLogger].
+https://pkg.go.dev/go.elastic.co/apm/v2#Tracer.SetLogger[apm#Tracer.SetLogger].

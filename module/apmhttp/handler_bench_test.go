@@ -26,9 +26,9 @@ import (
 	"testing"
 	"time"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/module/apmhttp"
-	"go.elastic.co/apm/transport"
+	"go.elastic.co/apm/module/apmhttp/v2"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/transport"
 )
 
 var benchmarkPaths = []string{"/hello/world", "/sleep/1ms"}

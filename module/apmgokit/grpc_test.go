@@ -31,10 +31,10 @@ import (
 	"google.golang.org/grpc"
 	pb "google.golang.org/grpc/examples/helloworld/helloworld"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/apmtest"
-	"go.elastic.co/apm/module/apmgrpc"
-	"go.elastic.co/apm/transport/transporttest"
+	"go.elastic.co/apm/module/apmgrpc/v2"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/apmtest"
+	"go.elastic.co/apm/v2/transport/transporttest"
 )
 
 func Example_grpcServer() {

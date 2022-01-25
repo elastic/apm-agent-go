@@ -16,4 +16,4 @@
 // under the License.
 
 // Package apmgocql provides an observer for tracing gocql (Cassandra) query spans.
-package apmgocql // import "go.elastic.co/apm/module/apmgocql"
+package apmgocql // import "go.elastic.co/apm/module/apmgocql/v2"

@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmfasthttp // import "go.elastic.co/apm/module/apmfasthttp"
+package apmfasthttp // import "go.elastic.co/apm/module/apmfasthttp/v2"
 
 import (
 	"context"
@@ -25,8 +25,8 @@ import (
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/fasthttpadaptor"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/module/apmhttp"
+	"go.elastic.co/apm/module/apmhttp/v2"
+	"go.elastic.co/apm/v2"
 )
 
 const txKey = "apmfasthttp_transaction"

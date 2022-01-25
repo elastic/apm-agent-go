@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apm // import "go.elastic.co/apm"
+package apm // import "go.elastic.co/apm/v2"
 
 import (
 	"fmt"
@@ -32,11 +32,11 @@ import (
 
 	"github.com/pkg/errors"
 
-	"go.elastic.co/apm/internal/apmlog"
-	"go.elastic.co/apm/internal/configutil"
-	"go.elastic.co/apm/internal/wildcard"
-	"go.elastic.co/apm/model"
-	"go.elastic.co/apm/transport"
+	"go.elastic.co/apm/v2/internal/apmlog"
+	"go.elastic.co/apm/v2/internal/configutil"
+	"go.elastic.co/apm/v2/internal/wildcard"
+	"go.elastic.co/apm/v2/model"
+	"go.elastic.co/apm/v2/transport"
 )
 
 const (

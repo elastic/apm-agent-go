@@ -15,9 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmgrpc // import "go.elastic.co/apm/module/apmgrpc"
+package apmgrpc // import "go.elastic.co/apm/module/apmgrpc/v2"
 
-import "go.elastic.co/apm/stacktrace"
+import "go.elastic.co/apm/v2/stacktrace"
 
 func init() {
 	stacktrace.RegisterLibraryPackage(

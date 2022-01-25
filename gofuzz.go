@@ -18,7 +18,7 @@
 //go:build gofuzz
 // +build gofuzz
 
-package apm // import "go.elastic.co/apm"
+package apm // import "go.elastic.co/apm/v2"
 
 import (
 	"bytes"
@@ -34,9 +34,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/santhosh-tekuri/jsonschema"
 
-	"go.elastic.co/apm/internal/apmschema"
-	"go.elastic.co/apm/model"
-	"go.elastic.co/apm/stacktrace"
+	"go.elastic.co/apm/v2/internal/apmschema"
+	"go.elastic.co/apm/v2/model"
+	"go.elastic.co/apm/v2/stacktrace"
 	"go.elastic.co/fastjson"
 )
 

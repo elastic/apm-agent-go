@@ -22,8 +22,8 @@ import (
 	"net/http"
 	"strings"
 
-	"go.elastic.co/apm/internal/apmstrings"
-	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/v2/internal/apmstrings"
+	"go.elastic.co/apm/v2/model"
 )
 
 // RequestURL returns a model.URL for req.

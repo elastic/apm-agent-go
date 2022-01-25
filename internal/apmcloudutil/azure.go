@@ -25,7 +25,7 @@ import (
 	"os"
 	"strings"
 
-	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/v2/model"
 )
 
 const (

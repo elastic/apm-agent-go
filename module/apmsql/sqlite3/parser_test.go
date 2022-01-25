@@ -22,9 +22,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	_ "go.elastic.co/apm/apmtest" // disable default tracer
-	"go.elastic.co/apm/module/apmsql"
-	apmsqlite3 "go.elastic.co/apm/module/apmsql/sqlite3"
+	"go.elastic.co/apm/module/apmsql/v2"
+	apmsqlite3 "go.elastic.co/apm/module/apmsql/v2/sqlite3"
+	_ "go.elastic.co/apm/v2/apmtest" // disable default tracer
 )
 
 func TestParseDSN(t *testing.T) {

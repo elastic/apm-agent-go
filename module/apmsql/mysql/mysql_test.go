@@ -25,10 +25,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"go.elastic.co/apm/apmtest"
-	"go.elastic.co/apm/model"
-	"go.elastic.co/apm/module/apmsql"
-	_ "go.elastic.co/apm/module/apmsql/mysql"
+	"go.elastic.co/apm/module/apmsql/v2"
+	_ "go.elastic.co/apm/module/apmsql/v2/mysql"
+	"go.elastic.co/apm/v2/apmtest"
+	"go.elastic.co/apm/v2/model"
 )
 
 var mysqlHost = os.Getenv("MYSQL_HOST")

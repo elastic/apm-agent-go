@@ -25,7 +25,7 @@ import (
 
 	"github.com/aws/aws-lambda-go/lambda"
 
-	_ "go.elastic.co/apm/module/apmlambda"
+	_ "go.elastic.co/apm/module/apmlambda/v2"
 )
 
 type Request struct {

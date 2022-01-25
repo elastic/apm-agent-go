@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apm // import "go.elastic.co/apm"
+package apm // import "go.elastic.co/apm/v2"
 
 import (
 	cryptorand "crypto/rand"
@@ -25,7 +25,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"go.elastic.co/apm/stacktrace"
+	"go.elastic.co/apm/v2/stacktrace"
 )
 
 // droppedSpanDataPool holds *SpanData which are used when the span is created

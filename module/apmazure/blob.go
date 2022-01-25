@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmazure // import "go.elastic.co/apm/module/apmazure"
+package apmazure // import "go.elastic.co/apm/module/apmazure/v2"
 
 import (
 	"fmt"

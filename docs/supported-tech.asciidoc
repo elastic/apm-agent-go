@@ -270,7 +270,7 @@ We support tracing https://gokit.io/[Go kit] clients and servers when
 using the gRPC or HTTP transport, by way of <<builtin-modules-apmgrpc, module/apmgrpc>>
 and <<builtin-modules-apmhttp, module/apmhttp>> respectively.
 
-Code examples are available at https://godoc.org/go.elastic.co/apm/module/apmgokit
+Code examples are available at https://pkg.go.dev/go.elastic.co/apm/module/apmgokit/v2
 for getting started.
 
 [float]

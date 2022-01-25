@@ -37,11 +37,11 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/apmtest"
-	"go.elastic.co/apm/model"
-	"go.elastic.co/apm/module/apmgrpc"
-	"go.elastic.co/apm/module/apmhttp"
+	"go.elastic.co/apm/module/apmgrpc/v2"
+	"go.elastic.co/apm/module/apmhttp/v2"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/apmtest"
+	"go.elastic.co/apm/v2/model"
 )
 
 type featureContext struct {

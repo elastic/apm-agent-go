@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmsql // import "go.elastic.co/apm/module/apmsql"
+package apmsql // import "go.elastic.co/apm/module/apmsql/v2"
 
 import (
 	"context"
@@ -24,8 +24,8 @@ import (
 	"fmt"
 	"sync"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/sqlutil"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/sqlutil"
 )
 
 // DriverPrefix should be used as a driver name prefix when

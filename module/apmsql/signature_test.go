@@ -25,7 +25,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"go.elastic.co/apm/module/apmsql"
+	"go.elastic.co/apm/module/apmsql/v2"
 )
 
 type test struct {

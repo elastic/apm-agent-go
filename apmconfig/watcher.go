@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmconfig // import "go.elastic.co/apm/apmconfig"
+package apmconfig // import "go.elastic.co/apm/v2/apmconfig"
 
 import (
 	"context"

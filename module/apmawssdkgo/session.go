@@ -15,12 +15,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmawssdkgo // import "go.elastic.co/apm/module/apmawssdkgo"
+package apmawssdkgo // import "go.elastic.co/apm/module/apmawssdkgo/v2"
 
 import (
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/module/apmhttp"
-	"go.elastic.co/apm/stacktrace"
+	"go.elastic.co/apm/module/apmhttp/v2"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/stacktrace"
 
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
