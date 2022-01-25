@@ -471,6 +471,8 @@ func parseGRPCStatusCode(s string) (codes.Code, error) {
 }
 
 type helloworldGRPCService struct {
+	pb.UnimplementedGreeterServer
+
 	panic bool
 	err   error
 }
