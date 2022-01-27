@@ -15,14 +15,14 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmot // import "go.elastic.co/apm/module/apmot"
+package apmot // import "go.elastic.co/apm/module/apmot/v2"
 
 import (
 	"time"
 
 	opentracing "github.com/opentracing/opentracing-go"
 
-	"go.elastic.co/apm"
+	"go.elastic.co/apm/v2"
 )
 
 type spanContext struct {

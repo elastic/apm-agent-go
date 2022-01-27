@@ -24,9 +24,9 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/event"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/apmtest"
-	"go.elastic.co/apm/module/apmmongo"
+	"go.elastic.co/apm/module/apmmongo/v2"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/apmtest"
 )
 
 func BenchmarkCommandMonitor(b *testing.B) {

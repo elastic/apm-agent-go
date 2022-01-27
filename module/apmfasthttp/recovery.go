@@ -15,24 +15,24 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmfasthttp // import "go.elastic.co/apm/module/apmfasthttp"
+package apmfasthttp // import "go.elastic.co/apm/module/apmfasthttp/v2"
 
 import (
 	"github.com/valyala/fasthttp"
 
-	"go.elastic.co/apm"
+	"go.elastic.co/apm/v2"
 )
 
 // NewTraceRecovery returns a RecoveryFunc for use in WithRecovery.
 //
 // The returned RecoveryFunc will report recovered error to Elastic APM
-// using the given Tracer, or apm.DefaultTracer if t is nil. The
+// using the given Tracer, or apm.DefaultTracer() if t is nil. The
 // error will be linked to the given transaction.
 //
 // If headers have not already been written, a 500 response will be sent.
 func NewTraceRecovery(t *apm.Tracer) RecoveryFunc {
 	if t == nil {
-		t = apm.DefaultTracer
+		t = apm.DefaultTracer()
 	}
 
 	return func(ctx *fasthttp.RequestCtx, tx *apm.Transaction, bc *apm.BodyCapturer, recovered interface{}) {

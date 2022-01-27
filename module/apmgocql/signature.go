@@ -15,12 +15,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmgocql // import "go.elastic.co/apm/module/apmgocql"
+package apmgocql // import "go.elastic.co/apm/module/apmgocql/v2"
 
 import (
 	"strings"
 
-	"go.elastic.co/apm/sqlutil"
+	"go.elastic.co/apm/v2/sqlutil"
 )
 
 // querySignature returns the "signature" for a Cassandra query:

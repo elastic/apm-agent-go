@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmazure // import "go.elastic.co/apm/module/apmazure"
+package apmazure // import "go.elastic.co/apm/module/apmazure/v2"
 
 import (
 	"context"
@@ -24,9 +24,9 @@ import (
 
 	"github.com/Azure/azure-pipeline-go/pipeline"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/module/apmhttp"
-	"go.elastic.co/apm/stacktrace"
+	"go.elastic.co/apm/module/apmhttp/v2"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/stacktrace"
 )
 
 func init() {
@@ -46,7 +46,7 @@ func WrapPipeline(next pipeline.Pipeline, options ...ServerOption) pipeline.Pipe
 		opt(p)
 	}
 	if p.tracer == nil {
-		p.tracer = apm.DefaultTracer
+		p.tracer = apm.DefaultTracer()
 	}
 	return p
 }

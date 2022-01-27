@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmhttp // import "go.elastic.co/apm/module/apmhttp"
+package apmhttp // import "go.elastic.co/apm/module/apmhttp/v2"
 
 import (
 	"context"
@@ -24,7 +24,7 @@ import (
 	"net/http/httptrace"
 	"sync"
 
-	"go.elastic.co/apm"
+	"go.elastic.co/apm/v2"
 )
 
 // WithClientTrace returns a ClientOption for

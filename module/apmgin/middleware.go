@@ -15,16 +15,16 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmgin // import "go.elastic.co/apm/module/apmgin"
+package apmgin // import "go.elastic.co/apm/module/apmgin/v2"
 
 import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/module/apmhttp"
-	"go.elastic.co/apm/stacktrace"
+	"go.elastic.co/apm/module/apmhttp/v2"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/stacktrace"
 )
 
 func init() {
@@ -40,12 +40,12 @@ func init() {
 // This middleware will recover and report panics, so it can
 // be used instead of the standard gin.Recovery middleware.
 //
-// By default, the middleware will use apm.DefaultTracer.
+// By default, the middleware will use apm.DefaultTracer().
 // Use WithTracer to specify an alternative tracer.
 func Middleware(engine *gin.Engine, o ...Option) gin.HandlerFunc {
 	m := &middleware{
 		engine: engine,
-		tracer: apm.DefaultTracer,
+		tracer: apm.DefaultTracer(),
 	}
 	for _, o := range o {
 		o(m)

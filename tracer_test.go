@@ -36,12 +36,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/apmtest"
-	"go.elastic.co/apm/internal/apmhostutil"
-	"go.elastic.co/apm/model"
-	"go.elastic.co/apm/transport"
-	"go.elastic.co/apm/transport/transporttest"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/apmtest"
+	"go.elastic.co/apm/v2/internal/apmhostutil"
+	"go.elastic.co/apm/v2/internal/apmversion"
+	"go.elastic.co/apm/v2/model"
+	"go.elastic.co/apm/v2/transport"
+	"go.elastic.co/apm/v2/transport/transporttest"
 )
 
 func TestTracerStats(t *testing.T) {
@@ -55,6 +56,30 @@ func TestTracerStats(t *testing.T) {
 	assert.Equal(t, apm.TracerStats{
 		TransactionsSent: 500,
 	}, tracer.Stats())
+}
+
+func TestTracerUserAgent(t *testing.T) {
+	sendRequest := func(serviceVersion string) (userAgent string) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			userAgent = r.UserAgent()
+		}))
+		defer srv.Close()
+
+		os.Setenv("ELASTIC_APM_SERVER_URL", srv.URL)
+		defer os.Unsetenv("ELASTIC_APM_SERVER_URL")
+		tracer, err := apm.NewTracerOptions(apm.TracerOptions{
+			ServiceName:    "apmtest",
+			ServiceVersion: serviceVersion,
+		})
+		require.NoError(t, err)
+		defer tracer.Close()
+
+		tracer.StartTransaction("name", "type").End()
+		tracer.Flush(nil)
+		return userAgent
+	}
+	assert.Equal(t, fmt.Sprintf("apm-agent-go/%s (apmtest)", apmversion.AgentVersion), sendRequest(""))
+	assert.Equal(t, fmt.Sprintf("apm-agent-go/%s (apmtest 1.0.0)", apmversion.AgentVersion), sendRequest("1.0.0"))
 }
 
 func TestTracerClosedSendNonBlocking(t *testing.T) {
@@ -276,7 +301,7 @@ func TestTracerRequestSize(t *testing.T) {
 	os.Setenv("ELASTIC_APM_SERVER_URL", server.URL)
 	defer os.Unsetenv("ELASTIC_APM_SERVER_URL")
 
-	httpTransport, err := transport.NewHTTPTransport()
+	httpTransport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{})
 	require.NoError(t, err)
 	tracer, err := apm.NewTracerOptions(apm.TracerOptions{
 		ServiceName: "tracer_testing",
@@ -371,7 +396,7 @@ func TestTracerBodyUnread(t *testing.T) {
 	os.Setenv("ELASTIC_APM_SERVER_URL", server.URL)
 	defer os.Unsetenv("ELASTIC_APM_SERVER_URL")
 
-	httpTransport, err := transport.NewHTTPTransport()
+	httpTransport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{})
 	require.NoError(t, err)
 	tracer, err := apm.NewTracerOptions(apm.TracerOptions{
 		ServiceName: "tracer_testing",
@@ -490,6 +515,46 @@ func TestTracerCaptureHeaders(t *testing.T) {
 			assert.Nil(t, tx.Context.Response.Headers)
 		}
 	}
+}
+
+func TestTracerDefaultTransport(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/intake/v2/events", func(w http.ResponseWriter, r *http.Request) {})
+	srv := httptest.NewServer(mux)
+
+	t.Run("valid", func(t *testing.T) {
+		os.Setenv("ELASTIC_APM_SERVER_URL", srv.URL)
+		defer os.Unsetenv("ELASTIC_APM_SERVER_URL")
+		tracer, err := apm.NewTracer("", "")
+		require.NoError(t, err)
+		defer tracer.Close()
+
+		tracer.StartTransaction("name", "type").End()
+		tracer.Flush(nil)
+		assert.Equal(t, apm.TracerStats{TransactionsSent: 1}, tracer.Stats())
+	})
+
+	t.Run("invalid", func(t *testing.T) {
+		os.Setenv("ELASTIC_APM_SERVER_TIMEOUT", "never")
+		defer os.Unsetenv("ELASTIC_APM_SERVER_TIMEOUT")
+
+		// NewTracer returns errors.
+		tracer, err := apm.NewTracer("", "")
+		require.Error(t, err)
+		assert.EqualError(t, err, "failed to parse ELASTIC_APM_SERVER_TIMEOUT: invalid duration never")
+
+		// Implicitly created Tracers will have a discard tracer.
+		apm.SetDefaultTracer(nil)
+		tracer = apm.DefaultTracer()
+
+		tracer.StartTransaction("name", "type").End()
+		tracer.Flush(nil)
+		assert.Equal(t, apm.TracerStats{
+			Errors: apm.TracerStatsErrors{
+				SendStream: 1,
+			},
+		}, tracer.Stats())
+	})
 }
 
 type blockedTransport struct {

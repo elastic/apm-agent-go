@@ -12,5 +12,5 @@ Feedback and ideas are always welcome.
 [float]
 === Reporting bugs and contributing code
 
-To report bugs, please create an Issue on the https://github.com/elastic/apm-agent-go[apm-agent-go] GitHub repository. For tips on contributing code fixes or enhancements, please see the https://github.com/elastic/apm-agent-go/blob/master/CONTRIBUTING.md[contributing guide] in the code repository.
+To report bugs, please create an Issue on the https://github.com/elastic/apm-agent-go[apm-agent-go] GitHub repository. For tips on contributing code fixes or enhancements, please see the https://github.com/elastic/apm-agent-go/blob/main/CONTRIBUTING.md[contributing guide] in the code repository.
 

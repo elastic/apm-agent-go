@@ -17,7 +17,7 @@
 
 package apmhostutil
 
-import "go.elastic.co/apm/model"
+import "go.elastic.co/apm/v2/model"
 
 // Container returns information about the container running the process, or an
 // error the container information could not be determined.

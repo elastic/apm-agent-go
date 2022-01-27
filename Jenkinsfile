@@ -34,7 +34,7 @@ pipeline {
   }
   parameters {
     string(name: 'GO_VERSION', defaultValue: "1.15.10", description: "Go version to use.")
-    booleanParam(name: 'Run_As_Master_Branch', defaultValue: false, description: 'Allow to run any steps on a PR, some steps normally only run on master branch.')
+    booleanParam(name: 'Run_As_Main_Branch', defaultValue: false, description: 'Allow to run any steps on a PR, some steps normally only run on main branch.')
     booleanParam(name: 'test_ci', defaultValue: true, description: 'Enable test')
     booleanParam(name: 'docker_test_ci', defaultValue: true, description: 'Enable run docker tests')
     booleanParam(name: 'bench_ci', defaultValue: true, description: 'Enable benchmarks')
@@ -136,9 +136,9 @@ pipeline {
             beforeAgent true
             allOf {
               anyOf {
-                branch 'master'
+                branch 'main'
                 tag pattern: 'v\\d+\\.\\d+\\.\\d+.*', comparator: 'REGEXP'
-                expression { return params.Run_As_Master_Branch }
+                expression { return params.Run_As_Main_Branch }
                 expression { return env.GITHUB_COMMENT?.contains('benchmark tests') }
               }
               expression { return params.bench_ci }
@@ -226,7 +226,7 @@ pipeline {
           expression { return env.ONLY_DOCS == "false" }
           anyOf {
             changeRequest()
-            expression { return !params.Run_As_Master_Branch }
+            expression { return !params.Run_As_Main_Branch }
           }
         }
       }
@@ -259,7 +259,7 @@ pipeline {
                   url: "git@github.com:elastic/${OPBEANS_REPO}.git",
                   branch: 'main')
               sh script: ".ci/bump-version.sh ${env.BRANCH_NAME}", label: 'Bump version'
-              // The opbeans-go pipeline will trigger a release for the master branch
+              // The opbeans-go pipeline will trigger a release for the main branch
               gitPush()
               // The opbeans-go pipeline will trigger a release for the release tag
               gitCreateTag(tag: "${env.BRANCH_NAME}")

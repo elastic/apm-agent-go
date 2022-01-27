@@ -15,15 +15,15 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmgocql // import "go.elastic.co/apm/module/apmgocql"
+package apmgocql // import "go.elastic.co/apm/module/apmgocql/v2"
 
 import (
 	"context"
 
 	"github.com/gocql/gocql"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/stacktrace"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/stacktrace"
 )
 
 func init() {
@@ -43,7 +43,7 @@ type Observer struct {
 // observed gocql queries.
 func NewObserver(o ...Option) *Observer {
 	opts := options{
-		tracer: apm.DefaultTracer,
+		tracer: apm.DefaultTracer(),
 	}
 	for _, o := range o {
 		o(&opts)

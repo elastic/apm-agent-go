@@ -24,7 +24,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"go.elastic.co/apm/internal/wildcard"
+	"go.elastic.co/apm/v2/internal/wildcard"
 )
 
 // ParseDurationEnv gets the value of the environment variable envKey

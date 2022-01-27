@@ -1,4 +1,4 @@
-module go.elastic.co/apm/module/apmecho
+module go.elastic.co/apm/module/apmecho/v2
 
 require (
 	github.com/labstack/echo v3.3.10+incompatible
@@ -9,13 +9,13 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v0.0.0-20170224212429-dcecefd839c4 // indirect
-	go.elastic.co/apm v1.15.0
-	go.elastic.co/apm/module/apmhttp v1.15.0
+	go.elastic.co/apm/module/apmhttp/v2 v2.0.0
+	go.elastic.co/apm/v2 v2.0.0
 	golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413 // indirect
 )
 
-replace go.elastic.co/apm => ../..
+replace go.elastic.co/apm/v2 => ../..
 
-replace go.elastic.co/apm/module/apmhttp => ../apmhttp
+replace go.elastic.co/apm/module/apmhttp/v2 => ../apmhttp
 
 go 1.13

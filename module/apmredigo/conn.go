@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmredigo // import "go.elastic.co/apm/module/apmredigo"
+package apmredigo // import "go.elastic.co/apm/module/apmredigo/v2"
 
 import (
 	"context"
@@ -24,7 +24,7 @@ import (
 
 	"github.com/gomodule/redigo/redis"
 
-	"go.elastic.co/apm"
+	"go.elastic.co/apm/v2"
 )
 
 // Conn is the interface returned by ContextConn.

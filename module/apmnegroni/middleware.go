@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmnegroni // import "go.elastic.co/apm/module/apmnegroni"
+package apmnegroni // import "go.elastic.co/apm/module/apmnegroni/v2"
 
 import (
 	"context"
@@ -23,9 +23,9 @@ import (
 
 	"github.com/urfave/negroni"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/module/apmhttp"
-	"go.elastic.co/apm/stacktrace"
+	"go.elastic.co/apm/module/apmhttp/v2"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/stacktrace"
 )
 
 func init() {
@@ -40,7 +40,7 @@ func init() {
 // This middleware will recover and report panics, so it can
 // be used instead of the standard negroni.Recovery middleware.
 //
-// By default, the middleware will use apm.DefaultTracer.
+// By default, the middleware will use apm.DefaultTracer().
 // Use WithTracer to specify an alternative tracer.
 func Middleware(o ...Option) negroni.Handler {
 	m := &middleware{

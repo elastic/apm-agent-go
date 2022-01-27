@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmlogrus // import "go.elastic.co/apm/module/apmlogrus"
+package apmlogrus // import "go.elastic.co/apm/module/apmlogrus/v2"
 
 import (
 	"context"
@@ -23,8 +23,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/stacktrace"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/stacktrace"
 )
 
 var (
@@ -51,7 +51,7 @@ func init() {
 // with them.
 type Hook struct {
 	// Tracer is the apm.Tracer to use for reporting errors.
-	// If Tracer is nil, then apm.DefaultTracer will be used.
+	// If Tracer is nil, then apm.DefaultTracer() will be used.
 	Tracer *apm.Tracer
 
 	// LogLevels holds the log levels to report as errors.
@@ -70,7 +70,7 @@ type Hook struct {
 func (h *Hook) tracer() *apm.Tracer {
 	tracer := h.Tracer
 	if tracer == nil {
-		tracer = apm.DefaultTracer
+		tracer = apm.DefaultTracer()
 	}
 	return tracer
 }

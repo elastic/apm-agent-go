@@ -15,11 +15,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmfasthttp // import "go.elastic.co/apm/module/apmfasthttp"
+package apmfasthttp // import "go.elastic.co/apm/module/apmfasthttp/v2"
 
 import (
 	"github.com/valyala/fasthttp"
-	"go.elastic.co/apm"
+	"go.elastic.co/apm/v2"
 )
 
 // newTxCloser returns a transaction closer.

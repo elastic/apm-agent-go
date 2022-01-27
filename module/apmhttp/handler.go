@@ -15,20 +15,20 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmhttp // import "go.elastic.co/apm/module/apmhttp"
+package apmhttp // import "go.elastic.co/apm/module/apmhttp/v2"
 
 import (
 	"context"
 	"io"
 	"net/http"
 
-	"go.elastic.co/apm"
+	"go.elastic.co/apm/v2"
 )
 
 // Wrap returns an http.Handler wrapping h, reporting each request as
 // a transaction to Elastic APM.
 //
-// By default, the returned Handler will use apm.DefaultTracer.
+// By default, the returned Handler will use apm.DefaultTracer().
 // Use WithTracer to specify an alternative tracer.
 //
 // By default, the returned Handler will recover panics, reporting
@@ -40,7 +40,7 @@ func Wrap(h http.Handler, o ...ServerOption) http.Handler {
 	}
 	handler := &handler{
 		handler:     h,
-		tracer:      apm.DefaultTracer,
+		tracer:      apm.DefaultTracer(),
 		requestName: ServerRequestName,
 	}
 	for _, o := range o {
@@ -68,7 +68,7 @@ type handler struct {
 }
 
 // ServeHTTP delegates to h.Handler, tracing the transaction with
-// h.Tracer, or apm.DefaultTracer if h.Tracer is nil.
+// h.Tracer, or apm.DefaultTracer() if h.Tracer is nil.
 func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if !h.tracer.Recording() || h.requestIgnorer(req) {
 		h.handler.ServeHTTP(w, req)

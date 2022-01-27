@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmelasticsearch // import "go.elastic.co/apm/module/apmelasticsearch"
+package apmelasticsearch // import "go.elastic.co/apm/module/apmelasticsearch/v2"
 
 import (
 	"bytes"
@@ -28,8 +28,8 @@ import (
 	"sync/atomic"
 	"unsafe"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/module/apmhttp"
+	"go.elastic.co/apm/module/apmhttp/v2"
+	"go.elastic.co/apm/v2"
 )
 
 // WrapRoundTripper returns an http.RoundTripper wrapping r, reporting each

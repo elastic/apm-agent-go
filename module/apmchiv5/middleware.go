@@ -15,15 +15,15 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmchiv5 // import "go.elastic.co/apm/module/apmchiv5"
+package apmchiv5 // import "go.elastic.co/apm/module/apmchiv5/v2"
 
 import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/module/apmhttp"
+	"go.elastic.co/apm/module/apmhttp/v2"
+	"go.elastic.co/apm/v2"
 )
 
 // Middleware returns a new chi middleware handler
@@ -32,11 +32,11 @@ import (
 // The server request name will use the fully matched,
 // parametrized route.
 //
-// By default, the middleware will use apm.DefaultTracer.
+// By default, the middleware will use apm.DefaultTracer().
 // Use WithTracer to specify an alternative tracer.
 func Middleware(o ...Option) func(http.Handler) http.Handler {
 	opts := options{
-		tracer: apm.DefaultTracer,
+		tracer: apm.DefaultTracer(),
 	}
 	for _, o := range o {
 		o(&opts)

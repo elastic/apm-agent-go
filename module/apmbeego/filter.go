@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmbeego // import "go.elastic.co/apm/module/apmbeego"
+package apmbeego // import "go.elastic.co/apm/module/apmbeego/v2"
 
 import (
 	"context"
@@ -24,8 +24,8 @@ import (
 	"github.com/astaxie/beego"
 	beegocontext "github.com/astaxie/beego/context"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/module/apmhttp"
+	"go.elastic.co/apm/module/apmhttp/v2"
+	"go.elastic.co/apm/v2"
 )
 
 type beegoFilterStateKey struct{}
@@ -42,7 +42,7 @@ func init() {
 // Middleware returns a beego.MiddleWare that traces requests and reports panics to Elastic APM.
 func Middleware(o ...Option) func(http.Handler) http.Handler {
 	opts := options{
-		tracer: apm.DefaultTracer,
+		tracer: apm.DefaultTracer(),
 	}
 	for _, o := range o {
 		o(&opts)

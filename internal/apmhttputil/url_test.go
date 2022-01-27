@@ -25,8 +25,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"go.elastic.co/apm/internal/apmhttputil"
-	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/v2/internal/apmhttputil"
+	"go.elastic.co/apm/v2/model"
 	"go.elastic.co/fastjson"
 )
 

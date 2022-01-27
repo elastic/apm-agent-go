@@ -27,7 +27,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 
-	"go.elastic.co/apm/module/apmzerolog"
+	"go.elastic.co/apm/module/apmzerolog/v2"
 )
 
 func ExampleMarshalErrorStack() {
@@ -68,9 +68,9 @@ func TestMarshalErrorStack(t *testing.T) {
 	assert.Equal(t, record.Message, "nope nope nope")
 	assert.Equal(t, record.Error, "error from funcC")
 
-	assert.Equal(t, "go.elastic.co/apm/module/apmzerolog_test.funcC", record.Stack[0].Func)
-	assert.Equal(t, "go.elastic.co/apm/module/apmzerolog_test.funcB", record.Stack[1].Func)
-	assert.Equal(t, "go.elastic.co/apm/module/apmzerolog_test.funcA", record.Stack[2].Func)
+	assert.Equal(t, "go.elastic.co/apm/module/apmzerolog/v2_test.funcC", record.Stack[0].Func)
+	assert.Equal(t, "go.elastic.co/apm/module/apmzerolog/v2_test.funcB", record.Stack[1].Func)
+	assert.Equal(t, "go.elastic.co/apm/module/apmzerolog/v2_test.funcA", record.Stack[2].Func)
 	for _, frame := range record.Stack {
 		assert.NotEmpty(t, frame.Source)
 		assert.NotEmpty(t, frame.Line)

@@ -30,8 +30,7 @@ import (
 	"sync"
 	"time"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/transport"
+	"go.elastic.co/apm/v2"
 )
 
 // ExampleTracer shows how to use the Tracer API
@@ -40,13 +39,8 @@ func ExampleTracer() {
 	server := httptest.NewServer(&r)
 	defer server.Close()
 
-	// ELASTIC_APM_SERVER_URL should typically set in the environment
-	// when the process is started. The InitDefault call below is only
-	// required in this case because the environment variable is set
-	// after the program has been initialized.
 	os.Setenv("ELASTIC_APM_SERVER_URL", server.URL)
 	defer os.Unsetenv("ELASTIC_APM_SERVER_URL")
-	transport.InitDefault()
 
 	const serviceName = "service-name"
 	const serviceVersion = "1.0.0"

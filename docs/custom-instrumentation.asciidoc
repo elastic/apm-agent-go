@@ -11,14 +11,14 @@ such as a database query, or a request to another service.
  - <<custom-instrumentation-errors,Error>> - May refer to Go errors or panics.
 
 To report these, use a <<tracer-api,apm.Tracer>> -- typically
-`apm.DefaultTracer`, which is configured via environment variables. In the code
-examples below, we will refer to `apm.DefaultTracer`. Please refer to the <<api, API documentation>>
+`apm.DefaultTracer()`, which is configured via environment variables. In the code
+examples below, we will refer to `apm.DefaultTracer()`. Please refer to the <<api, API documentation>>
 for a more thorough description of the types and methods.
 
 [[custom-instrumentation-transactions]]
 ==== Transactions
 
-To report a transaction, call <<tracer-api-start-transaction, apm.DefaultTracer.StartTransaction>>
+To report a transaction, call <<tracer-api-start-transaction, apm.DefaultTracer().StartTransaction>>
 with the transaction name and type. This returns a `Transaction` object; the transaction
 can be customized with additional context before you call its `End` method to indicate
 that the transaction has completed. Once the transaction's `End` method is called, it
@@ -26,7 +26,7 @@ will be enqueued for sending to the Elastic APM server, and made available to th
 
 [source,go]
 ----
-tx := apm.DefaultTracer.StartTransaction("GET /api/v1", "request")
+tx := apm.DefaultTracer().StartTransaction("GET /api/v1", "request")
 defer tx.End()
 ...
 tx.Result = "HTTP 2xx"
@@ -80,7 +80,7 @@ non-panic errors: <<tracer-new-error, Tracer.NewError>>, <<tracer-new-error-log,
 ----
 defer func() {
 	if v := recover(); v != nil {
-		e := apm.DefaultTracer.Recovered()
+		e := apm.DefaultTracer().Recovered()
 		e.SetTransaction(tx) // or e.SetSpan(span)
 		e.Send()
 	}

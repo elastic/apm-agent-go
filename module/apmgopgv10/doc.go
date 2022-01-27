@@ -16,4 +16,4 @@
 // under the License.
 
 // Package apmgopgv10 provides wrappers for tracing go-pg/v10 operations.
-package apmgopgv10 // import "go.elastic.co/apm/module/apmgopgv10"
+package apmgopgv10 // import "go.elastic.co/apm/module/apmgopgv10/v2"

@@ -4,7 +4,7 @@
 This section describes the most commonly used parts of the API.
 
 The Go agent is documented using standard godoc. For complete documentation,
-refer to the documentation at https://godoc.org/go.elastic.co/apm/[godoc.org/go.elastic.co/apm],
+refer to the documentation at https://pkg.go.dev/go.elastic.co/apm/v2[pkg.go.dev/go.elastic.co/apm/v2],
 or by using the "godoc" tool.
 
 [float]
@@ -15,19 +15,22 @@ The initial point of contact your application will have with the Go agent
 is the `apm.Tracer` type, which provides methods for reporting
 transactions and errors.
 
-To make instrumentation simpler, the Go agent provides a pre-initialized
-tracer, `apm.DefaultTracer`. This tracer is always initialized and
-available for use. This tracer is configured with environment variables;
-see <<configuration>> for details.
+To make instrumentation simpler, the Go agent provides an initialization
+function, `apm.DefaultTracer()`. This tracer is initialized the first time
+`apm.DefaultTracer()` is called, and returned on subsequent calls. The tracer
+returned by this function can be modified using `apm.SetDefaultTracer(tracer)`.
+Calling this will close the previous default tracer, if any exists.  This
+tracer is configured with environment variables; see <<configuration>> for
+details.
 
 [source,go]
 ----
 import (
-	"go.elastic.co/apm"
+	"go.elastic.co/apm/v2"
 )
 
 func main() {
-	tracer := apm.DefaultTracer
+	tracer := apm.DefaultTracer()
 	...
 }
 ----
@@ -52,7 +55,7 @@ or RPC request. e.g.:
 
 [source,go]
 ----
-transaction := apm.DefaultTracer.StartTransaction("GET /", "request")
+transaction := apm.DefaultTracer().StartTransaction("GET /", "request")
 ----
 
 Transactions will be grouped by type and name in the Elastic APM app.
@@ -82,7 +85,7 @@ opts := apm.TransactionOptions{
 	Start: time.Now(),
 	TraceContext: parentTraceContext,
 }
-transaction := apm.DefaultTracer.StartTransactionOptions("GET /", "request", opts)
+transaction := apm.DefaultTracer().StartTransactionOptions("GET /", "request", opts)
 ----
 
 [float]
@@ -361,7 +364,7 @@ String values longer than 1024 characters will be truncated. Labels are
 indexed in Elasticsearch as keyword fields.
 
 TIP: Before using labels, ensure you understand the different types of
-{apm-overview-ref-v}/metadata.html[metadata] that are available.
+{apm-guide-ref}/data-model-metadata.html[metadata] that are available.
 
 WARNING: Avoid defining too many user-specified labels.
 Defining too many unique fields in an index is a condition that can lead to a
@@ -383,7 +386,7 @@ to help you quickly debug performance issues or errors.
 The value can be of any type that can be encoded using `encoding/json`.
 
 TIP: Before using custom context, ensure you understand the different types of
-{apm-overview-ref-v}/metadata.html[metadata] that are available.
+{apm-guide-ref}/data-model-metadata.html[metadata] that are available.
 
 [float]
 [[context-set-username]]
@@ -424,7 +427,7 @@ same definition as given by https://github.com/pkg/errors[github.com/pkg/errors]
 
 [source,go]
 ----
-e := apm.DefaultTracer.NewError(err)
+e := apm.DefaultTracer().NewError(err)
 ...
 e.Send()
 ----
@@ -442,7 +445,7 @@ type ErrorsStacktracer interface {
 // Errors implementing Stacktracer will have their stacktrace
 // set based on the result of the StackTrace method.
 type Stacktracer interface {
-    StackTrace() []go.elastic.co/apm/stacktrace.Frame
+    StackTrace() []go.elastic.co/apm/v2/stacktrace.Frame
 }
 
 // Errors implementing Typer will have a "type" field set to the
@@ -509,7 +512,7 @@ The resulting Error's log stacktrace will not be set. Call the SetStacktrace met
 
 [source,go]
 ----
-e := apm.DefaultTracer.NewErrorLog(apm.ErrorLogRecord{
+e := apm.DefaultTracer().NewErrorLog(apm.ErrorLogRecord{
 	Message: "Somebody set up us the bomb.",
 })
 ...
@@ -545,11 +548,11 @@ and then call its `Send` method.
 
 [source,go]
 ----
-tx := apm.DefaultTracer.StartTransaction(...)
+tx := apm.DefaultTracer().StartTransaction(...)
 defer tx.End()
 defer func() {
 	if v := recover(); v != nil {
-		e := apm.DefaultTracer.Recovered(v)
+		e := apm.DefaultTracer().Recovered(v)
 		e.SetTransaction(tx)
 		e.Send()
 	}
@@ -596,9 +599,9 @@ In addition, errors can be associated with an active transaction or span using
 
 [source,go]
 ----
-tx := apm.DefaultTracer.StartTransaction("GET /foo", "request")
+tx := apm.DefaultTracer().StartTransaction("GET /foo", "request")
 defer tx.End()
-e := apm.DefaultTracer.NewError(err)
+e := apm.DefaultTracer().NewError(err)
 e.SetTransaction(tx)
 e.Send()
 ----
@@ -608,6 +611,6 @@ e.Send()
 ==== Tracer Config
 
 Many configuration attributes can be be updated dynamically via `apm.Tracer` method calls.
-Please refer to the documentation at https://godoc.org/go.elastic.co/apm#Tracer[godoc.org/go.elastic.co/apm#Tracer]
+Please refer to the documentation at https://pkg.go.dev/go.elastic.co/apm/v2#Tracer[pkg.go.dev/go.elastic.co/apm/v2#Tracer]
 for details. The configuration methods are primarily prefixed with `Set`, such as
-https://godoc.org/go.elastic.co/apm#Tracer.SetLogger[apm#Tracer.SetLogger].
+https://pkg.go.dev/go.elastic.co/apm/v2#Tracer.SetLogger[apm#Tracer.SetLogger].

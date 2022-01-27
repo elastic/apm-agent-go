@@ -15,12 +15,24 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package transport // import "go.elastic.co/apm/transport"
+package transport // import "go.elastic.co/apm/v2/transport"
 
 import (
 	"context"
 	"io"
 )
+
+var (
+	// Discard is a Transport on which all operations
+	// succeed without doing anything.
+	Discard = discardTransport{}
+)
+
+// NewDiscardTransport returns a Transport that returns the given
+// error from all operations.
+func NewDiscardTransport(err error) Transport {
+	return discardTransport{err}
+}
 
 type discardTransport struct {
 	err error

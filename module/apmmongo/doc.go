@@ -17,4 +17,4 @@
 
 // Package apmmongo provides a CommandMonitor implementation
 // for tracing Mongo commands.
-package apmmongo // import "go.elastic.co/apm/module/apmmongo"
+package apmmongo // import "go.elastic.co/apm/module/apmmongo/v2"

@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmawssdkgo // import "go.elastic.co/apm/module/apmawssdkgo"
+package apmawssdkgo // import "go.elastic.co/apm/module/apmawssdkgo/v2"
 
 import (
 	"bytes"
@@ -32,8 +32,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/apmtest"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/apmtest"
 )
 
 func TestS3(t *testing.T) {
@@ -184,7 +184,7 @@ func TestUnsupportedServices(t *testing.T) {
 	wrapped := WrapSession(session)
 	svc := athena.New(wrapped)
 
-	tx := apm.DefaultTracer.StartTransaction("send-email", "test-tx")
+	tx := apm.DefaultTracer().StartTransaction("send-email", "test-tx")
 	span := tx.StartSpan("test-span", "send-email", nil)
 	defer span.End()
 

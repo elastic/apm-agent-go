@@ -15,15 +15,15 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmgorilla // import "go.elastic.co/apm/module/apmgorilla"
+package apmgorilla // import "go.elastic.co/apm/module/apmgorilla/v2"
 
 import (
 	"net/http"
 
 	"github.com/gorilla/mux"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/module/apmhttp"
+	"go.elastic.co/apm/module/apmhttp/v2"
+	"go.elastic.co/apm/v2"
 )
 
 // Instrument instruments the mux.Router so that requests are traced.
@@ -72,11 +72,11 @@ func WrapMethodNotAllowedHandler(h http.Handler, m mux.MiddlewareFunc) http.Hand
 // MethodNotAllowedHandler fields using the Wrap functions in
 // this package.
 //
-// By default, the middleware will use apm.DefaultTracer.
+// By default, the middleware will use apm.DefaultTracer().
 // Use WithTracer to specify an alternative tracer.
 func Middleware(o ...Option) mux.MiddlewareFunc {
 	opts := options{
-		tracer: apm.DefaultTracer,
+		tracer: apm.DefaultTracer(),
 	}
 	for _, o := range o {
 		o(&opts)

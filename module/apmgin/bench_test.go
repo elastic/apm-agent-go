@@ -26,9 +26,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/module/apmgin"
-	"go.elastic.co/apm/transport"
+	"go.elastic.co/apm/module/apmgin/v2"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/transport"
 )
 
 var benchmarkPaths = []string{"/hello/world", "/sleep/1ms"}
@@ -69,11 +69,12 @@ func newTracer() *apm.Tracer {
 	if err != nil {
 		panic(err)
 	}
-	httpTransport, err := transport.NewHTTPTransport()
+	httpTransport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{
+		ServerURLs: []*url.URL{invalidServerURL},
+	})
 	if err != nil {
 		panic(err)
 	}
-	httpTransport.SetServerURL(invalidServerURL)
 	tracer, err := apm.NewTracerOptions(apm.TracerOptions{
 		ServiceName:    "apmgin_test",
 		ServiceVersion: "0.1",

@@ -29,12 +29,11 @@ import (
 	"github.com/stretchr/testify/suite"
 	"github.com/urfave/negroni"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/apmtest"
-	"go.elastic.co/apm/model"
-	"go.elastic.co/apm/transport/transporttest"
-
-	"go.elastic.co/apm/module/apmnegroni"
+	"go.elastic.co/apm/module/apmnegroni/v2"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/apmtest"
+	"go.elastic.co/apm/v2/model"
+	"go.elastic.co/apm/v2/transport/transporttest"
 )
 
 func TestMiddlewareHTTPSuite(t *testing.T) {

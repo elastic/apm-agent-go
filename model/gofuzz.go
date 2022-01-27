@@ -18,13 +18,13 @@
 //go:build gofuzz
 // +build gofuzz
 
-package model // import "go.elastic.co/apm/model"
+package model // import "go.elastic.co/apm/v2/model"
 
 import (
 	"bytes"
 	"encoding/json"
 
-	"go.elastic.co/apm/internal/apmschema"
+	"go.elastic.co/apm/v2/internal/apmschema"
 	"go.elastic.co/fastjson"
 )
 

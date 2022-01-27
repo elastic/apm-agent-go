@@ -33,11 +33,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/apmtest"
-	"go.elastic.co/apm/model"
-	"go.elastic.co/apm/stacktrace"
-	"go.elastic.co/apm/transport/transporttest"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/apmtest"
+	"go.elastic.co/apm/v2/model"
+	"go.elastic.co/apm/v2/stacktrace"
+	"go.elastic.co/apm/v2/transport/transporttest"
 )
 
 func TestErrorID(t *testing.T) {
@@ -59,7 +59,7 @@ func TestErrorsStackTrace(t *testing.T) {
 	exception := modelError.Exception
 	stacktrace := exception.Stacktrace
 	assert.Equal(t, "zing", exception.Message)
-	assert.Equal(t, "go.elastic.co/apm_test", exception.Module)
+	assert.Equal(t, "go.elastic.co/apm/v2_test", exception.Module)
 	assert.Equal(t, "errorsStackTracer", exception.Type)
 	require.Len(t, stacktrace, 2)
 	assert.Equal(t, "newErrorsStackTrace", stacktrace[0].Function)
@@ -96,7 +96,7 @@ func TestInternalStackTrace(t *testing.T) {
 	exception := modelError.Exception
 	stacktrace := exception.Stacktrace
 	assert.Equal(t, "zing", exception.Message)
-	assert.Equal(t, "go.elastic.co/apm_test", exception.Module)
+	assert.Equal(t, "go.elastic.co/apm/v2_test", exception.Module)
 	assert.Equal(t, "internalStackTracer", exception.Type)
 	assert.Equal(t, []model.StacktraceFrame{{
 		Function: "FuncName",
@@ -167,12 +167,12 @@ func TestRuntimeStackTrace(t *testing.T) {
 	exception := modelError.Exception
 	stacktrace := exception.Stacktrace
 	assert.Equal(t, "zing", exception.Message)
-	assert.Equal(t, "go.elastic.co/apm_test", exception.Module)
+	assert.Equal(t, "go.elastic.co/apm/v2_test", exception.Module)
 	assert.Equal(t, "runtimeStackTracer", exception.Type)
 	assert.Equal(t, 3, len(stacktrace))
 
 	frame := stacktrace[0]
-	assert.Equal(t, "go.elastic.co/apm_test", frame.Module)
+	assert.Equal(t, "go.elastic.co/apm/v2_test", frame.Module)
 	assert.Equal(t, "error_test.go", frame.File)
 	assert.Equal(t, "TestRuntimeStackTrace", frame.Function)
 	assert.Greater(t, frame.Line, 0)

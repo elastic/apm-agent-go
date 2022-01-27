@@ -15,12 +15,14 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apm // import "go.elastic.co/apm"
+package apm // import "go.elastic.co/apm/v2"
 
 import (
+	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -30,10 +32,11 @@ import (
 
 	"github.com/pkg/errors"
 
-	"go.elastic.co/apm/internal/apmlog"
-	"go.elastic.co/apm/internal/configutil"
-	"go.elastic.co/apm/internal/wildcard"
-	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/v2/internal/apmlog"
+	"go.elastic.co/apm/v2/internal/configutil"
+	"go.elastic.co/apm/v2/internal/wildcard"
+	"go.elastic.co/apm/v2/model"
+	"go.elastic.co/apm/v2/transport"
 )
 
 const (
@@ -137,6 +140,27 @@ var (
 		return labels
 	}()
 )
+
+// Regular expression matching comment characters to escape in the User-Agent header value.
+//
+// See https://httpwg.org/specs/rfc7230.html#field.components
+var httpComment = regexp.MustCompile("[^\\t \\x21-\\x27\\x2a-\\x5b\\x5d-\\x7e\\x80-\\xff]")
+
+func initialTransport(serviceName, serviceVersion string) (transport.Transport, error) {
+	// User-Agent should be "apm-agent-go/<agent-version> (service-name service-version)".
+	service := serviceName
+	if serviceVersion != "" {
+		service += " " + httpComment.ReplaceAllString(serviceVersion, "_")
+	}
+	userAgent := fmt.Sprintf("%s (%s)", transport.DefaultUserAgent(), service)
+	httpTransport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{
+		UserAgent: userAgent,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return httpTransport, nil
+}
 
 func initialRequestDuration() (time.Duration, error) {
 	return configutil.ParseDurationEnv(envAPIRequestTime, defaultAPIRequestTime)

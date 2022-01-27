@@ -28,4 +28,4 @@
 //
 // Go kit-based gRPC servers and clients can both be wrapped
 // using the interceptors provided in module/apmgrpc.
-package apmgokit // import "go.elastic.co/apm/module/apmgokit"
+package apmgokit // import "go.elastic.co/apm/module/apmgokit/v2"

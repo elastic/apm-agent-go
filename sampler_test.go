@@ -25,7 +25,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"go.elastic.co/apm"
+	"go.elastic.co/apm/v2"
 )
 
 func TestRatioSampler(t *testing.T) {

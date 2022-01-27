@@ -24,7 +24,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/v2/model"
 )
 
 const (

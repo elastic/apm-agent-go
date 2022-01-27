@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apm // import "go.elastic.co/apm"
+package apm // import "go.elastic.co/apm/v2"
 
 import (
 	"bytes"
@@ -206,7 +206,7 @@ func NewTraceState(entries ...TraceStateEntry) TraceState {
 
 // parseElasticTracestate parses an Elastic ("es") tracestate entry.
 //
-// Per https://github.com/elastic/apm/blob/master/specs/agents/tracing-distributed-tracing.md,
+// Per https://github.com/elastic/apm/blob/main/specs/agents/tracing-distributed-tracing.md,
 // the "es" tracestate value format is: "key:value;key:value...". Unknown keys are ignored.
 func (s *TraceState) parseElasticTracestate(e TraceStateEntry) error {
 	if err := e.Validate(); err != nil {

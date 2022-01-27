@@ -15,7 +15,7 @@ Install the Elastic APM Go agent package using `go get`:
 
 [source,bash]
 ----
-go get -u go.elastic.co/apm
+go get -u go.elastic.co/apm/v2
 ----
 
 [float]

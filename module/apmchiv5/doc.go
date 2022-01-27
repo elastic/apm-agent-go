@@ -17,4 +17,4 @@
 
 // Package apmchiv5 provides middleware for the v5 Chi router,
 // for tracing HTTP requests.
-package apmchiv5 // import "go.elastic.co/apm/module/apmchiv5"
+package apmchiv5 // import "go.elastic.co/apm/module/apmchiv5/v2"

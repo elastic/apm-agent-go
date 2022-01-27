@@ -26,9 +26,9 @@ import (
 	"testing"
 	"time"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/module/apmhttp"
-	"go.elastic.co/apm/transport"
+	"go.elastic.co/apm/module/apmhttp/v2"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/transport"
 )
 
 var benchmarkPaths = []string{"/hello/world", "/sleep/1ms"}
@@ -74,11 +74,12 @@ func newTracer() *apm.Tracer {
 		panic(err)
 	}
 
-	httpTransport, err := transport.NewHTTPTransport()
+	httpTransport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{
+		ServerURLs: []*url.URL{invalidServerURL},
+	})
 	if err != nil {
 		panic(err)
 	}
-	httpTransport.SetServerURL(invalidServerURL)
 
 	tracer, err := apm.NewTracerOptions(apm.TracerOptions{
 		ServiceName:    "apmhttp_test",

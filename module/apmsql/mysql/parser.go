@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmmysql // import "go.elastic.co/apm/module/apmsql/mysql"
+package apmmysql // import "go.elastic.co/apm/module/apmsql/v2/mysql"
 
 import (
 	"net"
@@ -23,7 +23,7 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 
-	"go.elastic.co/apm/module/apmsql"
+	"go.elastic.co/apm/module/apmsql/v2"
 )
 
 // ParseDSN parses the given go-sql-driver/mysql datasource name.

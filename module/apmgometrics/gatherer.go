@@ -15,14 +15,14 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmgometrics // import "go.elastic.co/apm/module/apmgometrics"
+package apmgometrics // import "go.elastic.co/apm/module/apmgometrics/v2"
 
 import (
 	"context"
 
 	metrics "github.com/rcrowley/go-metrics"
 
-	"go.elastic.co/apm"
+	"go.elastic.co/apm/v2"
 )
 
 // Wrap wraps r, a go-metrics Registry, so that it can be used

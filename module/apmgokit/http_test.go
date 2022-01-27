@@ -28,11 +28,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/apmtest"
-	"go.elastic.co/apm/model"
-	"go.elastic.co/apm/module/apmhttp"
-	"go.elastic.co/apm/transport/transporttest"
+	"go.elastic.co/apm/module/apmhttp/v2"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/apmtest"
+	"go.elastic.co/apm/v2/model"
+	"go.elastic.co/apm/v2/transport/transporttest"
 )
 
 func Example_httpServer() {
@@ -68,7 +68,7 @@ func Example_httpClient() {
 		kithttp.SetClient(apmhttp.WrapClient(http.DefaultClient)),
 	)
 
-	tx := apm.DefaultTracer.StartTransaction("name", "type")
+	tx := apm.DefaultTracer().StartTransaction("name", "type")
 	ctx := apm.ContextWithTransaction(context.Background(), tx)
 	defer tx.End()
 

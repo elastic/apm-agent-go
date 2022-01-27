@@ -15,13 +15,13 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apm // import "go.elastic.co/apm"
+package apm // import "go.elastic.co/apm/v2"
 
 import (
 	"time"
 
-	"go.elastic.co/apm/internal/ringbuffer"
-	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/v2/internal/ringbuffer"
+	"go.elastic.co/apm/v2/model"
 	"go.elastic.co/fastjson"
 )
 

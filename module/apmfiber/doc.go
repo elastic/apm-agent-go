@@ -16,4 +16,4 @@
 // under the License.
 
 // Package apmfiber provides a tracing middleware for fasthttp-based server framework Fiber.
-package apmfiber // import "go.elastic.co/apm/module/apmfiber"
+package apmfiber // import "go.elastic.co/apm/module/apmfiber/v2"

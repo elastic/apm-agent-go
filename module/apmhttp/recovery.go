@@ -15,12 +15,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmhttp // import "go.elastic.co/apm/module/apmhttp"
+package apmhttp // import "go.elastic.co/apm/module/apmhttp/v2"
 
 import (
 	"net/http"
 
-	"go.elastic.co/apm"
+	"go.elastic.co/apm/v2"
 )
 
 // RecoveryFunc is the type of a function for use in WithRecovery.
@@ -36,13 +36,13 @@ type RecoveryFunc func(
 // NewTraceRecovery returns a RecoveryFunc for use in WithRecovery.
 //
 // The returned RecoveryFunc will report recovered error to Elastic APM
-// using the given Tracer, or apm.DefaultTracer if t is nil. The
+// using the given Tracer, or apm.DefaultTracer() if t is nil. The
 // error will be linked to the given transaction.
 //
 // If headers have not already been written, a 500 response will be sent.
 func NewTraceRecovery(t *apm.Tracer) RecoveryFunc {
 	if t == nil {
-		t = apm.DefaultTracer
+		t = apm.DefaultTracer()
 	}
 	return func(
 		w http.ResponseWriter,

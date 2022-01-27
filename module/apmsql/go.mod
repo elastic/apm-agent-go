@@ -1,4 +1,4 @@
-module go.elastic.co/apm/module/apmsql
+module go.elastic.co/apm/module/apmsql/v2
 
 require (
 	github.com/go-sql-driver/mysql v1.5.0
@@ -6,9 +6,9 @@ require (
 	github.com/lib/pq v1.3.0
 	github.com/mattn/go-sqlite3 v1.10.0
 	github.com/stretchr/testify v1.6.1
-	go.elastic.co/apm v1.15.0
+	go.elastic.co/apm/v2 v2.0.0
 )
 
-replace go.elastic.co/apm => ../..
+replace go.elastic.co/apm/v2 => ../..
 
 go 1.13

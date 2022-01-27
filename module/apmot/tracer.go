@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmot // import "go.elastic.co/apm/module/apmot"
+package apmot // import "go.elastic.co/apm/module/apmot/v2"
 
 import (
 	"io"
@@ -25,21 +25,21 @@ import (
 
 	opentracing "github.com/opentracing/opentracing-go"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/module/apmhttp"
+	"go.elastic.co/apm/module/apmhttp/v2"
+	"go.elastic.co/apm/v2"
 )
 
 // New returns a new opentracing.Tracer backed by the supplied
 // Elastic APM tracer.
 //
-// By default, the returned tracer will use apm.DefaultTracer.
+// By default, the returned tracer will use apm.DefaultTracer().
 // This can be overridden by using a WithTracer option.
 // The option WithSpanRefValidator allows one to override the
 // set of spans that are recorded. By default only child-of
 // spans are recorded.
 func New(opts ...Option) opentracing.Tracer {
 	t := &otTracer{
-		tracer:         apm.DefaultTracer,
+		tracer:         apm.DefaultTracer(),
 		isValidSpanRef: isChildOfSpanRef,
 	}
 	for _, opt := range opts {
