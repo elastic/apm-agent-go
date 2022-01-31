@@ -19,6 +19,7 @@ package apmotel // import "go.elastic.co/apm/module/apmotel/v2"
 
 import (
 	"context"
+	"sync"
 
 	"go.elastic.co/apm/v2"
 
@@ -29,7 +30,6 @@ import (
 
 func newRootTransaction(
 	ctx context.Context,
-	tracer *apm.Tracer,
 	spanCtx trace.SpanContext,
 	attributes []attribute.KeyValue,
 	spanKind, name, txType string,
@@ -42,13 +42,15 @@ func newRootTransaction(
 		tx.Context.SetLabel(attr.Key, attr.Value)
 	}
 	ctx := apm.ContextWithTransaction(ctx, tx)
-	return ctx, &transaction{inner: tx, tracer: tracer, spanCtx: spanCtx}
+	return ctx, &transaction{inner: tx, spanCtx: spanCtx}
 }
 
 type transaction struct {
 	inner   *apm.Transaction
-	tracer  *apm.Tracer
 	spanCtx trace.SpanContext
+
+	mu    sync.RWMutex
+	ended bool
 }
 
 // End completes the Span. The Span is considered complete and ready to be
@@ -56,7 +58,10 @@ type transaction struct {
 // is called. Therefore, updates to the Span are not allowed after this
 // method has been called.
 func (t *transaction) End(_ ...trace.SpanEndOption) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	t.inner.End()
+	t.ended = true
 }
 
 // AddEvent adds an event with the provided name and options.
@@ -65,7 +70,12 @@ func (t *transaction) AddEvent(name string, options ...trace.EventOption) {}
 // IsRecording returns the recording state of the Span. It will return
 // true if the Span is active and events can be recorded.
 func (t *transaction) IsRecording() bool {
-	return t.tracer.Recording()
+	if t == nil {
+		return false
+	}
+	t.RLock()
+	defer t.RUnlock()
+	return !t.ended
 }
 
 // RecordError will record err as an exception transaction event for this transaction. An

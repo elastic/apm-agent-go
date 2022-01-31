@@ -18,6 +18,8 @@
 package apmotel // import "go.elastic.co/apm/module/apmotel/v2"
 
 import (
+	"sync"
+
 	"go.elastic.co/apm/v2"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -26,8 +28,10 @@ import (
 )
 
 type span struct {
-	inner  *apm.Span
-	tracer *apm.Tracer
+	inner *apm.Span
+
+	mu    sync.RWMutex
+	ended bool
 }
 
 // End completes the Span. The Span is considered complete and ready to be
@@ -35,7 +39,10 @@ type span struct {
 // is called. Therefore, updates to the Span are not allowed after this
 // method has been called.
 func (s *span) End(_ ...trace.SpanEndOption) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.inner.End()
+	s.ended = true
 }
 
 // AddEvent adds an event with the provided name and options.
@@ -44,7 +51,12 @@ func (s *span) AddEvent(name string, options ...trace.EventOption) {}
 // IsRecording returns the recording state of the Span. It will return
 // true if the Span is active and events can be recorded.
 func (s *span) IsRecording() bool {
-	return s.tracer.Recording()
+	if s == nil {
+		return false
+	}
+	s.RLock()
+	defer s.RUnlock()
+	return !s.ended
 }
 
 // RecordError will record err as an exception span event for this span. An
