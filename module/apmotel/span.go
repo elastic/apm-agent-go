@@ -28,7 +28,8 @@ import (
 )
 
 type span struct {
-	inner *apm.Span
+	inner  *apm.Span
+	tracer *apm.Tracer
 
 	mu    sync.RWMutex
 	ended bool
@@ -63,9 +64,8 @@ func (s *span) IsRecording() bool {
 // additional call to SetStatus is required if the Status of the Span should
 // be set to Error, as this method does not change the Span status. If this
 // span is not being recorded or err is nil then this method does nothing.
-func (s *span) RecordError(err error, options ...trace.EventOption) {
-	// ? what to do about ctx
-	// apm.CaptureError(ctx, err)
+func (s *span) RecordError(err error, _ ...trace.EventOption) {
+	s.tracer.NewError(err).SetSpan(s.inner)
 }
 
 // SpanContext returns the SpanContext of the Span. The returned SpanContext

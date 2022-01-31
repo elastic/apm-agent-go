@@ -30,6 +30,7 @@ import (
 
 func newRootTransaction(
 	ctx context.Context,
+	tracer *apm.Tracer,
 	spanCtx trace.SpanContext,
 	attributes []attribute.KeyValue,
 	spanKind, name, txType string,
@@ -42,12 +43,13 @@ func newRootTransaction(
 		tx.Context.SetLabel(attr.Key, attr.Value)
 	}
 	ctx := apm.ContextWithTransaction(ctx, tx)
-	return ctx, &transaction{inner: tx, spanCtx: spanCtx}
+	return ctx, &transaction{inner: tx, spanCtx: spanCtx, tracer: tracer}
 }
 
 type transaction struct {
 	inner   *apm.Transaction
 	spanCtx trace.SpanContext
+	tracer  *apm.Tracer
 
 	mu    sync.RWMutex
 	ended bool
@@ -82,9 +84,8 @@ func (t *transaction) IsRecording() bool {
 // additional call to SetStatus is required if the Status of the Span should
 // be set to Error, as this method does not change the Span status. If this
 // transaction is not being recorded or err is nil then this method does nothing.
-func (t *transaction) RecordError(err error, options ...trace.EventOption) {
-	// ? what to do about ctx
-	// apm.CaptureError(ctx, err)
+func (t *transaction) RecordError(err error, _ ...trace.EventOption) {
+	t.tracer.NewError(err).SetTransaction(t.inner)
 }
 
 // SpanContext returns the SpanContext of the Span. The returned SpanContext
