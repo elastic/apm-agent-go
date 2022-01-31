@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmotelbridge // import "go.elastic.co/apm/module/apmotelbridge/v2"
+package apmotel // import "go.elastic.co/apm/module/apmotel/v2"
 
 import (
 	"go.elastic.co/apm/v2"
