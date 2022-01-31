@@ -21,11 +21,11 @@ import (
 	"context"
 	"sync"
 
-	"go.elastic.co/apm/v2"
-
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/codes"
+
+	"go.elastic.co/apm/v2"
 )
 
 func newRootTransaction(

@@ -20,11 +20,11 @@ package apmotel // import "go.elastic.co/apm/module/apmotel/v2"
 import (
 	"sync"
 
-	"go.elastic.co/apm/v2"
-
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/codes"
+
+	"go.elastic.co/apm/v2"
 )
 
 type span struct {

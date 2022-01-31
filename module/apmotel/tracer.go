@@ -22,9 +22,10 @@ import (
 	"strings"
 	"time"
 
-	"go.elastic.co/apm/v2"
-	"go.opencensus.io/trace"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
+	"go.elastic.co/apm/v2"
 )
 
 // Tracer creates a named tracer that implements otel.Tracer.
