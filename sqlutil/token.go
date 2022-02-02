@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package sqlutil // import "go.elastic.co/apm/sqlutil"
+package sqlutil // import "go.elastic.co/apm/v2/sqlutil"
 
 import "fmt"
 

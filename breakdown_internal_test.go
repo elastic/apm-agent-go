@@ -67,7 +67,7 @@ func testBreakdownMetricsAlignment(t *testing.T, arch string) {
 		files[i] = f
 	}
 
-	pkg, err := cfg.Check("go.elastic.co/apm", fset, files, nil)
+	pkg, err := cfg.Check("go.elastic.co/apm/v2", fset, files, nil)
 	require.NoError(t, err)
 
 	// breakdownMetricsMapEntry's size must be multiple of 8,

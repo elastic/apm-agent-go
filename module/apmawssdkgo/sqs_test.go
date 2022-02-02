@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmawssdkgo // import "go.elastic.co/apm/module/apmawssdkgo"
+package apmawssdkgo // import "go.elastic.co/apm/module/apmawssdkgo/v2"
 
 import (
 	"context"
@@ -25,8 +25,8 @@ import (
 	"strconv"
 	"testing"
 
-	"go.elastic.co/apm/apmtest"
-	"go.elastic.co/apm/module/apmhttp"
+	"go.elastic.co/apm/module/apmhttp/v2"
+	"go.elastic.co/apm/v2/apmtest"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"

@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package model // import "go.elastic.co/apm/model"
+package model // import "go.elastic.co/apm/v2/model"
 
 import (
 	"encoding/hex"
@@ -28,7 +28,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"go.elastic.co/apm/internal/apmstrings"
+	"go.elastic.co/apm/v2/internal/apmstrings"
 	"go.elastic.co/fastjson"
 )
 

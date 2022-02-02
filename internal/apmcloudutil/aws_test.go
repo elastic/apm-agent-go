@@ -25,7 +25,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/v2/model"
 )
 
 func TestAWSCloudMetadata(t *testing.T) {

@@ -27,7 +27,7 @@ import (
 	"strings"
 	"unicode"
 
-	"go.elastic.co/apm/module/apmsql"
+	"go.elastic.co/apm/module/apmsql/v2"
 )
 
 const (

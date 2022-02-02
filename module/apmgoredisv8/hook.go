@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmgoredisv8 // import "go.elastic.co/apm/module/apmgoredisv8"
+package apmgoredisv8 // import "go.elastic.co/apm/module/apmgoredisv8/v2"
 
 import (
 	"bytes"
@@ -24,7 +24,7 @@ import (
 
 	"github.com/go-redis/redis/v8"
 
-	"go.elastic.co/apm"
+	"go.elastic.co/apm/v2"
 )
 
 // hook is an implementation of redis.Hook that reports cmds as spans to Elastic APM.

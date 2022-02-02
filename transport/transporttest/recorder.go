@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package transporttest // import "go.elastic.co/apm/transport/transporttest"
+package transporttest // import "go.elastic.co/apm/v2/transport/transporttest"
 
 import (
 	"compress/zlib"
@@ -28,8 +28,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/model"
 )
 
 // NewRecorderTracer returns a new apm.Tracer and

@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmnegroni // import "go.elastic.co/apm/module/apmnegroni"
+package apmnegroni // import "go.elastic.co/apm/module/apmnegroni/v2"
 
 import (
 	"context"
@@ -23,9 +23,9 @@ import (
 
 	"github.com/urfave/negroni"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/module/apmhttp"
-	"go.elastic.co/apm/stacktrace"
+	"go.elastic.co/apm/module/apmhttp/v2"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/stacktrace"
 )
 
 func init() {

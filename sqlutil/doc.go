@@ -16,4 +16,4 @@
 // under the License.
 
 // Package sqlutil provides utilities to SQL-related instrumentation modules.
-package sqlutil // import "go.elastic.co/apm/sqlutil"
+package sqlutil // import "go.elastic.co/apm/v2/sqlutil"

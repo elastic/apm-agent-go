@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apm // import "go.elastic.co/apm"
+package apm // import "go.elastic.co/apm/v2"
 
 import (
 	"bytes"
@@ -28,14 +28,14 @@ import (
 	"sync/atomic"
 	"time"
 
-	"go.elastic.co/apm/apmconfig"
-	"go.elastic.co/apm/internal/apmlog"
-	"go.elastic.co/apm/internal/configutil"
-	"go.elastic.co/apm/internal/iochan"
-	"go.elastic.co/apm/internal/ringbuffer"
-	"go.elastic.co/apm/internal/wildcard"
-	"go.elastic.co/apm/model"
-	"go.elastic.co/apm/transport"
+	"go.elastic.co/apm/v2/apmconfig"
+	"go.elastic.co/apm/v2/internal/apmlog"
+	"go.elastic.co/apm/v2/internal/configutil"
+	"go.elastic.co/apm/v2/internal/iochan"
+	"go.elastic.co/apm/v2/internal/ringbuffer"
+	"go.elastic.co/apm/v2/internal/wildcard"
+	"go.elastic.co/apm/v2/model"
+	"go.elastic.co/apm/v2/transport"
 	"go.elastic.co/fastjson"
 )
 
@@ -107,7 +107,8 @@ type TracerOptions struct {
 
 	// Transport holds the transport to use for sending events.
 	//
-	// If Transport is nil, transport.Default will be used.
+	// If Transport is nil, a new HTTP transport will be created from environment
+	// variables.
 	//
 	// If Transport implements apmconfig.Watcher, the tracer will begin watching
 	// for remote changes immediately. This behaviour can be disabled by setting
@@ -273,6 +274,26 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 		}
 	}
 
+	serviceName, serviceVersion, serviceEnvironment := initialService()
+	if opts.ServiceName == "" {
+		opts.ServiceName = serviceName
+	}
+	if opts.ServiceVersion == "" {
+		opts.ServiceVersion = serviceVersion
+	}
+	if opts.ServiceEnvironment == "" {
+		opts.ServiceEnvironment = serviceEnvironment
+	}
+
+	if opts.Transport == nil {
+		initialTransport, err := initialTransport(opts.ServiceName, opts.ServiceVersion)
+		if failed(err) {
+			opts.Transport = transport.NewDiscardTransport(err)
+		} else {
+			opts.Transport = initialTransport
+		}
+	}
+
 	if len(errs) != 0 && !continueOnError {
 		return errs[0]
 	}
@@ -304,9 +325,6 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 	opts.recording = recording
 	opts.propagateLegacyHeader = propagateLegacyHeader
 	opts.exitSpanMinDuration = exitSpanMinDuration
-	if opts.Transport == nil {
-		opts.Transport = transport.Default
-	}
 	if centralConfigEnabled {
 		if cw, ok := opts.Transport.(apmconfig.Watcher); ok {
 			opts.configWatcher = cw
@@ -317,17 +335,6 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 		opts.cpuProfileInterval = cpuProfileInterval
 		opts.cpuProfileDuration = cpuProfileDuration
 		opts.heapProfileInterval = heapProfileInterval
-	}
-
-	serviceName, serviceVersion, serviceEnvironment := initialService()
-	if opts.ServiceName == "" {
-		opts.ServiceName = serviceName
-	}
-	if opts.ServiceVersion == "" {
-		opts.ServiceVersion = serviceVersion
-	}
-	if opts.ServiceEnvironment == "" {
-		opts.ServiceEnvironment = serviceEnvironment
 	}
 	return nil
 }

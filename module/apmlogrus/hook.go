@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmlogrus // import "go.elastic.co/apm/module/apmlogrus"
+package apmlogrus // import "go.elastic.co/apm/module/apmlogrus/v2"
 
 import (
 	"context"
@@ -23,8 +23,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/stacktrace"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/stacktrace"
 )
 
 var (

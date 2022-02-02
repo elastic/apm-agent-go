@@ -15,11 +15,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmpq // import "go.elastic.co/apm/module/apmsql/pq"
+package apmpq // import "go.elastic.co/apm/module/apmsql/v2/pq"
 
 import (
-	"go.elastic.co/apm/module/apmsql"
-	"go.elastic.co/apm/module/apmsql/internal/pgutil"
+	"go.elastic.co/apm/module/apmsql/v2"
+	"go.elastic.co/apm/module/apmsql/v2/internal/pgutil"
 )
 
 // ParseDSN is proxy to pgutils.ParseDSN to maintain api compatibility

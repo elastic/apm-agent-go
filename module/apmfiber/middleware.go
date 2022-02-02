@@ -15,16 +15,16 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmfiber // import "go.elastic.co/apm/module/apmfiber"
+package apmfiber // import "go.elastic.co/apm/module/apmfiber/v2"
 
 import (
 	"net/http"
 
 	"github.com/gofiber/fiber/v2"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/module/apmfasthttp"
-	"go.elastic.co/apm/module/apmhttp"
+	"go.elastic.co/apm/module/apmfasthttp/v2"
+	"go.elastic.co/apm/module/apmhttp/v2"
+	"go.elastic.co/apm/v2"
 )
 
 // Middleware returns a new Fiber middleware handler for tracing

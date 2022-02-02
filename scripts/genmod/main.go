@@ -34,7 +34,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"go.elastic.co/apm"
+	"go.elastic.co/apm/v2"
 )
 
 var (
@@ -61,6 +61,10 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	if resolved, err := os.Readlink(root); err == nil {
+		root = resolved
+	}
+
 	modules := make(map[string]*GoMod) // by module path
 	if err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -72,12 +76,14 @@ func main() {
 				if err != nil {
 					return err
 				}
-				modules[gomod.Module.Path] = gomod
+				// Skip non-public modules.
+				if strings.HasPrefix(gomod.Module.Path, "go.elastic.co/apm") {
+					modules[gomod.Module.Path] = gomod
+				}
 			}
 			return nil
 		}
-		name := info.Name()
-		if name != root && (name == "vendor" || strings.HasPrefix(name, ".")) {
+		if name := info.Name(); name != root && strings.HasPrefix(name, ".") {
 			return filepath.SkipDir
 		}
 		return nil

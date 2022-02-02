@@ -15,14 +15,14 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmzerolog // import "go.elastic.co/apm/module/apmzerolog"
+package apmzerolog // import "go.elastic.co/apm/module/apmzerolog/v2"
 
 import (
 	"context"
 
 	"github.com/rs/zerolog"
 
-	"go.elastic.co/apm"
+	"go.elastic.co/apm/v2"
 )
 
 const (

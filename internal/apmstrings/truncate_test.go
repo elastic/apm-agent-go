@@ -23,7 +23,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"go.elastic.co/apm/internal/apmstrings"
+	"go.elastic.co/apm/v2/internal/apmstrings"
 )
 
 func TestTruncate(t *testing.T) {

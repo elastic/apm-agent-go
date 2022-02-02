@@ -15,15 +15,15 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmhttprouter // import "go.elastic.co/apm/module/apmhttprouter"
+package apmhttprouter // import "go.elastic.co/apm/module/apmhttprouter/v2"
 
 import (
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/module/apmhttp"
+	"go.elastic.co/apm/module/apmhttp/v2"
+	"go.elastic.co/apm/v2"
 )
 
 // Wrap wraps h such that it will report requests as transactions

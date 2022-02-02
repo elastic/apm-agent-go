@@ -31,11 +31,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/apmtest"
-	"go.elastic.co/apm/model"
-	"go.elastic.co/apm/transport"
-	"go.elastic.co/apm/transport/transporttest"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/apmtest"
+	"go.elastic.co/apm/v2/model"
+	"go.elastic.co/apm/v2/transport"
+	"go.elastic.co/apm/v2/transport/transporttest"
 )
 
 func TestTracerRequestTimeEnv(t *testing.T) {
@@ -55,7 +55,7 @@ func TestTracerRequestTimeEnv(t *testing.T) {
 	os.Setenv("ELASTIC_APM_SERVER_URL", server.URL)
 	defer os.Unsetenv("ELASTIC_APM_SERVER_URL")
 
-	httpTransport, err := transport.NewHTTPTransport()
+	httpTransport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{})
 	require.NoError(t, err)
 	tracer, err := apm.NewTracerOptions(apm.TracerOptions{
 		ServiceName: "tracer_testing",

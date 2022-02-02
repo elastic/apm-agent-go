@@ -25,10 +25,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/module/apmsql"
-	_ "go.elastic.co/apm/module/apmsql/sqlite3"
-	"go.elastic.co/apm/transport"
+	"go.elastic.co/apm/module/apmsql/v2"
+	_ "go.elastic.co/apm/module/apmsql/v2/sqlite3"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/transport"
 )
 
 func BenchmarkStmtQueryContext(b *testing.B) {
@@ -51,9 +51,10 @@ func BenchmarkStmtQueryContext(b *testing.B) {
 		if err != nil {
 			panic(err)
 		}
-		httpTransport, err := transport.NewHTTPTransport()
+		httpTransport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{
+			ServerURLs: []*url.URL{invalidServerURL},
+		})
 		require.NoError(b, err)
-		httpTransport.SetServerURL(invalidServerURL)
 
 		tracer, err := apm.NewTracerOptions(apm.TracerOptions{
 			ServiceName:    "apmhttp_test",
@@ -99,9 +100,10 @@ func BenchmarkStmtExecContext(b *testing.B) {
 		if err != nil {
 			panic(err)
 		}
-		httpTransport, err := transport.NewHTTPTransport()
+		httpTransport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{
+			ServerURLs: []*url.URL{invalidServerURL},
+		})
 		require.NoError(b, err)
-		httpTransport.SetServerURL(invalidServerURL)
 
 		tracer, err := apm.NewTracerOptions(apm.TracerOptions{
 			ServiceName:    "apmhttp_test",

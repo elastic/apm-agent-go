@@ -15,9 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apm // import "go.elastic.co/apm"
+package apm // import "go.elastic.co/apm/v2"
 
 const (
 	// AgentVersion is the Elastic APM Go Agent version.
-	AgentVersion = "1.15.0"
+	AgentVersion = "2.0.0"
 )

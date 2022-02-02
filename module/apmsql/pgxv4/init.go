@@ -15,14 +15,13 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmpgxv4 // import "go.elastic.co/apm/module/apmsql/pgxv4"
+package apmpgxv4 // import "go.elastic.co/apm/module/apmsql/v2/pgxv4"
 
 import (
 	"github.com/jackc/pgx/v4/stdlib"
 
-	"go.elastic.co/apm/module/apmsql/internal/pgutil"
-
-	"go.elastic.co/apm/module/apmsql"
+	"go.elastic.co/apm/module/apmsql/v2"
+	"go.elastic.co/apm/module/apmsql/v2/internal/pgutil"
 )
 
 // DriverName for pgx v4

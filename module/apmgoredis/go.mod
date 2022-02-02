@@ -1,4 +1,4 @@
-module go.elastic.co/apm/module/apmgoredis
+module go.elastic.co/apm/module/apmgoredis/v2
 
 go 1.12
 
@@ -7,8 +7,8 @@ require (
 	github.com/onsi/ginkgo v1.8.0 // indirect
 	github.com/onsi/gomega v1.5.0 // indirect
 	github.com/stretchr/testify v1.6.1
-	go.elastic.co/apm v1.15.0
+	go.elastic.co/apm/v2 v2.0.0
 	gopkg.in/yaml.v2 v2.2.2 // indirect
 )
 
-replace go.elastic.co/apm => ../..
+replace go.elastic.co/apm/v2 => ../..

@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmazure // import "go.elastic.co/apm/module/apmazure"
+package apmazure // import "go.elastic.co/apm/module/apmazure/v2"
 
 import (
 	"context"
@@ -27,9 +27,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"go.elastic.co/apm/apmtest"
-	"go.elastic.co/apm/model"
-	"go.elastic.co/apm/transport/transporttest"
+	"go.elastic.co/apm/v2/apmtest"
+	"go.elastic.co/apm/v2/model"
+	"go.elastic.co/apm/v2/transport/transporttest"
 )
 
 func TestQueueSend(t *testing.T) {
@@ -93,7 +93,7 @@ func TestQueueGetOperation(t *testing.T) {
 		want   string
 		values url.Values
 	}{
-		// https://github.com/elastic/apm/blob/master/specs/agents/tracing-instrumentation-azure.md#determining-operations-1
+		// https://github.com/elastic/apm/blob/main/specs/agents/tracing-instrumentation-azure.md#determining-operations-1
 		{
 			want:   "RECEIVE",
 			values: url.Values{},
@@ -135,7 +135,7 @@ func TestQueueHeadOperation(t *testing.T) {
 		want   string
 		values url.Values
 	}{
-		// https://github.com/elastic/apm/blob/master/specs/agents/tracing-instrumentation-azure.md#determining-operations-1
+		// https://github.com/elastic/apm/blob/main/specs/agents/tracing-instrumentation-azure.md#determining-operations-1
 		{
 			want:   "GETMETADATA",
 			values: url.Values{"comp": []string{"metadata"}},
@@ -157,7 +157,7 @@ func TestQueuePostOperation(t *testing.T) {
 		want   string
 		values url.Values
 	}{
-		// https://github.com/elastic/apm/blob/master/specs/agents/tracing-instrumentation-azure.md#determining-operations-1
+		// https://github.com/elastic/apm/blob/main/specs/agents/tracing-instrumentation-azure.md#determining-operations-1
 		{
 			want:   "SEND",
 			values: url.Values{},
@@ -175,7 +175,7 @@ func TestQueuePutOperation(t *testing.T) {
 		want   string
 		values url.Values
 	}{
-		// https://github.com/elastic/apm/blob/master/specs/agents/tracing-instrumentation-azure.md#determining-operations-1
+		// https://github.com/elastic/apm/blob/main/specs/agents/tracing-instrumentation-azure.md#determining-operations-1
 		{
 			want:   "SETMETADATA",
 			values: url.Values{"comp": []string{"metadata"}},

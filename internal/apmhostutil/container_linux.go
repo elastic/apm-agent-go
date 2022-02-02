@@ -30,7 +30,7 @@ import (
 	"strings"
 	"sync"
 
-	"go.elastic.co/apm/model"
+	"go.elastic.co/apm/v2/model"
 )
 
 const (

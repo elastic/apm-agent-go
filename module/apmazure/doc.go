@@ -17,4 +17,4 @@
 
 // Package apmazure provides tracing and error-reporting middleware for
 // azure-sdk-for-go.
-package apmazure // import "go.elastic.co/apm/module/apmazure"
+package apmazure // import "go.elastic.co/apm/module/apmazure/v2"

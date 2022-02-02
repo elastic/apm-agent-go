@@ -16,4 +16,4 @@
 // under the License.
 
 // Package apmgorm provides wrappers for tracing GORM operations.
-package apmgorm // import "go.elastic.co/apm/module/apmgorm"
+package apmgorm // import "go.elastic.co/apm/module/apmgorm/v2"

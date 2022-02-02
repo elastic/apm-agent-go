@@ -30,7 +30,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"go.elastic.co/apm/apmtest"
+	"go.elastic.co/apm/v2/apmtest"
 )
 
 func TestBlob(t *testing.T) {
@@ -68,7 +68,7 @@ func TestBlobGetOperation(t *testing.T) {
 		want   string
 		values url.Values
 	}{
-		// https://github.com/elastic/apm/blob/master/specs/agents/tracing-instrumentation-azure.md#determining-operations
+		// https://github.com/elastic/apm/blob/main/specs/agents/tracing-instrumentation-azure.md#determining-operations
 		{
 			want:   "Download",
 			values: url.Values{},
@@ -118,7 +118,7 @@ func TestBlobHeadOperation(t *testing.T) {
 		want   string
 		values url.Values
 	}{
-		// https://github.com/elastic/apm/blob/master/specs/agents/tracing-instrumentation-azure.md#determining-operations
+		// https://github.com/elastic/apm/blob/main/specs/agents/tracing-instrumentation-azure.md#determining-operations
 		{
 			want:   "GetProperties",
 			values: url.Values{},
@@ -144,7 +144,7 @@ func TestBlobPostOperation(t *testing.T) {
 		want   string
 		values url.Values
 	}{
-		// https://github.com/elastic/apm/blob/master/specs/agents/tracing-instrumentation-azure.md#determining-operations
+		// https://github.com/elastic/apm/blob/main/specs/agents/tracing-instrumentation-azure.md#determining-operations
 		{
 			want:   "unknown operation",
 			values: url.Values{},
@@ -175,7 +175,7 @@ func TestBlobPutOperation(t *testing.T) {
 		values url.Values
 		header http.Header
 	}{
-		// https://github.com/elastic/apm/blob/master/specs/agents/tracing-instrumentation-azure.md#determining-operations
+		// https://github.com/elastic/apm/blob/main/specs/agents/tracing-instrumentation-azure.md#determining-operations
 		{
 			want:   "Copy",
 			header: http.Header{"x-ms-copy-source": []string{}},
