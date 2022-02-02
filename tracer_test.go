@@ -59,13 +59,18 @@ func TestTracerStats(t *testing.T) {
 }
 
 func TestTracerUserAgent(t *testing.T) {
-	sendRequest := func(serviceVersion string) (userAgent string) {
-		waitc := make(chan struct{})
+	sendRequest := func(serviceVersion string) string {
+		waitc := make(chan string)
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			userAgent = r.UserAgent()
-			close(waitc)
+			select {
+			case waitc <- r.UserAgent():
+			default:
+			}
 		}))
-		defer srv.Close()
+		defer func() {
+			srv.Close()
+			close(waitc)
+		}()
 
 		os.Setenv("ELASTIC_APM_SERVER_URL", srv.URL)
 		defer os.Unsetenv("ELASTIC_APM_SERVER_URL")
@@ -78,8 +83,7 @@ func TestTracerUserAgent(t *testing.T) {
 
 		tracer.StartTransaction("name", "type").End()
 		tracer.Flush(nil)
-		<-waitc
-		return userAgent
+		return <-waitc
 	}
 	assert.Equal(t, fmt.Sprintf("apm-agent-go/%s (apmtest)", apmversion.AgentVersion), sendRequest(""))
 	assert.Equal(t, fmt.Sprintf("apm-agent-go/%s (apmtest 1.0.0)", apmversion.AgentVersion), sendRequest("1.0.0"))
