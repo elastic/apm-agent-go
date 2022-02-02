@@ -72,7 +72,7 @@ func (t *tracer) Start(ctx context.Context, spanName string, opts ...trace.SpanS
 func newSpan(ctx context.Context, t *tracer, name string, opts ...trace.SpanStartOption) (ctx.Context, *span) {
 	cfg := trace.NewSpanStartConfig(opts)
 
-	var rpc, http bool
+	var rpc, http, messaging bool
 	for attr := range cfg.Attributes() {
 		if attr.Value.Type() == attribute.INVALID {
 			continue
@@ -82,6 +82,10 @@ func newSpan(ctx context.Context, t *tracer, name string, opts ...trace.SpanStar
 			rpc = true
 		case "http.url", "http.scheme":
 			http = true
+		// TODO: Verify we want to set messaging for all of these, and
+		// not just `messaging.system`.
+		case "messaging.system", "messaging.operation", "message_bus.destination":
+			messaging = true
 		}
 	}
 
@@ -92,8 +96,7 @@ func newSpan(ctx context.Context, t *tracer, name string, opts ...trace.SpanStar
 			txType = "request"
 		}
 	case trace.SpanKindConsumer:
-		// TODO: How do we define isMessaging?
-		if isMessaging {
+		if messaging {
 			txType = "messaging"
 		}
 	}
