@@ -60,8 +60,10 @@ func TestTracerStats(t *testing.T) {
 
 func TestTracerUserAgent(t *testing.T) {
 	sendRequest := func(serviceVersion string) (userAgent string) {
+		waitc := make(chan struct{})
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			userAgent = r.UserAgent()
+			close(waitc)
 		}))
 		defer srv.Close()
 
@@ -76,6 +78,7 @@ func TestTracerUserAgent(t *testing.T) {
 
 		tracer.StartTransaction("name", "type").End()
 		tracer.Flush(nil)
+		<-waitc
 		return userAgent
 	}
 	assert.Equal(t, fmt.Sprintf("apm-agent-go/%s (apmtest)", apmversion.AgentVersion), sendRequest(""))
