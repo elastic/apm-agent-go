@@ -502,9 +502,9 @@ func (t *Tracer) updateRemoteConfig(logger WarningLogger, old, attrs map[string]
 				delete(attrs, k)
 				continue
 			}
-			if apmlog.DefaultLogger != nil && apmlog.DefaultLogger == logger {
+			if dl := apmlog.DefaultLogger(); dl != nil && dl == logger {
 				updates = append(updates, func(*instrumentationConfig) {
-					apmlog.DefaultLogger.SetLevel(level)
+					dl.SetLevel(level)
 				})
 			} else {
 				warningf("central config ignored: %s set to %s, but custom logger in use", k, v)

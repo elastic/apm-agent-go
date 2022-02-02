@@ -42,8 +42,8 @@ const (
 )
 
 var (
-	// DefaultLogger is the default Logger to use, if ELASTIC_APM_LOG_* are specified.
-	DefaultLogger *LevelLogger
+	loggerMu      sync.RWMutex
+	defaultLogger *LevelLogger
 
 	fastjsonPool = &sync.Pool{
 		New: func() interface{} {
@@ -52,17 +52,30 @@ var (
 	}
 )
 
-func init() {
-	InitDefaultLogger()
-}
+// DefaultLogger initialises defaultLogger using the environment variables
+// ELASTIC_APM_LOG_FILE and ELASTIC_APM_LOG_LEVEL. If defaultLogger is non-nil,
+// it returns the logger.
+func DefaultLogger() *LevelLogger {
+	loggerMu.RLock()
+	if defaultLogger != nil {
+		defer loggerMu.RUnlock()
+		return defaultLogger
+	}
+	loggerMu.RUnlock()
 
-// InitDefaultLogger initialises DefaultLogger using the environment variables
-// ELASTIC_APM_LOG_FILE and ELASTIC_APM_LOG_LEVEL.
-func InitDefaultLogger() {
+	loggerMu.Lock()
+	defer loggerMu.Unlock()
+	// Releasing the RLock could allow another goroutine to call
+	// SetDefaultLogger() before trying to take the write Lock; double
+	// check that DefaultLogger is still nil after acquiring the write
+	// lock.
+	if defaultLogger != nil {
+		return defaultLogger
+	}
+
 	fileStr := strings.TrimSpace(os.Getenv(EnvLogFile))
 	if fileStr == "" {
-		DefaultLogger = nil
-		return
+		return defaultLogger
 	}
 
 	var logWriter io.Writer
@@ -75,7 +88,7 @@ func InitDefaultLogger() {
 		f, err := os.Create(fileStr)
 		if err != nil {
 			log.Printf("failed to create %q: %s (disabling logging)", fileStr, err)
-			return
+			return nil
 		}
 		logWriter = &syncFile{File: f}
 	}
@@ -89,7 +102,17 @@ func InitDefaultLogger() {
 			logLevel = level
 		}
 	}
-	DefaultLogger = &LevelLogger{w: logWriter, level: logLevel}
+	defaultLogger = &LevelLogger{w: logWriter, level: logLevel}
+
+	return defaultLogger
+}
+
+// SetDefaultLogger sets the package default logger to the logger provided.
+func SetDefaultLogger(l *LevelLogger) {
+	loggerMu.Lock()
+	defer loggerMu.Unlock()
+
+	defaultLogger = l
 }
 
 // Log levels.
