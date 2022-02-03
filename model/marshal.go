@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel/attribute"
 
 	"go.elastic.co/apm/v2/internal/apmstrings"
 	"go.elastic.co/fastjson"
@@ -702,5 +703,74 @@ func (v *Metric) MarshalFastJSON(w *fastjson.Writer) error {
 		w.String(v.Type)
 	}
 	w.RawByte('}')
+	return nil
+}
+
+// MarshalFastJSON writes a JSON representation of v to w.
+func (v *Otel) MarshalFastJSON(w *fastjson.Writer) error {
+	var firstErr error
+	w.RawByte('{')
+	w.RawString("\"span_kind\":")
+	w.String(v.SpanKind)
+	if v.Attributes != nil {
+		w.RawString(",\"attributes\":")
+		w.RawByte('{')
+		{
+			first := true
+			for k, v := range v.Attributes {
+				if first {
+					first = false
+				} else {
+					w.RawByte(',')
+				}
+				w.String(string(k))
+				w.RawByte(':')
+				marshaled, err := json.Marshal(v.AsInterface())
+				if err != nil && firstErr == nil {
+					firstErr = err
+				}
+				w.RawBytes(marshaled)
+			}
+		}
+		w.RawByte('}')
+	}
+	w.RawByte('}')
+	return firstErr
+}
+
+func (v *Otel) UnmarshalJSON(data []byte) error {
+	var otel struct {
+		SpanKind   string                 `json:"span_kind"`
+		Attributes map[string]interface{} `json:"attributes,omitempty"`
+	}
+
+	if err := json.Unmarshal(data, &otel); err != nil {
+		return err
+	}
+
+	v.SpanKind = otel.SpanKind
+	v.Attributes = make(map[attribute.Key]attribute.Value, len(otel.Attributes))
+	for k, vv := range otel.Attributes {
+		switch x := vv.(type) {
+		case string:
+			v.Attributes[attribute.Key(k)] = attribute.StringValue(x)
+		case int:
+			v.Attributes[attribute.Key(k)] = attribute.Int64Value(int64(x))
+		case int64:
+			v.Attributes[attribute.Key(k)] = attribute.Int64Value(x)
+		case float64:
+			v.Attributes[attribute.Key(k)] = attribute.Float64Value(x)
+		case bool:
+			v.Attributes[attribute.Key(k)] = attribute.BoolValue(x)
+		case []string:
+			v.Attributes[attribute.Key(k)] = attribute.StringSliceValue(x)
+		case []int64:
+			v.Attributes[attribute.Key(k)] = attribute.Int64SliceValue(x)
+		case []float64:
+			v.Attributes[attribute.Key(k)] = attribute.Float64SliceValue(x)
+		case []bool:
+			v.Attributes[attribute.Key(k)] = attribute.BoolSliceValue(x)
+		}
+	}
 	return nil
 }

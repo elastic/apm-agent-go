@@ -23,6 +23,8 @@ import (
 	"net/url"
 	"strings"
 
+	"go.opentelemetry.io/otel/attribute"
+
 	"go.elastic.co/apm/v2/internal/apmhttputil"
 	"go.elastic.co/apm/v2/model"
 )
@@ -37,6 +39,7 @@ type SpanContext struct {
 	databaseRowsAffected int64
 	database             model.DatabaseSpanContext
 	http                 model.HTTPSpanContext
+	otel                 model.Otel
 
 	// If SetDestinationService has been called, we do not auto-set its
 	// resource value on span end.
@@ -102,6 +105,16 @@ func (c *SpanContext) reset() {
 			Tags: c.model.Tags[:0],
 		},
 	}
+}
+
+// SetOtelAttributes sets the provided OpenTelemetry attributes.
+func (c *SpanContext) SetOtelAttributes(kv ...attribute.KeyValue) {
+	c.otel.SetAttributes(kv...)
+}
+
+// SetSpanKind sets the provided SpanKind.
+func (c *SpanContext) SetSpanKind(spanKind string) {
+	c.otel.SpanKind = spanKind
 }
 
 // SetTag calls SetLabel(key, value).

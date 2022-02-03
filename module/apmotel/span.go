@@ -97,10 +97,7 @@ func (s *span) SetName(name string) {
 // already exists for an attribute of the Span it will be overwritten with
 // the value contained in kv.
 func (s *span) SetAttributes(kv ...attribute.KeyValue) {
-	// TODO: add otel.attributes to span
-	// TODO: when apm-server < 7.16.0, it doesn't support otel.attributes.
-	// how can the agent know the apm-server version?
-	s.inner.Context.SetLabel(kv.Key, kv.Value)
+	s.inner.Context.SetOtelAttributes(kv...)
 }
 
 // TracerProvider returns a TracerProvider that can be used to generate

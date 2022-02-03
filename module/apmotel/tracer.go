@@ -130,8 +130,7 @@ func newSpan(ctx context.Context, t *tracer, name string, opts ...trace.SpanStar
 		}
 
 		tx := t.inner.StartTransactionOptions(name, txType, txOpts)
-		// TODO: Check that apm-server version to decide how to set span_kind.
-		tx.Context.SetLabel("span_kind", spanKind)
+		tx.Context.SetSpanKind(spanKind)
 		for attr := range cfg.Attributes() {
 			tx.Context.SetLabel(attr.Key, attr.Value)
 		}
@@ -150,8 +149,7 @@ func newSpan(ctx context.Context, t *tracer, name string, opts ...trace.SpanStar
 
 		txID := tx.TraceContext.Span
 		s := t.inner.StartSpan(name, spanType, txID, spanOpts)
-		// TODO: Check that apm-server version to decide how to set span_kind.
-		s.Context.SetLabel("span_kind", spanKind)
+		s.Context.SetSpanKind(spanKind)
 		for attr := range cfg.Attributes() {
 			tx.Context.SetLabel(attr.Key, attr.Value)
 		}

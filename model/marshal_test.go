@@ -28,6 +28,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/attribute"
 
 	"go.elastic.co/apm/v2/model"
 	"go.elastic.co/fastjson"
@@ -115,6 +116,12 @@ func TestMarshalTransaction(t *testing.T) {
 				"outcome": "success",
 			},
 		},
+		"otel": map[string]interface{}{
+			"span_kind": "MESSAGING",
+			"attributes": map[string]interface{}{
+				"messaging.system": "messaging",
+			},
+		},
 	}
 	assert.Equal(t, expect, decoded)
 }
@@ -143,6 +150,12 @@ func TestMarshalSpan(t *testing.T) {
 				"user":      "barb",
 			},
 		},
+		"otel": map[string]interface{}{
+			"span_kind": "MESSAGING",
+			"attributes": map[string]interface{}{
+				"messaging.system": "messaging",
+			},
+		},
 	}, decoded)
 
 	w.Reset()
@@ -152,6 +165,14 @@ func TestMarshalSpan(t *testing.T) {
 	span.ParentID = model.SpanID{}      // parent_id is optional
 	span.TransactionID = model.SpanID{} // transaction_id is optional
 	span.Context = fakeHTTPSpanContext()
+	span.Otel = &model.Otel{
+		SpanKind: "SERVER",
+		Attributes: map[attribute.Key]attribute.Value{
+			attribute.Key("numeric.data"): attribute.Float64Value(123.456),
+			attribute.Key("boolean.data"): attribute.BoolValue(true),
+			attribute.Key("slice.data"):   attribute.StringSliceValue([]string{"one", "two"}),
+		},
+	}
 	span.MarshalFastJSON(&w)
 
 	decoded = mustUnmarshalJSON(w)
@@ -165,6 +186,14 @@ func TestMarshalSpan(t *testing.T) {
 		"context": map[string]interface{}{
 			"http": map[string]interface{}{
 				"url": "http://testing.invalid:8000/path?query#fragment",
+			},
+		},
+		"otel": map[string]interface{}{
+			"span_kind": "SERVER",
+			"attributes": map[string]interface{}{
+				"numeric.data": 123.456,
+				"boolean.data": true,
+				"slice.data":   []interface{}{"one", "two"},
 			},
 		},
 	}, decoded)
@@ -191,6 +220,12 @@ func TestMarshalSpanHTTPStatusCode(t *testing.T) {
 		"context": map[string]interface{}{
 			"http": map[string]interface{}{
 				"status_code": 200.0,
+			},
+		},
+		"otel": map[string]interface{}{
+			"span_kind": "MESSAGING",
+			"attributes": map[string]interface{}{
+				"messaging.system": "messaging",
 			},
 		},
 	}, decoded)
@@ -669,6 +704,12 @@ func fakeTransaction() model.Transaction {
 				},
 			},
 		},
+		Otel: &model.Otel{
+			SpanKind: "MESSAGING",
+			Attributes: map[attribute.Key]attribute.Value{
+				attribute.Key("messaging.system"): attribute.StringValue("messaging"),
+			},
+		},
 	}
 }
 
@@ -683,6 +724,12 @@ func fakeSpan() model.Span {
 		Duration:      3,
 		Type:          "db.postgresql.query",
 		Context:       fakeDatabaseSpanContext(),
+		Otel: &model.Otel{
+			SpanKind: "MESSAGING",
+			Attributes: map[attribute.Key]attribute.Value{
+				attribute.Key("messaging.system"): attribute.StringValue("messaging"),
+			},
+		},
 	}
 }
 

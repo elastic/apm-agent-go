@@ -37,8 +37,7 @@ func newRootTransaction(
 ) (context.Context, *transaction) {
 	txOpts := apm.TransactionOptions{}
 	tx := t.inner.StartTransactionOptions(name, txType, txOpts)
-	// TODO: Check that apm-server version to decide how to set span_kind.
-	tx.Context.SetLabel("span_kind", spanKind)
+	tx.Context.SetSpanKind(spanKind)
 	for attr := range attributes {
 		tx.Context.SetLabel(attr.Key, attr.Value)
 	}
@@ -120,7 +119,7 @@ func (t *transaction) SetAttributes(kv ...attribute.KeyValue) {
 	// TODO: add otel.attributes to span
 	// TODO: when apm-server < 7.16.0, it doesn't support otel.attributes.
 	// how can the agent know the apm-server version?
-	t.inner.Context.SetLabel(kv.Key, kv.Value)
+	t.inner.Context.SetOtelAttributes(kv...)
 }
 
 // TracerProvider returns a TracerProvider that can be used to generate
