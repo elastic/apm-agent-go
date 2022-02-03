@@ -35,6 +35,7 @@ https://github.com/elastic/apm-agent-go/compare/v1.15.0...main[View commits]
 - Remove transport.Default, construct a new Transport in each new tracer {pull}1195[#(1195)]
 - Add service name and version to User-Agent header {pull}1196[#(1196)]
 - Remove WarningLogger, add Warningf methe to Logger {pull}1205[#(1205)]
+- Replace Sampler with ExtendedSampler {pull}1206[#(1206)]
 
 [[release-notes-1.x]]
 === Go Agent version 1.x
