@@ -21,6 +21,8 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // Service represents the service handling transactions being traced.
@@ -275,6 +277,22 @@ type Transaction struct {
 
 	// Outcome holds the transaction outcome: success, failure, or unknown.
 	Outcome string `json:"outcome,omitempty"`
+
+	// Otel holds information bridged from OpenTelemetry.
+	Otel *Otel `json:"otel,omitempty"`
+}
+
+// Otel holds bridged OpenTelemetry information.
+type Otel struct {
+	SpanKind   string                            `json:"span_kind"`
+	Attributes map[attribute.Key]attribute.Value `json:"attributes,omitempty"`
+}
+
+// SetAttributes sets the provided OpenTelemetry attributes.
+func (o *Otel) SetAttributes(kvs ...attribute.KeyValue) {
+	for _, kv := range kvs {
+		o.Attributes[kv.Key] = kv.Value
+	}
 }
 
 // SpanCount holds statistics on spans within a transaction.
@@ -366,6 +384,9 @@ type Span struct {
 	// Composite is set when the span is a composite span and represents an
 	// aggregated set of spans as defined by `composite.compression_strategy`.
 	Composite *CompositeSpan `json:"composite,omitempty"`
+
+	// Otel holds information bridged from OpenTelemetry.
+	Otel *Otel `json:"otel,omitempty"`
 }
 
 // SpanContext holds contextual information relating to the span.

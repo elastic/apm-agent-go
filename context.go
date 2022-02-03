@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"go.opentelemetry.io/otel/attribute"
+
 	"go.elastic.co/apm/v2/internal/apmhttputil"
 	"go.elastic.co/apm/v2/internal/wildcard"
 	"go.elastic.co/apm/v2/model"
@@ -39,6 +41,7 @@ type Context struct {
 	user                model.User
 	service             model.Service
 	serviceFramework    model.Framework
+	otel                model.Otel
 	captureHeaders      bool
 	captureBodyMask     CaptureBodyMode
 	sanitizedFieldNames wildcard.Matchers
@@ -81,6 +84,16 @@ func (c *Context) reset() {
 			Headers: c.response.Headers[:0],
 		},
 	}
+}
+
+// SetOtelAttributes sets the provided OpenTelemetry attributes.
+func (c *Context) SetOtelAttributes(kv ...attribute.KeyValue) {
+	c.otel.SetAttributes(kv...)
+}
+
+// SetSpanKind sets the provided SpanKind.
+func (c *Context) SetSpanKind(spanKind string) {
+	c.otel.SpanKind = spanKind
 }
 
 // SetTag calls SetLabel(key, value).
