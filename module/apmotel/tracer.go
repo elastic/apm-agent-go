@@ -30,17 +30,21 @@ import (
 
 // Tracer creates a named tracer that implements otel.Tracer.
 // If the name is an empty string then provider uses default name.
-func Tracer(name string, opts ...trace.TracerOption) *tracer {
+func Tracer(name string, opts ...trace.TracerOption) trace.Tracer {
 	if name == "" {
 		name = "otel_bridge"
 	}
 
 	apmOpts := apm.TracerOptions{ServiceName: name}
-	if version := trace.NewTracerConfig(opts).InstrumentationVersion(); version != "" {
+	tracerCfg := trace.NewTracerConfig(opts...)
+	if version := (&tracerCfg).InstrumentationVersion(); version != "" {
 		apmOpts.ServiceVersion = version
 	}
 
-	t := apm.NewTracerOptions(apmOpts)
+	t, err := apm.NewTracerOptions(apmOpts)
+	if err != nil {
+		panic(err)
+	}
 
 	return &tracer{inner: t}
 }
@@ -54,30 +58,30 @@ func GetTracerProvider() trace.TracerProvider {
 	return tracerFunc(Tracer)
 }
 
-type tracerFunc func(string, ...trace.TracerOptions) trace.Tracer
+type tracerFunc func(string, ...trace.TracerOption) trace.Tracer
 
 func (fn tracerFunc) Tracer(name string, opts ...trace.TracerOption) trace.Tracer {
-	return fn(name, opts)
+	return fn(name, opts...)
 }
 
 type tracer struct {
-	inner apm.Tracer
+	inner *apm.Tracer
 }
 
 // Start starts a new trace.Span. The span is stored in the returned context.
 func (t *tracer) Start(ctx context.Context, spanName string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
-	return newSpan(ctx, t, spanName, opts)
+	return newSpan(ctx, t, spanName, opts...)
 }
 
-func newSpan(ctx context.Context, t *tracer, name string, opts ...trace.SpanStartOption) (ctx.Context, *span) {
-	cfg := trace.NewSpanStartConfig(opts)
+func newSpan(ctx context.Context, t *tracer, name string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
+	cfg := trace.NewSpanStartConfig(opts...)
 
 	var rpc, http, messaging bool
-	for attr := range cfg.Attributes() {
+	for _, attr := range cfg.Attributes() {
 		if attr.Value.Type() == attribute.INVALID {
 			continue
 		}
-		switch attr.Name {
+		switch attr.Key {
 		case "rpc.system":
 			rpc = true
 		case "http.url", "http.scheme":
@@ -110,16 +114,16 @@ func newSpan(ctx context.Context, t *tracer, name string, opts ...trace.SpanStar
 	tx := apm.TransactionFromContext(ctx)
 
 	if cfg.NewRoot() {
-		return newRootTransaction(ctx, t, spanCtx, cfg.Attributes(), spanKind, name, txType)
+		return newRootTransaction(ctx, t.inner, spanCtx, cfg.Attributes(), spanKind, name, txType)
 	} else if spanCtx.IsValid() {
 		txCtx := apm.TraceContext{
-			TraceOptions: spanCtx.TraceFlags(),
+			Options: apm.TraceOptions(spanCtx.TraceFlags()),
 		}
 		if spanCtx.HasTraceID() {
-			txCtx.Trace = spanCtx.TraceID()
+			txCtx.Trace = apm.TraceID(spanCtx.TraceID())
 		}
 		if spanCtx.HasSpanID() {
-			txCtx.Span = spanCtx.SpanID()
+			txCtx.Span = apm.SpanID(spanCtx.SpanID())
 		}
 		txOpts := apm.TransactionOptions{TraceContext: txCtx}
 
@@ -131,13 +135,11 @@ func newSpan(ctx context.Context, t *tracer, name string, opts ...trace.SpanStar
 
 		tx := t.inner.StartTransactionOptions(name, txType, txOpts)
 		tx.Context.SetSpanKind(spanKind)
-		for attr := range cfg.Attributes() {
-			tx.Context.SetLabel(attr.Key, attr.Value)
-		}
+		tx.Context.SetOtelAttributes(cfg.Attributes()...)
 		ctx := apm.ContextWithTransaction(ctx, tx)
-		return ctx, &transaction{inner: tx, spanCtx: spanCtx, tracer: t}
+		return ctx, &transaction{inner: tx, spanCtx: spanCtx, tracer: t.inner}
 	} else if tx == nil {
-		return newRootTransaction(ctx, t, spanCtx, cfg.Attributes(), spanKind, name, txType)
+		return newRootTransaction(ctx, t.inner, spanCtx, cfg.Attributes(), spanKind, name, txType)
 	} else {
 		// TODO: Populate data in SpanOptions
 		spanOpts := apm.SpanOptions{}
@@ -147,13 +149,11 @@ func newSpan(ctx context.Context, t *tracer, name string, opts ...trace.SpanStar
 			spanOpts.Start = start
 		}
 
-		txID := tx.TraceContext.Span
-		s := t.inner.StartSpan(name, spanType, txID, spanOpts)
+		txID := tx.TraceContext().Span
+		s := t.inner.StartSpan(name, txType, txID, spanOpts)
 		s.Context.SetSpanKind(spanKind)
-		for attr := range cfg.Attributes() {
-			tx.Context.SetLabel(attr.Key, attr.Value)
-		}
+		tx.Context.SetOtelAttributes(cfg.Attributes()...)
 		ctx := apm.ContextWithSpan(ctx, s)
-		return ctx, &span{inner: s, tracer: t}
+		return ctx, &span{inner: s, tracer: t.inner}
 	}
 }

@@ -21,8 +21,8 @@ import (
 	"sync"
 
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
-	"google.golang.org/grpc/codes"
 
 	"go.elastic.co/apm/v2"
 )
@@ -55,8 +55,8 @@ func (s *span) IsRecording() bool {
 	if s == nil {
 		return false
 	}
-	s.RLock()
-	defer s.RUnlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	return !s.ended
 }
 
@@ -79,11 +79,11 @@ func (s *span) SpanContext() trace.SpanContext {
 // included in a status when the code is for an error.
 func (s *span) SetStatus(code codes.Code, _ string) {
 	switch code {
-	case code.Unset:
+	case codes.Unset:
 		s.inner.Outcome = "unknown"
-	case code.Error:
+	case codes.Error:
 		s.inner.Outcome = "failure"
-	case code.Ok:
+	case codes.Ok:
 		s.inner.Outcome = "success"
 	}
 }
@@ -103,6 +103,5 @@ func (s *span) SetAttributes(kv ...attribute.KeyValue) {
 // TracerProvider returns a TracerProvider that can be used to generate
 // additional Spans on the same telemetry pipeline as the current Span.
 func (s *span) TracerProvider() trace.TracerProvider {
-	// https://pkg.go.dev/go.opentelemetry.io/otel/trace#TracerProvider
-	return GetTraceProvider()
+	return GetTracerProvider()
 }

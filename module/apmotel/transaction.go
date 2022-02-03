@@ -22,8 +22,8 @@ import (
 	"sync"
 
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
-	"google.golang.org/grpc/codes"
 
 	"go.elastic.co/apm/v2"
 )
@@ -36,12 +36,10 @@ func newRootTransaction(
 	spanKind, name, txType string,
 ) (context.Context, *transaction) {
 	txOpts := apm.TransactionOptions{}
-	tx := t.inner.StartTransactionOptions(name, txType, txOpts)
+	tx := tracer.StartTransactionOptions(name, txType, txOpts)
 	tx.Context.SetSpanKind(spanKind)
-	for attr := range attributes {
-		tx.Context.SetLabel(attr.Key, attr.Value)
-	}
-	ctx := apm.ContextWithTransaction(ctx, tx)
+	tx.Context.SetOtelAttributes(attributes...)
+	ctx = apm.ContextWithTransaction(ctx, tx)
 	return ctx, &transaction{inner: tx, spanCtx: spanCtx, tracer: tracer}
 }
 
@@ -74,8 +72,8 @@ func (t *transaction) IsRecording() bool {
 	if t == nil {
 		return false
 	}
-	t.RLock()
-	defer t.RUnlock()
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 	return !t.ended
 }
 
@@ -98,18 +96,18 @@ func (t *transaction) SpanContext() trace.SpanContext {
 // included in a status when the code is for an error.
 func (t *transaction) SetStatus(code codes.Code, _ string) {
 	switch code {
-	case code.Unset:
+	case codes.Unset:
 		t.inner.Outcome = "unknown"
-	case code.Error:
+	case codes.Error:
 		t.inner.Outcome = "failure"
-	case code.Ok:
+	case codes.Ok:
 		t.inner.Outcome = "success"
 	}
 }
 
 // SetName sets the Span name.
 func (t *transaction) SetName(name string) {
-	s.inner.Name = name
+	t.inner.Name = name
 }
 
 // SetAttributes sets kv as attributes of the Span. If a key from kv
@@ -125,5 +123,5 @@ func (t *transaction) SetAttributes(kv ...attribute.KeyValue) {
 // TracerProvider returns a TracerProvider that can be used to generate
 // additional Spans on the same telemetry pipeline as the current Span.
 func (t *transaction) TracerProvider() trace.TracerProvider {
-	return GetTraceProvider()
+	return GetTracerProvider()
 }
