@@ -19,6 +19,7 @@ package apmotel // import "go.elastic.co/apm/module/apmotel/v2"
 
 import (
 	"context"
+	"net/url"
 	"strings"
 	"time"
 
@@ -77,21 +78,92 @@ func (t *tracer) Start(ctx context.Context, spanName string, opts ...trace.SpanS
 func newSpan(ctx context.Context, t *tracer, name string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
 	cfg := trace.NewSpanStartConfig(opts...)
 
-	var rpc, http, messaging bool
+	var (
+		rpc, http, messaging bool
+
+		spanType, subtype, resource string
+
+		dbName, peerPort, netName, messagingDest, rpcService, httpHost, httpScheme, httpURL string
+	)
 	for _, attr := range cfg.Attributes() {
 		if attr.Value.Type() == attribute.INVALID {
 			continue
 		}
+		val := attr.Value.Emit()
 		switch attr.Key {
-		case "rpc.system":
-			rpc = true
-		case "http.url", "http.scheme":
+		case "db.name":
+			dbName = val
+		case "db.system":
+			spanType = "db"
+			subtype = val
+		case "http.host":
+			httpHost = val
+		case "http.scheme":
 			http = true
+			spanType = "external"
+			subtype = "http"
+			httpScheme = val
+		case "http.url":
+			http = true
+			spanType = "external"
+			subtype = "http"
+			httpURL = val
 		// TODO: Verify we want to set messaging for all of these, and
 		// not just `messaging.system`.
 		case "messaging.system", "messaging.operation", "message_bus.destination":
+			spanType = "messaging"
+			subtype = val
 			messaging = true
+		case "messaging.url":
+			// "net.peer.name" takes precedence
+			if netName == "" {
+				netName = parseNetName(val)
+			}
+		case "messaging.destination":
+			messagingDest = val
+		case "net.peer.port":
+			// Question: Are these string values? Can we just use the
+			// string value?
+			peerPort = val
+		case "net.peer.name":
+			netName = val
+		case "net.peer.ip":
+			// "net.peer.name" takes precedence
+			if netName == "" {
+				netName = val
+			}
+		case "rpc.system":
+			rpc = true
+			spanType = "external"
+			subtype = val
+		case "rpc.service":
+			rpcService = val
 		}
+	}
+
+	if netName != "" && len(peerPort) > 0 {
+		netName += ":" + peerPort
+	}
+
+	if netName != "" {
+		resource = netName
+	} else {
+		resource = subtype
+	}
+
+	// Question: This code is assuming that if a group is set, eg. db.* or
+	// rpc.*, then other groups won't be set. This means we don't need to
+	// coordinate updating the value of `resource`.
+	if dbName != "" {
+		resource += "/" + dbName
+	} else if messagingDest != "" {
+		resource += "/" + messagingDest
+	} else if rpcService != "" {
+		resource += "/" + rpcService
+	} else if httpHost != "" && httpScheme != "" {
+		resource = httpHost + ":" + httpPortFromScheme(httpScheme)
+	} else if httpURL != "" {
+		resource = parseNetName(httpURL)
 	}
 
 	txType := "unknown"
@@ -103,6 +175,15 @@ func newSpan(ctx context.Context, t *tracer, name string, opts ...trace.SpanStar
 	case trace.SpanKindConsumer:
 		if messaging {
 			txType = "messaging"
+		}
+	}
+
+	if spanType == "" {
+		if cfg.SpanKind() == trace.SpanKindInternal {
+			spanType = "app"
+			subtype = "internal"
+		} else {
+			spanType = "unknown"
 		}
 	}
 
@@ -154,10 +235,39 @@ func newSpan(ctx context.Context, t *tracer, name string, opts ...trace.SpanStar
 		}
 
 		txID := tx.TraceContext().Span
-		s := t.inner.StartSpan(name, txType, txID, spanOpts)
+		s := t.inner.StartSpan(name, spanType, txID, spanOpts)
+
+		s.Subtype = subtype
+		s.Context.SetDestinationService(apm.DestinationServiceSpanContext{Resource: resource})
 		s.Context.SetSpanKind(spanKind)
 		tx.Context.SetOtelAttributes(cfg.Attributes()...)
 		ctx := apm.ContextWithSpan(ctx, s)
 		return ctx, &span{inner: s, tracer: t.inner}
+	}
+}
+
+func parseNetName(u string) string {
+	parsed, err := url.Parse(u)
+	if err != nil {
+		// Question: What do we do in this situation?
+		return ""
+	}
+	if parsed.Port() != "" {
+		return parsed.Host
+	} else if port := httpPortFromScheme(parsed.Scheme); port != "" {
+		return parsed.Host + ":" + port
+	}
+
+	return parsed.Host
+}
+
+func httpPortFromScheme(scheme string) string {
+	switch scheme {
+	case "https":
+		return "443"
+	case "http":
+		return "80"
+	default:
+		return ""
 	}
 }
