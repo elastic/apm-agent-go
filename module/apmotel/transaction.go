@@ -31,7 +31,6 @@ import (
 func newRootTransaction(
 	ctx context.Context,
 	tracer *apm.Tracer,
-	spanCtx trace.SpanContext,
 	attributes []attribute.KeyValue,
 	spanKind, name, txType string,
 ) (context.Context, *transaction) {
@@ -40,13 +39,12 @@ func newRootTransaction(
 	tx.Context.SetSpanKind(spanKind)
 	tx.Context.SetOtelAttributes(attributes...)
 	ctx = apm.ContextWithTransaction(ctx, tx)
-	return ctx, &transaction{inner: tx, spanCtx: spanCtx, tracer: tracer}
+	return ctx, &transaction{inner: tx, tracer: tracer}
 }
 
 type transaction struct {
-	inner   *apm.Transaction
-	spanCtx trace.SpanContext
-	tracer  *apm.Tracer
+	inner  *apm.Transaction
+	tracer *apm.Tracer
 
 	mu    sync.RWMutex
 	ended bool
@@ -90,7 +88,16 @@ func (t *transaction) RecordError(err error, _ ...trace.EventOption) {
 // SpanContext returns the SpanContext of the Span. The returned SpanContext
 // is usable even after the End method has been called for the Span.
 func (t *transaction) SpanContext() trace.SpanContext {
-	return t.spanCtx
+	traceCtx := t.inner.TraceContext()
+	spanCtx := trace.SpanContext{}
+	spanCtx.WithTraceID(trace.TraceID(traceCtx.Trace))
+	spanCtx.WithSpanID(trace.SpanID(traceCtx.Span))
+	spanCtx.WithTraceFlags(trace.TraceFlags(traceCtx.Options))
+	if ts, err := trace.ParseTraceState(traceCtx.State.String()); err == nil {
+		spanCtx.WithTraceState(ts)
+	}
+	return spanCtx
+
 }
 
 // SetStatus sets the status of the Span in the form of a code and a

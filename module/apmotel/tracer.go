@@ -115,7 +115,7 @@ func newSpan(ctx context.Context, t *tracer, name string, opts ...trace.SpanStar
 	tx := apm.TransactionFromContext(ctx)
 
 	if cfg.NewRoot() {
-		return newRootTransaction(ctx, t.inner, spanCtx, cfg.Attributes(), spanKind, name, txType)
+		return newRootTransaction(ctx, t.inner, cfg.Attributes(), spanKind, name, txType)
 	} else if spanCtx.IsValid() {
 		txCtx := apm.TraceContext{
 			Options: apm.TraceOptions(spanCtx.TraceFlags()),
@@ -138,9 +138,9 @@ func newSpan(ctx context.Context, t *tracer, name string, opts ...trace.SpanStar
 		tx.Context.SetSpanKind(spanKind)
 		tx.Context.SetOtelAttributes(cfg.Attributes()...)
 		ctx := apm.ContextWithTransaction(ctx, tx)
-		return ctx, &transaction{inner: tx, spanCtx: spanCtx, tracer: t.inner}
+		return ctx, &transaction{inner: tx, tracer: t.inner}
 	} else if tx == nil {
-		return newRootTransaction(ctx, t.inner, spanCtx, cfg.Attributes(), spanKind, name, txType)
+		return newRootTransaction(ctx, t.inner, cfg.Attributes(), spanKind, name, txType)
 	} else {
 		// TODO: Populate data in SpanOptions
 		spanOpts := apm.SpanOptions{}

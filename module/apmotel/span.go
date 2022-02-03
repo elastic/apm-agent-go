@@ -73,7 +73,15 @@ func (s *span) RecordError(err error, _ ...trace.EventOption) {
 // SpanContext returns the SpanContext of the Span. The returned SpanContext
 // is usable even after the End method has been called for the Span.
 func (s *span) SpanContext() trace.SpanContext {
-	return trace.SpanContext{}
+	traceCtx := s.inner.TraceContext()
+	spanCtx := trace.SpanContext{}
+	spanCtx.WithTraceID(trace.TraceID(traceCtx.Trace))
+	spanCtx.WithSpanID(trace.SpanID(traceCtx.Span))
+	spanCtx.WithTraceFlags(trace.TraceFlags(traceCtx.Options))
+	if ts, err := trace.ParseTraceState(traceCtx.State.String()); err == nil {
+		spanCtx.WithTraceState(ts)
+	}
+	return spanCtx
 }
 
 // SetStatus sets the status of the Span in the form of a code and a
