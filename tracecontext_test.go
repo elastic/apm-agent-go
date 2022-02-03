@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"go.elastic.co/apm/v2"
 )
@@ -103,6 +104,21 @@ func TestTraceStateElasticEntryFirst(t *testing.T) {
 	)
 	assert.NoError(t, ts.Validate())
 	assert.Equal(t, "es=s:1;a:b,z=w,a=d", ts.String())
+}
+
+func TestParseTraceState(t *testing.T) {
+	s := "es=s:1;a:b,z=w,a=d"
+	ts, err := apm.ParseTraceState(s)
+	require.NoError(t, err)
+	assert.NoError(t, ts.Validate())
+
+	assert.Equal(t, s, ts.String())
+
+	_, err = apm.ParseTraceState("~")
+	assert.Error(t, err)
+
+	_, err = apm.ParseTraceState("oy=" + strings.Repeat("*", 257))
+	assert.Error(t, err)
 }
 
 func TestTraceStateInvalidKey(t *testing.T) {

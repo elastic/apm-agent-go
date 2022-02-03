@@ -126,6 +126,9 @@ func newSpan(ctx context.Context, t *tracer, name string, opts ...trace.SpanStar
 		if spanCtx.HasSpanID() {
 			txCtx.Span = apm.SpanID(spanCtx.SpanID())
 		}
+		if ts, err := apm.ParseTraceState(spanCtx.TraceState().String()); err == nil {
+			txCtx.State = ts
+		}
 		txOpts := apm.TransactionOptions{TraceContext: txCtx}
 
 		// If timestamp has been set, ie. it's not the default value,
