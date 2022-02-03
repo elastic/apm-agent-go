@@ -38,6 +38,11 @@ func (t TestLogger) Errorf(format string, args ...interface{}) {
 	t.l.Logf("[ERROR] "+format, args...)
 }
 
+// Warningf logs warning messages.
+func (t TestLogger) Warningf(format string, args ...interface{}) {
+	t.l.Logf("[WARNING] "+format, args...)
+}
+
 // LogfLogger is an interface with the a Logf method,
 // implemented by *testing.T and *testing.B.
 type LogfLogger interface {

@@ -535,7 +535,7 @@ type tracerConfig struct {
 	requestSize         int
 	requestDuration     time.Duration
 	metricsInterval     time.Duration
-	logger              WarningLogger
+	logger              Logger
 	metricsGatherers    []MetricsGatherer
 	disabledMetrics     wildcard.Matchers
 	cpuProfileDuration  time.Duration
@@ -617,15 +617,12 @@ func (t *Tracer) SetMetricsInterval(d time.Duration) {
 // SetLogger sets the Logger to be used for logging the operation of
 // the tracer.
 //
-// If logger implements WarningLogger, its Warningf method will be used
-// for logging warnings. Otherwise, warnings will logged using Debugf.
-//
 // The tracer is initialized with a default logger configured with the
 // environment variables ELASTIC_APM_LOG_FILE and ELASTIC_APM_LOG_LEVEL.
 // Calling SetLogger will replace the default logger.
 func (t *Tracer) SetLogger(logger Logger) {
 	t.sendConfigCommand(func(cfg *tracerConfig) {
-		cfg.logger = makeWarningLogger(logger)
+		cfg.logger = logger
 	})
 }
 
