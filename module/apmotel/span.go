@@ -65,7 +65,9 @@ func (s *span) IsRecording() bool {
 // be set to Error, as this method does not change the Span status. If this
 // span is not being recorded or err is nil then this method does nothing.
 func (s *span) RecordError(err error, _ ...trace.EventOption) {
-	s.tracer.NewError(err).SetSpan(s.inner)
+	e := s.tracer.NewError(err)
+	e.SetSpan(s.inner)
+	e.Send()
 }
 
 // SpanContext returns the SpanContext of the Span. The returned SpanContext
