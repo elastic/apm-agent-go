@@ -387,7 +387,7 @@ func initialExitSpanMinDuration() (time.Duration, error) {
 // config for config attributes that have been removed (exist in old but not in attrs).
 //
 // On return from updateRemoteConfig, unapplied config will have been removed from attrs.
-func (t *Tracer) updateRemoteConfig(logger WarningLogger, old, attrs map[string]string) {
+func (t *Tracer) updateRemoteConfig(logger Logger, old, attrs map[string]string) {
 	warningf := func(string, ...interface{}) {}
 	debugf := func(string, ...interface{}) {}
 	errorf := func(string, ...interface{}) {}
