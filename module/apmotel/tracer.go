@@ -30,12 +30,8 @@ import (
 
 // Tracer creates a named tracer that implements otel.Tracer.
 // If the name is an empty string then provider uses default name.
-func Tracer(name string, opts ...trace.TracerOption) trace.Tracer {
-	if name == "" {
-		name = "otel_bridge"
-	}
-
-	apmOpts := apm.TracerOptions{ServiceName: name}
+func Tracer(_ string, opts ...trace.TracerOption) trace.Tracer {
+	apmOpts := apm.TracerOptions{}
 	tracerCfg := trace.NewTracerConfig(opts...)
 	if version := (&tracerCfg).InstrumentationVersion(); version != "" {
 		apmOpts.ServiceVersion = version
@@ -46,6 +42,11 @@ func Tracer(name string, opts ...trace.TracerOption) trace.Tracer {
 		panic(err)
 	}
 
+	return &tracer{inner: t}
+}
+
+// NewTracerProvider creates a new trace.Tracer with the provided apm.Tracer.
+func NewTracerProvider(t *apm.Tracer) trace.Tracer {
 	return &tracer{inner: t}
 }
 
