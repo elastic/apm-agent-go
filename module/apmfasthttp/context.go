@@ -109,6 +109,11 @@ func StartTransactionWithBody(
 		return nil, nil, err
 	}
 
+	// NOTE: the fasthttp documentation states that references to RequestCtx
+	// must not be held after returning from RequestHandler. This is due to
+	// RequestCtx being pooled, and released after the RequestHandler returns.
+	// However, it is safe to reference and call RequestCtx in a closer, as the
+	// closer is invoked before releasing the RequestCtx back to the pool.
 	ctx.SetUserValue(txKey, newTxCloser(ctx, tx, bc))
 
 	return tx, bc, nil
