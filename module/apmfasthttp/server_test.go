@@ -71,22 +71,23 @@ func testServer(t *testing.T, s *fasthttp.Server, wg *sync.WaitGroup, assertFn a
 	tracer.Flush(nil)
 	payloads := transport.Payloads()
 
-	count := 0
+	// the transaction is ended after the response body is fully written,
+	// so a single call to `tracer.Flush()` may not have an event yet
+	// enqueued. Continue to call `tracer.Flush()` and wait for the
+	// transaction to have ended.
+	// This is unique to fasthttp's implementation.
+	timer := time.NewTimer(100 * time.Millisecond)
+	defer timer.Stop()
+
 	for len(payloads.Transactions) == 0 {
-		// the transaction is ended after the response body is fully written,
-		// so a single call to `tracer.Flush()` may not have an event yet
-		// enqueued. Continue to call `tracer.Flush()` and wait for the
-		// transaction to have ended.
-		// This is unique to fasthttp's implementation.
-		if count > 10 {
-			t.Fatal("no transactions found")
+		select {
+		case <-timer.C:
+			t.Fatal("timed out waiting for payload")
+		default:
+			time.Sleep(100 * time.Millisecond)
+			tracer.Flush(nil)
+			payloads = transport.Payloads()
 		}
-
-		count++
-
-		time.Sleep(100 * time.Millisecond)
-		tracer.Flush(nil)
-		payloads = transport.Payloads()
 	}
 
 	assertFn(payloads.Transactions[0], resp)
