@@ -28,6 +28,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cucumber/godog"
@@ -51,8 +52,10 @@ type featureContext struct {
 	serviceVersion string
 	env            []string // for subprocesses
 
-	httpServer         *httptest.Server
-	httpHandler        *httpHandler
+	httpServer  *httptest.Server
+	httpHandler *httpHandler
+
+	mu                 sync.Mutex
 	httpRequestHeaders http.Header
 
 	grpcServer  *grpc.Server
@@ -261,6 +264,8 @@ func (c *featureContext) anAgentConfiguredWith(settings *godog.Table) error {
 
 func (c *featureContext) sendRequest() error {
 	var h http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
+		c.mu.Lock()
+		defer c.mu.Unlock()
 		c.httpRequestHeaders = r.Header
 	}
 	server := httptest.NewServer(h)

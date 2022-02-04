@@ -473,7 +473,6 @@ func newTracer(opts TracerOptions) *Tracer {
 	})
 	t.setLocalInstrumentationConfig(envTransactionSampleRate, func(cfg *instrumentationConfigValues) {
 		cfg.sampler = opts.sampler
-		cfg.extendedSampler, _ = opts.sampler.(ExtendedSampler)
 	})
 	t.setLocalInstrumentationConfig(envSpanFramesMinDuration, func(cfg *instrumentationConfigValues) {
 		cfg.spanFramesMinDuration = opts.spanFramesMinDuration
@@ -493,12 +492,12 @@ func newTracer(opts TracerOptions) *Tracer {
 	t.setLocalInstrumentationConfig(envExitSpanMinDuration, func(cfg *instrumentationConfigValues) {
 		cfg.exitSpanMinDuration = opts.exitSpanMinDuration
 	})
-	if apmlog.DefaultLogger != nil {
-		defaultLogLevel := apmlog.DefaultLogger.Level()
+	if logger := apmlog.DefaultLogger(); logger != nil {
+		defaultLogLevel := logger.Level()
 		t.setLocalInstrumentationConfig(apmlog.EnvLogLevel, func(cfg *instrumentationConfigValues) {
 			// Revert to the original, local, log level when
 			// the centrally defined log level is removed.
-			apmlog.DefaultLogger.SetLevel(defaultLogLevel)
+			logger.SetLevel(defaultLogLevel)
 		})
 	}
 
@@ -519,8 +518,8 @@ func newTracer(opts TracerOptions) *Tracer {
 		cfg.requestSize = opts.requestSize
 		cfg.disabledMetrics = opts.disabledMetrics
 		cfg.metricsGatherers = []MetricsGatherer{newBuiltinMetricsGatherer(t)}
-		if apmlog.DefaultLogger != nil {
-			cfg.logger = apmlog.DefaultLogger
+		if logger := apmlog.DefaultLogger(); logger != nil {
+			cfg.logger = logger
 		}
 	}
 	if opts.configWatcher != nil {
@@ -536,7 +535,7 @@ type tracerConfig struct {
 	requestSize         int
 	requestDuration     time.Duration
 	metricsInterval     time.Duration
-	logger              WarningLogger
+	logger              Logger
 	metricsGatherers    []MetricsGatherer
 	disabledMetrics     wildcard.Matchers
 	cpuProfileDuration  time.Duration
@@ -618,15 +617,12 @@ func (t *Tracer) SetMetricsInterval(d time.Duration) {
 // SetLogger sets the Logger to be used for logging the operation of
 // the tracer.
 //
-// If logger implements WarningLogger, its Warningf method will be used
-// for logging warnings. Otherwise, warnings will logged using Debugf.
-//
 // The tracer is initialized with a default logger configured with the
 // environment variables ELASTIC_APM_LOG_FILE and ELASTIC_APM_LOG_LEVEL.
 // Calling SetLogger will replace the default logger.
 func (t *Tracer) SetLogger(logger Logger) {
 	t.sendConfigCommand(func(cfg *tracerConfig) {
-		cfg.logger = makeWarningLogger(logger)
+		cfg.logger = logger
 	})
 }
 
@@ -741,7 +737,6 @@ func (t *Tracer) SetRecording(r bool) {
 func (t *Tracer) SetSampler(s Sampler) {
 	t.setLocalInstrumentationConfig(envTransactionSampleRate, func(cfg *instrumentationConfigValues) {
 		cfg.sampler = s
-		cfg.extendedSampler, _ = s.(ExtendedSampler)
 	})
 }
 

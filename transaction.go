@@ -108,8 +108,8 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 
 	if root {
 		var result SampleResult
-		if instrumentationConfig.extendedSampler != nil {
-			result = instrumentationConfig.extendedSampler.SampleExtended(SampleParams{
+		if instrumentationConfig.sampler != nil {
+			result = instrumentationConfig.sampler.Sample(SampleParams{
 				TraceContext: tx.traceContext,
 			})
 			if !result.Sampled {
@@ -125,8 +125,6 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 				Key:   elasticTracestateVendorKey,
 				Value: formatElasticTracestateValue(sampleRate),
 			})
-		} else if instrumentationConfig.sampler != nil {
-			result.Sampled = instrumentationConfig.sampler.Sample(tx.traceContext)
 		} else {
 			result.Sampled = true
 		}

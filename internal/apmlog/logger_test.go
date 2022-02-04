@@ -32,48 +32,46 @@ import (
 func init() {
 	os.Unsetenv("ELASTIC_APM_LOG_FILE")
 	os.Unsetenv("ELASTIC_APM_LOG_LEVEL")
-	DefaultLogger = nil
+	SetDefaultLogger(nil)
 }
 
-func TestInitDefaultLoggerNoEnv(t *testing.T) {
-	DefaultLogger = nil
-	InitDefaultLogger()
-	assert.Nil(t, DefaultLogger)
+func TestDefaultLoggerNoEnv(t *testing.T) {
+	SetDefaultLogger(nil)
+	assert.Nil(t, DefaultLogger())
 }
 
-func TestInitDefaultLoggerInvalidFile(t *testing.T) {
+func TestDefaultLoggerInvalidFile(t *testing.T) {
 	var logbuf bytes.Buffer
 	log.SetOutput(&logbuf)
 
-	DefaultLogger = nil
+	SetDefaultLogger(nil)
 	os.Setenv("ELASTIC_APM_LOG_FILE", ".")
 	defer os.Unsetenv("ELASTIC_APM_LOG_FILE")
-	InitDefaultLogger()
 
-	assert.Nil(t, DefaultLogger)
+	assert.Nil(t, DefaultLogger())
 	assert.Regexp(t, `failed to create "\.": .* \(disabling logging\)`, logbuf.String())
 }
 
-func TestInitDefaultLoggerFile(t *testing.T) {
+func TestDefaultLoggerFile(t *testing.T) {
 	dir, err := ioutil.TempDir("", "")
 	require.NoError(t, err)
 	defer os.RemoveAll(dir)
 
-	DefaultLogger = nil
+	SetDefaultLogger(nil)
 	os.Setenv("ELASTIC_APM_LOG_FILE", filepath.Join(dir, "log.json"))
 	defer os.Unsetenv("ELASTIC_APM_LOG_FILE")
-	InitDefaultLogger()
 
-	require.NotNil(t, DefaultLogger)
-	DefaultLogger.Debugf("debug message")
-	DefaultLogger.Errorf("error message")
+	logger := DefaultLogger()
+	require.NotNil(t, logger)
+	logger.Debugf("debug message")
+	logger.Errorf("error message")
 
 	data, err := ioutil.ReadFile(filepath.Join(dir, "log.json"))
 	require.NoError(t, err)
 	assert.Regexp(t, `{"level":"error","time":".*","message":"error message"}`, string(data))
 }
 
-func TestInitDefaultLoggerStdio(t *testing.T) {
+func TestDefaultLoggerStdio(t *testing.T) {
 	origStdout, origStderr := os.Stdout, os.Stderr
 	defer func() {
 		os.Stdout, os.Stderr = origStdout, origStderr
@@ -93,11 +91,10 @@ func TestInitDefaultLoggerStdio(t *testing.T) {
 
 	defer os.Unsetenv("ELASTIC_APM_LOG_FILE")
 	for _, filename := range []string{"stdout", "stderr"} {
-		DefaultLogger = nil
+		SetDefaultLogger(nil)
 		os.Setenv("ELASTIC_APM_LOG_FILE", filename)
-		InitDefaultLogger()
-		require.NotNil(t, DefaultLogger)
-		DefaultLogger.Errorf("%s", filename)
+		require.NotNil(t, DefaultLogger())
+		DefaultLogger().Errorf("%s", filename)
 	}
 
 	stdoutContents, err := ioutil.ReadFile(tempStdout.Name())
@@ -109,7 +106,7 @@ func TestInitDefaultLoggerStdio(t *testing.T) {
 	assert.Regexp(t, `{"level":"error","time":".*","message":"stderr"}`, string(stderrContents))
 }
 
-func TestInitDefaultLoggerInvalidLevel(t *testing.T) {
+func TestDefaultLoggerInvalidLevel(t *testing.T) {
 	var logbuf bytes.Buffer
 	log.SetOutput(&logbuf)
 
@@ -117,16 +114,16 @@ func TestInitDefaultLoggerInvalidLevel(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(dir)
 
-	DefaultLogger = nil
+	SetDefaultLogger(nil)
 	os.Setenv("ELASTIC_APM_LOG_FILE", filepath.Join(dir, "log.json"))
 	os.Setenv("ELASTIC_APM_LOG_LEVEL", "panic")
 	defer os.Unsetenv("ELASTIC_APM_LOG_FILE")
 	defer os.Unsetenv("ELASTIC_APM_LOG_LEVEL")
-	InitDefaultLogger()
 
-	require.NotNil(t, DefaultLogger)
-	DefaultLogger.Debugf("debug message")
-	DefaultLogger.Errorf("error message")
+	logger := DefaultLogger()
+	require.NotNil(t, logger)
+	logger.Debugf("debug message")
+	logger.Errorf("error message")
 
 	data, err := ioutil.ReadFile(filepath.Join(dir, "log.json"))
 	require.NoError(t, err)
@@ -134,7 +131,7 @@ func TestInitDefaultLoggerInvalidLevel(t *testing.T) {
 	assert.Regexp(t, `invalid ELASTIC_APM_LOG_LEVEL "panic", falling back to "error"`, logbuf.String())
 }
 
-func TestInitDefaultLoggerLevel(t *testing.T) {
+func TestDefaultLoggerLevel(t *testing.T) {
 	var logbuf bytes.Buffer
 	log.SetOutput(&logbuf)
 
@@ -142,16 +139,16 @@ func TestInitDefaultLoggerLevel(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(dir)
 
-	DefaultLogger = nil
+	SetDefaultLogger(nil)
 	os.Setenv("ELASTIC_APM_LOG_FILE", filepath.Join(dir, "log.json"))
 	os.Setenv("ELASTIC_APM_LOG_LEVEL", "debug")
 	defer os.Unsetenv("ELASTIC_APM_LOG_FILE")
 	defer os.Unsetenv("ELASTIC_APM_LOG_LEVEL")
-	InitDefaultLogger()
 
-	require.NotNil(t, DefaultLogger)
-	DefaultLogger.Debugf("debug message")
-	DefaultLogger.Errorf("error message")
+	logger := DefaultLogger()
+	require.NotNil(t, logger)
+	logger.Debugf("debug message")
+	logger.Errorf("error message")
 
 	data, err := ioutil.ReadFile(filepath.Join(dir, "log.json"))
 	require.NoError(t, err)
@@ -166,14 +163,13 @@ func BenchmarkDefaultLogger(b *testing.B) {
 	require.NoError(b, err)
 	defer os.RemoveAll(dir)
 
-	DefaultLogger = nil
+	SetDefaultLogger(nil)
 	os.Setenv("ELASTIC_APM_LOG_FILE", filepath.Join(dir, "log.json"))
 	defer os.Unsetenv("ELASTIC_APM_LOG_FILE")
-	InitDefaultLogger()
-	require.NotNil(b, DefaultLogger)
+	require.NotNil(b, DefaultLogger())
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		DefaultLogger.Errorf("debug message")
+		DefaultLogger().Errorf("debug message")
 	}
 }

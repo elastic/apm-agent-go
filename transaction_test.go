@@ -45,7 +45,7 @@ func TestStartTransactionTraceContextOptions(t *testing.T) {
 func testStartTransactionTraceContextOptions(t *testing.T, recorded bool) {
 	tracer, _ := transporttest.NewRecorderTracer()
 	defer tracer.Close()
-	tracer.SetSampler(samplerFunc(func(apm.TraceContext) bool {
+	tracer.SetSampler(samplerFunc(func(apm.SampleParams) apm.SampleResult {
 		panic("nope")
 	}))
 
@@ -75,9 +75,9 @@ func startTransactionInvalidTraceContext(t *testing.T, traceContext apm.TraceCon
 	defer tracer.Close()
 
 	var samplerCalled bool
-	tracer.SetSampler(samplerFunc(func(apm.TraceContext) bool {
+	tracer.SetSampler(samplerFunc(func(apm.SampleParams) apm.SampleResult {
 		samplerCalled = true
-		return true
+		return apm.SampleResult{Sampled: true}
 	}))
 
 	opts := apm.TransactionOptions{TraceContext: traceContext}
@@ -214,7 +214,9 @@ func TestTransactionParentIDWithEnsureParent(t *testing.T) {
 func TestTransactionContextNotSampled(t *testing.T) {
 	tracer := apmtest.NewRecordingTracer()
 	defer tracer.Close()
-	tracer.SetSampler(samplerFunc(func(apm.TraceContext) bool { return false }))
+	tracer.SetSampler(samplerFunc(func(apm.SampleParams) apm.SampleResult {
+		return apm.SampleResult{Sampled: false}
+	}))
 
 	tx := tracer.StartTransaction("name", "type")
 	tx.Context.SetLabel("foo", "bar")
@@ -230,7 +232,7 @@ func TestTransactionNotRecording(t *testing.T) {
 	tracer := apmtest.NewRecordingTracer()
 	defer tracer.Close()
 	tracer.SetRecording(false)
-	tracer.SetSampler(samplerFunc(func(apm.TraceContext) bool {
+	tracer.SetSampler(samplerFunc(func(apm.SampleParams) apm.SampleResult {
 		panic("should not be called")
 	}))
 
@@ -575,8 +577,8 @@ func BenchmarkTransaction(b *testing.B) {
 	})
 }
 
-type samplerFunc func(apm.TraceContext) bool
+type samplerFunc func(apm.SampleParams) apm.SampleResult
 
-func (f samplerFunc) Sample(t apm.TraceContext) bool {
-	return f(t)
+func (f samplerFunc) Sample(p apm.SampleParams) apm.SampleResult {
+	return f(p)
 }

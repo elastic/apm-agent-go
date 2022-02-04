@@ -173,8 +173,8 @@ func getCloudMetadata() *model.Cloud {
 	// first requested by the tracer.
 	cloudMetadataOnce.Do(func() {
 		var logger apmcloudutil.Logger
-		if apmlog.DefaultLogger != nil {
-			logger = apmlog.DefaultLogger
+		if l := apmlog.DefaultLogger(); l != nil {
+			logger = l
 		}
 		provider := apmcloudutil.Auto
 		if str := os.Getenv(envCloudProvider); str != "" {
