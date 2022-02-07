@@ -290,9 +290,11 @@ type Otel struct {
 
 // SetAttributes sets the provided OpenTelemetry attributes.
 func (o *Otel) SetAttributes(kvs ...attribute.KeyValue) {
+	attrs := make(map[attribute.Key]attribute.Value, len(kvs))
 	for _, kv := range kvs {
-		o.Attributes[kv.Key] = kv.Value
+		attrs[kv.Key] = kv.Value
 	}
+	o.Attributes = attrs
 }
 
 // SpanCount holds statistics on spans within a transaction.

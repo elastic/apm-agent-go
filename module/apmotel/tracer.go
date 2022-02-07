@@ -242,7 +242,7 @@ func newSpan(ctx context.Context, t *tracer, name string, opts ...trace.SpanStar
 		s.Subtype = subtype
 		s.Context.SetDestinationService(apm.DestinationServiceSpanContext{Resource: resource})
 		s.Context.SetSpanKind(spanKind)
-		tx.Context.SetOtelAttributes(cfg.Attributes()...)
+		s.Context.SetOtelAttributes(cfg.Attributes()...)
 		ctx := apm.ContextWithSpan(ctx, s)
 		return ctx, &span{inner: s, tracer: t.inner}
 	}
