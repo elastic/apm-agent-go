@@ -738,6 +738,7 @@ func (v *Otel) MarshalFastJSON(w *fastjson.Writer) error {
 	return firstErr
 }
 
+// UnmarshalJSON unmarshals the JSON data into v.
 func (v *Otel) UnmarshalJSON(data []byte) error {
 	var otel struct {
 		SpanKind   string                 `json:"span_kind"`
