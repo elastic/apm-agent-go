@@ -47,8 +47,10 @@ func Tracer(_ string, opts ...trace.TracerOption) trace.Tracer {
 }
 
 // NewTracerProvider creates a new trace.Tracer with the provided apm.Tracer.
-func NewTracerProvider(t *apm.Tracer) trace.Tracer {
-	return &tracer{inner: t}
+func NewTracerProvider(t *apm.Tracer) trace.TracerProvider {
+	return tracerFunc(func(_ string, _ ...trace.TracerOption) trace.Tracer {
+		return &tracer{inner: t}
+	})
 }
 
 // SetTracerProvider is a noop function to match opentelemetry's trace module.
