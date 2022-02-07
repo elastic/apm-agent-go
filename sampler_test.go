@@ -49,7 +49,9 @@ func TestRatioSampler(t *testing.T) {
 			for j := 0; j < numIterations; j++ {
 				var traceContext apm.TraceContext
 				binary.LittleEndian.PutUint64(traceContext.Span[:], rng.Uint64())
-				if s.Sample(traceContext) {
+				result := s.Sample(apm.SampleParams{TraceContext: traceContext})
+				assert.Equal(t, ratio, result.SampleRate)
+				if result.Sampled {
 					sampled[i]++
 				}
 			}
@@ -67,44 +69,24 @@ func TestRatioSampler(t *testing.T) {
 
 func TestRatioSamplerAlways(t *testing.T) {
 	s := apm.NewRatioSampler(1.0)
-	assert.False(t, s.Sample(apm.TraceContext{})) // invalid span ID
-	assert.True(t, s.Sample(apm.TraceContext{
+	assert.False(t, s.Sample(apm.SampleParams{TraceContext: apm.TraceContext{}}).Sampled) // invalid span ID
+	assert.True(t, s.Sample(apm.SampleParams{TraceContext: apm.TraceContext{
 		Span: apm.SpanID{0, 0, 0, 0, 0, 0, 0, 1},
-	}))
-	assert.True(t, s.Sample(apm.TraceContext{
+	}}).Sampled)
+	assert.True(t, s.Sample(apm.SampleParams{TraceContext: apm.TraceContext{
 		Span: apm.SpanID{255, 255, 255, 255, 255, 255, 255, 255},
-	}))
+	}}).Sampled)
 }
 
 func TestRatioSamplerNever(t *testing.T) {
 	s := apm.NewRatioSampler(0)
-	assert.False(t, s.Sample(apm.TraceContext{})) // invalid span ID
-	assert.False(t, s.Sample(apm.TraceContext{
+	assert.False(t, s.Sample(apm.SampleParams{TraceContext: apm.TraceContext{}}).Sampled) // invalid span ID
+	assert.False(t, s.Sample(apm.SampleParams{TraceContext: apm.TraceContext{
 		Span: apm.SpanID{0, 0, 0, 0, 0, 0, 0, 1},
-	}))
-	assert.False(t, s.Sample(apm.TraceContext{
+	}}).Sampled)
+	assert.False(t, s.Sample(apm.SampleParams{TraceContext: apm.TraceContext{
 		Span: apm.SpanID{255, 255, 255, 255, 255, 255, 255, 255},
-	}))
-}
-
-func TestRatioSamplerExtended(t *testing.T) {
-	s := apm.NewRatioSampler(0.5).(apm.ExtendedSampler)
-
-	result := s.SampleExtended(apm.SampleParams{
-		TraceContext: apm.TraceContext{Span: apm.SpanID{255, 0, 0, 0, 0, 0, 0, 0}},
-	})
-	assert.Equal(t, apm.SampleResult{
-		Sampled:    false,
-		SampleRate: 0.5,
-	}, result)
-
-	result = s.SampleExtended(apm.SampleParams{
-		TraceContext: apm.TraceContext{Span: apm.SpanID{1, 0, 0, 0, 0, 0, 0, 0}},
-	})
-	assert.Equal(t, apm.SampleResult{
-		Sampled:    true,
-		SampleRate: 0.5,
-	}, result)
+	}}).Sampled)
 }
 
 func TestRatioSamplerPrecision(t *testing.T) {
@@ -115,8 +97,8 @@ func TestRatioSamplerPrecision(t *testing.T) {
 		0.55556: 0.5556,
 	}
 	for r, want := range ratios {
-		s := apm.NewRatioSampler(r).(apm.ExtendedSampler)
-		got := s.SampleExtended(apm.SampleParams{}).SampleRate
+		s := apm.NewRatioSampler(r)
+		got := s.Sample(apm.SampleParams{}).SampleRate
 		assert.Equal(t, want, got)
 	}
 }

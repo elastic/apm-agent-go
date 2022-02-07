@@ -45,7 +45,7 @@ docker-test:
 
 .PHONY: test
 test:
-	@for dir in $(shell scripts/moduledirs.sh); do (cd $$dir && go test -v -timeout=$(TEST_TIMEOUT) ./...) || exit $$?; done
+	@for dir in $(shell scripts/moduledirs.sh); do (cd $$dir && go test -race -v -timeout=$(TEST_TIMEOUT) ./...) || exit $$?; done
 
 .PHONY: coverage
 coverage:

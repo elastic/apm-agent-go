@@ -28,28 +28,15 @@ import (
 // Sampler provides a means of sampling transactions.
 type Sampler interface {
 	// Sample indicates whether or not a transaction
-	// should be sampled. This method will be invoked
+	// should be sampled, and the sampling rate in
+	// effect at the time.This method will be invoked
 	// by calls to Tracer.StartTransaction for the root
 	// of a trace, so it must be goroutine-safe, and
 	// should avoid synchronization as far as possible.
-	Sample(TraceContext) bool
+	Sample(SampleParams) SampleResult
 }
 
-// ExtendedSampler may be implemented by Samplers, providing
-// a method for sampling and returning an extended SampleResult.
-//
-// TODO(axw) in v2.0.0, replace the Sampler interface with this.
-type ExtendedSampler interface {
-	// SampleExtended indicates whether or not a transaction
-	// should be sampled, and the sampling rate in effect at
-	// the time. This method will be invoked by calls to
-	// Tracer.StartTransaction for the root of a trace, so it
-	// must be goroutine-safe, and should avoid synchronization
-	// as far as possible.
-	SampleExtended(SampleParams) SampleResult
-}
-
-// SampleParams holds parameters for SampleExtended.
+// SampleParams holds parameters for Sampler.Sample.
 type SampleParams struct {
 	// TraceContext holds the newly-generated TraceContext
 	// for the root transaction which is being sampled.
@@ -105,13 +92,7 @@ type ratioSampler struct {
 
 // Sample samples the transaction according to the configured
 // ratio and pseudo-random source.
-func (s ratioSampler) Sample(c TraceContext) bool {
-	return s.SampleExtended(SampleParams{TraceContext: c}).Sampled
-}
-
-// SampleExtended samples the transaction according to the configured
-// ratio and pseudo-random source.
-func (s ratioSampler) SampleExtended(args SampleParams) SampleResult {
+func (s ratioSampler) Sample(args SampleParams) SampleResult {
 	v := binary.BigEndian.Uint64(args.TraceContext.Span[:])
 	result := SampleResult{
 		Sampled:    v > 0 && v-1 < s.ceil,

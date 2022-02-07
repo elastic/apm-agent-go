@@ -127,10 +127,9 @@ func TestTracerCentralConfigUpdate(t *testing.T) {
 		os.Setenv(apmlog.EnvLogLevel, "off")
 		defer os.Unsetenv(apmlog.EnvLogFile)
 		defer os.Unsetenv(apmlog.EnvLogLevel)
-		apmlog.InitDefaultLogger()
 
 		response, _ := json.Marshal(map[string]string{"log_level": "debug"})
-		testTracerCentralConfigUpdate(t, apmlog.DefaultLogger, string(response), func(tracer *apmtest.RecordingTracer) bool {
+		testTracerCentralConfigUpdate(t, apmlog.DefaultLogger(), string(response), func(tracer *apmtest.RecordingTracer) bool {
 			require.NoError(t, os.Truncate(logfile, 0))
 			tracer.StartTransaction("name", "type").End()
 			tracer.Flush(nil)
