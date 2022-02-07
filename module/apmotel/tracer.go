@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmotel // import "go.elastic.co/apm/v2/module/apmotel"
+package apmotel // import "go.elastic.co/apm/module/apmotel/v2"
 
 import (
 	"context"
