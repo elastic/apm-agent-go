@@ -52,9 +52,10 @@ func NewRecorderTracer() (*apm.Tracer, *RecorderTransport) {
 // streams sent. The streams can be retrieved using the Payloads
 // method.
 type RecorderTransport struct {
-	mu       sync.Mutex
-	metadata *metadata
-	payloads Payloads
+	mu            sync.Mutex
+	metadata      *metadata
+	RemoteVersion string
+	payloads      Payloads
 }
 
 // ResetPayloads clears out any recorded payloads.
@@ -101,6 +102,11 @@ func (r *RecorderTransport) Payloads() Payloads {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.payloads
+}
+
+// GetVersion returns the injected remoteVersion if any.
+func (r *RecorderTransport) GetVersion(context.Context) (string, error) {
+	return r.RemoteVersion, nil
 }
 
 func (r *RecorderTransport) record(ctx context.Context, stream io.Reader) error {

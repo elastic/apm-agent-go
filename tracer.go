@@ -24,6 +24,8 @@ import (
 	"io"
 	"log"
 	"math/rand"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -113,6 +115,8 @@ type TracerOptions struct {
 	// If Transport implements apmconfig.Watcher, the tracer will begin watching
 	// for remote changes immediately. This behaviour can be disabled by setting
 	// the environment variable ELASTIC_APM_CENTRAL_CONFIG=false.
+	// If Transport implements apm.VersionGetter, the tracer will query the APM
+	// Server "/" endpoint to obtain the remote version.
 	Transport transport.Transport
 
 	requestDuration       time.Duration
@@ -135,6 +139,7 @@ type TracerOptions struct {
 	breakdownMetrics      bool
 	propagateLegacyHeader bool
 	profileSender         profileSender
+	versionGetter         versionGetter
 	cpuProfileInterval    time.Duration
 	cpuProfileDuration    time.Duration
 	heapProfileInterval   time.Duration
@@ -336,6 +341,9 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 		opts.cpuProfileDuration = cpuProfileDuration
 		opts.heapProfileInterval = heapProfileInterval
 	}
+	if vg, ok := opts.Transport.(versionGetter); ok {
+		opts.versionGetter = vg
+	}
 	return nil
 }
 
@@ -387,7 +395,7 @@ type Tracer struct {
 	events            chan tracerEvent
 	breakdownMetrics  *breakdownMetrics
 	profileSender     profileSender
-
+	versionGetter     versionGetter
 	// stats is heap-allocated to ensure correct alignment for atomic access.
 	stats *TracerStats
 
@@ -440,6 +448,7 @@ func newTracer(opts TracerOptions) *Tracer {
 		bufferSize:        opts.bufferSize,
 		metricsBufferSize: opts.metricsBufferSize,
 		profileSender:     opts.profileSender,
+		versionGetter:     opts.versionGetter,
 		instrumentationConfigInternal: &instrumentationConfig{
 			local: make(map[string]func(*instrumentationConfigValues)),
 		},
@@ -448,7 +457,6 @@ func newTracer(opts TracerOptions) *Tracer {
 	t.Service.Version = opts.ServiceVersion
 	t.Service.Environment = opts.ServiceEnvironment
 	t.breakdownMetrics.enabled = opts.breakdownMetrics
-
 	// Initialise local transaction config.
 	t.setLocalInstrumentationConfig(envRecording, func(cfg *instrumentationConfigValues) {
 		cfg.recording = opts.recording
@@ -1026,7 +1034,14 @@ func (t *Tracer) loop() {
 						breakdownMetricsLimitWarningLogged = true
 					}
 				}
-				modelWriter.writeTransaction(event.tx.Transaction, event.tx.TransactionData)
+				// Drop unsampled transactions when the APM Server is >= 8.0
+				dropUnsampled := t.canDropUnsampledTx(ctx)
+				drop := t.dropUnsampledTx(
+					event.tx.TransactionData, event.tx.Sampled(), dropUnsampled,
+				)
+				if !drop {
+					modelWriter.writeTransaction(event.tx.Transaction, event.tx.TransactionData)
+				}
 			case spanEvent:
 				modelWriter.writeSpan(event.span.Span, event.span.SpanData)
 			case errorEvent:
@@ -1068,6 +1083,7 @@ func (t *Tracer) loop() {
 			heapProfilingState.resetTimer()
 		case flushed = <-t.forceFlush:
 			// Drain any objects buffered in the channels.
+			dropUnsampled := t.canDropUnsampledTx(ctx)
 			for n := len(t.events); n > 0; n-- {
 				event := <-t.events
 				switch event.eventType {
@@ -1078,7 +1094,13 @@ func (t *Tracer) loop() {
 							breakdownMetricsLimitWarningLogged = true
 						}
 					}
-					modelWriter.writeTransaction(event.tx.Transaction, event.tx.TransactionData)
+					// Drop unsampled transactions when the APM Server is >= 8.0
+					drop := t.dropUnsampledTx(
+						event.tx.TransactionData, event.tx.Sampled(), dropUnsampled,
+					)
+					if !drop {
+						modelWriter.writeTransaction(event.tx.Transaction, event.tx.TransactionData)
+					}
 				case spanEvent:
 					modelWriter.writeSpan(event.span.Span, event.span.SpanData)
 				case errorEvent:
@@ -1319,6 +1341,31 @@ func (t *Tracer) gatherMetrics(ctx context.Context, gatherers []MetricsGatherer,
 	}()
 }
 
+// canDropUnsampledTx returns true when the remote APM Server's major version is
+// >= 8, otherwise returns false.
+func (t *Tracer) canDropUnsampledTx(ctx context.Context) bool {
+	if t.versionGetter == nil {
+		return false
+	}
+
+	// Cancel the operation after 5s, we do not want to block the loop for more
+	// than necessary.
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	if v, err := t.versionGetter.GetVersion(ctx); err == nil {
+		return parseMajorVersion(v) >= 8
+	}
+	return false
+}
+
+func (t *Tracer) dropUnsampledTx(td *TransactionData, sampled, dropUnsampled bool) bool {
+	if !sampled && dropUnsampled {
+		td.reset(t)
+		return true
+	}
+	return false
+}
+
 type tracerEventType int
 
 const (
@@ -1351,4 +1398,25 @@ type tracerEvent struct {
 		// so we pass it along side.
 		*SpanData
 	}
+}
+
+type versionGetter interface {
+	// GetVersion returns the remote APM Server version.
+	GetVersion(context.Context) (string, error)
+}
+
+// parseMajorVersion returns the major version given a version string. Accepts
+// the string as long as it contans a `.` and the runes preceding `.` can be
+// parsed to a number, otherwise, returns `-1`.
+func parseMajorVersion(v string) int {
+	i := strings.IndexRune(v, '.')
+	if i == -1 {
+		return -1
+	}
+
+	major, err := strconv.Atoi(v[:i])
+	if err != nil {
+		return -1
+	}
+	return major
 }

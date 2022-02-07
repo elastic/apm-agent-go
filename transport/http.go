@@ -36,6 +36,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -150,12 +151,17 @@ type HTTPTransport struct {
 	intakeHeaders  http.Header
 	configHeaders  http.Header
 	profileHeaders http.Header
+	rootHeaders    http.Header
 	shuffleRand    *rand.Rand
 
 	urlIndex    int32
 	intakeURLs  []*url.URL
 	configURLs  []*url.URL
 	profileURLs []*url.URL
+
+	// versionMu Mutex guarding access to the remoteVersion string.
+	versionMu     sync.RWMutex
+	remoteVersion string
 }
 
 // NewHTTPTransport returns a new HTTPTransport, initialized with opts,
@@ -229,6 +235,7 @@ func newHTTPTransportOptions(opts HTTPTransportOptions) (*HTTPTransport, error) 
 		configHeaders:  commonHeaders,
 		intakeHeaders:  intakeHeaders,
 		profileHeaders: profileHeaders,
+		rootHeaders:    copyHeaders(commonHeaders),
 	}
 	if opts.APIKey != "" {
 		t.SetAPIKey(opts.APIKey)
@@ -306,7 +313,10 @@ func (t *HTTPTransport) SetServerURL(u ...*url.URL) error {
 	t.intakeURLs = intakeURLs
 	t.configURLs = configURLs
 	t.profileURLs = profileURLs
-	t.urlIndex = 0
+	atomic.StoreInt32(&t.urlIndex, 0)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	t.refreshRemoteVersion(ctx)
 	return nil
 }
 
@@ -341,12 +351,14 @@ func (t *HTTPTransport) SetAPIKey(apiKey string) {
 
 func (t *HTTPTransport) setCommonHeader(key, value string) {
 	t.configHeaders.Set(key, value)
+	t.rootHeaders.Set(key, value)
 	t.intakeHeaders.Set(key, value)
 	t.profileHeaders.Set(key, value)
 }
 
 func (t *HTTPTransport) deleteCommonHeader(key string) {
 	t.configHeaders.Del(key)
+	t.rootHeaders.Del(key)
 	t.intakeHeaders.Del(key)
 	t.profileHeaders.Del(key)
 }
@@ -363,6 +375,9 @@ func (t *HTTPTransport) SendStream(ctx context.Context, r io.Reader) error {
 	req.Body = ioutil.NopCloser(r)
 	if err := t.sendStreamRequest(req); err != nil {
 		atomic.StoreInt32(&t.urlIndex, (urlIndex+1)%int32(len(t.intakeURLs)))
+		// The remote APM Server url has changed, so we refresh the remote APM
+		// Server version for the new URL.
+		t.refreshRemoteVersion(ctx)
 		return err
 	}
 	return nil
@@ -373,12 +388,11 @@ func (t *HTTPTransport) sendStreamRequest(req *http.Request) error {
 	if err != nil {
 		return errors.Wrap(err, "sending event request failed")
 	}
+	defer resp.Body.Close()
 	switch resp.StatusCode {
 	case http.StatusOK, http.StatusAccepted:
-		resp.Body.Close()
 		return nil
 	}
-	defer resp.Body.Close()
 
 	result := newHTTPError(resp)
 	if resp.StatusCode == http.StatusNotFound && result.Message == "404 page not found" {
@@ -569,6 +583,53 @@ func (t *HTTPTransport) configRequest(req *http.Request) configResponse {
 	}
 	response.err = newHTTPError(resp)
 	return response
+}
+
+// serverInfo represents the APM Server information as exposed in the `/`
+// endpoint. Not all fields may be modeled in this structure.
+type serverInfo struct {
+	// Version holds the APM Server version.
+	Version string `json:"version,omitempty"`
+}
+
+// GetVersion returns the APM Server's version. It queries the remote APM Server
+// `/` endpoint, caching it locally when it contains a version. Subsequent calls
+// will return the cached version.
+func (t *HTTPTransport) GetVersion(ctx context.Context) (string, error) {
+	t.versionMu.RLock()
+	version := t.remoteVersion
+	t.versionMu.RUnlock()
+	if version != "" {
+		return version, nil
+	}
+	return t.refreshRemoteVersion(ctx)
+}
+
+// RefreshVersion queries the "active" remote APM Server and caches the result
+// locally when the operation succeeds.
+func (t *HTTPTransport) refreshRemoteVersion(ctx context.Context) (string, error) {
+	srvURL := t.intakeURLs[atomic.LoadInt32(&t.urlIndex)]
+	u := *srvURL
+	u.Path, u.RawPath = "", ""
+	req := requestWithContext(ctx, t.newRequest("GET", urlWithPath(&u, "/")))
+	req.Header = t.rootHeaders
+	res, err := t.Client.Do(req)
+	if err != nil {
+		return "", errors.Wrap(err, "failed querying apm-server version")
+	}
+	defer res.Body.Close()
+
+	var resp serverInfo
+	if err := json.NewDecoder(res.Body).Decode(&resp); err != nil {
+		return "", errors.Wrap(err, "failed decoding apm-server version")
+	}
+
+	t.versionMu.Lock()
+	defer t.versionMu.Unlock()
+	if resp.Version != "" {
+		t.remoteVersion = resp.Version
+	}
+	return t.remoteVersion, nil
 }
 
 func (t *HTTPTransport) newRequest(method string, url *url.URL) *http.Request {

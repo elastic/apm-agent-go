@@ -33,6 +33,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -71,7 +72,7 @@ func TestNewHTTPTransportDefaultURL(t *testing.T) {
 	assert.NoError(t, err)
 	err = transport.SendStream(context.Background(), strings.NewReader(""))
 	assert.NoError(t, err)
-	assert.Len(t, h.requests, 1)
+	assert.Len(t, h.requests, 2)
 }
 
 func TestHTTPTransportUserAgent(t *testing.T) {
@@ -84,15 +85,15 @@ func TestHTTPTransportUserAgent(t *testing.T) {
 	assert.NoError(t, err)
 	err = transport.SendStream(context.Background(), strings.NewReader(""))
 	assert.NoError(t, err)
-	assert.Len(t, h.requests, 1)
+	assert.Len(t, h.requests, 2)
 
 	transport.SetUserAgent("foo")
 	err = transport.SendStream(context.Background(), strings.NewReader(""))
 	assert.NoError(t, err)
-	assert.Len(t, h.requests, 2)
+	assert.Len(t, h.requests, 3)
 
-	assert.Regexp(t, "apm-agent-go/.*", h.requests[0].UserAgent())
-	assert.Equal(t, "foo", h.requests[1].UserAgent())
+	assert.Regexp(t, "apm-agent-go/.*", h.requests[1].UserAgent())
+	assert.Equal(t, "foo", h.requests[2].UserAgent())
 }
 
 func TestHTTPTransportSecretToken(t *testing.T) {
@@ -106,8 +107,8 @@ func TestHTTPTransportSecretToken(t *testing.T) {
 	assert.NoError(t, err)
 	transport.SendStream(context.Background(), strings.NewReader(""))
 
-	assert.Len(t, h.requests, 1)
-	assertAuthorization(t, h.requests[0], "Bearer hunter2")
+	assert.Len(t, h.requests, 2)
+	assertAuthorization(t, h.requests[1], "Bearer hunter2")
 }
 
 func TestHTTPTransportEnvSecretToken(t *testing.T) {
@@ -121,7 +122,7 @@ func TestHTTPTransportEnvSecretToken(t *testing.T) {
 	assert.NoError(t, err)
 	transport.SendStream(context.Background(), strings.NewReader(""))
 
-	assert.Len(t, h.requests, 1)
+	assert.Len(t, h.requests, 2)
 	assertAuthorization(t, h.requests[0], "Bearer hunter2")
 }
 
@@ -136,8 +137,8 @@ func TestHTTPTransportAPIKey(t *testing.T) {
 	assert.NoError(t, err)
 	transport.SendStream(context.Background(), strings.NewReader(""))
 
-	assert.Len(t, h.requests, 1)
-	assertAuthorization(t, h.requests[0], "ApiKey hunter2")
+	assert.Len(t, h.requests, 2)
+	assertAuthorization(t, h.requests[1], "ApiKey hunter2")
 }
 
 func TestHTTPTransportEnvAPIKey(t *testing.T) {
@@ -152,8 +153,8 @@ func TestHTTPTransportEnvAPIKey(t *testing.T) {
 	assert.NoError(t, err)
 	transport.SendStream(context.Background(), strings.NewReader(""))
 
-	assert.Len(t, h.requests, 1)
-	assertAuthorization(t, h.requests[0], "ApiKey api_key_wins")
+	assert.Len(t, h.requests, 2)
+	assertAuthorization(t, h.requests[1], "ApiKey api_key_wins")
 }
 
 func TestHTTPTransportNoAuthorization(t *testing.T) {
@@ -163,8 +164,8 @@ func TestHTTPTransportNoAuthorization(t *testing.T) {
 
 	transport.SendStream(context.Background(), strings.NewReader(""))
 
-	assert.Len(t, h.requests, 1)
-	assertAuthorization(t, h.requests[0])
+	assert.Len(t, h.requests, 2)
+	assertAuthorization(t, h.requests[1])
 }
 
 func TestHTTPTransportTLS(t *testing.T) {
@@ -243,9 +244,9 @@ func TestHTTPTransportContent(t *testing.T) {
 	assert.NoError(t, err)
 	transport.SendStream(context.Background(), strings.NewReader("request-body"))
 
-	require.Len(t, h.requests, 1)
-	assert.Equal(t, "deflate", h.requests[0].Header.Get("Content-Encoding"))
-	assert.Equal(t, "application/x-ndjson", h.requests[0].Header.Get("Content-Type"))
+	require.Len(t, h.requests, 2)
+	assert.Equal(t, "deflate", h.requests[1].Header.Get("Content-Encoding"))
+	assert.Equal(t, "application/x-ndjson", h.requests[1].Header.Get("Content-Type"))
 }
 
 func TestHTTPTransportServerTimeout(t *testing.T) {
@@ -276,6 +277,9 @@ func TestHTTPTransportServerFailover(t *testing.T) {
 
 	var hosts []string
 	errorHandler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.URL.Path == "/" {
+			return
+		}
 		hosts = append(hosts, req.Host)
 		http.Error(w, "error-message", http.StatusInternalServerError)
 	})
@@ -528,6 +532,9 @@ func TestHTTPTransportWatchConfigQueryParams(t *testing.T) {
 		query, err := url.ParseQuery(expectedQuery)
 		require.NoError(t, err)
 		transport, server := newHTTPTransport(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == "/" {
+				return
+			}
 			assert.Equal(t, query, req.URL.Query())
 			w.WriteHeader(500)
 		}))
@@ -549,6 +556,9 @@ func TestHTTPTransportWatchConfigQueryParams(t *testing.T) {
 
 func TestHTTPTransportWatchConfigContextCancelled(t *testing.T) {
 	transport, server := newHTTPTransport(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.URL.Path == "/" {
+			return
+		}
 		<-req.Context().Done()
 	}))
 	defer server.Close()
@@ -596,6 +606,9 @@ func TestHTTPTransportSendProfile(t *testing.T) {
 
 	var parts []part
 	transport, server := newHTTPTransport(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.URL.Path == "/" {
+			return
+		}
 		r, err := req.MultipartReader()
 		if err != nil {
 			panic(err)
@@ -702,7 +715,7 @@ func TestHTTPTransportOptionsEmptyURL(t *testing.T) {
 
 	err = transport.SendStream(context.Background(), strings.NewReader(""))
 	assert.NoError(t, err)
-	assert.Len(t, h.requests, 1)
+	assert.Len(t, h.requests, 2)
 }
 
 func TestHTTPTransportOptionsDefaults(t *testing.T) {
@@ -737,6 +750,101 @@ func TestSetServerURL(t *testing.T) {
 
 		err = transport.SetServerURL()
 		require.EqualError(t, err, "SetServerURL expects at least one URL")
+	})
+}
+
+func TestGetVersion(t *testing.T) {
+	newTransport := func(t *testing.T, u string) *transport.HTTPTransport {
+		validURL, err := url.Parse(u)
+		require.NoError(t, err)
+		transport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{
+			ServerURLs: []*url.URL{validURL},
+		})
+		require.NoError(t, err)
+		return transport
+	}
+
+	t.Run("failure", func(t *testing.T) {
+		var count int
+		srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
+			if count > 1 {
+				rw.WriteHeader(200)
+				rw.Write([]byte(`{"version":"7.17.0"}`))
+			} else {
+				rw.WriteHeader(502)
+				rw.Write([]byte(`{"ok":false,"message":"The instance rejected the connection."}`))
+			}
+			count++
+		}))
+		defer srv.Close()
+
+		transport := newTransport(t, srv.URL)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		version, err := transport.GetVersion(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, "", version)
+
+		version, err = transport.GetVersion(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, "7.17.0", version)
+	})
+	t.Run("failure_timeout", func(t *testing.T) {
+		var count uint32
+		srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
+			if atomic.LoadUint32(&count) > 1 {
+				rw.WriteHeader(200)
+				rw.Write([]byte(`{"version":"7.16.3"}`))
+			} else {
+				<-time.After(2 * time.Millisecond)
+			}
+			atomic.AddUint32(&count, 1)
+		}))
+		defer srv.Close()
+
+		transport := newTransport(t, srv.URL)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+		defer cancel()
+
+		println(count)
+		version, err := transport.GetVersion(ctx)
+		require.EqualError(t, err, fmt.Sprintf(
+			`failed querying apm-server version: Get "%s/": context deadline exceeded`, srv.URL,
+		))
+		assert.Equal(t, "", version)
+
+		<-time.After(time.Second)
+		version, err = transport.GetVersion(context.Background())
+		println(count)
+		require.NoError(t, err)
+		assert.Equal(t, "7.16.3", version)
+	})
+	t.Run("success", func(t *testing.T) {
+		var count int
+		srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/", r.URL.Path)
+			rw.WriteHeader(200)
+			if count > 0 {
+				rw.Write([]byte(`{"version":"8.1.0"}`))
+			} else {
+				rw.Write([]byte(`{"version":"8.0.0"}`))
+			}
+			count++
+		}))
+		defer srv.Close()
+
+		transport := newTransport(t, srv.URL)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		// Run GetVersion a few times and ensure that the same version is
+		// returned on subsequent calls
+		for i := 0; i < 5; i++ {
+			version, err := transport.GetVersion(ctx)
+			require.NoError(t, err)
+			assert.Equal(t, "8.0.0", version, fmt.Sprintf("iteration %d", i))
+		}
 	})
 }
 

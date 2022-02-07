@@ -62,6 +62,9 @@ func TestTracerUserAgent(t *testing.T) {
 	sendRequest := func(serviceVersion string) string {
 		waitc := make(chan string)
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/" {
+				return
+			}
 			select {
 			case waitc <- r.UserAgent():
 			default:
@@ -300,6 +303,9 @@ func TestTracerRequestSize(t *testing.T) {
 
 	requestHandled := make(chan struct{}, 1)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.URL.Path == "/" {
+			return
+		}
 		io.Copy(ioutil.Discard, req.Body)
 		requestHandled <- struct{}{}
 	}))
@@ -395,6 +401,9 @@ func TestTracerBodyUnread(t *testing.T) {
 	// Don't consume the request body in the handler; close the connection.
 	var requests int64
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.URL.Path == "/" {
+			return
+		}
 		atomic.AddInt64(&requests, 1)
 		w.Header().Set("Connection", "close")
 	}))
@@ -561,6 +570,36 @@ func TestTracerDefaultTransport(t *testing.T) {
 				SendStream: 1,
 			},
 		}, tracer.Stats())
+	})
+}
+
+func TestTracerUnsampledTransactions(t *testing.T) {
+	t.Run("drop", func(t *testing.T) {
+		tracer, recorder := transporttest.NewRecorderTracer()
+		defer tracer.Close()
+		recorder.RemoteVersion = "8.0.0"
+
+		tracer.SetSampler(apm.NewRatioSampler(0.0))
+		tx := tracer.StartTransaction("tx", "unsampled")
+		tx.End()
+		tracer.Flush(nil)
+
+		txs := recorder.Payloads().Transactions
+		require.Empty(t, txs)
+	})
+	t.Run("send", func(t *testing.T) {
+		tracer, recorder := transporttest.NewRecorderTracer()
+		defer tracer.Close()
+		recorder.RemoteVersion = "7.16.0"
+
+		tracer.SetSampler(apm.NewRatioSampler(0.0))
+		tx := tracer.StartTransaction("tx", "unsampled")
+		tx.End()
+		tracer.Flush(nil)
+
+		txs := recorder.Payloads().Transactions
+		require.NotEmpty(t, txs)
+		assert.Equal(t, txs[0].Type, "unsampled")
 	})
 }
 

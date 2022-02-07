@@ -203,6 +203,9 @@ func testTracerCentralConfigUpdate(t *testing.T, logger apm.Logger, serverRespon
 	}
 	responses := make(chan response)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.URL.Path == "/" {
+			return
+		}
 		assert.Equal(t, "/config/v1/agents", req.URL.Path)
 		w.Header().Set("Cache-Control", "max-age=1")
 		select {
