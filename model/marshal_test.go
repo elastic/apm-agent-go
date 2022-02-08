@@ -164,7 +164,7 @@ func TestMarshalSpan(t *testing.T) {
 	span.ParentID = model.SpanID{}      // parent_id is optional
 	span.TransactionID = model.SpanID{} // transaction_id is optional
 	span.Context = fakeHTTPSpanContext()
-	span.Otel = &model.Otel{
+	span.OTel = &model.OTel{
 		SpanKind: "SERVER",
 		Attributes: map[string]interface{}{
 			"numeric.data": 123.456,
@@ -703,7 +703,7 @@ func fakeTransaction() model.Transaction {
 				},
 			},
 		},
-		Otel: &model.Otel{
+		OTel: &model.OTel{
 			SpanKind: "MESSAGING",
 			Attributes: map[string]interface{}{
 				"messaging.system": "messaging",
@@ -723,7 +723,7 @@ func fakeSpan() model.Span {
 		Duration:      3,
 		Type:          "db.postgresql.query",
 		Context:       fakeDatabaseSpanContext(),
-		Otel: &model.Otel{
+		OTel: &model.OTel{
 			SpanKind: "MESSAGING",
 			Attributes: map[string]interface{}{
 				"messaging.system": "messaging",
