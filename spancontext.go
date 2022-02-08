@@ -37,6 +37,7 @@ type SpanContext struct {
 	databaseRowsAffected int64
 	database             model.DatabaseSpanContext
 	http                 model.HTTPSpanContext
+	otel                 *model.OTel
 
 	// If SetDestinationService has been called, we do not auto-set its
 	// resource value on span end.
@@ -90,7 +91,6 @@ func (c *SpanContext) build() *model.SpanContext {
 	case c.model.Database != nil:
 	case c.model.HTTP != nil:
 	case c.model.Destination != nil:
-	case c.model.OTel != nil:
 	default:
 		return nil
 	}
@@ -105,20 +105,21 @@ func (c *SpanContext) reset() {
 	}
 }
 
-// SetOtelAttributes sets the provided OpenTelemetry attributes.
+// SetOTelAttributes sets the provided OpenTelemetry attributes.
 func (c *SpanContext) SetOTelAttributes(m map[string]interface{}) {
-	if c.model.OTel == nil {
-		c.model.OTel = &model.OTel{}
+	if c.otel == nil {
+		c.otel = &model.OTel{}
 	}
-	c.model.OTel.Attributes = m
+	c.otel.Attributes = m
 }
 
 // SetSpanKind sets the provided SpanKind.
 func (c *SpanContext) SetSpanKind(spanKind string) {
-	if c.model.OTel == nil {
-		c.model.OTel = &model.OTel{}
+	if c.otel == nil {
+		c.otel = &model.OTel{}
 	}
-	c.model.OTel.SpanKind = spanKind
+	fmt.Println("setting spanKind", spanKind)
+	c.otel.SpanKind = spanKind
 }
 
 // SetTag calls SetLabel(key, value).

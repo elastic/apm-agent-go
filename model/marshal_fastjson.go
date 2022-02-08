@@ -20,8 +20,6 @@
 package model
 
 import (
-	"fmt"
-
 	"go.elastic.co/fastjson"
 )
 
@@ -671,7 +669,6 @@ func (v *Span) MarshalFastJSON(w *fastjson.Writer) error {
 			firstErr = err
 		}
 	}
-	fmt.Println("writing span, but no otel")
 	if v.OTel != nil {
 		w.RawString(",\"otel\":")
 		if err := v.OTel.MarshalFastJSON(w); err != nil && firstErr == nil {
@@ -768,18 +765,6 @@ func (v *SpanContext) MarshalFastJSON(w *fastjson.Writer) error {
 			w.RawString(prefix)
 		}
 		if err := v.Message.MarshalFastJSON(w); err != nil && firstErr == nil {
-			firstErr = err
-		}
-	}
-	if v.OTel != nil {
-		const prefix = ",\"otel\":"
-		if first {
-			first = false
-			w.RawString(prefix[1:])
-		} else {
-			w.RawString(prefix)
-		}
-		if err := v.OTel.MarshalFastJSON(w); err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}
@@ -982,18 +967,6 @@ func (v *Context) MarshalFastJSON(w *fastjson.Writer) error {
 			w.RawString(prefix)
 		}
 		if err := v.Custom.MarshalFastJSON(w); err != nil && firstErr == nil {
-			firstErr = err
-		}
-	}
-	if v.OTel != nil {
-		const prefix = ",\"otel\":"
-		if first {
-			first = false
-			w.RawString(prefix[1:])
-		} else {
-			w.RawString(prefix)
-		}
-		if err := v.OTel.MarshalFastJSON(w); err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}

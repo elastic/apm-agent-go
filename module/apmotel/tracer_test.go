@@ -161,7 +161,6 @@ func TestSpanStartAttributes(t *testing.T) {
 	payloads := recorder.Payloads()
 	spans := payloads.Spans
 	require.Len(t, spans, len(tcs))
-	fmt.Printf("%+v\n", spans[0])
 	for i, tc := range tcs {
 		assert.Equal(t, tc.spanType, spans[i].Type)
 		assert.Equal(t, tc.subtype, spans[i].Subtype)

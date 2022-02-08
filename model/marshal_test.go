@@ -28,7 +28,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.opentelemetry.io/otel/attribute"
 
 	"go.elastic.co/apm/v2/model"
 	"go.elastic.co/fastjson"
@@ -167,10 +166,10 @@ func TestMarshalSpan(t *testing.T) {
 	span.Context = fakeHTTPSpanContext()
 	span.Otel = &model.Otel{
 		SpanKind: "SERVER",
-		Attributes: map[attribute.Key]attribute.Value{
-			attribute.Key("numeric.data"): attribute.Float64Value(123.456),
-			attribute.Key("boolean.data"): attribute.BoolValue(true),
-			attribute.Key("slice.data"):   attribute.StringSliceValue([]string{"one", "two"}),
+		Attributes: map[string]interface{}{
+			"numeric.data": 123.456,
+			"boolean.data": true,
+			"slice.data":   []string{"one", "two"},
 		},
 	}
 	span.MarshalFastJSON(&w)
@@ -706,8 +705,8 @@ func fakeTransaction() model.Transaction {
 		},
 		Otel: &model.Otel{
 			SpanKind: "MESSAGING",
-			Attributes: map[attribute.Key]attribute.Value{
-				attribute.Key("messaging.system"): attribute.StringValue("messaging"),
+			Attributes: map[string]interface{}{
+				"messaging.system": "messaging",
 			},
 		},
 	}
@@ -726,8 +725,8 @@ func fakeSpan() model.Span {
 		Context:       fakeDatabaseSpanContext(),
 		Otel: &model.Otel{
 			SpanKind: "MESSAGING",
-			Attributes: map[attribute.Key]attribute.Value{
-				attribute.Key("messaging.system"): attribute.StringValue("messaging"),
+			Attributes: map[string]interface{}{
+				"messaging.system": "messaging",
 			},
 		},
 	}

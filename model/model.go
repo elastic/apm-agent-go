@@ -397,9 +397,6 @@ type SpanContext struct {
 
 	// Tags holds user-defined key/value pairs.
 	Tags IfaceMap `json:"tags,omitempty"`
-
-	// OTel holds information bridged from OpenTelemetry.
-	OTel *OTel `json:"otel,omitempty"`
 }
 
 // DestinationSpanContext holds contextual information about the destination
@@ -518,9 +515,6 @@ type Context struct {
 
 	// Service holds values to overrides service-level metadata.
 	Service *Service `json:"service,omitempty"`
-
-	// OTel holds information bridged from OpenTelemetry.
-	OTel *OTel `json:"otel,omitempty"`
 }
 
 // User holds information about an authenticated user.

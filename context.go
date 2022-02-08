@@ -39,6 +39,7 @@ type Context struct {
 	user                model.User
 	service             model.Service
 	serviceFramework    model.Framework
+	otel                *model.OTel
 	captureHeaders      bool
 	captureBodyMask     CaptureBodyMode
 	sanitizedFieldNames wildcard.Matchers
@@ -52,7 +53,6 @@ func (c *Context) build() *model.Context {
 	case c.model.Service != nil:
 	case len(c.model.Tags) != 0:
 	case len(c.model.Custom) != 0:
-	case c.model.OTel != nil:
 	default:
 		return nil
 	}
@@ -84,20 +84,20 @@ func (c *Context) reset() {
 	}
 }
 
-// SetOtelAttributes sets the provided OpenTelemetry attributes.
+// SetOTelAttributes sets the provided OpenTelemetry attributes.
 func (c *Context) SetOTelAttributes(m map[string]interface{}) {
-	if c.model.OTel == nil {
-		c.model.OTel = &model.OTel{}
+	if c.otel == nil {
+		c.otel = &model.OTel{}
 	}
-	c.model.OTel.Attributes = m
+	c.otel.Attributes = m
 }
 
 // SetSpanKind sets the provided SpanKind.
 func (c *Context) SetSpanKind(spanKind string) {
-	if c.model.OTel == nil {
-		c.model.OTel = &model.OTel{}
+	if c.otel == nil {
+		c.otel = &model.OTel{}
 	}
-	c.model.OTel.SpanKind = spanKind
+	c.otel.SpanKind = spanKind
 }
 
 // SetTag calls SetLabel(key, value).
