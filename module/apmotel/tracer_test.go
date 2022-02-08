@@ -20,6 +20,7 @@ package apmotel_test
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -27,8 +28,8 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
+	"go.elastic.co/apm/module/apmotel/v2"
 	"go.elastic.co/apm/v2"
-	"go.elastic.co/apm/v2/module/apmotel"
 	"go.elastic.co/apm/v2/transport/transporttest"
 )
 
@@ -47,9 +48,24 @@ func TestSpanStartAttributes(t *testing.T) {
 		spanType, subtype, resource string
 	}{
 		{
+			spanType: "db",
+			subtype:  "dbSystem",
+			resource: "dbSystem/myDB",
 			attrs: []attribute.KeyValue{
 				attribute.String("db.name", "myDB"),
 				attribute.String("db.system", "dbSystem"),
+			},
+			spanKind: trace.SpanKindServer, // txType == request
+		},
+		{
+			spanType: "db",
+			subtype:  "dbSystem",
+			resource: "peerName:1234/myDB",
+			attrs: []attribute.KeyValue{
+				attribute.String("db.name", "myDB"),
+				attribute.String("db.system", "dbSystem"),
+				attribute.String("net.peer.port", "1234"),
+				attribute.String("net.peer.name", "peerName"),
 			},
 			spanKind: trace.SpanKindServer, // txType == request
 		},
@@ -65,11 +81,13 @@ func TestSpanStartAttributes(t *testing.T) {
 	payloads := recorder.Payloads()
 	spans := payloads.Spans
 	require.Len(t, spans, len(tcs))
+	fmt.Printf("%+v\n", spans[0])
 	for i, tc := range tcs {
 		assert.Equal(t, tc.spanType, spans[i].Type)
 		assert.Equal(t, tc.subtype, spans[i].Subtype)
 		assert.Equal(t, tc.resource, spans[i].Context.Destination.Service.Resource)
-		assert.Equal(t, tc.spanKind, spans[i].Otel.SpanKind)
+		// Otel not being populated?
+		assert.Equal(t, strings.ToUpper(tc.spanKind.String()), spans[i].OTel.SpanKind)
 	}
 }
 

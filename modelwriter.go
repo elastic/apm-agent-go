@@ -154,6 +154,10 @@ func (w *modelWriter) buildModelSpan(out *model.Span, span *Span, sd *SpanData) 
 		out.Composite = sd.composite.build()
 	}
 
+	if out.Context != nil {
+		out.OTel = sd.Context.model.OTel
+	}
+
 	// Copy the span type to context.destination.service.type.
 	if out.Context != nil && out.Context.Destination != nil && out.Context.Destination.Service != nil {
 		out.Context.Destination.Service.Type = out.Type

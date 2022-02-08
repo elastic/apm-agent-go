@@ -37,8 +37,9 @@ func newRootTransaction(
 	txOpts := apm.TransactionOptions{}
 	tx := tracer.StartTransactionOptions(name, txType, txOpts)
 	tx.Context.SetSpanKind(spanKind)
-	tx.Context.SetOtelAttributes(attributes...)
 	ctx = apm.ContextWithTransaction(ctx, tx)
+	otelTx := &transaction{inner: tx, tracer: tracer}
+	otelTx.SetAttributes(attributes...)
 	return ctx, &transaction{inner: tx, tracer: tracer}
 }
 
@@ -122,11 +123,13 @@ func (t *transaction) SetName(name string) {
 // SetAttributes sets kv as attributes of the Span. If a key from kv
 // already exists for an attribute of the Span it will be overwritten with
 // the value contained in kv.
-func (t *transaction) SetAttributes(kv ...attribute.KeyValue) {
-	// TODO: add otel.attributes to span
-	// TODO: when apm-server < 7.16.0, it doesn't support otel.attributes.
-	// how can the agent know the apm-server version?
-	t.inner.Context.SetOtelAttributes(kv...)
+func (t *transaction) SetAttributes(kvs ...attribute.KeyValue) {
+	m := make(map[string]interface{}, len(kvs))
+	for _, kv := range kvs {
+		m[string(kv.Key)] = kv.Value.AsInterface()
+	}
+	t.inner.Context.SetOTelAttributes(m)
+
 }
 
 // TracerProvider returns a TracerProvider that can be used to generate

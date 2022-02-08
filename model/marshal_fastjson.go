@@ -20,6 +20,8 @@
 package model
 
 import (
+	"fmt"
+
 	"go.elastic.co/fastjson"
 )
 
@@ -525,9 +527,9 @@ func (v *Transaction) MarshalFastJSON(w *fastjson.Writer) error {
 		}
 		w.RawByte(']')
 	}
-	if v.Otel != nil {
+	if v.OTel != nil {
 		w.RawString(",\"otel\":")
-		if err := v.Otel.MarshalFastJSON(w); err != nil && firstErr == nil {
+		if err := v.OTel.MarshalFastJSON(w); err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}
@@ -552,6 +554,35 @@ func (v *Transaction) MarshalFastJSON(w *fastjson.Writer) error {
 	if v.Sampled != nil {
 		w.RawString(",\"sampled\":")
 		w.Bool(*v.Sampled)
+	}
+	w.RawByte('}')
+	return firstErr
+}
+
+func (v *OTel) MarshalFastJSON(w *fastjson.Writer) error {
+	var firstErr error
+	w.RawByte('{')
+	w.RawString("\"span_kind\":")
+	w.String(v.SpanKind)
+	if v.Attributes != nil {
+		w.RawString(",\"attributes\":")
+		w.RawByte('{')
+		{
+			first := true
+			for k, v := range v.Attributes {
+				if first {
+					first = false
+				} else {
+					w.RawByte(',')
+				}
+				w.String(k)
+				w.RawByte(':')
+				if err := fastjson.Marshal(w, v); err != nil && firstErr == nil {
+					firstErr = err
+				}
+			}
+		}
+		w.RawByte('}')
 	}
 	w.RawByte('}')
 	return firstErr
@@ -640,9 +671,10 @@ func (v *Span) MarshalFastJSON(w *fastjson.Writer) error {
 			firstErr = err
 		}
 	}
-	if v.Otel != nil {
+	fmt.Println("writing span, but no otel")
+	if v.OTel != nil {
 		w.RawString(",\"otel\":")
-		if err := v.Otel.MarshalFastJSON(w); err != nil && firstErr == nil {
+		if err := v.OTel.MarshalFastJSON(w); err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}
@@ -736,6 +768,18 @@ func (v *SpanContext) MarshalFastJSON(w *fastjson.Writer) error {
 			w.RawString(prefix)
 		}
 		if err := v.Message.MarshalFastJSON(w); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	if v.OTel != nil {
+		const prefix = ",\"otel\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		if err := v.OTel.MarshalFastJSON(w); err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}
@@ -938,6 +982,18 @@ func (v *Context) MarshalFastJSON(w *fastjson.Writer) error {
 			w.RawString(prefix)
 		}
 		if err := v.Custom.MarshalFastJSON(w); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	if v.OTel != nil {
+		const prefix = ",\"otel\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		if err := v.OTel.MarshalFastJSON(w); err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}

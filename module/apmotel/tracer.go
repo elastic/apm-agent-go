@@ -26,7 +26,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
-	"go.elastic.co/apm/module/apmhttp"
+	"go.elastic.co/apm/module/apmhttp/v2"
 	"go.elastic.co/apm/v2"
 )
 
@@ -223,9 +223,10 @@ func newSpan(ctx context.Context, t *tracer, name string, opts ...trace.SpanStar
 
 		tx := t.inner.StartTransactionOptions(name, txType, txOpts)
 		tx.Context.SetSpanKind(spanKind)
-		tx.Context.SetOtelAttributes(cfg.Attributes()...)
 		ctx := apm.ContextWithTransaction(ctx, tx)
-		return ctx, &transaction{inner: tx, tracer: t.inner}
+		otelTx := &transaction{inner: tx, tracer: t.inner}
+		otelTx.SetAttributes(cfg.Attributes()...)
+		return ctx, otelTx
 	} else if tx == nil {
 		return newRootTransaction(ctx, t.inner, cfg.Attributes(), spanKind, name, txType)
 	} else {
@@ -237,15 +238,15 @@ func newSpan(ctx context.Context, t *tracer, name string, opts ...trace.SpanStar
 			spanOpts.Start = start
 		}
 
-		txID := tx.TraceContext().Span
-		s := t.inner.StartSpan(name, spanType, txID, spanOpts)
+		s := tx.StartSpanOptions(name, spanType, spanOpts)
 
 		s.Subtype = subtype
 		s.Context.SetDestinationService(apm.DestinationServiceSpanContext{Resource: resource})
 		s.Context.SetSpanKind(spanKind)
-		s.Context.SetOtelAttributes(cfg.Attributes()...)
 		ctx := apm.ContextWithSpan(ctx, s)
-		return ctx, &span{inner: s, tracer: t.inner}
+		otelSpan := &span{inner: s, tracer: t.inner}
+		otelSpan.SetAttributes(cfg.Attributes()...)
+		return ctx, otelSpan
 	}
 }
 

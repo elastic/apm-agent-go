@@ -106,8 +106,12 @@ func (s *span) SetName(name string) {
 // SetAttributes sets kv as attributes of the Span. If a key from kv
 // already exists for an attribute of the Span it will be overwritten with
 // the value contained in kv.
-func (s *span) SetAttributes(kv ...attribute.KeyValue) {
-	s.inner.Context.SetOtelAttributes(kv...)
+func (s *span) SetAttributes(kvs ...attribute.KeyValue) {
+	m := make(map[string]interface{}, len(kvs))
+	for _, kv := range kvs {
+		m[string(kv.Key)] = kv.Value.AsInterface()
+	}
+	s.inner.Context.SetOTelAttributes(m)
 }
 
 // TracerProvider returns a TracerProvider that can be used to generate

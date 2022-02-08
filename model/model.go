@@ -21,8 +21,6 @@ import (
 	"net/http"
 	"net/url"
 	"time"
-
-	"go.opentelemetry.io/otel/attribute"
 )
 
 // Service represents the service handling transactions being traced.
@@ -278,23 +276,14 @@ type Transaction struct {
 	// Outcome holds the transaction outcome: success, failure, or unknown.
 	Outcome string `json:"outcome,omitempty"`
 
-	// Otel holds information bridged from OpenTelemetry.
-	Otel *Otel `json:"otel,omitempty"`
+	// OTel holds information bridged from OpenTelemetry.
+	OTel *OTel `json:"otel,omitempty"`
 }
 
-// Otel holds bridged OpenTelemetry information.
-type Otel struct {
-	SpanKind   string                            `json:"span_kind"`
-	Attributes map[attribute.Key]attribute.Value `json:"attributes,omitempty"`
-}
-
-// SetAttributes sets the provided OpenTelemetry attributes.
-func (o *Otel) SetAttributes(kvs ...attribute.KeyValue) {
-	attrs := make(map[attribute.Key]attribute.Value, len(kvs))
-	for _, kv := range kvs {
-		attrs[kv.Key] = kv.Value
-	}
-	o.Attributes = attrs
+// OTel holds bridged OpenTelemetry information.
+type OTel struct {
+	SpanKind   string                 `json:"span_kind"`
+	Attributes map[string]interface{} `json:"attributes,omitempty"`
 }
 
 // SpanCount holds statistics on spans within a transaction.
@@ -387,8 +376,8 @@ type Span struct {
 	// aggregated set of spans as defined by `composite.compression_strategy`.
 	Composite *CompositeSpan `json:"composite,omitempty"`
 
-	// Otel holds information bridged from OpenTelemetry.
-	Otel *Otel `json:"otel,omitempty"`
+	// OTel holds information bridged from OpenTelemetry.
+	OTel *OTel `json:"otel,omitempty"`
 }
 
 // SpanContext holds contextual information relating to the span.
@@ -408,6 +397,9 @@ type SpanContext struct {
 
 	// Tags holds user-defined key/value pairs.
 	Tags IfaceMap `json:"tags,omitempty"`
+
+	// OTel holds information bridged from OpenTelemetry.
+	OTel *OTel `json:"otel,omitempty"`
 }
 
 // DestinationSpanContext holds contextual information about the destination
@@ -526,6 +518,9 @@ type Context struct {
 
 	// Service holds values to overrides service-level metadata.
 	Service *Service `json:"service,omitempty"`
+
+	// OTel holds information bridged from OpenTelemetry.
+	OTel *OTel `json:"otel,omitempty"`
 }
 
 // User holds information about an authenticated user.
