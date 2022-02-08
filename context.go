@@ -86,8 +86,8 @@ func (c *Context) reset() {
 	}
 }
 
-// SetOtelAttributes sets the provided OpenTelemetry attributes.
-func (c *Context) SetOtelAttributes(kv ...attribute.KeyValue) {
+// SetOTelAttributes sets the provided OpenTelemetry attributes.
+func (c *Context) SetOTelAttributes(kv ...attribute.KeyValue) {
 	c.otel.SetAttributes(kv...)
 }
 
