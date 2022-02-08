@@ -574,11 +574,25 @@ func TestTracerDefaultTransport(t *testing.T) {
 }
 
 func TestTracerUnsampledTransactions(t *testing.T) {
-	t.Run("drop", func(t *testing.T) {
-		tracer, recorder := transporttest.NewRecorderTracer()
-		defer tracer.Close()
-		recorder.RemoteVersion = "8.0.0"
+	newTracer := func(v int, err error) (*apm.Tracer, *transporttest.ServerVersionRecorderTransport) {
+		transport := transporttest.ServerVersionRecorderTransport{
+			RecorderTransport:  &transporttest.RecorderTransport{},
+			ServerVersionError: err,
+			ServerVersion:      v,
+		}
+		tracer, err := apm.NewTracerOptions(apm.TracerOptions{
+			ServiceName: "transporttest",
+			Transport:   &transport,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return tracer, &transport
+	}
 
+	t.Run("drop", func(t *testing.T) {
+		tracer, recorder := newTracer(8, nil)
+		defer tracer.Close()
 		tracer.SetSampler(apm.NewRatioSampler(0.0))
 		tx := tracer.StartTransaction("tx", "unsampled")
 		tx.End()
@@ -588,10 +602,54 @@ func TestTracerUnsampledTransactions(t *testing.T) {
 		require.Empty(t, txs)
 	})
 	t.Run("send", func(t *testing.T) {
+		tracer, recorder := newTracer(7, nil)
+		defer tracer.Close()
+		tracer.SetSampler(apm.NewRatioSampler(0.0))
+		tx := tracer.StartTransaction("tx", "unsampled")
+		tx.End()
+		tracer.Flush(nil)
+
+		txs := recorder.Payloads().Transactions
+		require.NotEmpty(t, txs)
+		assert.Equal(t, txs[0].Type, "unsampled")
+	})
+	t.Run("send-sampled-7", func(t *testing.T) {
+		tracer, recorder := newTracer(7, nil)
+		defer tracer.Close()
+		tx := tracer.StartTransaction("tx", "sampled")
+		tx.End()
+		tracer.Flush(nil)
+
+		txs := recorder.Payloads().Transactions
+		require.NotEmpty(t, txs)
+		assert.Equal(t, txs[0].Type, "sampled")
+	})
+	t.Run("send-sampled-8", func(t *testing.T) {
+		tracer, recorder := newTracer(8, nil)
+		defer tracer.Close()
+		tx := tracer.StartTransaction("tx", "sampled")
+		tx.End()
+		tracer.Flush(nil)
+
+		txs := recorder.Payloads().Transactions
+		require.NotEmpty(t, txs)
+		assert.Equal(t, txs[0].Type, "sampled")
+	})
+	t.Run("send-unimplemented-interface", func(t *testing.T) {
 		tracer, recorder := transporttest.NewRecorderTracer()
 		defer tracer.Close()
-		recorder.RemoteVersion = "7.16.0"
+		tracer.SetSampler(apm.NewRatioSampler(0.0))
+		tx := tracer.StartTransaction("tx", "unsampled")
+		tx.End()
+		tracer.Flush(nil)
 
+		txs := recorder.Payloads().Transactions
+		require.NotEmpty(t, txs)
+		assert.Equal(t, txs[0].Type, "unsampled")
+	})
+	t.Run("send-onerror", func(t *testing.T) {
+		tracer, recorder := newTracer(0, errors.New("error"))
+		defer tracer.Close()
 		tracer.SetSampler(apm.NewRatioSampler(0.0))
 		tx := tracer.StartTransaction("tx", "unsampled")
 		tx.End()

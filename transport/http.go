@@ -160,8 +160,8 @@ type HTTPTransport struct {
 	profileURLs []*url.URL
 
 	// versionMu Mutex guarding access to the remoteVersion string.
-	versionMu     sync.RWMutex
-	remoteVersion string
+	versionMu          sync.RWMutex
+	remoteMajorVersion int
 }
 
 // NewHTTPTransport returns a new HTTPTransport, initialized with opts,
@@ -592,14 +592,14 @@ type serverInfo struct {
 	Version string `json:"version,omitempty"`
 }
 
-// GetVersion returns the APM Server's version. It queries the remote APM Server
-// `/` endpoint, caching it locally when it contains a version. Subsequent calls
-// will return the cached version.
-func (t *HTTPTransport) GetVersion(ctx context.Context) (string, error) {
+// MajorServerVersion returns the APM Server's major version. Queries the remote
+// APM Server `/` endpoint, caching it locally when it contains a version. Any
+// subsequent calls will return the cached version.
+func (t *HTTPTransport) MajorServerVersion(ctx context.Context) (int, error) {
 	t.versionMu.RLock()
-	version := t.remoteVersion
+	version := t.remoteMajorVersion
 	t.versionMu.RUnlock()
-	if version != "" {
+	if version > 0 {
 		return version, nil
 	}
 	return t.refreshRemoteVersion(ctx)
@@ -607,7 +607,7 @@ func (t *HTTPTransport) GetVersion(ctx context.Context) (string, error) {
 
 // RefreshVersion queries the "active" remote APM Server and caches the result
 // locally when the operation succeeds.
-func (t *HTTPTransport) refreshRemoteVersion(ctx context.Context) (string, error) {
+func (t *HTTPTransport) refreshRemoteVersion(ctx context.Context) (int, error) {
 	srvURL := t.intakeURLs[atomic.LoadInt32(&t.urlIndex)]
 	u := *srvURL
 	u.Path, u.RawPath = "", ""
@@ -615,21 +615,23 @@ func (t *HTTPTransport) refreshRemoteVersion(ctx context.Context) (string, error
 	req.Header = t.rootHeaders
 	res, err := t.Client.Do(req)
 	if err != nil {
-		return "", errors.Wrap(err, "failed querying apm-server version")
+		return 0, errors.Wrap(err, "failed querying apm-server version")
 	}
 	defer res.Body.Close()
 
 	var resp serverInfo
 	if err := json.NewDecoder(res.Body).Decode(&resp); err != nil {
-		return "", errors.Wrap(err, "failed decoding apm-server version")
+		return 0, errors.Wrap(err, "failed decoding apm-server version")
 	}
 
 	t.versionMu.Lock()
 	defer t.versionMu.Unlock()
 	if resp.Version != "" {
-		t.remoteVersion = resp.Version
+		if v, ok := parseMajorVersion(resp.Version); ok {
+			t.remoteMajorVersion = v
+		}
 	}
-	return t.remoteVersion, nil
+	return t.remoteMajorVersion, nil
 }
 
 func (t *HTTPTransport) newRequest(method string, url *url.URL) *http.Request {
@@ -788,4 +790,21 @@ func parseCacheControl(s string) cacheControl {
 		return cacheControl{maxAge: -1}
 	}
 	return cacheControl{maxAge: time.Duration(maxAge) * time.Second}
+}
+
+// parseMajorVersion returns the major version given a version string. Accepts
+// the string as long as it contans a `.` and the runes preceding `.` can be
+// parsed to a number. If the operation succeeded, the second return value will
+// be true.
+func parseMajorVersion(v string) (int, bool) {
+	i := strings.IndexRune(v, '.')
+	if i == -1 {
+		return 0, false
+	}
+
+	major, err := strconv.Atoi(v[:i])
+	if err != nil {
+		return 0, false
+	}
+	return major, true
 }

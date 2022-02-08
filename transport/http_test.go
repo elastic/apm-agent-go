@@ -753,7 +753,7 @@ func TestSetServerURL(t *testing.T) {
 	})
 }
 
-func TestGetVersion(t *testing.T) {
+func TestMajorServerVersion(t *testing.T) {
 	newTransport := func(t *testing.T, u string) *transport.HTTPTransport {
 		validURL, err := url.Parse(u)
 		require.NoError(t, err)
@@ -782,13 +782,13 @@ func TestGetVersion(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 
-		version, err := transport.GetVersion(ctx)
+		version, err := transport.MajorServerVersion(ctx)
 		require.NoError(t, err)
-		assert.Equal(t, "", version)
+		assert.Equal(t, 0, version)
 
-		version, err = transport.GetVersion(ctx)
+		version, err = transport.MajorServerVersion(ctx)
 		require.NoError(t, err)
-		assert.Equal(t, "7.17.0", version)
+		assert.Equal(t, 7, version)
 	})
 	t.Run("failure_timeout", func(t *testing.T) {
 		var count uint32
@@ -807,18 +807,16 @@ func TestGetVersion(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
 
-		println(count)
-		version, err := transport.GetVersion(ctx)
+		version, err := transport.MajorServerVersion(ctx)
 		require.EqualError(t, err, fmt.Sprintf(
 			`failed querying apm-server version: Get "%s/": context deadline exceeded`, srv.URL,
 		))
-		assert.Equal(t, "", version)
+		assert.Equal(t, 0, version)
 
 		<-time.After(time.Second)
-		version, err = transport.GetVersion(context.Background())
-		println(count)
+		version, err = transport.MajorServerVersion(context.Background())
 		require.NoError(t, err)
-		assert.Equal(t, "7.16.3", version)
+		assert.Equal(t, 7, version)
 	})
 	t.Run("success", func(t *testing.T) {
 		var count int
@@ -841,9 +839,9 @@ func TestGetVersion(t *testing.T) {
 		// Run GetVersion a few times and ensure that the same version is
 		// returned on subsequent calls
 		for i := 0; i < 5; i++ {
-			version, err := transport.GetVersion(ctx)
+			version, err := transport.MajorServerVersion(ctx)
 			require.NoError(t, err)
-			assert.Equal(t, "8.0.0", version, fmt.Sprintf("iteration %d", i))
+			assert.Equal(t, 8, version, fmt.Sprintf("iteration %d", i))
 		}
 	})
 }

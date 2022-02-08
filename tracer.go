@@ -24,8 +24,6 @@ import (
 	"io"
 	"log"
 	"math/rand"
-	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -115,8 +113,10 @@ type TracerOptions struct {
 	// If Transport implements apmconfig.Watcher, the tracer will begin watching
 	// for remote changes immediately. This behaviour can be disabled by setting
 	// the environment variable ELASTIC_APM_CENTRAL_CONFIG=false.
-	// If Transport implements apm.VersionGetter, the tracer will query the APM
-	// Server "/" endpoint to obtain the remote version.
+	// If Transport implements the interface below, the tracer will query the APM
+	// Server "/" endpoint to obtain the remote major version. Implementers of
+	// this interface must respect the passed context.
+	//   MajorServerVersion(context.Context) (int, error)
 	Transport transport.Transport
 
 	requestDuration       time.Duration
@@ -139,7 +139,7 @@ type TracerOptions struct {
 	breakdownMetrics      bool
 	propagateLegacyHeader bool
 	profileSender         profileSender
-	versionGetter         versionGetter
+	versionGetter         majorVersionGetter
 	cpuProfileInterval    time.Duration
 	cpuProfileDuration    time.Duration
 	heapProfileInterval   time.Duration
@@ -341,7 +341,7 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 		opts.cpuProfileDuration = cpuProfileDuration
 		opts.heapProfileInterval = heapProfileInterval
 	}
-	if vg, ok := opts.Transport.(versionGetter); ok {
+	if vg, ok := opts.Transport.(majorVersionGetter); ok {
 		opts.versionGetter = vg
 	}
 	return nil
@@ -395,7 +395,7 @@ type Tracer struct {
 	events            chan tracerEvent
 	breakdownMetrics  *breakdownMetrics
 	profileSender     profileSender
-	versionGetter     versionGetter
+	versionGetter     majorVersionGetter
 	// stats is heap-allocated to ensure correct alignment for atomic access.
 	stats *TracerStats
 
@@ -1035,9 +1035,8 @@ func (t *Tracer) loop() {
 					}
 				}
 				// Drop unsampled transactions when the APM Server is >= 8.0
-				dropUnsampled := t.canDropUnsampledTx(ctx)
-				drop := t.dropUnsampledTx(
-					event.tx.TransactionData, event.tx.Sampled(), dropUnsampled,
+				drop := t.maybeDropTransaction(
+					ctx, event.tx.TransactionData, event.tx.Sampled(),
 				)
 				if !drop {
 					modelWriter.writeTransaction(event.tx.Transaction, event.tx.TransactionData)
@@ -1083,7 +1082,6 @@ func (t *Tracer) loop() {
 			heapProfilingState.resetTimer()
 		case flushed = <-t.forceFlush:
 			// Drain any objects buffered in the channels.
-			dropUnsampled := t.canDropUnsampledTx(ctx)
 			for n := len(t.events); n > 0; n-- {
 				event := <-t.events
 				switch event.eventType {
@@ -1095,8 +1093,8 @@ func (t *Tracer) loop() {
 						}
 					}
 					// Drop unsampled transactions when the APM Server is >= 8.0
-					drop := t.dropUnsampledTx(
-						event.tx.TransactionData, event.tx.Sampled(), dropUnsampled,
+					drop := t.maybeDropTransaction(
+						ctx, event.tx.TransactionData, event.tx.Sampled(),
 					)
 					if !drop {
 						modelWriter.writeTransaction(event.tx.Transaction, event.tx.TransactionData)
@@ -1341,29 +1339,23 @@ func (t *Tracer) gatherMetrics(ctx context.Context, gatherers []MetricsGatherer,
 	}()
 }
 
-// canDropUnsampledTx returns true when the remote APM Server's major version is
-// >= 8, otherwise returns false.
-func (t *Tracer) canDropUnsampledTx(ctx context.Context) bool {
+// maybeDropTransaction may drop a transaction, for example when the transaction
+// is non-sampled and the target server version is 8.0 or greater.
+// maybeDropTransaction returns true if the transaction is dropped, false otherwise.
+func (t *Tracer) maybeDropTransaction(ctx context.Context, td *TransactionData, sampled bool) bool {
 	if t.versionGetter == nil {
 		return false
 	}
 
-	// Cancel the operation after 5s, we do not want to block the loop for more
-	// than necessary.
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	// Cancel the operation after 1ms, we do not want to block the loop.
+	ctx, cancel := context.WithTimeout(ctx, time.Microsecond)
 	defer cancel()
-	if v, err := t.versionGetter.GetVersion(ctx); err == nil {
-		return parseMajorVersion(v) >= 8
-	}
-	return false
-}
-
-func (t *Tracer) dropUnsampledTx(td *TransactionData, sampled, dropUnsampled bool) bool {
-	if !sampled && dropUnsampled {
+	v, _ := t.versionGetter.MajorServerVersion(ctx)
+	dropUnsampled := v >= 8 && !sampled
+	if dropUnsampled {
 		td.reset(t)
-		return true
 	}
-	return false
+	return dropUnsampled
 }
 
 type tracerEventType int
@@ -1400,23 +1392,7 @@ type tracerEvent struct {
 	}
 }
 
-type versionGetter interface {
-	// GetVersion returns the remote APM Server version.
-	GetVersion(context.Context) (string, error)
-}
-
-// parseMajorVersion returns the major version given a version string. Accepts
-// the string as long as it contans a `.` and the runes preceding `.` can be
-// parsed to a number, otherwise, returns `-1`.
-func parseMajorVersion(v string) int {
-	i := strings.IndexRune(v, '.')
-	if i == -1 {
-		return -1
-	}
-
-	major, err := strconv.Atoi(v[:i])
-	if err != nil {
-		return -1
-	}
-	return major
+type majorVersionGetter interface {
+	// MajorServerVersion returns the remote APM Server major version.
+	MajorServerVersion(context.Context) (int, error)
 }
