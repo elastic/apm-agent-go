@@ -557,6 +557,35 @@ func (v *Transaction) MarshalFastJSON(w *fastjson.Writer) error {
 	return firstErr
 }
 
+func (v *Otel) MarshalFastJSON(w *fastjson.Writer) error {
+	var firstErr error
+	w.RawByte('{')
+	w.RawString("\"span_kind\":")
+	w.String(v.SpanKind)
+	if v.Attributes != nil {
+		w.RawString(",\"attributes\":")
+		w.RawByte('{')
+		{
+			first := true
+			for k, v := range v.Attributes {
+				if first {
+					first = false
+				} else {
+					w.RawByte(',')
+				}
+				w.String(k)
+				w.RawByte(':')
+				if err := fastjson.Marshal(w, v); err != nil && firstErr == nil {
+					firstErr = err
+				}
+			}
+		}
+		w.RawByte('}')
+	}
+	w.RawByte('}')
+	return firstErr
+}
+
 func (v *SpanCount) MarshalFastJSON(w *fastjson.Writer) error {
 	w.RawByte('{')
 	w.RawString("\"dropped\":")

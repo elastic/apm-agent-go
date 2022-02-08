@@ -21,8 +21,6 @@ import (
 	"net/http"
 	"net/url"
 	"time"
-
-	"go.opentelemetry.io/otel/attribute"
 )
 
 // Service represents the service handling transactions being traced.
@@ -284,15 +282,8 @@ type Transaction struct {
 
 // Otel holds bridged OpenTelemetry information.
 type Otel struct {
-	SpanKind   string                            `json:"span_kind"`
-	Attributes map[attribute.Key]attribute.Value `json:"attributes,omitempty"`
-}
-
-// SetAttributes sets the provided OpenTelemetry attributes.
-func (o *Otel) SetAttributes(kvs ...attribute.KeyValue) {
-	for _, kv := range kvs {
-		o.Attributes[kv.Key] = kv.Value
-	}
+	SpanKind   string                 `json:"span_kind"`
+	Attributes map[string]interface{} `json:"attributes,omitempty"`
 }
 
 // SpanCount holds statistics on spans within a transaction.

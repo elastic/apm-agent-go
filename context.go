@@ -21,8 +21,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"go.opentelemetry.io/otel/attribute"
-
 	"go.elastic.co/apm/v2/internal/apmhttputil"
 	"go.elastic.co/apm/v2/internal/wildcard"
 	"go.elastic.co/apm/v2/model"
@@ -87,8 +85,8 @@ func (c *Context) reset() {
 }
 
 // SetOTelAttributes sets the provided OpenTelemetry attributes.
-func (c *Context) SetOTelAttributes(kv ...attribute.KeyValue) {
-	c.otel.SetAttributes(kv...)
+func (c *Context) SetOTelAttributes(m map[string]interface{}) {
+	c.otel.Attributes = m
 }
 
 // SetSpanKind sets the provided SpanKind.
