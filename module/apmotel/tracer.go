@@ -26,6 +26,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
+	"go.elastic.co/apm/module/apmhttp"
 	"go.elastic.co/apm/v2"
 )
 
@@ -208,6 +209,9 @@ func newSpan(ctx context.Context, t *tracer, name string, opts ...trace.SpanStar
 		}
 		if spanCtx.HasSpanID() {
 			txCtx.Span = apm.SpanID(spanCtx.SpanID())
+		}
+		if ts, err := apmhttp.ParseTracestateHeader(spanCtx.TraceState().String()); err == nil {
+			txCtx.State = ts
 		}
 		txOpts := apm.TransactionOptions{TraceContext: txCtx}
 
