@@ -525,9 +525,9 @@ func (v *Transaction) MarshalFastJSON(w *fastjson.Writer) error {
 		}
 		w.RawByte(']')
 	}
-	if v.Otel != nil {
+	if v.OTel != nil {
 		w.RawString(",\"otel\":")
-		if err := v.Otel.MarshalFastJSON(w); err != nil && firstErr == nil {
+		if err := v.OTel.MarshalFastJSON(w); err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}
@@ -557,7 +557,7 @@ func (v *Transaction) MarshalFastJSON(w *fastjson.Writer) error {
 	return firstErr
 }
 
-func (v *Otel) MarshalFastJSON(w *fastjson.Writer) error {
+func (v *OTel) MarshalFastJSON(w *fastjson.Writer) error {
 	var firstErr error
 	w.RawByte('{')
 	w.RawString("\"span_kind\":")
@@ -669,9 +669,9 @@ func (v *Span) MarshalFastJSON(w *fastjson.Writer) error {
 			firstErr = err
 		}
 	}
-	if v.Otel != nil {
+	if v.OTel != nil {
 		w.RawString(",\"otel\":")
-		if err := v.Otel.MarshalFastJSON(w); err != nil && firstErr == nil {
+		if err := v.OTel.MarshalFastJSON(w); err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}
