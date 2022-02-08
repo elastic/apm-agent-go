@@ -34,9 +34,8 @@ const (
 )
 
 var (
-	errZeroTraceID    = errors.New("zero trace-id is invalid")
-	errZeroSpanID     = errors.New("zero span-id is invalid")
-	errTooManyEntries = errors.New("tracestate contains more than the maximum allowed number of entries, 32")
+	errZeroTraceID = errors.New("zero trace-id is invalid")
+	errZeroSpanID  = errors.New("zero span-id is invalid")
 )
 
 // tracestateKeyRegexp holds a regular expression used for validating
@@ -205,58 +204,6 @@ func NewTraceState(entries ...TraceStateEntry) TraceState {
 	return out
 }
 
-// ParseTraceState attempts to decode a TraceState from the passed
-// string. It returns an error if the input is invalid according to the W3C
-// Trace Context specification.
-// Adapted from https://github.com/open-telemetry/opentelemetry-go/blob/trace/v1.3.0/trace/tracestate.go.
-func ParseTraceState(tracestate string) (TraceState, error) {
-	if tracestate == "" {
-		return TraceState{}, nil
-	}
-
-	wrapErr := func(err error) error {
-		return fmt.Errorf("failed to parse tracestate: %w", err)
-	}
-
-	members := strings.Split(tracestate, ",")
-	entries := make([]TraceStateEntry, 0, len(members))
-	found := make(map[string]struct{}, len(members))
-	for _, str := range members {
-		if len(str) == 0 {
-			continue
-		}
-
-		entry, err := parseEntry(str)
-		if err != nil {
-			return TraceState{}, wrapErr(err)
-		}
-
-		if _, ok := found[entry.Key]; ok {
-			return TraceState{}, wrapErr(fmt.Errorf("duplicate key found: %s", entry.Key))
-		}
-		found[entry.Key] = struct{}{}
-
-		entries = append(entries, entry)
-		if len(entries) > 32 {
-			return TraceState{}, wrapErr(errTooManyEntries)
-		}
-	}
-
-	return NewTraceState(entries...), nil
-}
-
-func parseEntry(m string) (TraceStateEntry, error) {
-	kv := strings.SplitN(m, "=", 2)
-	if len(kv) != 2 {
-		return TraceStateEntry{}, fmt.Errorf("invalid tracestate entry: %s", m)
-	}
-	tse := TraceStateEntry{
-		Key:   kv[0],
-		Value: kv[1],
-	}
-	return tse, tse.Validate()
-}
-
 // parseElasticTracestate parses an Elastic ("es") tracestate entry.
 //
 // Per https://github.com/elastic/apm/blob/main/specs/agents/tracing-distributed-tracing.md,
@@ -321,7 +268,7 @@ func (s TraceState) Validate() error {
 	var i int
 	for e := s.head; e != nil; e = e.next {
 		if i == 32 {
-			return errTooManyEntries
+			return errors.New("tracestate contains more than the maximum allowed number of entries, 32")
 		}
 		if e.Key == elasticTracestateVendorKey {
 			// s.parseElasticTracestateError holds a general e.Validate error if any
