@@ -55,7 +55,7 @@ func TestSpanStartAttributes(t *testing.T) {
 				attribute.String("db.name", "myDB"),
 				attribute.String("db.system", "dbSystem"),
 			},
-			spanKind: trace.SpanKindServer, // txType == request
+			spanKind: trace.SpanKindServer,
 		},
 		{
 			spanType: "db",
@@ -67,7 +67,87 @@ func TestSpanStartAttributes(t *testing.T) {
 				attribute.String("net.peer.port", "1234"),
 				attribute.String("net.peer.name", "peerName"),
 			},
-			spanKind: trace.SpanKindServer, // txType == request
+			spanKind: trace.SpanKindServer,
+		},
+		{
+			spanType: "messaging",
+			subtype:  "messagingSystem",
+			resource: "1.2.3.4:1234/destination",
+			attrs: []attribute.KeyValue{
+				attribute.String("messaging.system", "messagingSystem"),
+				attribute.String("messaging.destination", "destination"),
+				attribute.String("net.peer.port", "1234"),
+				attribute.String("net.peer.ip", "1.2.3.4"),
+			},
+			spanKind: trace.SpanKindServer,
+		},
+		{
+			spanType: "messaging",
+			subtype:  "messagingSystem",
+			resource: "1.2.3.4",
+			attrs: []attribute.KeyValue{
+				attribute.String("messaging.system", "messagingSystem"),
+				attribute.String("net.peer.ip", "1.2.3.4"),
+			},
+			spanKind: trace.SpanKindServer,
+		},
+		{
+			spanType: "external",
+			subtype:  "rpcSystem",
+			resource: "rpcSystem/rpcService",
+			attrs: []attribute.KeyValue{
+				attribute.String("rpc.system", "rpcSystem"),
+				attribute.String("rpc.service", "rpcService"),
+			},
+			spanKind: trace.SpanKindServer,
+		},
+		{
+			spanType: "external",
+			subtype:  "http",
+			resource: "example.com:443",
+			attrs: []attribute.KeyValue{
+				attribute.String("http.host", "example.com"),
+				attribute.String("http.scheme", "https"),
+			},
+			spanKind: trace.SpanKindServer,
+		},
+		{
+			spanType: "external",
+			subtype:  "http",
+			resource: "example.com:80",
+			attrs: []attribute.KeyValue{
+				attribute.String("http.host", "example.com"),
+				attribute.String("http.scheme", "http"),
+			},
+			spanKind: trace.SpanKindServer,
+		},
+		{
+			spanType: "external",
+			subtype:  "http",
+			resource: "www.example.com:30443",
+			attrs: []attribute.KeyValue{
+				attribute.String("http.url", "https://www.example.com:30443"),
+				attribute.String("http.scheme", "https"),
+			},
+			spanKind: trace.SpanKindServer,
+		},
+		{
+			spanType: "app",
+			subtype:  "internal",
+			resource: "",
+			attrs: []attribute.KeyValue{
+				attribute.String("not.known", "unknown"),
+			},
+			spanKind: trace.SpanKindInternal,
+		},
+		{
+			spanType: "unknown",
+			subtype:  "",
+			resource: "",
+			attrs: []attribute.KeyValue{
+				attribute.String("not.known", "unknown"),
+			},
+			spanKind: trace.SpanKindClient,
 		},
 	}
 
@@ -85,8 +165,9 @@ func TestSpanStartAttributes(t *testing.T) {
 	for i, tc := range tcs {
 		assert.Equal(t, tc.spanType, spans[i].Type)
 		assert.Equal(t, tc.subtype, spans[i].Subtype)
-		assert.Equal(t, tc.resource, spans[i].Context.Destination.Service.Resource)
-		// Otel not being populated?
+		if tc.resource != "" {
+			assert.Equal(t, tc.resource, spans[i].Context.Destination.Service.Resource)
+		}
 		assert.Equal(t, strings.ToUpper(tc.spanKind.String()), spans[i].OTel.SpanKind)
 	}
 }
