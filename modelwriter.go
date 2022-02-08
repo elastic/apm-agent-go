@@ -130,6 +130,11 @@ func (w *modelWriter) buildModelTransaction(out *model.Transaction, tx *Transact
 	if sampled {
 		out.Context = td.Context.build()
 	}
+
+	if out.Context != nil {
+		out.OTel = td.Context.model.OTel
+	}
+
 }
 
 func (w *modelWriter) buildModelSpan(out *model.Span, span *Span, sd *SpanData) {
