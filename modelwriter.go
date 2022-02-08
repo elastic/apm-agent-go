@@ -123,16 +123,13 @@ func (w *modelWriter) buildModelTransaction(out *model.Transaction, tx *Transact
 	out.Duration = td.Duration.Seconds() * 1000
 	out.SpanCount.Started = td.spansCreated
 	out.SpanCount.Dropped = td.spansDropped
+	out.OTel = td.Context.otel
 	if dss := buildDroppedSpansStats(td.droppedSpansStats); len(dss) > 0 {
 		out.DroppedSpansStats = dss
 	}
 
 	if sampled {
 		out.Context = td.Context.build()
-	}
-
-	if out.Context != nil {
-		out.OTel = td.Context.otel
 	}
 }
 
@@ -154,12 +151,9 @@ func (w *modelWriter) buildModelSpan(out *model.Span, span *Span, sd *SpanData) 
 	out.Duration = sd.Duration.Seconds() * 1000
 	out.Outcome = normalizeOutcome(sd.Outcome)
 	out.Context = sd.Context.build()
+	out.OTel = sd.Context.otel
 	if sd.composite.count > 1 {
 		out.Composite = sd.composite.build()
-	}
-
-	if out.Context != nil {
-		out.OTel = sd.Context.otel
 	}
 
 	// Copy the span type to context.destination.service.type.
