@@ -36,7 +36,7 @@ func newRootTransaction(
 ) (context.Context, *transaction) {
 	txOpts := apm.TransactionOptions{}
 	tx := tracer.StartTransactionOptions(name, txType, txOpts)
-	tx.Context.SetSpanKind(spanKind)
+	tx.Context.SetOTelSpanKind(spanKind)
 	ctx = apm.ContextWithTransaction(ctx, tx)
 	otelTx := &transaction{inner: tx, tracer: tracer}
 	otelTx.SetAttributes(attributes...)

@@ -92,8 +92,8 @@ func (c *Context) SetOTelAttributes(m map[string]interface{}) {
 	c.otel.Attributes = m
 }
 
-// SetSpanKind sets the provided SpanKind.
-func (c *Context) SetSpanKind(spanKind string) {
+// SetOTelSpanKind sets the provided SpanKind.
+func (c *Context) SetOTelSpanKind(spanKind string) {
 	if c.otel == nil {
 		c.otel = &model.OTel{}
 	}

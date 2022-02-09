@@ -222,7 +222,7 @@ func newSpan(ctx context.Context, t *tracer, name string, opts ...trace.SpanStar
 		}
 
 		tx := t.inner.StartTransactionOptions(name, txType, txOpts)
-		tx.Context.SetSpanKind(spanKind)
+		tx.Context.SetOTelSpanKind(spanKind)
 		ctx := apm.ContextWithTransaction(ctx, tx)
 		otelTx := &transaction{inner: tx, tracer: t.inner}
 		otelTx.SetAttributes(cfg.Attributes()...)
@@ -242,7 +242,7 @@ func newSpan(ctx context.Context, t *tracer, name string, opts ...trace.SpanStar
 
 		s.Subtype = subtype
 		s.Context.SetDestinationService(apm.DestinationServiceSpanContext{Resource: resource})
-		s.Context.SetSpanKind(spanKind)
+		s.Context.SetOTelSpanKind(spanKind)
 		ctx := apm.ContextWithSpan(ctx, s)
 		otelSpan := &span{inner: s, tracer: t.inner}
 		otelSpan.SetAttributes(cfg.Attributes()...)
