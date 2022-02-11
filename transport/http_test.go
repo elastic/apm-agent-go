@@ -788,28 +788,29 @@ func TestMajorServerVersion(t *testing.T) {
 	})
 	t.Run("failure_timeout", func(t *testing.T) {
 		var count uint32
-		c := make(chan struct{})
+		wait := make(chan struct{})
 		srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
-			if atomic.LoadUint32(&count) > 0 {
-				rw.WriteHeader(200)
-				rw.Write([]byte(`{"version":"7.16.3"}`))
-			} else {
-				<-c
-			}
+			c := atomic.LoadUint32(&count)
 			atomic.AddUint32(&count, 1)
+			if c == 0 {
+				<-wait
+				return
+			}
+			rw.WriteHeader(200)
+			rw.Write([]byte(`{"version":"7.16.3"}`))
 		}))
 		defer srv.Close()
 
 		transport := newTransport(t, srv.URL)
-		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 		defer cancel()
-
 		version := transport.MajorServerVersion(ctx, true)
+		close(wait)
 		assert.Zero(t, version)
 		assert.Error(t, ctx.Err())
-		close(c)
 
 		version = transport.MajorServerVersion(context.Background(), true)
+		assert.Equal(t, uint32(2), count, "count == 1 means that the first request context was cancelled before the http test server received it")
 		assert.Equal(t, uint32(7), version)
 	})
 	t.Run("success", func(t *testing.T) {
