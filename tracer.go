@@ -1357,12 +1357,12 @@ func (t *Tracer) gatherMetrics(ctx context.Context, gatherers []MetricsGatherer,
 // is non-sampled and the target server version is 8.0 or greater.
 // maybeDropTransaction returns true if the transaction is dropped, false otherwise.
 func (t *Tracer) maybeDropTransaction(ctx context.Context, td *TransactionData, sampled bool) bool {
-	if t.versionGetter == nil {
+	if sampled || t.versionGetter == nil {
 		return false
 	}
 
 	v := t.versionGetter.MajorServerVersion(ctx, false)
-	dropUnsampled := v >= 8 && !sampled
+	dropUnsampled := v >= 8
 	if dropUnsampled {
 		td.reset(t)
 	}

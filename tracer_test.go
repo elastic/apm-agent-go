@@ -63,11 +63,8 @@ func TestTracerStats(t *testing.T) {
 
 func TestTracerUserAgent(t *testing.T) {
 	sendRequest := func(serviceVersion string) string {
-		waitc := make(chan string)
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path == "/" {
-				return
-			}
+		waitc := make(chan string, 1)
+		srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 			select {
 			case waitc <- r.UserAgent():
 			default:
@@ -404,9 +401,6 @@ func TestTracerBodyUnread(t *testing.T) {
 	// Don't consume the request body in the handler; close the connection.
 	var requests int64
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		if req.URL.Path == "/" {
-			return
-		}
 		atomic.AddInt64(&requests, 1)
 		w.Header().Set("Connection", "close")
 	}))
@@ -424,8 +418,9 @@ func TestTracerBodyUnread(t *testing.T) {
 	require.NoError(t, err)
 	defer tracer.Close()
 
-	for atomic.LoadInt64(&requests) <= 1 {
+	for atomic.LoadInt64(&requests) <= 2 {
 		tracer.StartTransaction("name", "type").End()
+		tracer.Flush(nil)
 	}
 }
 
@@ -709,11 +704,13 @@ func TestTracerUnsampledTransactionsHTTPTransport(t *testing.T) {
 	intakeHandlerErr100Func := func(tCounter *uint32) http.Handler {
 		var hasErrored bool
 		return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+			defer r.Body.Close()
 			if atomic.LoadUint32(tCounter) == 100 && !hasErrored {
 				hasErrored = true
+				io.Copy(ioutil.Discard, r.Body)
 				http.Error(rw, "error-message", http.StatusInternalServerError)
+				return
 			}
-			defer r.Body.Close()
 			atomic.AddUint32(tCounter, countTransactions(r.Body))
 			rw.WriteHeader(202)
 		})
@@ -737,7 +734,7 @@ func TestTracerUnsampledTransactionsHTTPTransport(t *testing.T) {
 			tx := tracer.StartTransaction("tx", "unsampled")
 			tx.End()
 		}
-		// Sample all transactions.
+		// Sends 100 sampled transactions to the tracer.
 		tracer.SetSampler(apm.NewRatioSampler(1.0))
 		for i := 0; i < 100; i++ {
 			tx := tracer.StartTransaction("tx", "sampled")
@@ -775,7 +772,13 @@ func TestTracerUnsampledTransactionsHTTPTransport(t *testing.T) {
 		assert.Equal(t, uint32(100), atomic.LoadUint32(&tCounter))
 		assert.Equal(t, uint32(1), atomic.LoadUint32(&rootCounter))
 	})
-	t.Run("post-8-sends-sampled-only-with-cache-invalidation", func(t *testing.T) {
+	t.Run("post-8-sends-sampled-only-after-cache-invalidation-send-all", func(t *testing.T) {
+		// This test case asserts that when the server's major version is >= 8
+		// only the sampled transactions are sent. After 100 transactions have
+		// been sent to the server, the server will return a 500 error and will
+		// invalidate the cache, causing all transactions (sampled and unsampled)
+		// to be sent, until the version is refreshed. Since it will take 10s
+		// for the version to be refreshed, this test doesn't assert that.
 		var tCounter, rootCounter uint32
 		mux := http.NewServeMux()
 		mux.Handle("/intake/v2/events", intakeHandlerErr100Func(&tCounter))
@@ -784,12 +787,25 @@ func TestTracerUnsampledTransactionsHTTPTransport(t *testing.T) {
 		defer srv.Close()
 
 		tracer := newTracer(srv.URL)
-		for i := 0; i < 2; i++ {
+		for i := 0; i < 3; i++ {
 			generateTx(tracer)
 		}
-
-		assert.Equal(t, uint32(200), atomic.LoadUint32(&tCounter))
+		assert.Equal(t, uint32(300), atomic.LoadUint32(&tCounter))
 		assert.Equal(t, uint32(1), atomic.LoadUint32(&rootCounter))
+
+		// Manually refresh the remote version.
+		type majorVersionGetter interface {
+			MajorServerVersion(ctx context.Context, refreshStale bool) uint32
+		}
+		vg := tracer.Transport.(majorVersionGetter)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		vg.MajorServerVersion(ctx, true)
+		assert.Equal(t, uint32(2), atomic.LoadUint32(&rootCounter))
+
+		// Send 100 sampled and 100 unsampled txs.
+		generateTx(tracer)
+		assert.Equal(t, uint32(400), atomic.LoadUint32(&tCounter))
 	})
 	t.Run("invalid-version-sends-all", func(t *testing.T) {
 		var tCounter, rootCounter uint32
