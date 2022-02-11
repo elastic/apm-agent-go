@@ -113,10 +113,12 @@ type TracerOptions struct {
 	// If Transport implements apmconfig.Watcher, the tracer will begin watching
 	// for remote changes immediately. This behaviour can be disabled by setting
 	// the environment variable ELASTIC_APM_CENTRAL_CONFIG=false.
-	// If Transport implements the interface below, the tracer will query the APM
-	// Server "/" endpoint to obtain the remote major version. Implementers of
-	// this interface must respect the passed context.
-	//   MajorServerVersion(context.Context) (int, error)
+	// If Transport implements the interface below, the tracer will query the
+	// APM Server "/" endpoint to obtain the remote major version. Implementers
+	// of this interface must cache the remote server version and only refresh
+	// on subsequent calls that have `refreshStale` set to true. Implementations
+	// must be concurrently safe.
+	//   MajorServerVersion(ctx context.Context, refreshStale bool) uint32
 	Transport transport.Transport
 
 	requestDuration       time.Duration
@@ -891,6 +893,16 @@ func (t *Tracer) loop() {
 		}
 	}()
 
+	refreshServerVersionDeadline := 10 * time.Second
+	refreshVersionTicker := time.NewTicker(refreshServerVersionDeadline)
+	defer refreshVersionTicker.Stop()
+	if t.versionGetter != nil {
+		t.maybeRefreshServerVersion(ctx, refreshServerVersionDeadline)
+	} else {
+		// If versionGetter is nil, stop the timer.
+		refreshVersionTicker.Stop()
+	}
+
 	var breakdownMetricsLimitWarningLogged bool
 	var stats TracerStats
 	var metrics Metrics
@@ -1025,6 +1037,8 @@ func (t *Tracer) loop() {
 				})
 			}
 			continue
+		case <-refreshVersionTicker.C:
+			go t.maybeRefreshServerVersion(ctx, refreshServerVersionDeadline)
 		case event := <-t.events:
 			switch event.eventType {
 			case transactionEvent:
@@ -1347,15 +1361,34 @@ func (t *Tracer) maybeDropTransaction(ctx context.Context, td *TransactionData, 
 		return false
 	}
 
-	// Cancel the operation after 1ms, we do not want to block the loop.
-	ctx, cancel := context.WithTimeout(ctx, time.Microsecond)
-	defer cancel()
-	v, _ := t.versionGetter.MajorServerVersion(ctx)
+	v := t.versionGetter.MajorServerVersion(ctx, false)
 	dropUnsampled := v >= 8 && !sampled
 	if dropUnsampled {
 		td.reset(t)
 	}
 	return dropUnsampled
+}
+
+// maybeRefreshServerVersion refreshes the remote APM Server version if the version
+// has been marked as stale.
+func (t *Tracer) maybeRefreshServerVersion(ctx context.Context, deadline time.Duration) {
+	if t.versionGetter == nil {
+		return
+	}
+
+	// Fast path, when the version has been cached, there's nothing to do.
+	if v := t.versionGetter.MajorServerVersion(ctx, false); v > 0 {
+		return
+	}
+
+	// If there isn't a cached version, try to refresh the version.
+	if deadline > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, deadline)
+		defer cancel()
+	}
+	_ = t.versionGetter.MajorServerVersion(ctx, true)
+	return
 }
 
 type tracerEventType int
@@ -1393,6 +1426,9 @@ type tracerEvent struct {
 }
 
 type majorVersionGetter interface {
-	// MajorServerVersion returns the remote APM Server major version.
-	MajorServerVersion(context.Context) (int, error)
+	// MajorServerVersion returns the APM Server's major version. When refreshStale
+	// is true` it will request the remote APM Server's version from `/`, otherwise
+	// it will return the cached version. If the returned first argument is 0, the
+	// cache is stale.
+	MajorServerVersion(ctx context.Context, refreshStale bool) uint32
 }

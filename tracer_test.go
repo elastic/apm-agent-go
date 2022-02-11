@@ -18,7 +18,10 @@
 package apm_test
 
 import (
+	"bufio"
+	"compress/zlib"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -574,24 +577,22 @@ func TestTracerDefaultTransport(t *testing.T) {
 }
 
 func TestTracerUnsampledTransactions(t *testing.T) {
-	newTracer := func(v int, err error) (*apm.Tracer, *transporttest.ServerVersionRecorderTransport) {
-		transport := transporttest.ServerVersionRecorderTransport{
-			RecorderTransport:  &transporttest.RecorderTransport{},
-			ServerVersionError: err,
-			ServerVersion:      v,
+	newTracer := func(v, remoteV uint32) (*apm.Tracer, *serverVersionRecorderTransport) {
+		transport := serverVersionRecorderTransport{
+			RecorderTransport:   &transporttest.RecorderTransport{},
+			ServerVersion:       v,
+			RemoteServerVersion: remoteV,
 		}
 		tracer, err := apm.NewTracerOptions(apm.TracerOptions{
 			ServiceName: "transporttest",
 			Transport:   &transport,
 		})
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 		return tracer, &transport
 	}
 
 	t.Run("drop", func(t *testing.T) {
-		tracer, recorder := newTracer(8, nil)
+		tracer, recorder := newTracer(0, 8)
 		defer tracer.Close()
 		tracer.SetSampler(apm.NewRatioSampler(0.0))
 		tx := tracer.StartTransaction("tx", "unsampled")
@@ -602,7 +603,7 @@ func TestTracerUnsampledTransactions(t *testing.T) {
 		require.Empty(t, txs)
 	})
 	t.Run("send", func(t *testing.T) {
-		tracer, recorder := newTracer(7, nil)
+		tracer, recorder := newTracer(0, 7)
 		defer tracer.Close()
 		tracer.SetSampler(apm.NewRatioSampler(0.0))
 		tx := tracer.StartTransaction("tx", "unsampled")
@@ -614,7 +615,7 @@ func TestTracerUnsampledTransactions(t *testing.T) {
 		assert.Equal(t, txs[0].Type, "unsampled")
 	})
 	t.Run("send-sampled-7", func(t *testing.T) {
-		tracer, recorder := newTracer(7, nil)
+		tracer, recorder := newTracer(0, 8)
 		defer tracer.Close()
 		tx := tracer.StartTransaction("tx", "sampled")
 		tx.End()
@@ -625,7 +626,7 @@ func TestTracerUnsampledTransactions(t *testing.T) {
 		assert.Equal(t, txs[0].Type, "sampled")
 	})
 	t.Run("send-sampled-8", func(t *testing.T) {
-		tracer, recorder := newTracer(8, nil)
+		tracer, recorder := newTracer(0, 8)
 		defer tracer.Close()
 		tx := tracer.StartTransaction("tx", "sampled")
 		tx.End()
@@ -648,7 +649,7 @@ func TestTracerUnsampledTransactions(t *testing.T) {
 		assert.Equal(t, txs[0].Type, "unsampled")
 	})
 	t.Run("send-onerror", func(t *testing.T) {
-		tracer, recorder := newTracer(0, errors.New("error"))
+		tracer, recorder := newTracer(0, 0)
 		defer tracer.Close()
 		tracer.SetSampler(apm.NewRatioSampler(0.0))
 		tx := tracer.StartTransaction("tx", "unsampled")
@@ -658,6 +659,151 @@ func TestTracerUnsampledTransactions(t *testing.T) {
 		txs := recorder.Payloads().Transactions
 		require.NotEmpty(t, txs)
 		assert.Equal(t, txs[0].Type, "unsampled")
+	})
+}
+
+func TestTracerUnsampledTransactionsHTTPTransport(t *testing.T) {
+	newTracer := func(srvURL string) *apm.Tracer {
+		os.Setenv("ELASTIC_APM_SERVER_URL", srvURL)
+		defer os.Unsetenv("ELASTIC_APM_SERVER_URL")
+		transport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{})
+		require.NoError(t, err)
+		tracer, err := apm.NewTracerOptions(apm.TracerOptions{
+			ServiceName: "transporttest",
+			Transport:   transport,
+		})
+		require.NoError(t, err)
+		return tracer
+	}
+
+	type event struct {
+		Tx *model.Transaction `json:"transaction,omitempty"`
+	}
+	countTransactions := func(body io.ReadCloser) uint32 {
+		reader, err := zlib.NewReader(body)
+		require.NoError(t, err)
+		scanner := bufio.NewScanner(reader)
+		var tCount uint32
+		for scanner.Scan() {
+			var e event
+			json.Unmarshal([]byte(scanner.Text()), &e)
+			assert.NoError(t, err)
+
+			if e.Tx != nil {
+				tCount++
+			}
+		}
+		return tCount
+	}
+
+	intakeHandlerFunc := func(tCounter *uint32) http.Handler {
+		return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+			defer r.Body.Close()
+			atomic.AddUint32(tCounter, countTransactions(r.Body))
+			rw.WriteHeader(202)
+		})
+	}
+	// This handler is used to test for cache invalidation, it will return an
+	// error only once when the number of transactions is 100, so we can test
+	// the cache invalidation.
+	intakeHandlerErr100Func := func(tCounter *uint32) http.Handler {
+		var hasErrored bool
+		return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+			if atomic.LoadUint32(tCounter) == 100 && !hasErrored {
+				hasErrored = true
+				http.Error(rw, "error-message", http.StatusInternalServerError)
+			}
+			defer r.Body.Close()
+			atomic.AddUint32(tCounter, countTransactions(r.Body))
+			rw.WriteHeader(202)
+		})
+	}
+	rootHandlerFunc := func(v string, rootCounter *uint32) http.Handler {
+		return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+			// Only handle requests that match the path.
+			if r.URL.Path != "/" {
+				return
+			}
+			rw.WriteHeader(200)
+			rw.Write([]byte(fmt.Sprintf(`{"version":"%s"}`, v)))
+			atomic.AddUint32(rootCounter, 1)
+		})
+	}
+
+	generateTx := func(tracer *apm.Tracer) {
+		// Sends 100 unsampled transactions to the tracer.
+		tracer.SetSampler(apm.NewRatioSampler(0.0))
+		for i := 0; i < 100; i++ {
+			tx := tracer.StartTransaction("tx", "unsampled")
+			tx.End()
+		}
+		// Sample all transactions.
+		tracer.SetSampler(apm.NewRatioSampler(1.0))
+		for i := 0; i < 100; i++ {
+			tx := tracer.StartTransaction("tx", "sampled")
+			tx.End()
+		}
+		<-time.After(time.Millisecond)
+		tracer.Flush(nil)
+	}
+
+	t.Run("pre-8-sends-all", func(t *testing.T) {
+		var tCounter, rootCounter uint32
+		mux := http.NewServeMux()
+		mux.Handle("/intake/v2/events", intakeHandlerFunc(&tCounter))
+		mux.Handle("/", rootHandlerFunc("7.17.0", &rootCounter))
+		srv := httptest.NewServer(mux)
+		defer srv.Close()
+
+		tracer := newTracer(srv.URL)
+		generateTx(tracer)
+
+		assert.Equal(t, uint32(200), atomic.LoadUint32(&tCounter))
+		assert.Equal(t, uint32(1), atomic.LoadUint32(&rootCounter))
+	})
+	t.Run("post-8-sends-sampled-only", func(t *testing.T) {
+		var tCounter, rootCounter uint32
+		mux := http.NewServeMux()
+		mux.Handle("/intake/v2/events", intakeHandlerFunc(&tCounter))
+		mux.Handle("/", rootHandlerFunc("8.0.0", &rootCounter))
+		srv := httptest.NewServer(mux)
+		defer srv.Close()
+
+		tracer := newTracer(srv.URL)
+		generateTx(tracer)
+
+		assert.Equal(t, uint32(100), atomic.LoadUint32(&tCounter))
+		assert.Equal(t, uint32(1), atomic.LoadUint32(&rootCounter))
+	})
+	t.Run("post-8-sends-sampled-only-with-cache-invalidation", func(t *testing.T) {
+		var tCounter, rootCounter uint32
+		mux := http.NewServeMux()
+		mux.Handle("/intake/v2/events", intakeHandlerErr100Func(&tCounter))
+		mux.Handle("/", rootHandlerFunc("8.0.0", &rootCounter))
+		srv := httptest.NewServer(mux)
+		defer srv.Close()
+
+		tracer := newTracer(srv.URL)
+		for i := 0; i < 2; i++ {
+			generateTx(tracer)
+		}
+
+		assert.Equal(t, uint32(200), atomic.LoadUint32(&tCounter))
+		assert.Equal(t, uint32(1), atomic.LoadUint32(&rootCounter))
+	})
+	t.Run("invalid-version-sends-all", func(t *testing.T) {
+		var tCounter, rootCounter uint32
+		mux := http.NewServeMux()
+		mux.Handle("/intake/v2/events", intakeHandlerFunc(&tCounter))
+		mux.Handle("/", rootHandlerFunc("invalid-version", &rootCounter))
+		srv := httptest.NewServer(mux)
+		defer srv.Close()
+
+		tracer := newTracer(srv.URL)
+		generateTx(tracer)
+
+		assert.Equal(t, uint32(200), atomic.LoadUint32(&tCounter))
+		assert.Equal(t, uint32(1), atomic.LoadUint32(&rootCounter))
 	})
 }
 
@@ -673,4 +819,19 @@ func (bt blockedTransport) SendStream(ctx context.Context, r io.Reader) error {
 	case <-bt.unblocked:
 		return bt.Transport.SendStream(ctx, r)
 	}
+}
+
+// serverVersionRecorderTransport wraps a RecorderTransport providing the
+type serverVersionRecorderTransport struct {
+	*transporttest.RecorderTransport
+	ServerVersion       uint32
+	RemoteServerVersion uint32
+}
+
+// MajorServerVersion returns the stored version.
+func (r *serverVersionRecorderTransport) MajorServerVersion(_ context.Context, refreshStale bool) uint32 {
+	if refreshStale {
+		atomic.StoreUint32(&r.ServerVersion, r.RemoteServerVersion)
+	}
+	return atomic.LoadUint32(&r.ServerVersion)
 }

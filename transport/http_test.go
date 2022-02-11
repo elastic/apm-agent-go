@@ -33,6 +33,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -72,7 +73,7 @@ func TestNewHTTPTransportDefaultURL(t *testing.T) {
 	assert.NoError(t, err)
 	err = transport.SendStream(context.Background(), strings.NewReader(""))
 	assert.NoError(t, err)
-	assert.Len(t, h.requests, 2)
+	assert.Len(t, h.requests, 1)
 }
 
 func TestHTTPTransportUserAgent(t *testing.T) {
@@ -85,15 +86,15 @@ func TestHTTPTransportUserAgent(t *testing.T) {
 	assert.NoError(t, err)
 	err = transport.SendStream(context.Background(), strings.NewReader(""))
 	assert.NoError(t, err)
-	assert.Len(t, h.requests, 2)
+	assert.Len(t, h.requests, 1)
 
 	transport.SetUserAgent("foo")
 	err = transport.SendStream(context.Background(), strings.NewReader(""))
 	assert.NoError(t, err)
-	assert.Len(t, h.requests, 3)
+	assert.Len(t, h.requests, 2)
 
-	assert.Regexp(t, "apm-agent-go/.*", h.requests[1].UserAgent())
-	assert.Equal(t, "foo", h.requests[2].UserAgent())
+	assert.Regexp(t, "apm-agent-go/.*", h.requests[0].UserAgent())
+	assert.Equal(t, "foo", h.requests[1].UserAgent())
 }
 
 func TestHTTPTransportSecretToken(t *testing.T) {
@@ -107,8 +108,8 @@ func TestHTTPTransportSecretToken(t *testing.T) {
 	assert.NoError(t, err)
 	transport.SendStream(context.Background(), strings.NewReader(""))
 
-	assert.Len(t, h.requests, 2)
-	assertAuthorization(t, h.requests[1], "Bearer hunter2")
+	assert.Len(t, h.requests, 1)
+	assertAuthorization(t, h.requests[0], "Bearer hunter2")
 }
 
 func TestHTTPTransportEnvSecretToken(t *testing.T) {
@@ -122,7 +123,7 @@ func TestHTTPTransportEnvSecretToken(t *testing.T) {
 	assert.NoError(t, err)
 	transport.SendStream(context.Background(), strings.NewReader(""))
 
-	assert.Len(t, h.requests, 2)
+	assert.Len(t, h.requests, 1)
 	assertAuthorization(t, h.requests[0], "Bearer hunter2")
 }
 
@@ -137,8 +138,8 @@ func TestHTTPTransportAPIKey(t *testing.T) {
 	assert.NoError(t, err)
 	transport.SendStream(context.Background(), strings.NewReader(""))
 
-	assert.Len(t, h.requests, 2)
-	assertAuthorization(t, h.requests[1], "ApiKey hunter2")
+	assert.Len(t, h.requests, 1)
+	assertAuthorization(t, h.requests[0], "ApiKey hunter2")
 }
 
 func TestHTTPTransportEnvAPIKey(t *testing.T) {
@@ -153,8 +154,8 @@ func TestHTTPTransportEnvAPIKey(t *testing.T) {
 	assert.NoError(t, err)
 	transport.SendStream(context.Background(), strings.NewReader(""))
 
-	assert.Len(t, h.requests, 2)
-	assertAuthorization(t, h.requests[1], "ApiKey api_key_wins")
+	assert.Len(t, h.requests, 1)
+	assertAuthorization(t, h.requests[0], "ApiKey api_key_wins")
 }
 
 func TestHTTPTransportNoAuthorization(t *testing.T) {
@@ -164,8 +165,8 @@ func TestHTTPTransportNoAuthorization(t *testing.T) {
 
 	transport.SendStream(context.Background(), strings.NewReader(""))
 
-	assert.Len(t, h.requests, 2)
-	assertAuthorization(t, h.requests[1])
+	assert.Len(t, h.requests, 1)
+	assertAuthorization(t, h.requests[0])
 }
 
 func TestHTTPTransportTLS(t *testing.T) {
@@ -244,9 +245,9 @@ func TestHTTPTransportContent(t *testing.T) {
 	assert.NoError(t, err)
 	transport.SendStream(context.Background(), strings.NewReader("request-body"))
 
-	require.Len(t, h.requests, 2)
-	assert.Equal(t, "deflate", h.requests[1].Header.Get("Content-Encoding"))
-	assert.Equal(t, "application/x-ndjson", h.requests[1].Header.Get("Content-Type"))
+	require.Len(t, h.requests, 1)
+	assert.Equal(t, "deflate", h.requests[0].Header.Get("Content-Encoding"))
+	assert.Equal(t, "application/x-ndjson", h.requests[0].Header.Get("Content-Type"))
 }
 
 func TestHTTPTransportServerTimeout(t *testing.T) {
@@ -277,9 +278,6 @@ func TestHTTPTransportServerFailover(t *testing.T) {
 
 	var hosts []string
 	errorHandler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		if req.URL.Path == "/" {
-			return
-		}
 		hosts = append(hosts, req.Host)
 		http.Error(w, "error-message", http.StatusInternalServerError)
 	})
@@ -532,9 +530,6 @@ func TestHTTPTransportWatchConfigQueryParams(t *testing.T) {
 		query, err := url.ParseQuery(expectedQuery)
 		require.NoError(t, err)
 		transport, server := newHTTPTransport(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			if req.URL.Path == "/" {
-				return
-			}
 			assert.Equal(t, query, req.URL.Query())
 			w.WriteHeader(500)
 		}))
@@ -556,9 +551,6 @@ func TestHTTPTransportWatchConfigQueryParams(t *testing.T) {
 
 func TestHTTPTransportWatchConfigContextCancelled(t *testing.T) {
 	transport, server := newHTTPTransport(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		if req.URL.Path == "/" {
-			return
-		}
 		<-req.Context().Done()
 	}))
 	defer server.Close()
@@ -606,9 +598,6 @@ func TestHTTPTransportSendProfile(t *testing.T) {
 
 	var parts []part
 	transport, server := newHTTPTransport(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		if req.URL.Path == "/" {
-			return
-		}
 		r, err := req.MultipartReader()
 		if err != nil {
 			panic(err)
@@ -715,7 +704,7 @@ func TestHTTPTransportOptionsEmptyURL(t *testing.T) {
 
 	err = transport.SendStream(context.Background(), strings.NewReader(""))
 	assert.NoError(t, err)
-	assert.Len(t, h.requests, 2)
+	assert.Len(t, h.requests, 1)
 }
 
 func TestHTTPTransportOptionsDefaults(t *testing.T) {
@@ -767,12 +756,15 @@ func TestMajorServerVersion(t *testing.T) {
 	t.Run("failure", func(t *testing.T) {
 		var count int
 		srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
-			if count > 1 {
+			switch count {
+			case 0:
+				rw.WriteHeader(200)
+				rw.Write([]byte(`invalid json`))
+			case 1:
 				rw.WriteHeader(200)
 				rw.Write([]byte(`{"version":"7.17.0"}`))
-			} else {
-				rw.WriteHeader(502)
-				rw.Write([]byte(`{"ok":false,"message":"The instance rejected the connection."}`))
+			default:
+				http.Error(rw, `{"ok":false,"message":"The instance rejected the connection."}`, 502)
 			}
 			count++
 		}))
@@ -782,24 +774,28 @@ func TestMajorServerVersion(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 
-		version, err := transport.MajorServerVersion(ctx)
-		require.NoError(t, err)
-		assert.Equal(t, 0, version)
+		version := transport.MajorServerVersion(ctx, true)
+		assert.Zero(t, version)
 
-		version, err = transport.MajorServerVersion(ctx)
-		require.NoError(t, err)
-		assert.Equal(t, 7, version)
+		version = transport.MajorServerVersion(ctx, true)
+		assert.Equal(t, uint32(7), version)
+
+		// Verifies that the cache has been invalidated when the server returns
+		// an error.
+		transport.SendStream(ctx, strings.NewReader("{}"))
+		version = transport.MajorServerVersion(ctx, false)
+		assert.Zero(t, version)
 	})
 	t.Run("failure_timeout", func(t *testing.T) {
-		var count uint32
+		var count uint
 		srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
-			if atomic.LoadUint32(&count) > 1 {
+			if count > 0 {
 				rw.WriteHeader(200)
 				rw.Write([]byte(`{"version":"7.16.3"}`))
 			} else {
-				<-time.After(2 * time.Millisecond)
+				<-time.After(5 * time.Millisecond)
 			}
-			atomic.AddUint32(&count, 1)
+			count++
 		}))
 		defer srv.Close()
 
@@ -807,16 +803,12 @@ func TestMajorServerVersion(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
 
-		version, err := transport.MajorServerVersion(ctx)
-		require.EqualError(t, err, fmt.Sprintf(
-			`failed querying apm-server version: Get "%s/": context deadline exceeded`, srv.URL,
-		))
-		assert.Equal(t, 0, version)
+		version := transport.MajorServerVersion(ctx, true)
+		assert.Zero(t, version)
 
-		<-time.After(time.Second)
-		version, err = transport.MajorServerVersion(context.Background())
-		require.NoError(t, err)
-		assert.Equal(t, 7, version)
+		<-time.After(50 * time.Millisecond)
+		version = transport.MajorServerVersion(context.Background(), true)
+		assert.Equal(t, uint32(7), version)
 	})
 	t.Run("success", func(t *testing.T) {
 		var count int
@@ -839,10 +831,40 @@ func TestMajorServerVersion(t *testing.T) {
 		// Run GetVersion a few times and ensure that the same version is
 		// returned on subsequent calls
 		for i := 0; i < 5; i++ {
-			version, err := transport.MajorServerVersion(ctx)
-			require.NoError(t, err)
-			assert.Equal(t, 8, version, fmt.Sprintf("iteration %d", i))
+			version := transport.MajorServerVersion(ctx, true)
+			assert.Equal(t, uint32(8), version, fmt.Sprintf("iteration %d", i))
 		}
+	})
+	t.Run("concurrent", func(t *testing.T) {
+		var count uint32
+		srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+			rw.WriteHeader(200)
+			if atomic.LoadUint32(&count) > 0 {
+				rw.Write([]byte(`{"version":"8.1.0"}`))
+			} else {
+				rw.Write([]byte(`{"version":"8.0.0"}`))
+			}
+			atomic.AddUint32(&count, 1)
+		}))
+		defer srv.Close()
+
+		transport := newTransport(t, srv.URL)
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		// Run GetVersion a few times and ensure that the same version is
+		// returned on subsequent calls
+		var wg sync.WaitGroup
+		iterations := 5
+		wg.Add(iterations)
+		for i := 0; i < iterations; i++ {
+			go func(i int) {
+				version := transport.MajorServerVersion(ctx, true)
+				assert.Equal(t, uint32(8), version, fmt.Sprintf("iteration %d", i))
+				wg.Done()
+			}(i)
+		}
+		wg.Wait()
 	})
 }
 

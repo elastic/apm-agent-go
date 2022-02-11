@@ -36,7 +36,6 @@ import (
 	"path"
 	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -159,9 +158,7 @@ type HTTPTransport struct {
 	configURLs  []*url.URL
 	profileURLs []*url.URL
 
-	// versionMu Mutex guarding access to the remoteVersion string.
-	versionMu          sync.RWMutex
-	remoteMajorVersion int
+	majorServerVersion uint32
 }
 
 // NewHTTPTransport returns a new HTTPTransport, initialized with opts,
@@ -313,10 +310,7 @@ func (t *HTTPTransport) SetServerURL(u ...*url.URL) error {
 	t.intakeURLs = intakeURLs
 	t.configURLs = configURLs
 	t.profileURLs = profileURLs
-	atomic.StoreInt32(&t.urlIndex, 0)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	t.refreshRemoteVersion(ctx)
+	t.urlIndex = 0
 	return nil
 }
 
@@ -375,9 +369,9 @@ func (t *HTTPTransport) SendStream(ctx context.Context, r io.Reader) error {
 	req.Body = ioutil.NopCloser(r)
 	if err := t.sendStreamRequest(req); err != nil {
 		atomic.StoreInt32(&t.urlIndex, (urlIndex+1)%int32(len(t.intakeURLs)))
-		// The remote APM Server url has changed, so we refresh the remote APM
-		// Server version for the new URL.
-		t.refreshRemoteVersion(ctx)
+		// The remote APM Server url has changed, so we invalidate the local
+		// Major Server version cache.
+		atomic.StoreUint32(&t.majorServerVersion, 0)
 		return err
 	}
 	return nil
@@ -592,22 +586,20 @@ type serverInfo struct {
 	Version string `json:"version,omitempty"`
 }
 
-// MajorServerVersion returns the APM Server's major version. Queries the remote
-// APM Server `/` endpoint, caching it locally when it contains a version. Any
-// subsequent calls will return the cached version.
-func (t *HTTPTransport) MajorServerVersion(ctx context.Context) (int, error) {
-	t.versionMu.RLock()
-	version := t.remoteMajorVersion
-	t.versionMu.RUnlock()
-	if version > 0 {
-		return version, nil
+// MajorServerVersion returns the APM Server's major version. When refreshStale
+// is true` it will request the remote APM Server's version from `/`, otherwise
+// it will return the cached version. If the returned first argument is 0, the
+// cache is stale.
+func (t *HTTPTransport) MajorServerVersion(ctx context.Context, refreshStale bool) uint32 {
+	if v := atomic.LoadUint32(&t.majorServerVersion); v > 0 || !refreshStale {
+		return v
 	}
-	return t.refreshRemoteVersion(ctx)
+	return t.refreshMajorServerVersion(ctx)
 }
 
 // RefreshVersion queries the "active" remote APM Server and caches the result
 // locally when the operation succeeds.
-func (t *HTTPTransport) refreshRemoteVersion(ctx context.Context) (int, error) {
+func (t *HTTPTransport) refreshMajorServerVersion(ctx context.Context) uint32 {
 	srvURL := t.intakeURLs[atomic.LoadInt32(&t.urlIndex)]
 	u := *srvURL
 	u.Path, u.RawPath = "", ""
@@ -615,23 +607,22 @@ func (t *HTTPTransport) refreshRemoteVersion(ctx context.Context) (int, error) {
 	req.Header = t.rootHeaders
 	res, err := t.Client.Do(req)
 	if err != nil {
-		return 0, errors.Wrap(err, "failed querying apm-server version")
+		return 0
 	}
 	defer res.Body.Close()
 
 	var resp serverInfo
 	if err := json.NewDecoder(res.Body).Decode(&resp); err != nil {
-		return 0, errors.Wrap(err, "failed decoding apm-server version")
+		return 0
 	}
 
-	t.versionMu.Lock()
-	defer t.versionMu.Unlock()
 	if resp.Version != "" {
 		if v, ok := parseMajorVersion(resp.Version); ok {
-			t.remoteMajorVersion = v
+			atomic.StoreUint32(&t.majorServerVersion, v)
+			return v
 		}
 	}
-	return t.remoteMajorVersion, nil
+	return atomic.LoadUint32(&t.majorServerVersion)
 }
 
 func (t *HTTPTransport) newRequest(method string, url *url.URL) *http.Request {
@@ -796,7 +787,7 @@ func parseCacheControl(s string) cacheControl {
 // the string as long as it contans a `.` and the runes preceding `.` can be
 // parsed to a number. If the operation succeeded, the second return value will
 // be true.
-func parseMajorVersion(v string) (int, bool) {
+func parseMajorVersion(v string) (uint32, bool) {
 	i := strings.IndexRune(v, '.')
 	if i == -1 {
 		return 0, false
@@ -806,5 +797,5 @@ func parseMajorVersion(v string) (int, bool) {
 	if err != nil {
 		return 0, false
 	}
-	return major, true
+	return uint32(major), true
 }

@@ -216,15 +216,3 @@ type metadata struct {
 	Cloud   model.Cloud    `json:"cloud"`
 	Labels  model.IfaceMap `json:"labels,omitempty"`
 }
-
-// ServerVersionRecorderTransport wraps a RecorderTransport providing the
-type ServerVersionRecorderTransport struct {
-	ServerVersionError error
-	*RecorderTransport
-	ServerVersion int
-}
-
-// MajorServerVersion returns the stored version.
-func (r *ServerVersionRecorderTransport) MajorServerVersion(context.Context) (int, error) {
-	return r.ServerVersion, r.ServerVersionError
-}

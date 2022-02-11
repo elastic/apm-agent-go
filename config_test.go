@@ -267,6 +267,9 @@ func testTracerCentralConfigUpdate(t *testing.T, logger apm.Logger, serverRespon
 func TestTracerCentralConfigUpdateDisabled(t *testing.T) {
 	responded := make(chan struct{})
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.URL.Path != "/config/v1/agents" {
+			return
+		}
 		select {
 		case responded <- struct{}{}:
 		case <-req.Context().Done():
