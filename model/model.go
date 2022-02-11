@@ -275,6 +275,15 @@ type Transaction struct {
 
 	// Outcome holds the transaction outcome: success, failure, or unknown.
 	Outcome string `json:"outcome,omitempty"`
+
+	// OTel holds information bridged from OpenTelemetry.
+	OTel *OTel `json:"otel,omitempty"`
+}
+
+// OTel holds bridged OpenTelemetry information.
+type OTel struct {
+	SpanKind   string                 `json:"span_kind"`
+	Attributes map[string]interface{} `json:"attributes,omitempty"`
 }
 
 // SpanCount holds statistics on spans within a transaction.
@@ -366,6 +375,9 @@ type Span struct {
 	// Composite is set when the span is a composite span and represents an
 	// aggregated set of spans as defined by `composite.compression_strategy`.
 	Composite *CompositeSpan `json:"composite,omitempty"`
+
+	// OTel holds information bridged from OpenTelemetry.
+	OTel *OTel `json:"otel,omitempty"`
 }
 
 // SpanContext holds contextual information relating to the span.
