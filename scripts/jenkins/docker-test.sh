@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euxo pipefail
 
+source ./scripts/jenkins/install-go.sh
 source ./scripts/jenkins/setenv.sh
 
 

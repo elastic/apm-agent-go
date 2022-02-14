@@ -185,6 +185,9 @@ pipeline {
                 deleteDir()
                 unstash 'source'
               }
+              dir("${BASE_DIR}"){
+                sh script: './scripts/jenkins/install-go.sh', label: 'go'
+              }
               retry(3) {
                 dir("${BASE_DIR}"){
                   sh script: './scripts/jenkins/build.sh', label: 'Build'
