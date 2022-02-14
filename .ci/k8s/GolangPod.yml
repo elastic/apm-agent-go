@@ -1,12 +1,6 @@
 apiVersion: v1
 kind: Pod
 spec:
-  - stable
-  - "1.x"
-  - "1.15.x"
-  - "1.16.x"
-  - "1.17.x"
-
   containers:
   - name: master
     image: golang:rc-stretch

@@ -36,8 +36,8 @@ pipeline {
     string(name: 'GO_VERSION', defaultValue: "1.15.10", description: "Go version to use.")
     booleanParam(name: 'Run_As_Main_Branch', defaultValue: false, description: 'Allow to run any steps on a PR, some steps normally only run on main branch.')
     booleanParam(name: 'test_ci', defaultValue: true, description: 'Enable test')
-    booleanParam(name: 'docker_test_ci', defaultValue: true, description: 'Enable run docker tests')
-    booleanParam(name: 'bench_ci', defaultValue: true, description: 'Enable benchmarks')
+    booleanParam(name: 'docker_test_ci', defaultValue: false, description: 'Enable run docker tests')
+    booleanParam(name: 'bench_ci', defaultValue: false, description: 'Enable benchmarks')
   }
   stages {
     stage('Initializing'){
