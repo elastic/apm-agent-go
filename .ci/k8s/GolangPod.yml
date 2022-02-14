@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: Pod
+spec:
+  - stable
+  - "1.x"
+  - "1.15.x"
+  - "1.16.x"
+  - "1.17.x"
+
+  containers:
+  - name: master
+    image: golang:rc-stretch
+    command:
+    - sleep
+    args:
+    - infinity
+  - name: 1-x
+    image: golang:1-stretch
+    command:
+    - sleep
+    args:
+    - infinity
+  - name: 1-15-x
+    image: golang:1.15-stretch
+    command:
+    - sleep
+    args:
+    - infinity
+  - name: 1-16-x
+    image: golang:1.16-stretch
+    command:
+    - sleep
+    args:
+    - infinity
+  - name: 1-17-x
+    image: golang:1.17-stretch
+    command:
+    - sleep
+    args:
+    - infinity
+## TODO: Faster builds with some cached artifacts.
+##       mount a volume with the cached m2 folder in /var/lib/jenkins/.m2/repository
+##       for instance https://github.com/jenkinsci/kubernetes-plugin/blob/master/examples/maven-with-cache.groovy
+##       Maybe the infra folks already provide this caching!?

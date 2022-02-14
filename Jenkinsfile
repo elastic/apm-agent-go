@@ -3,7 +3,7 @@
 @Library('apm@current') _
 
 pipeline {
-  agent { label 'linux && immutable' }
+  agent { kubernetes { yamlFile '.ci/k8s/GolangPod.yml' } }
   environment {
     REPO = 'apm-agent-go'
     BASE_DIR = "src/go.elastic.co/apm"
@@ -81,21 +81,7 @@ pipeline {
             withGithubNotify(context: 'Tests', tab: 'tests') {
               deleteDir()
               unstash 'source'
-              dir("${BASE_DIR}"){
-                script {
-                  def go = readYaml(file: '.jenkins.yml')
-                  def parallelTasks = [:]
-                  go['GO_VERSION'].each{ version ->
-                    parallelTasks["Go-${version}"] = generateStep(version)
-                  }
-                  // For the cutting edge
-                  def edge = readYaml(file: '.jenkins-edge.yml')
-                  edge['GO_VERSION'].each{ version ->
-                    parallelTasks["Go-${version}"] = generateStepAndCatchError(version)
-                  }
-                  parallel(parallelTasks)
-                }
-              }
+              runMatrix()
             }
           }
         }
@@ -281,33 +267,55 @@ pipeline {
   }
 }
 
+
+
+def runMatrix() {
+  dir("${BASE_DIR}"){
+    def go = readYaml(file: '.jenkins.yml')
+    def parallelTasks = [:]
+    go['GO_VERSION'].each{ version ->
+      parallelTasks["Go-${version}"] = generateStep(version)
+    }
+    // For the cutting edge
+    def edge = readYaml(file: '.jenkins-edge.yml')
+    edge['GO_VERSION'].each{ version ->
+      parallelTasks["Go-${version}"] = generateStepAndCatchError(version)
+    }
+    parallel(parallelTasks)
+  }
+}
+
+
 def generateStep(version){
   return {
-    node('linux && immutable'){
-      try {
-        echo "${version}"
-        withEnv(["GO_VERSION=${version}"]) {
-          // Another retry in case there are any environmental issues
-          // See https://issuetracker.google.com/issues/146072599 for more context
-          retry(3) {
-            deleteDir()
-            unstash 'source'
-          }
-          retry(3) {
+    container(version.replaceAll('\\.', '-')) {
+      // run within a unique workspace folder to avoid clashing with multiple siblings pods.
+      dir(UUID.randomUUID().toString()) {
+        try {
+          echo "${version}"
+          withEnv(["GO_VERSION=${version}"]) {
+            // Another retry in case there are any environmental issues
+            // See https://issuetracker.google.com/issues/146072599 for more context
+            retry(3) {
+              deleteDir()
+              unstash 'source'
+            }
+            retry(3) {
+              dir("${BASE_DIR}"){
+                sh script: './scripts/jenkins/build.sh', label: 'Build'
+              }
+            }
             dir("${BASE_DIR}"){
-              sh script: './scripts/jenkins/build.sh', label: 'Build'
+              sh script: './scripts/jenkins/test.sh', label: 'Test'
             }
           }
-          dir("${BASE_DIR}"){
-            sh script: './scripts/jenkins/test.sh', label: 'Test'
-          }
+        } catch(e){
+          error(e.toString())
+        } finally {
+          junit(allowEmptyResults: true,
+            keepLongStdio: true,
+            testResults: "${BASE_DIR}/build/junit-*.xml")
         }
-      } catch(e){
-        error(e.toString())
-      } finally {
-        junit(allowEmptyResults: true,
-          keepLongStdio: true,
-          testResults: "${BASE_DIR}/build/junit-*.xml")
       }
     }
   }
