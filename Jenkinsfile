@@ -92,6 +92,8 @@ pipeline {
             allOf {
               expression { return env.ONLY_DOCS == "false" }
               expression { return params.docker_test_ci }
+              // disable while testing the k8s stuff
+              expression { return false }
             }
           }
           environment {
