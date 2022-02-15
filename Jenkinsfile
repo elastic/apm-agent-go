@@ -3,7 +3,7 @@
 @Library('apm@current') _
 
 pipeline {
-  agent { label 'linux && immutable' }
+  agent { kubernetes { yamlFile '.ci/k8s/GolangPod.yml' } }
   environment {
     REPO = 'apm-agent-go'
     BASE_DIR = "src/go.elastic.co/apm"
@@ -68,7 +68,6 @@ pipeline {
         Execute unit tests.
         */
         stage('Tests') {
-          agent { kubernetes { yamlFile '.ci/k8s/GolangPod.yml' } }
           options { skipDefaultCheckout() }
           when {
             beforeAgent true
@@ -86,6 +85,7 @@ pipeline {
           }
         }
         stage('Coverage') {
+          agent { label 'linux && immutable' }
           options { skipDefaultCheckout() }
           when {
             beforeAgent true
