@@ -43,7 +43,6 @@ pipeline {
       options { skipDefaultCheckout() }
       environment {
         GO_VERSION = "${params.GO_VERSION}"
-        PATH = "${env.PATH}:${env.WORKSPACE}/bin"
       }
       stages {
         /**
@@ -98,6 +97,7 @@ pipeline {
           }
           environment {
             GOPATH = "${env.WORKSPACE}"
+            PATH = "${env.PATH}:${env.WORKSPACE}/bin"
           }
           steps {
             withGithubNotify(context: 'Coverage') {
@@ -137,6 +137,7 @@ pipeline {
           }
           environment {
             GOPATH = "${env.WORKSPACE}"
+            PATH = "${env.PATH}:${env.WORKSPACE}/bin"
           }
           steps {
             withGithubNotify(context: 'Benchmark', tab: 'tests') {
