@@ -288,7 +288,7 @@ def generateStep(version){
 }
 
 def runStep(version) {
-	node('linux && immutable'){
+  node('linux && immutable'){
     try {
       echo "${version}"
       withEnv(["GO_VERSION=${version}"]) {
