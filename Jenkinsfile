@@ -3,7 +3,7 @@
 @Library('apm@current') _
 
 pipeline {
-  agent { kubernetes { yamlFile '.ci/k8s/GolangPod.yml' } }
+  agent { label 'linux && immutable' }
   environment {
     REPO = 'apm-agent-go'
     BASE_DIR = "src/go.elastic.co/apm"
@@ -11,7 +11,6 @@ pipeline {
     JOB_GCS_BUCKET = credentials('gcs-bucket')
     CODECOV_SECRET = 'secret/apm-team/ci/apm-agent-go-codecov'
     GO111MODULE = 'on'
-    GOPATH = "${env.WORKSPACE}"
     GOPROXY = 'https://proxy.golang.org'
     HOME = "${env.WORKSPACE}"
     GITHUB_CHECK_ITS_NAME = 'Integration Tests'
@@ -69,6 +68,7 @@ pipeline {
         Execute unit tests.
         */
         stage('Tests') {
+          agent { kubernetes { yamlFile '.ci/k8s/GolangPod.yml' } }
           options { skipDefaultCheckout() }
           when {
             beforeAgent true
@@ -93,6 +93,9 @@ pipeline {
               expression { return env.ONLY_DOCS == "false" }
               expression { return params.docker_test_ci }
             }
+          }
+          environment {
+            GOPATH = "${env.WORKSPACE}"
           }
           steps {
             withGithubNotify(context: 'Coverage') {
@@ -130,6 +133,9 @@ pipeline {
               expression { return params.bench_ci }
             }
           }
+          environment {
+            GOPATH = "${env.WORKSPACE}"
+          }
           steps {
             withGithubNotify(context: 'Benchmark', tab: 'tests') {
               deleteDir()
@@ -147,6 +153,9 @@ pipeline {
       when {
         beforeAgent true
         expression { return env.ONLY_DOCS == "false" }
+      }
+      environment {
+        GOPATH = "${env.WORKSPACE}"
       }
       parallel {
         stage('Windows') {
