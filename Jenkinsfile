@@ -307,8 +307,6 @@ def runStep(version) {
           sh script: './scripts/jenkins/test.sh', label: 'Test'
         }
       }
-    } catch(e){
-      error(e.toString())
     } finally {
       junit(allowEmptyResults: true,
         keepLongStdio: true,
