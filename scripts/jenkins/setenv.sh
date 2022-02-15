@@ -1,13 +1,6 @@
 #!/usr/bin/env bash
 set -euxo pipefail
 
-# Debug installation
-which go || true
-whereis go || true
-env | sort
-ls -ltra ls -l /usr/local/go || true
-ls -l /usr/local/go/bin || true
-
 # Install tools used only in CI using a local go.mod file.
 GO_GET_FLAGS="-modfile=$PWD/scripts/jenkins/jenkins.go.mod"
 
