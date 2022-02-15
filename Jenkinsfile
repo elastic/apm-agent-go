@@ -308,21 +308,19 @@ def generateStep(version){
       dir(UUID.randomUUID().toString()) {
         try {
           echo "${version}"
-          withEnv(["GO_VERSION=${version}"]) {
-            // Another retry in case there are any environmental issues
-            // See https://issuetracker.google.com/issues/146072599 for more context
-            retry(3) {
-              deleteDir()
-              unstash 'source'
-            }
-            retry(3) {
-              dir("${BASE_DIR}"){
-                sh script: './scripts/jenkins/build.sh', label: 'Build'
-              }
-            }
+          // Another retry in case there are any environmental issues
+          // See https://issuetracker.google.com/issues/146072599 for more context
+          retry(3) {
+            deleteDir()
+            unstash 'source'
+          }
+          retry(3) {
             dir("${BASE_DIR}"){
-              sh script: './scripts/jenkins/test.sh', label: 'Test'
+              sh script: './scripts/jenkins/build.sh', label: 'Build'
             }
+          }
+          dir("${BASE_DIR}"){
+            sh script: './scripts/jenkins/test.sh', label: 'Test'
           }
         } catch(e){
           error(e.toString())
