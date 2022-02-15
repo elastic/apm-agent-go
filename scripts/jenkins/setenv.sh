@@ -2,8 +2,8 @@
 set -euxo pipefail
 
 # Debug installation
-which go
-whereis go
+which go || true
+whereis go || true
 env | sort
 
 # Install tools used only in CI using a local go.mod file.
