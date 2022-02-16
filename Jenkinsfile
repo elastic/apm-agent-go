@@ -282,8 +282,6 @@ pipeline {
   }
 }
 
-
-
 def runMatrix() {
   dir("${BASE_DIR}"){
     def go = readYaml(file: '.jenkins.yml')
@@ -299,7 +297,6 @@ def runMatrix() {
     parallel(parallelTasks)
   }
 }
-
 
 def generateStep(version){
   return {
