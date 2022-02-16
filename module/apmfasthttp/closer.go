@@ -19,6 +19,7 @@ package apmfasthttp // import "go.elastic.co/apm/module/apmfasthttp/v2"
 
 import (
 	"github.com/valyala/fasthttp"
+
 	"go.elastic.co/apm/v2"
 )
 
