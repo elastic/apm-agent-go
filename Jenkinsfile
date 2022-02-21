@@ -283,32 +283,34 @@ pipeline {
 
 def generateStep(version){
   return {
-    node('linux && immutable'){
-      try {
-        echo "${version}"
-        withEnv(["GO_VERSION=${version}"]) {
-          // Another retry in case there are any environmental issues
-          // See https://issuetracker.google.com/issues/146072599 for more context
-          retry(3) {
-            deleteDir()
-            unstash 'source'
-          }
-          retry(3) {
-            dir("${BASE_DIR}"){
-              sh script: './scripts/jenkins/build.sh', label: 'Build'
-            }
-          }
+    runStep(version)
+  }
+}
+
+def runStep(version) {
+  node('linux && immutable'){
+    try {
+      echo "${version}"
+      withEnv(["GO_VERSION=${version}"]) {
+        // Another retry in case there are any environmental issues
+        // See https://issuetracker.google.com/issues/146072599 for more context
+        retry(3) {
+          deleteDir()
+          unstash 'source'
+        }
+        retry(3) {
           dir("${BASE_DIR}"){
-            sh script: './scripts/jenkins/test.sh', label: 'Test'
+            sh script: './scripts/jenkins/build.sh', label: 'Build'
           }
         }
-      } catch(e){
-        error(e.toString())
-      } finally {
-        junit(allowEmptyResults: true,
-          keepLongStdio: true,
-          testResults: "${BASE_DIR}/build/junit-*.xml")
+        dir("${BASE_DIR}"){
+          sh script: './scripts/jenkins/test.sh', label: 'Test'
+        }
       }
+    } finally {
+      junit(allowEmptyResults: true,
+        keepLongStdio: true,
+        testResults: "${BASE_DIR}/build/junit-*.xml")
     }
   }
 }
@@ -316,7 +318,7 @@ def generateStep(version){
 def generateStepAndCatchError(version){
   return {
     catchError(buildResult: 'SUCCESS', message: 'Cutting Edge Tests', stageResult: 'UNSTABLE') {
-      generateStep(version)
+      runStep(version)
     }
   }
 }

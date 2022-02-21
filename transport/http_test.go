@@ -33,6 +33,8 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -737,6 +739,135 @@ func TestSetServerURL(t *testing.T) {
 
 		err = transport.SetServerURL()
 		require.EqualError(t, err, "SetServerURL expects at least one URL")
+	})
+}
+
+func TestMajorServerVersion(t *testing.T) {
+	newTransport := func(t *testing.T, u string) *transport.HTTPTransport {
+		validURL, err := url.Parse(u)
+		require.NoError(t, err)
+		transport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{
+			ServerURLs: []*url.URL{validURL},
+		})
+		require.NoError(t, err)
+		return transport
+	}
+
+	t.Run("failure", func(t *testing.T) {
+		var count uint32
+		srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
+			switch atomic.LoadUint32(&count) {
+			case 0:
+				rw.WriteHeader(200)
+				rw.Write([]byte(`invalid json`))
+			case 1:
+				rw.WriteHeader(200)
+				rw.Write([]byte(`{"version":"7.17.0"}`))
+			default:
+				http.Error(rw, `{"ok":false,"message":"The instance rejected the connection."}`, 502)
+			}
+			atomic.AddUint32(&count, 1)
+		}))
+		defer srv.Close()
+
+		transport := newTransport(t, srv.URL)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		version := transport.MajorServerVersion(ctx, true)
+		assert.Zero(t, version)
+
+		version = transport.MajorServerVersion(ctx, true)
+		assert.Equal(t, uint32(7), version)
+
+		// Verifies that the cache has been invalidated when the server returns
+		// an error.
+		transport.SendStream(ctx, strings.NewReader("{}"))
+		version = transport.MajorServerVersion(ctx, false)
+		assert.Zero(t, version)
+	})
+	t.Run("failure_timeout", func(t *testing.T) {
+		var count uint32
+		wait := make(chan struct{})
+		srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
+			c := atomic.LoadUint32(&count)
+			atomic.AddUint32(&count, 1)
+			if c == 0 {
+				<-wait
+				return
+			}
+			rw.WriteHeader(200)
+			rw.Write([]byte(`{"version":"7.16.3"}`))
+		}))
+		defer srv.Close()
+
+		transport := newTransport(t, srv.URL)
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer cancel()
+		version := transport.MajorServerVersion(ctx, true)
+		close(wait)
+		assert.Zero(t, version)
+		assert.Error(t, ctx.Err())
+
+		version = transport.MajorServerVersion(context.Background(), true)
+		assert.Equal(t, uint32(2), count, "count == 1 means that the first request context was cancelled before the http test server received it")
+		assert.Equal(t, uint32(7), version)
+	})
+	t.Run("success", func(t *testing.T) {
+		var count uint32
+		srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/", r.URL.Path)
+			rw.WriteHeader(200)
+			if atomic.LoadUint32(&count) > 0 {
+				rw.Write([]byte(`{"version":"8.1.0"}`))
+			} else {
+				rw.Write([]byte(`{"version":"8.0.0"}`))
+			}
+			atomic.AddUint32(&count, 1)
+		}))
+		defer srv.Close()
+
+		transport := newTransport(t, srv.URL)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		// Run GetVersion a few times and ensure that the same version is
+		// returned on subsequent calls
+		for i := 0; i < 5; i++ {
+			version := transport.MajorServerVersion(ctx, true)
+			assert.Equal(t, uint32(8), version, fmt.Sprintf("iteration %d", i))
+		}
+	})
+	t.Run("concurrent", func(t *testing.T) {
+		var count uint32
+		srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+			rw.WriteHeader(200)
+			if atomic.LoadUint32(&count) > 0 {
+				rw.Write([]byte(`{"version":"8.1.0"}`))
+			} else {
+				rw.Write([]byte(`{"version":"8.0.0"}`))
+			}
+			atomic.AddUint32(&count, 1)
+		}))
+		defer srv.Close()
+
+		transport := newTransport(t, srv.URL)
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		// Run GetVersion a few times and ensure that the same version is
+		// returned on subsequent calls
+		var wg sync.WaitGroup
+		iterations := 5
+		wg.Add(iterations)
+		for i := 0; i < iterations; i++ {
+			go func(i int) {
+				version := transport.MajorServerVersion(ctx, true)
+				assert.Equal(t, uint32(8), version, fmt.Sprintf("iteration %d", i))
+				wg.Done()
+			}(i)
+		}
+		wg.Wait()
 	})
 }
 

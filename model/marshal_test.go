@@ -115,6 +115,12 @@ func TestMarshalTransaction(t *testing.T) {
 				"outcome": "success",
 			},
 		},
+		"otel": map[string]interface{}{
+			"span_kind": "MESSAGING",
+			"attributes": map[string]interface{}{
+				"messaging.system": "messaging",
+			},
+		},
 	}
 	assert.Equal(t, expect, decoded)
 }
@@ -143,6 +149,12 @@ func TestMarshalSpan(t *testing.T) {
 				"user":      "barb",
 			},
 		},
+		"otel": map[string]interface{}{
+			"span_kind": "MESSAGING",
+			"attributes": map[string]interface{}{
+				"messaging.system": "messaging",
+			},
+		},
 	}, decoded)
 
 	w.Reset()
@@ -152,6 +164,14 @@ func TestMarshalSpan(t *testing.T) {
 	span.ParentID = model.SpanID{}      // parent_id is optional
 	span.TransactionID = model.SpanID{} // transaction_id is optional
 	span.Context = fakeHTTPSpanContext()
+	span.OTel = &model.OTel{
+		SpanKind: "SERVER",
+		Attributes: map[string]interface{}{
+			"numeric.data": 123.456,
+			"boolean.data": true,
+			"slice.data":   []string{"one", "two"},
+		},
+	}
 	span.MarshalFastJSON(&w)
 
 	decoded = mustUnmarshalJSON(w)
@@ -165,6 +185,14 @@ func TestMarshalSpan(t *testing.T) {
 		"context": map[string]interface{}{
 			"http": map[string]interface{}{
 				"url": "http://testing.invalid:8000/path?query#fragment",
+			},
+		},
+		"otel": map[string]interface{}{
+			"span_kind": "SERVER",
+			"attributes": map[string]interface{}{
+				"numeric.data": 123.456,
+				"boolean.data": true,
+				"slice.data":   []interface{}{"one", "two"},
 			},
 		},
 	}, decoded)
@@ -191,6 +219,12 @@ func TestMarshalSpanHTTPStatusCode(t *testing.T) {
 		"context": map[string]interface{}{
 			"http": map[string]interface{}{
 				"status_code": 200.0,
+			},
+		},
+		"otel": map[string]interface{}{
+			"span_kind": "MESSAGING",
+			"attributes": map[string]interface{}{
+				"messaging.system": "messaging",
 			},
 		},
 	}, decoded)
@@ -669,6 +703,12 @@ func fakeTransaction() model.Transaction {
 				},
 			},
 		},
+		OTel: &model.OTel{
+			SpanKind: "MESSAGING",
+			Attributes: map[string]interface{}{
+				"messaging.system": "messaging",
+			},
+		},
 	}
 }
 
@@ -683,6 +723,12 @@ func fakeSpan() model.Span {
 		Duration:      3,
 		Type:          "db.postgresql.query",
 		Context:       fakeDatabaseSpanContext(),
+		OTel: &model.OTel{
+			SpanKind: "MESSAGING",
+			Attributes: map[string]interface{}{
+				"messaging.system": "messaging",
+			},
+		},
 	}
 }
 
