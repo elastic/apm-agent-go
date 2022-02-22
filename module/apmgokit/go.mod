@@ -19,4 +19,4 @@ replace go.elastic.co/apm/module/apmgrpc/v2 => ../apmgrpc
 
 replace go.elastic.co/apm/module/apmhttp/v2 => ../apmhttp
 
-go 1.13
+go 1.15
