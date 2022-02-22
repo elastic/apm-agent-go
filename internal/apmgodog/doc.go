@@ -16,4 +16,4 @@
 // under the License.
 
 // Package apmgodog implements the Gherkin feature spec tests.
-package apmgodog
+package apmgodog // import "apmgodog"
