@@ -31,10 +31,6 @@ check-vanity-import:
 check-vet:
 	@for dir in $(shell scripts/moduledirs.sh); do (cd $$dir && go vet ./...) || exit $$?; done
 
-.PHONY: install
-install:
-	go get -v -t ./...
-
 .PHONY: docker-test
 docker-test:
 	scripts/docker-compose-testing run -T --rm go-agent-tests make test
