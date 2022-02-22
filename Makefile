@@ -5,7 +5,7 @@ GO_LICENSER_EXCLUDE=stacktrace/testdata
 check: precheck check-modules test
 
 .PHONY: precheck
-precheck: check-goimports check-lint check-vanity-import check-vet check-dockerfile-testing check-licenses model/marshal_fastjson.go scripts/Dockerfile-testing
+precheck: check-goimports check-vanity-import check-vet check-dockerfile-testing check-licenses model/marshal_fastjson.go scripts/Dockerfile-testing
 
 .PHONY: check-goimports
 check-goimports:
@@ -14,10 +14,6 @@ check-goimports:
 .PHONY: check-dockerfile-testing
 check-dockerfile-testing:
 	go run ./scripts/gendockerfile.go -d
-
-.PHONY: check-lint
-check-lint:
-	sh scripts/check_lint.sh
 
 .PHONY: check-licenses
 check-licenses:

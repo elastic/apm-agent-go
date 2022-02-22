@@ -22,7 +22,6 @@ package apm // import "go.elastic.co/apm/v2"
 
 import (
 	_ "github.com/jcchavezs/porto"
-	_ "golang.org/x/lint/golint"
 	_ "golang.org/x/tools/cmd/goimports"
 
 	_ "github.com/elastic/go-licenser"
