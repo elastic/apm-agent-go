@@ -552,6 +552,7 @@ func TestHTTPTransportWatchConfigQueryParams(t *testing.T) {
 func TestHTTPTransportWatchConfigContextCancelled(t *testing.T) {
 	transport, server := newHTTPTransport(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		<-req.Context().Done()
+		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer server.Close()
 
