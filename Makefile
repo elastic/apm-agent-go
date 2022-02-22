@@ -1,5 +1,6 @@
 TEST_TIMEOUT?=5m
 GO_LICENSER_EXCLUDE=stacktrace/testdata
+GO_LANGUAGE_VERSION=1.15
 
 .PHONY: check
 check: precheck check-modules test
@@ -21,7 +22,7 @@ check-licenses:
 
 .PHONY: check-modules
 check-modules:
-	go run scripts/genmod/main.go -check .
+	go run scripts/genmod/main.go -go=$(GO_LANGUAGE_VERSION) -check .
 
 .PHONY: check-vanity-import
 check-vanity-import:
@@ -53,7 +54,7 @@ clean:
 
 .PHONY: update-modules
 update-modules:
-	go run scripts/genmod/main.go .
+	go run scripts/genmod/main.go -go=$(GO_LANGUAGE_VERSION) .
 
 .PHONY: docs
 docs:
