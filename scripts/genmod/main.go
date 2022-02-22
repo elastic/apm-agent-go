@@ -260,7 +260,7 @@ func main() {}
 	if err != nil {
 		return err
 	}
-	if tag == "1.17" {
+	if minorVersion > 16 {
 		tag = "1.16"
 	}
 	fmt.Fprintf(&tmpGomodContent, "\ngo %s\n", tag)
