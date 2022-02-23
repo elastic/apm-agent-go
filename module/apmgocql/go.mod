@@ -6,9 +6,8 @@ require (
 	github.com/gocql/gocql v0.0.0-20181124151448-70385f88b28b
 	github.com/stretchr/testify v1.6.1
 	go.elastic.co/apm/v2 v2.0.0
-	gopkg.in/yaml.v2 v2.2.2 // indirect
 )
 
 replace go.elastic.co/apm/v2 => ../..
 
-go 1.13
+go 1.15

@@ -1,6 +1,6 @@
 module go.elastic.co/apm/module/apmgoredis/v2
 
-go 1.12
+go 1.15
 
 require (
 	github.com/go-redis/redis v6.15.3-0.20190424063336-97e6ed817821+incompatible

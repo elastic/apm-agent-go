@@ -14,4 +14,4 @@ replace go.elastic.co/apm/module/apmhttp/v2 => ../apmhttp
 
 replace go.elastic.co/apm/module/apmsql/v2 => ../apmsql
 
-go 1.13
+go 1.15

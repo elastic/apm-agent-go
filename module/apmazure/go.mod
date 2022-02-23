@@ -1,6 +1,6 @@
 module go.elastic.co/apm/module/apmazure/v2
 
-go 1.14
+go 1.15
 
 require (
 	github.com/Azure/azure-pipeline-go v0.2.3
@@ -11,7 +11,6 @@ require (
 	go.elastic.co/apm/module/apmhttp/v2 v2.0.0
 	go.elastic.co/apm/v2 v2.0.0
 	golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897 // indirect
-	golang.org/x/net v0.0.0-20201110031124-69a78807bb2b // indirect
 )
 
 replace go.elastic.co/apm/v2 => ../..
