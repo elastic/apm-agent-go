@@ -550,14 +550,14 @@ func TestHTTPTransportWatchConfigQueryParams(t *testing.T) {
 }
 
 func TestHTTPTransportWatchConfigContextCancelled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	transport, server := newHTTPTransport(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		cancel() // cancel client-side request context
 		<-req.Context().Done()
-		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer server.Close()
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
-	defer cancel()
 
 	var watchParams apmconfig.WatchParams
 	watchParams.Service.Name = "name"
