@@ -371,20 +371,11 @@ type compressionOptions struct {
 // a limit to the number of errors that will be buffered, and
 // once that limit has been reached, new errors will be dropped
 // until the queue is drained.
-//
-// The exported fields be altered or replaced any time up until
-// any Tracer methods have been invoked.
 type Tracer struct {
-	Transport transport.Transport
-	Service   struct {
-		Name        string
-		Version     string
-		Environment string
-	}
-
-	process *model.Process
-	system  *model.System
-
+	transport         transport.Transport
+	service           model.Service
+	process           *model.Process
+	system            *model.System
 	active            int32
 	bufferSize        int
 	metricsBufferSize int
@@ -398,6 +389,7 @@ type Tracer struct {
 	breakdownMetrics  *breakdownMetrics
 	profileSender     profileSender
 	versionGetter     majorVersionGetter
+
 	// stats is heap-allocated to ensure correct alignment for atomic access.
 	stats *TracerStats
 
@@ -434,7 +426,12 @@ func NewTracerOptions(opts TracerOptions) (*Tracer, error) {
 
 func newTracer(opts TracerOptions) *Tracer {
 	t := &Tracer{
-		Transport:         opts.Transport,
+		transport: opts.Transport,
+		service: makeService(
+			opts.ServiceName,
+			opts.ServiceVersion,
+			opts.ServiceEnvironment,
+		),
 		process:           &currentProcess,
 		system:            &localSystem,
 		closing:           make(chan struct{}),
@@ -455,9 +452,6 @@ func newTracer(opts TracerOptions) *Tracer {
 			local: make(map[string]func(*instrumentationConfigValues)),
 		},
 	}
-	t.Service.Name = opts.ServiceName
-	t.Service.Version = opts.ServiceVersion
-	t.Service.Environment = opts.ServiceEnvironment
 	t.breakdownMetrics.enabled = opts.breakdownMetrics
 	// Initialise local transaction config.
 	t.setLocalInstrumentationConfig(envRecording, func(cfg *instrumentationConfigValues) {
@@ -889,7 +883,7 @@ func (t *Tracer) loop() {
 				case <-ctx.Done():
 				}
 			}
-			requestResult <- t.Transport.SendStream(ctx, iochanReader)
+			requestResult <- t.transport.SendStream(ctx, iochanReader)
 		}
 	}()
 
@@ -1009,8 +1003,8 @@ func (t *Tracer) loop() {
 			}
 			var configWatcherContext context.Context
 			var watchParams apmconfig.WatchParams
-			watchParams.Service.Name = t.Service.Name
-			watchParams.Service.Environment = t.Service.Environment
+			watchParams.Service.Name = t.service.Name
+			watchParams.Service.Environment = t.service.Environment
 			configWatcherContext, stopConfigWatcher = context.WithCancel(ctx)
 			configChanges = cw.WatchConfig(configWatcherContext, watchParams)
 			// Silence go vet's "possible context leak" false positive.
@@ -1310,13 +1304,12 @@ func (t *Tracer) metadataReader() io.Reader {
 }
 
 func (t *Tracer) encodeRequestMetadata(json *fastjson.Writer) {
-	service := makeService(t.Service.Name, t.Service.Version, t.Service.Environment)
 	json.RawString(`{"system":`)
 	t.system.MarshalFastJSON(json)
 	json.RawString(`,"process":`)
 	t.process.MarshalFastJSON(json)
 	json.RawString(`,"service":`)
-	service.MarshalFastJSON(json)
+	t.service.MarshalFastJSON(json)
 	if cloud := getCloudMetadata(); cloud != nil {
 		json.RawString(`,"cloud":`)
 		cloud.MarshalFastJSON(json)

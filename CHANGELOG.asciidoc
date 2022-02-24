@@ -37,6 +37,7 @@ https://github.com/elastic/apm-agent-go/compare/v1.15.0...main[View commits]
 - Remove WarningLogger, add Warningf methe to Logger {pull}1205[#(1205)]
 - Replace Sampler with ExtendedSampler {pull}1206[#(1206)]
 - Drop unsampled txs when connected to an APM Server >= 8.0 {pull}1208[#(1208)]
+- Unexport Tracer's fields -- TracerOptions must be used instead {pull}1219[#(1219)]
 
 [[release-notes-1.x]]
 === Go Agent version 1.x
