@@ -121,13 +121,6 @@ func (c *SpanContext) SetOTelSpanKind(spanKind string) {
 	c.otel.SpanKind = spanKind
 }
 
-// SetTag calls SetLabel(key, value).
-//
-// SetTag is deprecated, and will be removed in a future major version.
-func (c *SpanContext) SetTag(key, value string) {
-	c.SetLabel(key, value)
-}
-
 // SetLabel sets a label in the context.
 //
 // Invalid characters ('.', '*', and '"') in the key will be replaced with

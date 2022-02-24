@@ -339,15 +339,6 @@ e.g. the URL and remote address for an HTTP request. You can also provide
 custom context and tags.
 
 [float]
-[[context-set-tag]]
-==== `func (*Context) SetTag(key, value string)`
-
-SetTag is equivalent to calling SetLabel with a string value.
-
-NOTE: This function is deprecated, and will be removed in a future major
-version of the agent.
-
-[float]
 [[context-set-label]]
 ==== `func (*Context) SetLabel(key string, value interface{})`
 
