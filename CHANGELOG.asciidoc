@@ -40,7 +40,6 @@ https://github.com/elastic/apm-agent-go/compare/v1.15.0...main[View commits]
 - Removed SetTag {pull}1218[(#1218)]
 - Unexport Tracer's fields -- TracerOptions must be used instead {pull}1219[#(1219)]
 
-
 [[release-notes-1.x]]
 === Go Agent version 1.x
 
