@@ -35,7 +35,7 @@ import (
 func TestSpanContextSetLabel(t *testing.T) {
 	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
 		span, _ := apm.StartSpan(ctx, "name", "type")
-		span.Context.SetTag("foo", "bar")    // deprecated
+		span.Context.SetLabel("foo", "bar")
 		span.Context.SetLabel("foo", "bar!") // Last instance wins
 		span.Context.SetLabel("bar", "baz")
 		span.Context.SetLabel("baz", 123.456)
