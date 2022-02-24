@@ -346,13 +346,17 @@ func TestTracerBufferSize(t *testing.T) {
 	defer os.Unsetenv("ELASTIC_APM_API_REQUEST_SIZE")
 	defer os.Unsetenv("ELASTIC_APM_API_BUFFER_SIZE")
 
-	tracer, recorder := transporttest.NewRecorderTracer()
-	defer tracer.Close()
+	var recorder transporttest.RecorderTransport
 	unblock := make(chan struct{})
-	tracer.Transport = blockedTransport{
-		Transport: tracer.Transport,
-		unblocked: unblock,
-	}
+	tracer, err := apm.NewTracerOptions(apm.TracerOptions{
+		ServiceName: "transporttest",
+		Transport: blockedTransport{
+			Transport: &recorder,
+			unblocked: unblock,
+		},
+	})
+	require.NoError(t, err)
+	defer tracer.Close()
 
 	// Send a bunch of transactions, which will be buffered. Because the
 	// buffer cannot hold all of them we should expect to see some of the
@@ -658,7 +662,7 @@ func TestTracerUnsampledTransactions(t *testing.T) {
 }
 
 func TestTracerUnsampledTransactionsHTTPTransport(t *testing.T) {
-	newTracer := func(srvURL string) *apm.Tracer {
+	newTracer := func(srvURL string) (*apm.Tracer, *transport.HTTPTransport) {
 		os.Setenv("ELASTIC_APM_SERVER_URL", srvURL)
 		defer os.Unsetenv("ELASTIC_APM_SERVER_URL")
 		transport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{})
@@ -668,7 +672,7 @@ func TestTracerUnsampledTransactionsHTTPTransport(t *testing.T) {
 			Transport:   transport,
 		})
 		require.NoError(t, err)
-		return tracer
+		return tracer, transport
 	}
 
 	type event struct {
@@ -752,7 +756,7 @@ func TestTracerUnsampledTransactionsHTTPTransport(t *testing.T) {
 		srv := httptest.NewServer(mux)
 		defer srv.Close()
 
-		tracer := newTracer(srv.URL)
+		tracer, _ := newTracer(srv.URL)
 		generateTx(tracer)
 
 		assert.Equal(t, uint32(200), atomic.LoadUint32(&tCounter))
@@ -766,7 +770,7 @@ func TestTracerUnsampledTransactionsHTTPTransport(t *testing.T) {
 		srv := httptest.NewServer(mux)
 		defer srv.Close()
 
-		tracer := newTracer(srv.URL)
+		tracer, _ := newTracer(srv.URL)
 		generateTx(tracer)
 
 		assert.Equal(t, uint32(100), atomic.LoadUint32(&tCounter))
@@ -786,7 +790,7 @@ func TestTracerUnsampledTransactionsHTTPTransport(t *testing.T) {
 		srv := httptest.NewServer(mux)
 		defer srv.Close()
 
-		tracer := newTracer(srv.URL)
+		tracer, transport := newTracer(srv.URL)
 		for i := 0; i < 3; i++ {
 			generateTx(tracer)
 		}
@@ -797,10 +801,9 @@ func TestTracerUnsampledTransactionsHTTPTransport(t *testing.T) {
 		type majorVersionGetter interface {
 			MajorServerVersion(ctx context.Context, refreshStale bool) uint32
 		}
-		vg := tracer.Transport.(majorVersionGetter)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
-		vg.MajorServerVersion(ctx, true)
+		transport.MajorServerVersion(ctx, true)
 		assert.Equal(t, uint32(2), atomic.LoadUint32(&rootCounter))
 
 		// Send 100 sampled and 100 unsampled txs.
@@ -815,7 +818,7 @@ func TestTracerUnsampledTransactionsHTTPTransport(t *testing.T) {
 		srv := httptest.NewServer(mux)
 		defer srv.Close()
 
-		tracer := newTracer(srv.URL)
+		tracer, _ := newTracer(srv.URL)
 		generateTx(tracer)
 
 		assert.Equal(t, uint32(200), atomic.LoadUint32(&tCounter))

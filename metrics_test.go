@@ -190,18 +190,23 @@ func TestTracerMetricsBusyTracer(t *testing.T) {
 	os.Setenv("ELASTIC_APM_API_BUFFER_SIZE", "10KB")
 	defer os.Unsetenv("ELASTIC_APM_API_BUFFER_SIZE")
 
-	tracer, transport := transporttest.NewRecorderTracer()
-	defer tracer.Close()
-
+	var recorder transporttest.RecorderTransport
 	firstRequestDone := make(chan struct{})
-	tracer.Transport = sendStreamFunc(func(ctx context.Context, r io.Reader) error {
+	transport := sendStreamFunc(func(ctx context.Context, r io.Reader) error {
 		if firstRequestDone != nil {
 			firstRequestDone <- struct{}{}
 			firstRequestDone = nil
 			return nil
 		}
-		return transport.SendStream(ctx, r)
+		return recorder.SendStream(ctx, r)
 	})
+
+	tracer, err := apm.NewTracerOptions(apm.TracerOptions{
+		ServiceName: "transporttest",
+		Transport:   transport,
+	})
+	require.NoError(t, err)
+	defer tracer.Close()
 
 	// Force a complete request to be flushed, preventing metrics from
 	// being added to the request buffer until we unblock the transport.
@@ -228,7 +233,7 @@ func TestTracerMetricsBusyTracer(t *testing.T) {
 	tracer.Flush(nil) // wait for possibly-latent flush
 	tracer.Flush(nil) // wait for buffered events to be flushed
 
-	assert.NotZero(t, transport.Payloads().Metrics)
+	assert.NotZero(t, recorder.Payloads().Metrics)
 }
 
 func TestTracerMetricsBuffered(t *testing.T) {
