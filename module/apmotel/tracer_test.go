@@ -29,6 +29,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
 	"go.elastic.co/apm/module/apmotel/v2"
@@ -380,6 +381,50 @@ func TestSpanStartAttributesValidSpanCtx(t *testing.T) {
 	// tracestate, maybe it's only in the headers? how to access them?
 	// assert.Equal(t, model.TraceOptions(cfg.TraceFlags), txs[i].TraceContext().Options)
 	assert.Equal(t, strings.ToUpper(spanKind.String()), txs[0].OTel.SpanKind)
+}
+
+func TestSetStatus(t *testing.T) {
+	tracer, apmtracer, recorder := newTestTracer()
+	defer apmtracer.Close()
+	ctx := context.Background()
+
+	tcs := []struct {
+		code    codes.Code
+		outcome string
+	}{
+		{codes.Unset, "unknown"},
+		{codes.Error, "failure"},
+		{codes.Ok, "success"},
+	}
+
+	for i, tc := range tcs {
+		// No tx in ctx, root tx created
+		_, span := tracer.Start(ctx, fmt.Sprintf("tc%d", i))
+		span.SetStatus(tc.code, "")
+		span.End()
+	}
+
+	tx := apmtracer.StartTransaction("root", "root")
+	defer tx.End()
+	ctx = apm.ContextWithTransaction(ctx, tx)
+
+	for i, tc := range tcs {
+		// tx in ctx, span created
+		_, tx := tracer.Start(ctx, fmt.Sprintf("tc%d", i))
+		tx.SetStatus(tc.code, "")
+		tx.End()
+	}
+
+	apmtracer.Flush(nil)
+	payloads := recorder.Payloads()
+	spans := payloads.Spans
+	require.Len(t, spans, len(tcs))
+	txs := payloads.Transactions
+	require.Len(t, txs, len(tcs))
+	for i, tc := range tcs {
+		assert.Equal(t, tc.outcome, spans[i].Outcome)
+		assert.Equal(t, tc.outcome, txs[i].Outcome)
+	}
 }
 
 func newTestTracer() (trace.Tracer, *apm.Tracer, *transporttest.RecorderTransport) {
