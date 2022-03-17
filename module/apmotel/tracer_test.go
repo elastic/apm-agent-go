@@ -33,7 +33,84 @@ import (
 	"go.elastic.co/apm/v2/transport/transporttest"
 )
 
-func TestSpanStartAttributes(t *testing.T) {
+func TestSpanStartAttributesNoTx(t *testing.T) {
+	tracer, apmtracer, recorder := newTestTracer()
+	defer apmtracer.Close()
+
+	tx := apmtracer.StartTransaction("root", "root")
+	defer tx.End()
+	ctx := context.Background()
+
+	tcs := []struct {
+		attrs    []attribute.KeyValue
+		spanKind trace.SpanKind
+		spanType string
+	}{
+		{
+			spanType: "messaging",
+			attrs: []attribute.KeyValue{
+				attribute.String("messaging.system", "msgSystem"),
+			},
+			spanKind: trace.SpanKindConsumer,
+		},
+		{
+			spanType: "unknown",
+			attrs:    []attribute.KeyValue{},
+			spanKind: trace.SpanKindConsumer,
+		},
+		{
+			spanType: "unknown",
+			attrs: []attribute.KeyValue{
+				attribute.String("messaging.system", "msgSystem"),
+			},
+			spanKind: trace.SpanKindServer,
+		},
+		{
+			spanType: "request",
+			attrs: []attribute.KeyValue{
+				attribute.String("rpc.system", "rpcSystem"),
+			},
+			spanKind: trace.SpanKindServer,
+		},
+		{
+			spanType: "request",
+			attrs: []attribute.KeyValue{
+				attribute.String("http.url", "myURL"),
+			},
+			spanKind: trace.SpanKindServer,
+		},
+		{
+			spanType: "unknown",
+			attrs: []attribute.KeyValue{
+				attribute.String("rpc.system", "rpcSystem"),
+			},
+			spanKind: trace.SpanKindConsumer,
+		},
+		{
+			spanType: "unknown",
+			attrs: []attribute.KeyValue{
+				attribute.String("http.url", "myURL"),
+			},
+			spanKind: trace.SpanKindConsumer,
+		},
+	}
+
+	for i, tc := range tcs {
+		_, span := tracer.Start(ctx, fmt.Sprintf("tc%d", i), trace.WithAttributes(tc.attrs...), trace.WithSpanKind(tc.spanKind))
+		span.End()
+	}
+
+	apmtracer.Flush(nil)
+	payloads := recorder.Payloads()
+	txs := payloads.Transactions
+	require.Len(t, txs, len(tcs))
+	for i, tc := range tcs {
+		assert.Equal(t, tc.spanType, txs[i].Type)
+		assert.Equal(t, strings.ToUpper(tc.spanKind.String()), txs[i].OTel.SpanKind)
+	}
+}
+
+func TestSpanStartAttributesWithTx(t *testing.T) {
 	tracer, apmtracer, recorder := newTestTracer()
 	defer apmtracer.Close()
 
@@ -151,7 +228,6 @@ func TestSpanStartAttributes(t *testing.T) {
 		},
 	}
 
-	// TODO: Check when ctx contains span/tx
 	for i, tc := range tcs {
 		_, span := tracer.Start(ctx, fmt.Sprintf("tc%d", i), trace.WithAttributes(tc.attrs...), trace.WithSpanKind(tc.spanKind))
 		span.End()
