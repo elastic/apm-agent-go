@@ -21,7 +21,6 @@ import (
 	"context"
 	"net/url"
 	"strings"
-	"time"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -230,11 +229,10 @@ func newSpan(ctx context.Context, t *tracer, name string, opts ...trace.SpanStar
 	} else if tx == nil {
 		return newRootTransaction(ctx, t.inner, cfg.Attributes(), spanKind, name, txType)
 	} else {
-		// TODO: Populate data in SpanOptions
 		spanOpts := apm.SpanOptions{}
 		// If timestamp has been set, ie. it's not the default value,
 		// set it on txOpts.
-		if start := cfg.Timestamp(); start.After(time.Unix(0, 0)) {
+		if start := cfg.Timestamp(); !start.IsZero() {
 			spanOpts.Start = start
 		}
 
