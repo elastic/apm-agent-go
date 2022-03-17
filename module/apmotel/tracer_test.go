@@ -162,6 +162,9 @@ func TestSpanStartAttributes(t *testing.T) {
 	spans := payloads.Spans
 	require.Len(t, spans, len(tcs))
 	for i, tc := range tcs {
+		assert.Equal(t, [8]byte(tx.TraceContext().Span), [8]byte(spans[i].ParentID))
+		assert.Equal(t, [8]byte(tx.TraceContext().Span), [8]byte(spans[i].TransactionID))
+
 		assert.Equal(t, tc.spanType, spans[i].Type)
 		assert.Equal(t, tc.subtype, spans[i].Subtype)
 		if tc.resource != "" {
