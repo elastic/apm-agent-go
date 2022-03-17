@@ -119,3 +119,9 @@ func (s *span) SetAttributes(kvs ...attribute.KeyValue) {
 func (s *span) TracerProvider() trace.TracerProvider {
 	return GetTracerProvider()
 }
+
+// Span returns s.span, the underlying apm.Span. This is used to satisfy
+// SpanFromContext.
+func (s *span) Span() *apm.Span {
+	return s.inner
+}
