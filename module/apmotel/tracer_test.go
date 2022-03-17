@@ -192,6 +192,45 @@ func TestSpanStartAttributesNoTx(t *testing.T) {
 	}
 }
 
+func TestSpanAttributes(t *testing.T) {
+	tracer, apmtracer, recorder := newTestTracer()
+	defer apmtracer.Close()
+
+	ctx := context.Background()
+
+	attrs := []attribute.KeyValue{
+		attribute.String("messaging.system", "messagingSystem"),
+		attribute.String("messaging.destination", "destination"),
+		attribute.String("net.peer.port", "1234"),
+		attribute.String("net.peer.ip", "1.2.3.4"),
+	}
+	spanKind := trace.SpanKindServer
+
+	_, otelTx := tracer.Start(ctx, "tc", trace.WithAttributes(attrs...), trace.WithSpanKind(spanKind))
+	otelTx.End()
+
+	tx := apmtracer.StartTransaction("root", "root")
+	defer tx.End()
+	ctx = apm.ContextWithTransaction(ctx, tx)
+	_, span := tracer.Start(ctx, "tc", trace.WithAttributes(attrs...), trace.WithSpanKind(spanKind))
+	span.End()
+
+	apmtracer.Flush(nil)
+	payloads := recorder.Payloads()
+	spans := payloads.Spans
+	require.Len(t, spans, 1)
+	assert.Equal(t, "SERVER", spans[0].OTel.SpanKind)
+	txs := payloads.Transactions
+	require.Len(t, txs, 1)
+	assert.Equal(t, "SERVER", txs[0].OTel.SpanKind)
+	m := make(map[string]interface{}, len(attrs))
+	for _, kv := range attrs {
+		m[string(kv.Key)] = kv.Value.AsInterface()
+	}
+	assert.Equal(t, m, spans[0].OTel.Attributes)
+	assert.Equal(t, m, txs[0].OTel.Attributes)
+}
+
 func TestSpanStartAttributesWithTx(t *testing.T) {
 	tracer, apmtracer, recorder := newTestTracer()
 	defer apmtracer.Close()
