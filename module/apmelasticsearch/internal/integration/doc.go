@@ -19,4 +19,4 @@
 //
 // This exists as a separate module to avoid adding unnecessary
 // third-party dependencies to the apmelasticsearch module.
-package integration
+package integration // import "apmelasticsearch_integration"

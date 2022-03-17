@@ -113,6 +113,12 @@ type TracerOptions struct {
 	// If Transport implements apmconfig.Watcher, the tracer will begin watching
 	// for remote changes immediately. This behaviour can be disabled by setting
 	// the environment variable ELASTIC_APM_CENTRAL_CONFIG=false.
+	// If Transport implements the interface below, the tracer will query the
+	// APM Server "/" endpoint to obtain the remote major version. Implementers
+	// of this interface must cache the remote server version and only refresh
+	// on subsequent calls that have `refreshStale` set to true. Implementations
+	// must be concurrently safe.
+	//   MajorServerVersion(ctx context.Context, refreshStale bool) uint32
 	Transport transport.Transport
 
 	requestDuration       time.Duration
@@ -135,6 +141,7 @@ type TracerOptions struct {
 	breakdownMetrics      bool
 	propagateLegacyHeader bool
 	profileSender         profileSender
+	versionGetter         majorVersionGetter
 	cpuProfileInterval    time.Duration
 	cpuProfileDuration    time.Duration
 	heapProfileInterval   time.Duration
@@ -336,6 +343,9 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 		opts.cpuProfileDuration = cpuProfileDuration
 		opts.heapProfileInterval = heapProfileInterval
 	}
+	if vg, ok := opts.Transport.(majorVersionGetter); ok {
+		opts.versionGetter = vg
+	}
 	return nil
 }
 
@@ -361,20 +371,11 @@ type compressionOptions struct {
 // a limit to the number of errors that will be buffered, and
 // once that limit has been reached, new errors will be dropped
 // until the queue is drained.
-//
-// The exported fields be altered or replaced any time up until
-// any Tracer methods have been invoked.
 type Tracer struct {
-	Transport transport.Transport
-	Service   struct {
-		Name        string
-		Version     string
-		Environment string
-	}
-
-	process *model.Process
-	system  *model.System
-
+	transport         transport.Transport
+	service           model.Service
+	process           *model.Process
+	system            *model.System
 	active            int32
 	bufferSize        int
 	metricsBufferSize int
@@ -387,6 +388,7 @@ type Tracer struct {
 	events            chan tracerEvent
 	breakdownMetrics  *breakdownMetrics
 	profileSender     profileSender
+	versionGetter     majorVersionGetter
 
 	// stats is heap-allocated to ensure correct alignment for atomic access.
 	stats *TracerStats
@@ -424,7 +426,12 @@ func NewTracerOptions(opts TracerOptions) (*Tracer, error) {
 
 func newTracer(opts TracerOptions) *Tracer {
 	t := &Tracer{
-		Transport:         opts.Transport,
+		transport: opts.Transport,
+		service: makeService(
+			opts.ServiceName,
+			opts.ServiceVersion,
+			opts.ServiceEnvironment,
+		),
 		process:           &currentProcess,
 		system:            &localSystem,
 		closing:           make(chan struct{}),
@@ -440,15 +447,12 @@ func newTracer(opts TracerOptions) *Tracer {
 		bufferSize:        opts.bufferSize,
 		metricsBufferSize: opts.metricsBufferSize,
 		profileSender:     opts.profileSender,
+		versionGetter:     opts.versionGetter,
 		instrumentationConfigInternal: &instrumentationConfig{
 			local: make(map[string]func(*instrumentationConfigValues)),
 		},
 	}
-	t.Service.Name = opts.ServiceName
-	t.Service.Version = opts.ServiceVersion
-	t.Service.Environment = opts.ServiceEnvironment
 	t.breakdownMetrics.enabled = opts.breakdownMetrics
-
 	// Initialise local transaction config.
 	t.setLocalInstrumentationConfig(envRecording, func(cfg *instrumentationConfigValues) {
 		cfg.recording = opts.recording
@@ -879,9 +883,19 @@ func (t *Tracer) loop() {
 				case <-ctx.Done():
 				}
 			}
-			requestResult <- t.Transport.SendStream(ctx, iochanReader)
+			requestResult <- t.transport.SendStream(ctx, iochanReader)
 		}
 	}()
+
+	refreshServerVersionDeadline := 10 * time.Second
+	refreshVersionTicker := time.NewTicker(refreshServerVersionDeadline)
+	defer refreshVersionTicker.Stop()
+	if t.versionGetter != nil {
+		t.maybeRefreshServerVersion(ctx, refreshServerVersionDeadline)
+	} else {
+		// If versionGetter is nil, stop the timer.
+		refreshVersionTicker.Stop()
+	}
 
 	var breakdownMetricsLimitWarningLogged bool
 	var stats TracerStats
@@ -989,8 +1003,8 @@ func (t *Tracer) loop() {
 			}
 			var configWatcherContext context.Context
 			var watchParams apmconfig.WatchParams
-			watchParams.Service.Name = t.Service.Name
-			watchParams.Service.Environment = t.Service.Environment
+			watchParams.Service.Name = t.service.Name
+			watchParams.Service.Environment = t.service.Environment
 			configWatcherContext, stopConfigWatcher = context.WithCancel(ctx)
 			configChanges = cw.WatchConfig(configWatcherContext, watchParams)
 			// Silence go vet's "possible context leak" false positive.
@@ -1017,6 +1031,8 @@ func (t *Tracer) loop() {
 				})
 			}
 			continue
+		case <-refreshVersionTicker.C:
+			go t.maybeRefreshServerVersion(ctx, refreshServerVersionDeadline)
 		case event := <-t.events:
 			switch event.eventType {
 			case transactionEvent:
@@ -1026,7 +1042,13 @@ func (t *Tracer) loop() {
 						breakdownMetricsLimitWarningLogged = true
 					}
 				}
-				modelWriter.writeTransaction(event.tx.Transaction, event.tx.TransactionData)
+				// Drop unsampled transactions when the APM Server is >= 8.0
+				drop := t.maybeDropTransaction(
+					ctx, event.tx.TransactionData, event.tx.Sampled(),
+				)
+				if !drop {
+					modelWriter.writeTransaction(event.tx.Transaction, event.tx.TransactionData)
+				}
 			case spanEvent:
 				modelWriter.writeSpan(event.span.Span, event.span.SpanData)
 			case errorEvent:
@@ -1078,7 +1100,13 @@ func (t *Tracer) loop() {
 							breakdownMetricsLimitWarningLogged = true
 						}
 					}
-					modelWriter.writeTransaction(event.tx.Transaction, event.tx.TransactionData)
+					// Drop unsampled transactions when the APM Server is >= 8.0
+					drop := t.maybeDropTransaction(
+						ctx, event.tx.TransactionData, event.tx.Sampled(),
+					)
+					if !drop {
+						modelWriter.writeTransaction(event.tx.Transaction, event.tx.TransactionData)
+					}
 				case spanEvent:
 					modelWriter.writeSpan(event.span.Span, event.span.SpanData)
 				case errorEvent:
@@ -1276,13 +1304,12 @@ func (t *Tracer) metadataReader() io.Reader {
 }
 
 func (t *Tracer) encodeRequestMetadata(json *fastjson.Writer) {
-	service := makeService(t.Service.Name, t.Service.Version, t.Service.Environment)
 	json.RawString(`{"system":`)
 	t.system.MarshalFastJSON(json)
 	json.RawString(`,"process":`)
 	t.process.MarshalFastJSON(json)
 	json.RawString(`,"service":`)
-	service.MarshalFastJSON(json)
+	t.service.MarshalFastJSON(json)
 	if cloud := getCloudMetadata(); cloud != nil {
 		json.RawString(`,"cloud":`)
 		cloud.MarshalFastJSON(json)
@@ -1319,6 +1346,44 @@ func (t *Tracer) gatherMetrics(ctx context.Context, gatherers []MetricsGatherer,
 	}()
 }
 
+// maybeDropTransaction may drop a transaction, for example when the transaction
+// is non-sampled and the target server version is 8.0 or greater.
+// maybeDropTransaction returns true if the transaction is dropped, false otherwise.
+func (t *Tracer) maybeDropTransaction(ctx context.Context, td *TransactionData, sampled bool) bool {
+	if sampled || t.versionGetter == nil {
+		return false
+	}
+
+	v := t.versionGetter.MajorServerVersion(ctx, false)
+	dropUnsampled := v >= 8
+	if dropUnsampled {
+		td.reset(t)
+	}
+	return dropUnsampled
+}
+
+// maybeRefreshServerVersion refreshes the remote APM Server version if the version
+// has been marked as stale.
+func (t *Tracer) maybeRefreshServerVersion(ctx context.Context, deadline time.Duration) {
+	if t.versionGetter == nil {
+		return
+	}
+
+	// Fast path, when the version has been cached, there's nothing to do.
+	if v := t.versionGetter.MajorServerVersion(ctx, false); v > 0 {
+		return
+	}
+
+	// If there isn't a cached version, try to refresh the version.
+	if deadline > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, deadline)
+		defer cancel()
+	}
+	_ = t.versionGetter.MajorServerVersion(ctx, true)
+	return
+}
+
 type tracerEventType int
 
 const (
@@ -1351,4 +1416,12 @@ type tracerEvent struct {
 		// so we pass it along side.
 		*SpanData
 	}
+}
+
+type majorVersionGetter interface {
+	// MajorServerVersion returns the APM Server's major version. When refreshStale
+	// is true` it will request the remote APM Server's version from `/`, otherwise
+	// it will return the cached version. If the returned first argument is 0, the
+	// cache is stale.
+	MajorServerVersion(ctx context.Context, refreshStale bool) uint32
 }

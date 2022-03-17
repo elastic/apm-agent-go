@@ -34,7 +34,7 @@ import (
 func TestContextLabels(t *testing.T) {
 	type customInt int
 	tx := testSendTransaction(t, func(tx *apm.Transaction) {
-		tx.Context.SetTag("foo", "bar")    // deprecated
+		tx.Context.SetLabel("foo", "bar")
 		tx.Context.SetLabel("foo", "bar!") // Last instance wins
 		tx.Context.SetLabel("bar", "baz")
 		tx.Context.SetLabel("baz", 123.456)

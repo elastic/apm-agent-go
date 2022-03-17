@@ -18,7 +18,10 @@
 package apm_test
 
 import (
+	"bufio"
+	"compress/zlib"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -60,8 +63,8 @@ func TestTracerStats(t *testing.T) {
 
 func TestTracerUserAgent(t *testing.T) {
 	sendRequest := func(serviceVersion string) string {
-		waitc := make(chan string)
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		waitc := make(chan string, 1)
+		srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 			select {
 			case waitc <- r.UserAgent():
 			default:
@@ -300,6 +303,9 @@ func TestTracerRequestSize(t *testing.T) {
 
 	requestHandled := make(chan struct{}, 1)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.URL.Path == "/" {
+			return
+		}
 		io.Copy(ioutil.Discard, req.Body)
 		requestHandled <- struct{}{}
 	}))
@@ -340,13 +346,17 @@ func TestTracerBufferSize(t *testing.T) {
 	defer os.Unsetenv("ELASTIC_APM_API_REQUEST_SIZE")
 	defer os.Unsetenv("ELASTIC_APM_API_BUFFER_SIZE")
 
-	tracer, recorder := transporttest.NewRecorderTracer()
-	defer tracer.Close()
+	var recorder transporttest.RecorderTransport
 	unblock := make(chan struct{})
-	tracer.Transport = blockedTransport{
-		Transport: tracer.Transport,
-		unblocked: unblock,
-	}
+	tracer, err := apm.NewTracerOptions(apm.TracerOptions{
+		ServiceName: "transporttest",
+		Transport: blockedTransport{
+			Transport: &recorder,
+			unblocked: unblock,
+		},
+	})
+	require.NoError(t, err)
+	defer tracer.Close()
 
 	// Send a bunch of transactions, which will be buffered. Because the
 	// buffer cannot hold all of them we should expect to see some of the
@@ -412,8 +422,9 @@ func TestTracerBodyUnread(t *testing.T) {
 	require.NoError(t, err)
 	defer tracer.Close()
 
-	for atomic.LoadInt64(&requests) <= 1 {
+	for atomic.LoadInt64(&requests) <= 2 {
 		tracer.StartTransaction("name", "type").End()
+		tracer.Flush(nil)
 	}
 }
 
@@ -564,6 +575,257 @@ func TestTracerDefaultTransport(t *testing.T) {
 	})
 }
 
+func TestTracerUnsampledTransactions(t *testing.T) {
+	newTracer := func(v, remoteV uint32) (*apm.Tracer, *serverVersionRecorderTransport) {
+		transport := serverVersionRecorderTransport{
+			RecorderTransport:   &transporttest.RecorderTransport{},
+			ServerVersion:       v,
+			RemoteServerVersion: remoteV,
+		}
+		tracer, err := apm.NewTracerOptions(apm.TracerOptions{
+			ServiceName: "transporttest",
+			Transport:   &transport,
+		})
+		require.NoError(t, err)
+		return tracer, &transport
+	}
+
+	t.Run("drop", func(t *testing.T) {
+		tracer, recorder := newTracer(0, 8)
+		defer tracer.Close()
+		tracer.SetSampler(apm.NewRatioSampler(0.0))
+		tx := tracer.StartTransaction("tx", "unsampled")
+		tx.End()
+		tracer.Flush(nil)
+
+		txs := recorder.Payloads().Transactions
+		require.Empty(t, txs)
+	})
+	t.Run("send", func(t *testing.T) {
+		tracer, recorder := newTracer(0, 7)
+		defer tracer.Close()
+		tracer.SetSampler(apm.NewRatioSampler(0.0))
+		tx := tracer.StartTransaction("tx", "unsampled")
+		tx.End()
+		tracer.Flush(nil)
+
+		txs := recorder.Payloads().Transactions
+		require.NotEmpty(t, txs)
+		assert.Equal(t, txs[0].Type, "unsampled")
+	})
+	t.Run("send-sampled-7", func(t *testing.T) {
+		tracer, recorder := newTracer(0, 8)
+		defer tracer.Close()
+		tx := tracer.StartTransaction("tx", "sampled")
+		tx.End()
+		tracer.Flush(nil)
+
+		txs := recorder.Payloads().Transactions
+		require.NotEmpty(t, txs)
+		assert.Equal(t, txs[0].Type, "sampled")
+	})
+	t.Run("send-sampled-8", func(t *testing.T) {
+		tracer, recorder := newTracer(0, 8)
+		defer tracer.Close()
+		tx := tracer.StartTransaction("tx", "sampled")
+		tx.End()
+		tracer.Flush(nil)
+
+		txs := recorder.Payloads().Transactions
+		require.NotEmpty(t, txs)
+		assert.Equal(t, txs[0].Type, "sampled")
+	})
+	t.Run("send-unimplemented-interface", func(t *testing.T) {
+		tracer, recorder := transporttest.NewRecorderTracer()
+		defer tracer.Close()
+		tracer.SetSampler(apm.NewRatioSampler(0.0))
+		tx := tracer.StartTransaction("tx", "unsampled")
+		tx.End()
+		tracer.Flush(nil)
+
+		txs := recorder.Payloads().Transactions
+		require.NotEmpty(t, txs)
+		assert.Equal(t, txs[0].Type, "unsampled")
+	})
+	t.Run("send-onerror", func(t *testing.T) {
+		tracer, recorder := newTracer(0, 0)
+		defer tracer.Close()
+		tracer.SetSampler(apm.NewRatioSampler(0.0))
+		tx := tracer.StartTransaction("tx", "unsampled")
+		tx.End()
+		tracer.Flush(nil)
+
+		txs := recorder.Payloads().Transactions
+		require.NotEmpty(t, txs)
+		assert.Equal(t, txs[0].Type, "unsampled")
+	})
+}
+
+func TestTracerUnsampledTransactionsHTTPTransport(t *testing.T) {
+	newTracer := func(srvURL string) (*apm.Tracer, *transport.HTTPTransport) {
+		os.Setenv("ELASTIC_APM_SERVER_URL", srvURL)
+		defer os.Unsetenv("ELASTIC_APM_SERVER_URL")
+		transport, err := transport.NewHTTPTransport(transport.HTTPTransportOptions{})
+		require.NoError(t, err)
+		tracer, err := apm.NewTracerOptions(apm.TracerOptions{
+			ServiceName: "transporttest",
+			Transport:   transport,
+		})
+		require.NoError(t, err)
+		return tracer, transport
+	}
+
+	type event struct {
+		Tx *model.Transaction `json:"transaction,omitempty"`
+	}
+	countTransactions := func(body io.ReadCloser) uint32 {
+		reader, err := zlib.NewReader(body)
+		require.NoError(t, err)
+		scanner := bufio.NewScanner(reader)
+		var tCount uint32
+		for scanner.Scan() {
+			var e event
+			json.Unmarshal([]byte(scanner.Text()), &e)
+			assert.NoError(t, err)
+
+			if e.Tx != nil {
+				tCount++
+			}
+		}
+		return tCount
+	}
+
+	intakeHandlerFunc := func(tCounter *uint32) http.Handler {
+		return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+			defer r.Body.Close()
+			atomic.AddUint32(tCounter, countTransactions(r.Body))
+			rw.WriteHeader(202)
+		})
+	}
+	// This handler is used to test for cache invalidation, it will return an
+	// error only once when the number of transactions is 100, so we can test
+	// the cache invalidation.
+	intakeHandlerErr100Func := func(tCounter *uint32) http.Handler {
+		var hasErrored bool
+		return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+			defer r.Body.Close()
+			if atomic.LoadUint32(tCounter) == 100 && !hasErrored {
+				hasErrored = true
+				io.Copy(ioutil.Discard, r.Body)
+				http.Error(rw, "error-message", http.StatusInternalServerError)
+				return
+			}
+			atomic.AddUint32(tCounter, countTransactions(r.Body))
+			rw.WriteHeader(202)
+		})
+	}
+	rootHandlerFunc := func(v string, rootCounter *uint32) http.Handler {
+		return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+			// Only handle requests that match the path.
+			if r.URL.Path != "/" {
+				return
+			}
+			rw.WriteHeader(200)
+			rw.Write([]byte(fmt.Sprintf(`{"version":"%s"}`, v)))
+			atomic.AddUint32(rootCounter, 1)
+		})
+	}
+
+	generateTx := func(tracer *apm.Tracer) {
+		// Sends 100 unsampled transactions to the tracer.
+		tracer.SetSampler(apm.NewRatioSampler(0.0))
+		for i := 0; i < 100; i++ {
+			tx := tracer.StartTransaction("tx", "unsampled")
+			tx.End()
+		}
+		// Sends 100 sampled transactions to the tracer.
+		tracer.SetSampler(apm.NewRatioSampler(1.0))
+		for i := 0; i < 100; i++ {
+			tx := tracer.StartTransaction("tx", "sampled")
+			tx.End()
+		}
+		<-time.After(time.Millisecond)
+		tracer.Flush(nil)
+	}
+
+	t.Run("pre-8-sends-all", func(t *testing.T) {
+		var tCounter, rootCounter uint32
+		mux := http.NewServeMux()
+		mux.Handle("/intake/v2/events", intakeHandlerFunc(&tCounter))
+		mux.Handle("/", rootHandlerFunc("7.17.0", &rootCounter))
+		srv := httptest.NewServer(mux)
+		defer srv.Close()
+
+		tracer, _ := newTracer(srv.URL)
+		generateTx(tracer)
+
+		assert.Equal(t, uint32(200), atomic.LoadUint32(&tCounter))
+		assert.Equal(t, uint32(1), atomic.LoadUint32(&rootCounter))
+	})
+	t.Run("post-8-sends-sampled-only", func(t *testing.T) {
+		var tCounter, rootCounter uint32
+		mux := http.NewServeMux()
+		mux.Handle("/intake/v2/events", intakeHandlerFunc(&tCounter))
+		mux.Handle("/", rootHandlerFunc("8.0.0", &rootCounter))
+		srv := httptest.NewServer(mux)
+		defer srv.Close()
+
+		tracer, _ := newTracer(srv.URL)
+		generateTx(tracer)
+
+		assert.Equal(t, uint32(100), atomic.LoadUint32(&tCounter))
+		assert.Equal(t, uint32(1), atomic.LoadUint32(&rootCounter))
+	})
+	t.Run("post-8-sends-sampled-only-after-cache-invalidation-send-all", func(t *testing.T) {
+		// This test case asserts that when the server's major version is >= 8
+		// only the sampled transactions are sent. After 100 transactions have
+		// been sent to the server, the server will return a 500 error and will
+		// invalidate the cache, causing all transactions (sampled and unsampled)
+		// to be sent, until the version is refreshed. Since it will take 10s
+		// for the version to be refreshed, this test doesn't assert that.
+		var tCounter, rootCounter uint32
+		mux := http.NewServeMux()
+		mux.Handle("/intake/v2/events", intakeHandlerErr100Func(&tCounter))
+		mux.Handle("/", rootHandlerFunc("8.0.0", &rootCounter))
+		srv := httptest.NewServer(mux)
+		defer srv.Close()
+
+		tracer, transport := newTracer(srv.URL)
+		for i := 0; i < 3; i++ {
+			generateTx(tracer)
+		}
+		assert.Equal(t, uint32(300), atomic.LoadUint32(&tCounter))
+		assert.Equal(t, uint32(1), atomic.LoadUint32(&rootCounter))
+
+		// Manually refresh the remote version.
+		type majorVersionGetter interface {
+			MajorServerVersion(ctx context.Context, refreshStale bool) uint32
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		transport.MajorServerVersion(ctx, true)
+		assert.Equal(t, uint32(2), atomic.LoadUint32(&rootCounter))
+
+		// Send 100 sampled and 100 unsampled txs.
+		generateTx(tracer)
+		assert.Equal(t, uint32(400), atomic.LoadUint32(&tCounter))
+	})
+	t.Run("invalid-version-sends-all", func(t *testing.T) {
+		var tCounter, rootCounter uint32
+		mux := http.NewServeMux()
+		mux.Handle("/intake/v2/events", intakeHandlerFunc(&tCounter))
+		mux.Handle("/", rootHandlerFunc("invalid-version", &rootCounter))
+		srv := httptest.NewServer(mux)
+		defer srv.Close()
+
+		tracer, _ := newTracer(srv.URL)
+		generateTx(tracer)
+
+		assert.Equal(t, uint32(200), atomic.LoadUint32(&tCounter))
+		assert.Equal(t, uint32(1), atomic.LoadUint32(&rootCounter))
+	})
+}
+
 type blockedTransport struct {
 	transport.Transport
 	unblocked chan struct{}
@@ -576,4 +838,19 @@ func (bt blockedTransport) SendStream(ctx context.Context, r io.Reader) error {
 	case <-bt.unblocked:
 		return bt.Transport.SendStream(ctx, r)
 	}
+}
+
+// serverVersionRecorderTransport wraps a RecorderTransport providing the
+type serverVersionRecorderTransport struct {
+	*transporttest.RecorderTransport
+	ServerVersion       uint32
+	RemoteServerVersion uint32
+}
+
+// MajorServerVersion returns the stored version.
+func (r *serverVersionRecorderTransport) MajorServerVersion(_ context.Context, refreshStale bool) uint32 {
+	if refreshStale {
+		atomic.StoreUint32(&r.ServerVersion, r.RemoteServerVersion)
+	}
+	return atomic.LoadUint32(&r.ServerVersion)
 }

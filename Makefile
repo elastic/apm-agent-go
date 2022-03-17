@@ -1,11 +1,12 @@
 TEST_TIMEOUT?=5m
 GO_LICENSER_EXCLUDE=stacktrace/testdata
+GO_LANGUAGE_VERSION=1.15
 
 .PHONY: check
 check: precheck check-modules test
 
 .PHONY: precheck
-precheck: check-goimports check-lint check-vanity-import check-vet check-dockerfile-testing check-licenses model/marshal_fastjson.go scripts/Dockerfile-testing
+precheck: check-goimports check-vanity-import check-vet check-dockerfile-testing check-licenses model/marshal_fastjson.go scripts/Dockerfile-testing
 
 .PHONY: check-goimports
 check-goimports:
@@ -15,17 +16,13 @@ check-goimports:
 check-dockerfile-testing:
 	go run ./scripts/gendockerfile.go -d
 
-.PHONY: check-lint
-check-lint:
-	sh scripts/check_lint.sh
-
 .PHONY: check-licenses
 check-licenses:
 	go run github.com/elastic/go-licenser -d $(patsubst %,-exclude %,$(GO_LICENSER_EXCLUDE)) .
 
 .PHONY: check-modules
 check-modules:
-	go run scripts/genmod/main.go -check .
+	go run scripts/genmod/main.go -go=$(GO_LANGUAGE_VERSION) -check .
 
 .PHONY: check-vanity-import
 check-vanity-import:
@@ -34,10 +31,6 @@ check-vanity-import:
 .PHONY: check-vet
 check-vet:
 	@for dir in $(shell scripts/moduledirs.sh); do (cd $$dir && go vet ./...) || exit $$?; done
-
-.PHONY: install
-install:
-	go get -v -t ./...
 
 .PHONY: docker-test
 docker-test:
@@ -61,7 +54,7 @@ clean:
 
 .PHONY: update-modules
 update-modules:
-	go run scripts/genmod/main.go .
+	go run scripts/genmod/main.go -go=$(GO_LANGUAGE_VERSION) .
 
 .PHONY: docs
 docs:

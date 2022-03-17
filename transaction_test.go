@@ -33,7 +33,6 @@ import (
 	"go.elastic.co/apm/v2"
 	"go.elastic.co/apm/v2/apmtest"
 	"go.elastic.co/apm/v2/model"
-	"go.elastic.co/apm/v2/transport"
 	"go.elastic.co/apm/v2/transport/transporttest"
 )
 
@@ -551,11 +550,7 @@ func TestTransactionOutcome(t *testing.T) {
 }
 
 func BenchmarkTransaction(b *testing.B) {
-	tracer, err := apm.NewTracer("service", "")
-	require.NoError(b, err)
-
-	tracer.Transport = transport.Discard
-	defer tracer.Close()
+	tracer := apmtest.DiscardTracer
 
 	names := []string{}
 	for i := 0; i < 1000; i++ {

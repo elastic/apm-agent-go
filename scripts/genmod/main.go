@@ -38,8 +38,9 @@ import (
 )
 
 var (
-	checkFlag   = flag.Bool("check", false, "check the go.mod files are complete, instead of updating them")
-	versionFlag = flag.String("version", "v"+apm.AgentVersion, "module version (e.g. \"v1.0.0\"")
+	checkFlag     = flag.Bool("check", false, "check the go.mod files are complete, instead of updating them")
+	versionFlag   = flag.String("version", "v"+apm.AgentVersion, "module version (e.g. \"v1.0.0\"")
+	goVersionFlag = flag.String("go", "", "go version to expect in go.mod files")
 )
 
 func init() {
@@ -125,18 +126,22 @@ func updateModule(dir string, gomod *GoMod, modules map[string]*GoMod) error {
 		if !ok {
 			continue
 		}
-		if require.Version == *versionFlag {
+		if require.Version == *versionFlag && (*goVersionFlag == "" || gomod.Go == *goVersionFlag) {
 			continue
 		}
 		relDir, err := filepath.Rel(dir, requireMod.dir)
 		if err != nil {
 			return err
 		}
-		cmd := exec.Command(
-			"go", "mod", "edit",
-			"-require", require.Path+"@"+*versionFlag,
-			"-replace", require.Path+"="+relDir,
-		)
+		args := []string{
+			"mod", "edit",
+			"-require", require.Path + "@" + *versionFlag,
+			"-replace", require.Path + "=" + relDir,
+		}
+		if *goVersionFlag != "" {
+			args = append(args, "-go", *goVersionFlag)
+		}
+		cmd := exec.Command("go", args...)
 		cmd.Env = append(os.Environ(), "GO111MODULE=on")
 		cmd.Env = append(cmd.Env, "GOPROXY=http://proxy.invalid", "GOSUMDB=sum.golang.org https://sum.golang.org")
 		cmd.Stderr = os.Stderr
@@ -149,11 +154,20 @@ func updateModule(dir string, gomod *GoMod, modules map[string]*GoMod) error {
 }
 
 // checkModule checks that the require stanzas in $dir/go.mod have the
-// correct versions, and have appropriate matching "replace" stanzas.
+// correct versions, appropriate matching "replace" stanzas, and the
+// correct required Go version (if -go is specified).
 func checkModule(dir string, gomod *GoMod, modules map[string]*GoMod) error {
 	// Verify that any required module in modules has the version
 	// specified in versionFlag, and has a replacement stanza.
 	var gomodBad bool
+	if *goVersionFlag != "" && gomod.Go != *goVersionFlag {
+		fmt.Fprintf(
+			os.Stderr,
+			" - found \"go %s\", expected \"go %s\"\n",
+			gomod.Go, *goVersionFlag,
+		)
+		gomodBad = true
+	}
 	for _, require := range gomod.Require {
 		requireMod, ok := modules[require.Path]
 		if !ok {
@@ -260,7 +274,7 @@ func main() {}
 	if err != nil {
 		return err
 	}
-	if tag == "1.17" {
+	if minorVersion > 16 {
 		tag = "1.16"
 	}
 	fmt.Fprintf(&tmpGomodContent, "\ngo %s\n", tag)
@@ -340,6 +354,7 @@ type GoMod struct {
 	dir string
 
 	Module  Module
+	Go      string
 	Require []Require
 	Exclude []Module
 	Replace []Replace

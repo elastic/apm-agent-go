@@ -41,20 +41,20 @@ import (
 )
 
 func TestValidateServiceName(t *testing.T) {
-	validatePayloadMetadata(t, func(tracer *apm.Tracer) {
-		tracer.Service.Name = strings.Repeat("x", 1025)
+	validatePayloadMetadata(t, func(opts *apm.TracerOptions) {
+		opts.ServiceName = strings.Repeat("x", 1025)
 	})
 }
 
 func TestValidateServiceVersion(t *testing.T) {
-	validatePayloadMetadata(t, func(tracer *apm.Tracer) {
-		tracer.Service.Version = strings.Repeat("x", 1025)
+	validatePayloadMetadata(t, func(opts *apm.TracerOptions) {
+		opts.ServiceVersion = strings.Repeat("x", 1025)
 	})
 }
 
 func TestValidateServiceEnvironment(t *testing.T) {
-	validatePayloadMetadata(t, func(tracer *apm.Tracer) {
-		tracer.Service.Environment = strings.Repeat("x", 1025)
+	validatePayloadMetadata(t, func(opts *apm.TracerOptions) {
+		opts.ServiceEnvironment = strings.Repeat("x", 1025)
 	})
 }
 
@@ -364,20 +364,32 @@ func validateTransaction(t *testing.T, f func(tx *apm.Transaction)) {
 	})
 }
 
-func validatePayloadMetadata(t *testing.T, f func(tracer *apm.Tracer)) {
-	validatePayloads(t, func(tracer *apm.Tracer) {
-		f(tracer)
+func validatePayloadMetadata(t *testing.T, f func(opts *apm.TracerOptions)) {
+	var opts apm.TracerOptions
+	f(&opts)
+	validatePayloadsTracerOptions(t, opts, func(tracer *apm.Tracer) {
 		tracer.StartTransaction("name", "type").End()
 	})
 }
 
 func validatePayloads(t *testing.T, f func(tracer *apm.Tracer)) {
-	tracer, _ := apm.NewTracerOptions(apm.TracerOptions{
-		ServiceName:        "x",
-		ServiceVersion:     "y",
-		ServiceEnvironment: "z",
-		Transport:          &validatingTransport{t: t},
-	})
+	validatePayloadsTracerOptions(t, apm.TracerOptions{}, f)
+}
+
+func validatePayloadsTracerOptions(t *testing.T, opts apm.TracerOptions, f func(tracer *apm.Tracer)) {
+	if opts.ServiceName == "" {
+		opts.ServiceName = "x"
+	}
+	if opts.ServiceVersion == "" {
+		opts.ServiceVersion = "y"
+	}
+	if opts.ServiceEnvironment == "" {
+		opts.ServiceEnvironment = "z"
+	}
+	opts.Transport = &validatingTransport{t: t}
+
+	tracer, err := apm.NewTracerOptions(opts)
+	require.NoError(t, err)
 	defer tracer.Close()
 
 	f(tracer)
