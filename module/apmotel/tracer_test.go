@@ -19,9 +19,12 @@ package apmotel_test
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
+	"math/rand"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,6 +33,7 @@ import (
 
 	"go.elastic.co/apm/module/apmotel/v2"
 	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/model"
 	"go.elastic.co/apm/v2/transport/transporttest"
 )
 
@@ -325,6 +329,57 @@ func TestSpanStartAttributesWithTx(t *testing.T) {
 		}
 		assert.Equal(t, strings.ToUpper(tc.spanKind.String()), spans[i].OTel.SpanKind)
 	}
+}
+
+func TestSpanStartAttributesValidSpanCtx(t *testing.T) {
+	tracer, apmtracer, recorder := newTestTracer()
+	defer apmtracer.Close()
+
+	ctx := context.Background()
+	traceID := [16]byte{}
+	binary.LittleEndian.PutUint64(traceID[:8], rand.Uint64())
+	binary.LittleEndian.PutUint64(traceID[8:], rand.Uint64())
+
+	spanID := [8]byte{}
+	copy(spanID[:], traceID[:])
+
+	traceFlags := trace.TraceFlags(1)
+
+	s := "es=s:1;a:b,z=w,a=d"
+	traceState, err := trace.ParseTraceState(s)
+	require.NoError(t, err)
+
+	cfg := trace.SpanContextConfig{
+		TraceID:    traceID,
+		SpanID:     spanID,
+		TraceFlags: traceFlags,
+		TraceState: traceState,
+		Remote:     false,
+	}
+	spanCtx := trace.NewSpanContext(cfg)
+	ctx = trace.ContextWithSpanContext(ctx, spanCtx)
+
+	spanType := "unknown"
+	attrs := []attribute.KeyValue{
+		attribute.String("not.known", "unknown"),
+	}
+	spanKind := trace.SpanKindClient
+	timestamp := time.Now().Add(time.Hour)
+	_, span := tracer.Start(ctx, "tc", trace.WithAttributes(attrs...), trace.WithSpanKind(spanKind), trace.WithTimestamp(timestamp))
+	span.End()
+
+	apmtracer.Flush(nil)
+	payloads := recorder.Payloads()
+	txs := payloads.Transactions
+	require.Len(t, txs, 1)
+	assert.Equal(t, model.SpanID(cfg.SpanID), txs[0].ParentID)
+	assert.Equal(t, model.TraceID(cfg.TraceID), txs[0].TraceID)
+	assert.Equal(t, timestamp.Unix(), time.Time(txs[0].Timestamp).Unix())
+	assert.Equal(t, spanType, txs[0].Type)
+	// model.Transaction doesn't seem to have a tracecontext or
+	// tracestate, maybe it's only in the headers? how to access them?
+	// assert.Equal(t, model.TraceOptions(cfg.TraceFlags), txs[i].TraceContext().Options)
+	assert.Equal(t, strings.ToUpper(spanKind.String()), txs[0].OTel.SpanKind)
 }
 
 func newTestTracer() (trace.Tracer, *apm.Tracer, *transporttest.RecorderTransport) {

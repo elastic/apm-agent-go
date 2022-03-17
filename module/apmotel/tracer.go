@@ -215,9 +215,9 @@ func newSpan(ctx context.Context, t *tracer, name string, opts ...trace.SpanStar
 		}
 		txOpts := apm.TransactionOptions{TraceContext: txCtx}
 
-		// If timestamp has been set, ie. it's not the default value,
-		// set it on txOpts.
-		if start := cfg.Timestamp(); start.After(time.Unix(0, 0)) {
+		// If timestamp has been set, ie. it's not the zero value, set
+		// it on txOpts.
+		if start := cfg.Timestamp(); !start.IsZero() {
 			txOpts.Start = start
 		}
 
