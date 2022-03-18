@@ -21,6 +21,7 @@ import (
 	"context"
 
 	"go.elastic.co/apm/v2"
+
 	"go.opentelemetry.io/otel/trace"
 )
 
