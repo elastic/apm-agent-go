@@ -137,3 +137,9 @@ func (t *transaction) SetAttributes(kvs ...attribute.KeyValue) {
 func (t *transaction) TracerProvider() trace.TracerProvider {
 	return GetTracerProvider()
 }
+
+// Transaction returns s.inner, the underlying apm.Span. This is used to
+// satisfy TransactionFromContext.
+func (t *transaction) Transaction() *apm.Transaction {
+	return t.inner
+}

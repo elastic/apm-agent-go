@@ -30,12 +30,14 @@ func init() {
 	// native API are wrapped and made available as OTel spans.
 	apm.OverrideContextWithSpan = contextWithSpan
 	apm.OverrideSpanFromContext = spanFromContext
+	apm.OverrideContextWithTransaction = contextWithTransaction
+	apm.OverrideTransactionFromContext = transactionFromContext
 }
 
 func contextWithSpan(ctx context.Context, s *apm.Span) context.Context {
 	// Should we make a note that they need to update the default tracer to
 	// use this? Or is there some better way to do this.
-	otelSpan := &span{inner: s, tracer: apm.DefaultTracer()}
+	otelSpan := &span{inner: s, tracer: apm.DefaultTracer(), tx: transactionFromContext(ctx)}
 	return trace.ContextWithSpan(ctx, otelSpan)
 }
 
@@ -47,4 +49,20 @@ func spanFromContext(ctx context.Context) *apm.Span {
 		return nil
 	}
 	return otelSpan.Span()
+}
+
+func contextWithTransaction(ctx context.Context, tx *apm.Transaction) context.Context {
+	// Should we make a note that they need to update the default tracer to
+	// use this? Or is there some better way to do this.
+	otelTx := &transaction{inner: tx, tracer: apm.DefaultTracer()}
+	return trace.ContextWithSpan(ctx, otelTx)
+}
+
+func transactionFromContext(ctx context.Context) *apm.Transaction {
+	if otelSpan, ok := trace.SpanFromContext(ctx).(interface {
+		Transaction() *apm.Transaction
+	}); ok {
+		return otelSpan.Transaction()
+	}
+	return nil
 }

@@ -29,6 +29,7 @@ import (
 
 type span struct {
 	inner  *apm.Span
+	tx     *apm.Transaction
 	tracer *apm.Tracer
 
 	mu    sync.RWMutex
@@ -120,8 +121,14 @@ func (s *span) TracerProvider() trace.TracerProvider {
 	return GetTracerProvider()
 }
 
-// Span returns s.span, the underlying apm.Span. This is used to satisfy
+// Span returns s.inner, the underlying apm.Span. This is used to satisfy
 // SpanFromContext.
 func (s *span) Span() *apm.Span {
 	return s.inner
+}
+
+// Transaction returns s.tx, the parent apm.Transaction. This is used to
+// satisfy TransactionFromContext.
+func (s *span) Transaction() *apm.Transaction {
+	return s.tx
 }
