@@ -195,7 +195,7 @@ func newSpan(ctx context.Context, t *tracer, name string, opts ...trace.SpanStar
 	// https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/api.md#spankind
 	spanKind := strings.ToUpper(cfg.SpanKind().String())
 	spanCtx := trace.SpanContextFromContext(ctx)
-	tx := apm.TransactionFromContext(ctx)
+	tx := transactionFromContext(ctx)
 
 	if cfg.NewRoot() {
 		return newRootTransaction(ctx, t.inner, cfg.Attributes(), spanKind, name, txType)
@@ -242,7 +242,7 @@ func newSpan(ctx context.Context, t *tracer, name string, opts ...trace.SpanStar
 		s.Context.SetDestinationService(apm.DestinationServiceSpanContext{Resource: resource})
 		s.Context.SetOTelSpanKind(spanKind)
 		ctx := apm.ContextWithSpan(ctx, s)
-		otelSpan := &span{inner: s, tracer: t.inner}
+		otelSpan := &span{inner: s, tracer: t.inner, tx: tx}
 		otelSpan.SetAttributes(cfg.Attributes()...)
 		return ctx, otelSpan
 	}
