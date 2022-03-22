@@ -81,6 +81,10 @@ func (t *transaction) IsRecording() bool {
 // be set to Error, as this method does not change the Span status. If this
 // transaction is not being recorded or err is nil then this method does nothing.
 func (t *transaction) RecordError(err error, _ ...trace.EventOption) {
+	// TODO: Check trace.EventOptions
+	if err == nil || !t.IsRecording() {
+		return
+	}
 	e := t.tracer.NewError(err)
 	e.SetTransaction(t.inner)
 	e.Send()
