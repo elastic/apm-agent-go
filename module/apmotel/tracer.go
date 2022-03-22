@@ -29,37 +29,11 @@ import (
 	"go.elastic.co/apm/v2"
 )
 
-// Tracer creates a named tracer that implements otel.Tracer.
-// If the name is an empty string then provider uses default name.
-func Tracer(_ string, opts ...trace.TracerOption) trace.Tracer {
-	apmOpts := apm.TracerOptions{}
-	tracerCfg := trace.NewTracerConfig(opts...)
-	if version := (&tracerCfg).InstrumentationVersion(); version != "" {
-		apmOpts.ServiceVersion = version
-	}
-
-	t, err := apm.NewTracerOptions(apmOpts)
-	if err != nil {
-		panic(err)
-	}
-
-	return &tracer{inner: t}
-}
-
 // NewTracerProvider creates a new trace.Tracer with the provided apm.Tracer.
 func NewTracerProvider(t *apm.Tracer) trace.TracerProvider {
 	return tracerFunc(func(_ string, _ ...trace.TracerOption) trace.Tracer {
 		return &tracer{inner: t}
 	})
-}
-
-// SetTracerProvider is a noop function to match opentelemetry's trace module.
-func SetTracerProvider(_ trace.TracerProvider) {}
-
-// GetTracerProvider returns a trace.TraceProvider that executes this package's
-// Trace() function.
-func GetTracerProvider() trace.TracerProvider {
-	return tracerFunc(Tracer)
 }
 
 type tracerFunc func(string, ...trace.TracerOption) trace.Tracer
@@ -189,10 +163,6 @@ func newSpan(ctx context.Context, t *tracer, name string, opts ...trace.SpanStar
 		}
 	}
 
-	// Question: This is lowercase, but the example in our docs is showing them as being uppercase
-	// Using uppercase for now.
-	// https://github.com/open-telemetry/opentelemetry-go/blob/trace/v1.3.0/trace/trace.go#L469-L484
-	// https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/api.md#spankind
 	spanKind := strings.ToUpper(cfg.SpanKind().String())
 	spanCtx := trace.SpanContextFromContext(ctx)
 	tx := transactionFromContext(ctx)
