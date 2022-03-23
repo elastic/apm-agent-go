@@ -141,15 +141,16 @@ your communications using HTTPS. Unless you do so, your API Key could be observe
 [options="header"]
 |============
 | Environment                | Default         | Example
-| `ELASTIC_APM_SERVICE_NAME` | unknown-go-service | `my-app`
+| `ELASTIC_APM_SERVICE_NAME` | Executable name | `my-app`
 |============
 
 The name of your service or application.  This is used to keep all the errors and
 transactions of your service together and is the primary filter in the Elastic APM
 user interface.
 
-If you do not specify `ELASTIC_APM_SERVICE_NAME`, the Go agent will use
-`unknown-go-service`.
+If you do not specify `ELASTIC_APM_SERVICE_NAME`, the Go agent will use the
+executable name. e.g. if your executable is called "my-app.exe", then your
+service will be identified as "my-app".
 
 NOTE: The service name must conform to this regular expression: `^[a-zA-Z0-9 _-]+$`.
 In other words: your service name must only contain characters from the ASCII
