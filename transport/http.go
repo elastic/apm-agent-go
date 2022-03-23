@@ -150,12 +150,15 @@ type HTTPTransport struct {
 	intakeHeaders  http.Header
 	configHeaders  http.Header
 	profileHeaders http.Header
+	rootHeaders    http.Header
 	shuffleRand    *rand.Rand
 
 	urlIndex    int32
 	intakeURLs  []*url.URL
 	configURLs  []*url.URL
 	profileURLs []*url.URL
+
+	majorServerVersion uint32
 }
 
 // NewHTTPTransport returns a new HTTPTransport, initialized with opts,
@@ -229,6 +232,7 @@ func newHTTPTransportOptions(opts HTTPTransportOptions) (*HTTPTransport, error) 
 		configHeaders:  commonHeaders,
 		intakeHeaders:  intakeHeaders,
 		profileHeaders: profileHeaders,
+		rootHeaders:    copyHeaders(commonHeaders),
 	}
 	if opts.APIKey != "" {
 		t.SetAPIKey(opts.APIKey)
@@ -341,12 +345,14 @@ func (t *HTTPTransport) SetAPIKey(apiKey string) {
 
 func (t *HTTPTransport) setCommonHeader(key, value string) {
 	t.configHeaders.Set(key, value)
+	t.rootHeaders.Set(key, value)
 	t.intakeHeaders.Set(key, value)
 	t.profileHeaders.Set(key, value)
 }
 
 func (t *HTTPTransport) deleteCommonHeader(key string) {
 	t.configHeaders.Del(key)
+	t.rootHeaders.Del(key)
 	t.intakeHeaders.Del(key)
 	t.profileHeaders.Del(key)
 }
@@ -363,6 +369,9 @@ func (t *HTTPTransport) SendStream(ctx context.Context, r io.Reader) error {
 	req.Body = ioutil.NopCloser(r)
 	if err := t.sendStreamRequest(req); err != nil {
 		atomic.StoreInt32(&t.urlIndex, (urlIndex+1)%int32(len(t.intakeURLs)))
+		// The remote APM Server url has changed, so we invalidate the local
+		// Major Server version cache.
+		atomic.StoreUint32(&t.majorServerVersion, 0)
 		return err
 	}
 	return nil
@@ -373,12 +382,11 @@ func (t *HTTPTransport) sendStreamRequest(req *http.Request) error {
 	if err != nil {
 		return errors.Wrap(err, "sending event request failed")
 	}
+	defer resp.Body.Close()
 	switch resp.StatusCode {
 	case http.StatusOK, http.StatusAccepted:
-		resp.Body.Close()
 		return nil
 	}
-	defer resp.Body.Close()
 
 	result := newHTTPError(resp)
 	if resp.StatusCode == http.StatusNotFound && result.Message == "404 page not found" {
@@ -571,6 +579,52 @@ func (t *HTTPTransport) configRequest(req *http.Request) configResponse {
 	return response
 }
 
+// serverInfo represents the APM Server information as exposed in the `/`
+// endpoint. Not all fields may be modeled in this structure.
+type serverInfo struct {
+	// Version holds the APM Server version.
+	Version string `json:"version,omitempty"`
+}
+
+// MajorServerVersion returns the APM Server's major version. When refreshStale
+// is true` it will request the remote APM Server's version from `/`, otherwise
+// it will return the cached version. If the returned first argument is 0, the
+// cache is stale.
+func (t *HTTPTransport) MajorServerVersion(ctx context.Context, refreshStale bool) uint32 {
+	if v := atomic.LoadUint32(&t.majorServerVersion); v > 0 || !refreshStale {
+		return v
+	}
+	return t.refreshMajorServerVersion(ctx)
+}
+
+// RefreshVersion queries the "active" remote APM Server and caches the result
+// locally when the operation succeeds.
+func (t *HTTPTransport) refreshMajorServerVersion(ctx context.Context) uint32 {
+	srvURL := t.intakeURLs[atomic.LoadInt32(&t.urlIndex)]
+	u := *srvURL
+	u.Path, u.RawPath = "", ""
+	req := requestWithContext(ctx, t.newRequest("GET", urlWithPath(&u, "/")))
+	req.Header = t.rootHeaders
+	res, err := t.Client.Do(req)
+	if err != nil {
+		return 0
+	}
+	defer res.Body.Close()
+
+	var resp serverInfo
+	if err := json.NewDecoder(res.Body).Decode(&resp); err != nil {
+		return 0
+	}
+
+	if resp.Version != "" {
+		if v, ok := parseMajorVersion(resp.Version); ok {
+			atomic.StoreUint32(&t.majorServerVersion, v)
+			return v
+		}
+	}
+	return atomic.LoadUint32(&t.majorServerVersion)
+}
+
 func (t *HTTPTransport) newRequest(method string, url *url.URL) *http.Request {
 	req := &http.Request{
 		Method:     method,
@@ -727,4 +781,21 @@ func parseCacheControl(s string) cacheControl {
 		return cacheControl{maxAge: -1}
 	}
 	return cacheControl{maxAge: time.Duration(maxAge) * time.Second}
+}
+
+// parseMajorVersion returns the major version given a version string. Accepts
+// the string as long as it contans a `.` and the runes preceding `.` can be
+// parsed to a number. If the operation succeeded, the second return value will
+// be true.
+func parseMajorVersion(v string) (uint32, bool) {
+	i := strings.IndexRune(v, '.')
+	if i == -1 {
+		return 0, false
+	}
+
+	major, err := strconv.Atoi(v[:i])
+	if err != nil {
+		return 0, false
+	}
+	return uint32(major), true
 }

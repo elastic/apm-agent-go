@@ -155,6 +155,10 @@ func TestMiddleware(t *testing.T) {
 			StatusCode: 200,
 			Headers: model.Headers{
 				{
+					Key:    "Content-Length",
+					Values: []string{"13"},
+				},
+				{
 					Key:    "Content-Type",
 					Values: []string{"text/plain; charset=utf-8"},
 				},

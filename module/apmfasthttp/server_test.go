@@ -18,10 +18,12 @@
 package apmfasthttp_test
 
 import (
+	"bufio"
 	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
+	"sync"
 	"testing"
 	"time"
 
@@ -30,37 +32,42 @@ import (
 	"github.com/valyala/fasthttp"
 
 	"go.elastic.co/apm/module/apmfasthttp/v2"
+	"go.elastic.co/apm/v2/model"
 	"go.elastic.co/apm/v2/transport/transporttest"
 )
 
-func TestServerHTTPResponse(t *testing.T) {
+type assertFunc func(model.Transaction, *http.Response)
+
+func testServer(t *testing.T, s *fasthttp.Server, wg *sync.WaitGroup, assertFn assertFunc) {
+	t.Helper()
+
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
-	handler := func(ctx *fasthttp.RequestCtx) {
-		ctx.Error(fasthttp.StatusMessage(fasthttp.StatusUnauthorized), fasthttp.StatusUnauthorized)
-	}
-	handler = apmfasthttp.Wrap(handler, apmfasthttp.WithTracer(tracer))
 	shutdown := make(chan error)
 	defer close(shutdown)
+
 	ln, err := net.Listen("tcp", "127.0.0.1:")
 	require.NoError(t, err)
 
-	s := &fasthttp.Server{
-		Handler: handler,
-		Name:    "test-server",
-	}
+	s.Handler = apmfasthttp.Wrap(s.Handler, apmfasthttp.WithTracer(tracer))
 
 	go func() {
 		shutdown <- s.Serve(ln)
 	}()
 
 	addr := ln.Addr().String()
+
 	resp, err := http.Get("http://" + addr)
 	require.NoError(t, err)
-	io.Copy(ioutil.Discard, resp.Body) // consume body to complete request handler
+
+	_, _ = io.Copy(ioutil.Discard, resp.Body) // consume body to complete request handler
 	resp.Body.Close()
-	assert.Equal(t, fasthttp.StatusUnauthorized, resp.StatusCode)
+
+	if wg != nil {
+		wg.Wait()
+	}
+
 	tracer.Flush(nil)
 	payloads := transport.Payloads()
 
@@ -71,26 +78,114 @@ func TestServerHTTPResponse(t *testing.T) {
 	// This is unique to fasthttp's implementation.
 	timer := time.NewTimer(100 * time.Millisecond)
 	defer timer.Stop()
-	for {
+
+	for len(payloads.Transactions) == 0 {
 		select {
 		case <-timer.C:
 			t.Fatal("timed out waiting for payload")
 		default:
+			time.Sleep(100 * time.Millisecond)
+			tracer.Flush(nil)
+			payloads = transport.Payloads()
 		}
-		if len(payloads.Transactions) > 0 {
-			break
-		}
-		time.Sleep(10 * time.Millisecond)
-		tracer.Flush(nil)
-		payloads = transport.Payloads()
 	}
 
-	transaction := payloads.Transactions[0]
-	assert.Equal(t, "GET /", transaction.Name)
-	assert.Equal(t, "request", transaction.Type)
-	assert.Equal(t, "HTTP 4xx", transaction.Result)
+	assertFn(payloads.Transactions[0], resp)
 
 	// s.Serve returns on ln.Close()
 	ln.Close()
 	require.NoError(t, <-shutdown)
+}
+
+func TestServerHTTPResponse(t *testing.T) {
+	s := &fasthttp.Server{
+		Handler: func(ctx *fasthttp.RequestCtx) {
+			ctx.Error(fasthttp.StatusMessage(fasthttp.StatusUnauthorized), fasthttp.StatusUnauthorized)
+		},
+		Name: "test-server",
+	}
+
+	assertFn := func(transaction model.Transaction, resp *http.Response) {
+		expectedHeaders := model.Headers{
+			{Key: "Content-Length", Values: []string{"12"}},
+			{Key: "Content-Type", Values: []string{"text/plain; charset=utf-8"}},
+			{Key: "Server", Values: []string{s.Name}},
+		}
+
+		assert.Equal(t, fasthttp.StatusUnauthorized, resp.StatusCode)
+		assert.Equal(t, resp.StatusCode, transaction.Context.Response.StatusCode)
+		assert.Equal(t, "GET /", transaction.Name)
+		assert.Equal(t, "request", transaction.Type)
+		assert.Equal(t, "HTTP 4xx", transaction.Result)
+		assert.Equal(t, expectedHeaders, transaction.Context.Response.Headers)
+	}
+
+	testServer(t, s, nil, assertFn)
+}
+
+func TestServerHTTPResponseStream(t *testing.T) {
+	streamResponseDuration := time.Millisecond * 100
+
+	s := &fasthttp.Server{
+		Handler: func(ctx *fasthttp.RequestCtx) {
+			ctx.SetBodyStreamWriter(func(w *bufio.Writer) {
+				w.WriteString("Hello world")
+				time.Sleep(streamResponseDuration)
+			})
+		},
+		Name: "test-server",
+	}
+
+	assertFn := func(transaction model.Transaction, resp *http.Response) {
+		expectedHeaders := model.Headers{
+			{Key: "Content-Type", Values: []string{"text/plain; charset=utf-8"}},
+			{Key: "Server", Values: []string{s.Name}},
+			{Key: "Transfer-Encoding", Values: []string{"chunked"}},
+		}
+
+		assert.Equal(t, fasthttp.StatusOK, resp.StatusCode)
+		assert.Equal(t, resp.StatusCode, transaction.Context.Response.StatusCode)
+		assert.Equal(t, "GET /", transaction.Name)
+		assert.Equal(t, "request", transaction.Type)
+		assert.Equal(t, "HTTP 2xx", transaction.Result)
+		assert.GreaterOrEqual(t, transaction.Duration, float64(streamResponseDuration.Milliseconds()))
+		assert.Equal(t, transaction.Context.Response.Headers, expectedHeaders)
+	}
+
+	testServer(t, s, nil, assertFn)
+}
+
+func TestServerHTTPResponseHijack(t *testing.T) {
+	hijackResponseDuration := time.Millisecond * 100
+
+	wg := new(sync.WaitGroup)
+	wg.Add(1)
+
+	s := &fasthttp.Server{
+		Handler: func(ctx *fasthttp.RequestCtx) {
+			ctx.Hijack(func(c net.Conn) {
+				time.Sleep(hijackResponseDuration)
+				wg.Done()
+			})
+		},
+		Name: "test-server",
+	}
+
+	assertFn := func(transaction model.Transaction, resp *http.Response) {
+		expectedHeaders := model.Headers{
+			{Key: "Content-Length", Values: []string{"0"}},
+			{Key: "Content-Type", Values: []string{"text/plain; charset=utf-8"}},
+			{Key: "Server", Values: []string{s.Name}},
+		}
+
+		assert.Equal(t, fasthttp.StatusOK, resp.StatusCode)
+		assert.Equal(t, resp.StatusCode, transaction.Context.Response.StatusCode)
+		assert.Equal(t, "GET /", transaction.Name)
+		assert.Equal(t, "request", transaction.Type)
+		assert.Equal(t, "HTTP 2xx", transaction.Result)
+		assert.GreaterOrEqual(t, transaction.Duration, float64(hijackResponseDuration.Milliseconds()))
+		assert.Equal(t, transaction.Context.Response.Headers, expectedHeaders)
+	}
+
+	testServer(t, s, wg, assertFn)
 }
