@@ -57,7 +57,7 @@ func sanitizeResponse(r *model.Response, matchers wildcard.Matchers) {
 func sanitizeHeaders(headers model.Headers, matchers wildcard.Matchers) {
 	for i := range headers {
 		h := &headers[i]
-		if !matchers.MatchAny(h.Key) || len(h.Values) == 0 {
+		if !matchers.MatchAny(h.Key) || len(h.Values) == 0 || h.Key == ":authority" {
 			continue
 		}
 		// h.Values may hold the original value slice from a
