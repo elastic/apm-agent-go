@@ -139,7 +139,7 @@ func (t *transaction) SetAttributes(kvs ...attribute.KeyValue) {
 // TracerProvider returns a TracerProvider that can be used to generate
 // additional Spans on the same telemetry pipeline as the current Span.
 func (t *transaction) TracerProvider() trace.TracerProvider {
-	return GetTracerProvider()
+	return &apmTracerProvider{t.inner.Tracer()}
 }
 
 // Transaction returns s.inner, the underlying apm.Span. This is used to

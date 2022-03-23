@@ -272,6 +272,12 @@ type Span struct {
 	*SpanData
 }
 
+// Tracer returns the tracer used to start the Span. This value will be nil for
+// a dropped Span.
+func (s *Span) Tracer() *Tracer {
+	return s.tracer
+}
+
 // TraceContext returns the span's TraceContext.
 func (s *Span) TraceContext() TraceContext {
 	if s == nil {

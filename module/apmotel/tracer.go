@@ -31,19 +31,19 @@ import (
 
 // NewTracerProvider creates a new trace.Tracer with the provided apm.Tracer.
 func NewTracerProvider(t *apm.Tracer) trace.TracerProvider {
-	return tracerFunc(func(_ string, _ ...trace.TracerOption) trace.Tracer {
-		return &tracer{inner: t}
-	})
-}
-
-type tracerFunc func(string, ...trace.TracerOption) trace.Tracer
-
-func (fn tracerFunc) Tracer(name string, opts ...trace.TracerOption) trace.Tracer {
-	return fn(name, opts...)
+	return &apmTracerProvider{t}
 }
 
 type tracer struct {
 	inner *apm.Tracer
+}
+
+type apmTracerProvider struct {
+	tracer *apm.Tracer
+}
+
+func (p *apmTracerProvider) Tracer(name string, opts ...trace.TracerOption) trace.Tracer {
+	return &tracer{inner: p.tracer}
 }
 
 // Start starts a new trace.Span. The span is stored in the returned context.

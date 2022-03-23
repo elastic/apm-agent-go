@@ -178,6 +178,11 @@ type Transaction struct {
 	*TransactionData
 }
 
+// Tracer returns the tracer used to start the Transaction.
+func (tx *Transaction) Tracer() *Tracer {
+	return tx.tracer
+}
+
 // Sampled reports whether or not the transaction is sampled.
 func (tx *Transaction) Sampled() bool {
 	if tx == nil {

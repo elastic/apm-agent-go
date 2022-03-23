@@ -35,9 +35,13 @@ func init() {
 }
 
 func contextWithSpan(ctx context.Context, s *apm.Span) context.Context {
-	// Should we make a note that they need to update the default tracer to
-	// use this? Or is there some better way to do this.
-	otelSpan := &span{inner: s, tracer: apm.DefaultTracer(), tx: transactionFromContext(ctx)}
+	tracer := s.Tracer()
+	if tracer == nil {
+		// TODO: Handle nil tracer
+		// https://github.com/elastic/apm-agent-go/pull/1203#discussion_r831811765
+		// Clarify what returning trace.TracerProvider is doing
+	}
+	otelSpan := &span{inner: s, tracer: tracer, tx: transactionFromContext(ctx)}
 	return trace.ContextWithSpan(ctx, otelSpan)
 }
 
@@ -52,9 +56,7 @@ func spanFromContext(ctx context.Context) *apm.Span {
 }
 
 func contextWithTransaction(ctx context.Context, tx *apm.Transaction) context.Context {
-	// Should we make a note that they need to update the default tracer to
-	// use this? Or is there some better way to do this.
-	otelTx := &transaction{inner: tx, tracer: apm.DefaultTracer()}
+	otelTx := &transaction{inner: tx, tracer: tx.Tracer()}
 	return trace.ContextWithSpan(ctx, otelTx)
 }
 
