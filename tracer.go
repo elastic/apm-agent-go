@@ -90,7 +90,7 @@ type TracerOptions struct {
 	//
 	// If ServiceName is empty, the service name will be defined using the
 	// ELASTIC_APM_SERVICE_NAME environment variable, or if that is not set,
-	// the executable name.
+	// unknown-go-service will be used.
 	ServiceName string
 
 	// ServiceVersion holds the service version.

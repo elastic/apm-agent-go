@@ -21,9 +21,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"path/filepath"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -283,10 +281,7 @@ func initialService() (name, version, environment string) {
 	version = os.Getenv(envServiceVersion)
 	environment = os.Getenv(envEnvironment)
 	if name == "" {
-		name = filepath.Base(os.Args[0])
-		if runtime.GOOS == "windows" {
-			name = strings.TrimSuffix(name, filepath.Ext(name))
-		}
+		name = "unknown-go-service"
 	}
 	name = sanitizeServiceName(name)
 	return name, version, environment
