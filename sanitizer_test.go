@@ -35,6 +35,8 @@ import (
 func TestSanitizeRequestResponse(t *testing.T) {
 	req, _ := http.NewRequest("GET", "http://server.testing/", nil)
 	req.SetBasicAuth("foo", "bar")
+	req.Header.Set("X-Custom-Preauth-Header", "fubar")
+
 	for _, c := range []*http.Cookie{
 		{Name: "secret", Value: "top"},
 		{Name: "Custom-Credit-Card-Number", Value: "top"},
@@ -55,6 +57,7 @@ func TestSanitizeRequestResponse(t *testing.T) {
 		h := make(http.Header)
 		h.Add("Set-Cookie", (&http.Cookie{Name: "foo", Value: "bar"}).String())
 		h.Add("Set-Cookie", (&http.Cookie{Name: "baz", Value: "qux"}).String())
+		h.Set("X-Custom-Authly-Header", "bazquux")
 		tx.Context.SetHTTPResponseHeaders(h)
 		tx.Context.SetHTTPStatusCode(http.StatusTeapot)
 		e.Context.SetHTTPResponseHeaders(h)
@@ -68,17 +71,29 @@ func TestSanitizeRequestResponse(t *testing.T) {
 			{Name: "sessionid", Value: "[REDACTED]"},
 			{Name: "user_id", Value: "456"},
 		})
-		assert.Equal(t, model.Headers{{
-			Key:    "Authorization",
-			Values: []string{"[REDACTED]"},
-		}}, context.Request.Headers)
+		assert.Equal(t, model.Headers{
+			{
+				Key:    "Authorization",
+				Values: []string{"[REDACTED]"},
+			},
+			{
+				Key:    "X-Custom-Preauth-Header",
+				Values: []string{"[REDACTED]"},
+			},
+		}, context.Request.Headers)
 
 		// NOTE: the response includes multiple Set-Cookie headers,
 		// but we only report a single "[REDACTED]" value.
-		assert.Equal(t, model.Headers{{
-			Key:    "Set-Cookie",
-			Values: []string{"[REDACTED]"},
-		}}, context.Response.Headers)
+		assert.Equal(t, model.Headers{
+			{
+				Key:    "Set-Cookie",
+				Values: []string{"[REDACTED]"},
+			},
+			{
+				Key:    "X-Custom-Authly-Header",
+				Values: []string{"[REDACTED]"},
+			},
+		}, context.Response.Headers)
 	}
 	checkContext(tx.Context)
 	for _, e := range errors {
