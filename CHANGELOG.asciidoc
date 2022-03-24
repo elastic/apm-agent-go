@@ -46,7 +46,6 @@ https://github.com/elastic/apm-agent-go/compare/v2.0.0...main[View commits]
 - Removed SetTag {pull}1218[(#1218)]
 - Unexport Tracer's fields -- TracerOptions must be used instead {pull}1219[#(1219)]
 - Replace `authorization` with `*auth*` pattern for sanitizing field names {pull}1230[#(1230)]
-- Default service name is now `unknown-go-service` {pull}1231[#(1231)]
 
 [[release-notes-1.x]]
 === Go Agent version 1.x

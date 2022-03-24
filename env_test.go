@@ -197,9 +197,9 @@ func TestTracerServiceNameEnvSanitizationSpecified(t *testing.T) {
 	assert.Equal(t, "foo_bar", service.Name)
 }
 
-func TestTracerServiceNameDefault(t *testing.T) {
+func TestTracerServiceNameEnvSanitizationExecutableName(t *testing.T) {
 	_, _, service, _ := getSubprocessMetadata(t)
-	assert.Equal(t, "unknown-go-service", service.Name)
+	assert.Equal(t, "apm_test", service.Name) // .test -> _test
 }
 
 func TestTracerGlobalLabelsUnspecified(t *testing.T) {
