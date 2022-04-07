@@ -103,6 +103,24 @@ func TestTracerClosedSendNonBlocking(t *testing.T) {
 	assert.Equal(t, uint64(1), tracer.Stats().TransactionsDropped)
 }
 
+func TestNewTracerNonBlocking(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		<-req.Context().Done()
+	}))
+	defer server.Close()
+	os.Setenv("ELASTIC_APM_SERVER_URL", server.URL)
+	defer os.Unsetenv("ELASTIC_APM_SERVER_URL")
+
+	// NewTracer should not block for any significant amount of time,
+	// even if the server is initially unresponsive.
+	before := time.Now()
+	tracer, err := apm.NewTracer("tracer_testing", "")
+	assert.NoError(t, err)
+	tracer.Close()
+	newTracerTime := time.Since(before)
+	assert.Less(t, int64(newTracerTime), int64(time.Second))
+}
+
 func TestTracerCloseImmediately(t *testing.T) {
 	tracer, err := apm.NewTracer("tracer_testing", "")
 	assert.NoError(t, err)
