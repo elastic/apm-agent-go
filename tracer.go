@@ -891,7 +891,7 @@ func (t *Tracer) loop() {
 	refreshVersionTicker := time.NewTicker(refreshServerVersionDeadline)
 	defer refreshVersionTicker.Stop()
 	if t.versionGetter != nil {
-		t.maybeRefreshServerVersion(ctx, refreshServerVersionDeadline)
+		go t.maybeRefreshServerVersion(ctx, refreshServerVersionDeadline)
 	} else {
 		// If versionGetter is nil, stop the timer.
 		refreshVersionTicker.Stop()

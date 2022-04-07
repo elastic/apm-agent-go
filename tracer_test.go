@@ -103,6 +103,24 @@ func TestTracerClosedSendNonBlocking(t *testing.T) {
 	assert.Equal(t, uint64(1), tracer.Stats().TransactionsDropped)
 }
 
+func TestNewTracerNonBlocking(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		<-req.Context().Done()
+	}))
+	defer server.Close()
+	os.Setenv("ELASTIC_APM_SERVER_URL", server.URL)
+	defer os.Unsetenv("ELASTIC_APM_SERVER_URL")
+
+	// NewTracer should not block for any significant amount of time,
+	// even if the server is initially unresponsive.
+	before := time.Now()
+	tracer, err := apm.NewTracer("tracer_testing", "")
+	assert.NoError(t, err)
+	tracer.Close()
+	newTracerTime := time.Since(before)
+	assert.Less(t, int64(newTracerTime), int64(time.Second))
+}
+
 func TestTracerCloseImmediately(t *testing.T) {
 	tracer, err := apm.NewTracer("tracer_testing", "")
 	assert.NoError(t, err)
@@ -748,6 +766,18 @@ func TestTracerUnsampledTransactionsHTTPTransport(t *testing.T) {
 		tracer.Flush(nil)
 	}
 
+	waitMajorServerVersion := func(t *testing.T, transport *transport.HTTPTransport, expected int) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		for ctx.Err() == nil {
+			actual := int(transport.MajorServerVersion(ctx, false))
+			if actual == expected {
+				return
+			}
+		}
+		t.Fatalf("timed out waiting for major server version to become %d", expected)
+	}
+
 	t.Run("pre-8-sends-all", func(t *testing.T) {
 		var tCounter, rootCounter uint32
 		mux := http.NewServeMux()
@@ -755,8 +785,9 @@ func TestTracerUnsampledTransactionsHTTPTransport(t *testing.T) {
 		mux.Handle("/", rootHandlerFunc("7.17.0", &rootCounter))
 		srv := httptest.NewServer(mux)
 		defer srv.Close()
+		tracer, transport := newTracer(srv.URL)
 
-		tracer, _ := newTracer(srv.URL)
+		waitMajorServerVersion(t, transport, 7)
 		generateTx(tracer)
 
 		assert.Equal(t, uint32(200), atomic.LoadUint32(&tCounter))
@@ -769,8 +800,9 @@ func TestTracerUnsampledTransactionsHTTPTransport(t *testing.T) {
 		mux.Handle("/", rootHandlerFunc("8.0.0", &rootCounter))
 		srv := httptest.NewServer(mux)
 		defer srv.Close()
+		tracer, transport := newTracer(srv.URL)
 
-		tracer, _ := newTracer(srv.URL)
+		waitMajorServerVersion(t, transport, 8)
 		generateTx(tracer)
 
 		assert.Equal(t, uint32(100), atomic.LoadUint32(&tCounter))
@@ -789,8 +821,9 @@ func TestTracerUnsampledTransactionsHTTPTransport(t *testing.T) {
 		mux.Handle("/", rootHandlerFunc("8.0.0", &rootCounter))
 		srv := httptest.NewServer(mux)
 		defer srv.Close()
-
 		tracer, transport := newTracer(srv.URL)
+
+		waitMajorServerVersion(t, transport, 8)
 		for i := 0; i < 3; i++ {
 			generateTx(tracer)
 		}
@@ -798,9 +831,6 @@ func TestTracerUnsampledTransactionsHTTPTransport(t *testing.T) {
 		assert.Equal(t, uint32(1), atomic.LoadUint32(&rootCounter))
 
 		// Manually refresh the remote version.
-		type majorVersionGetter interface {
-			MajorServerVersion(ctx context.Context, refreshStale bool) uint32
-		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 		transport.MajorServerVersion(ctx, true)
