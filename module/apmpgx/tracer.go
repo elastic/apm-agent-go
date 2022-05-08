@@ -34,13 +34,19 @@ const (
 
 var ErrUnsupportedPgxVersion = errors.New("this version of pgx is unsupported for tracing, please upgrade")
 
-type Tracer struct{}
-
-func NewTracer() *Tracer {
-	return &Tracer{}
+type Tracer struct {
+	logger pgx.Logger
 }
 
-func (t *Tracer) Log(ctx context.Context, _ pgx.LogLevel, msg string, data map[string]interface{}) {
+func NewTracer(logger pgx.Logger) *Tracer {
+	return &Tracer{logger: logger}
+}
+
+func (t *Tracer) Log(ctx context.Context, level pgx.LogLevel, msg string, data map[string]interface{}) {
+	if t.logger != nil {
+		t.logger.Log(ctx, level, msg, data)
+	}
+
 	switch msg {
 	case "Query", "Exec":
 		t.QueryTrace(ctx, data)
