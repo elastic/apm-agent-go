@@ -33,6 +33,7 @@ import (
 const (
 	querySpanType = "db.postgresql.query"
 	copySpanType  = "db.postgresql.copy"
+	batchSpanType = "db.postgresql.batch"
 
 	postgresql = "postgresql"
 )
@@ -57,6 +58,8 @@ func (t *Tracer) Log(ctx context.Context, level pgx.LogLevel, msg string, data m
 		t.QueryTrace(ctx, data)
 	case "CopyFrom":
 		t.CopyTrace(ctx, data)
+	case "SendBatch":
+		t.BatchTrace(ctx, data)
 	}
 }
 
@@ -101,6 +104,33 @@ func (t *Tracer) CopyTrace(ctx context.Context, data map[string]interface{}) {
 		})
 
 	span.Duration = data["time"].(time.Duration)
+	span.Context.SetDatabase(apm.DatabaseSpanContext{
+		Type: postgresql,
+	})
+
+	if _, ok := data["err"]; ok {
+		e := apm.CaptureError(ctx, data["err"].(error))
+		e.Timestamp = stop
+		e.Send()
+	}
+
+	span.End()
+}
+
+func (t *Tracer) BatchTrace(ctx context.Context, data map[string]interface{}) {
+	stop := time.Now()
+
+	var batchLen int
+	if _, ok := data["batchLen"]; ok {
+		batchLen = data["batchLen"].(int)
+	}
+
+	span, _ := apm.StartSpanOptions(ctx, "BATCH", batchSpanType, apm.SpanOptions{
+		Start: stop.Add(-data["time"].(time.Duration)),
+	})
+
+	span.Duration = data["time"].(time.Duration)
+	span.Context.SetLabel("batch.length", batchLen)
 	span.Context.SetDatabase(apm.DatabaseSpanContext{
 		Type: postgresql,
 	})
