@@ -20,6 +20,8 @@ package apmpgx
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"go.elastic.co/apm/module/apmsql/v2"
@@ -30,6 +32,9 @@ import (
 
 const (
 	querySpanType = "db.postgresql.query"
+	copySpanType  = "db.postgresql.copy"
+
+	postgresql = "postgresql"
 )
 
 var ErrUnsupportedPgxVersion = errors.New("this version of pgx is unsupported for tracing, please upgrade")
@@ -50,6 +55,8 @@ func (t *Tracer) Log(ctx context.Context, level pgx.LogLevel, msg string, data m
 	switch msg {
 	case "Query", "Exec":
 		t.QueryTrace(ctx, data)
+	case "CopyFrom":
+		t.CopyTrace(ctx, data)
 	}
 }
 
@@ -67,8 +74,35 @@ func (t *Tracer) QueryTrace(ctx context.Context, data map[string]interface{}) {
 
 	span.Duration = data["time"].(time.Duration)
 	span.Context.SetDatabase(apm.DatabaseSpanContext{
-		Type:      "postgresql",
+		Type:      postgresql,
 		Statement: data["sql"].(string),
+	})
+
+	if _, ok := data["err"]; ok {
+		e := apm.CaptureError(ctx, data["err"].(error))
+		e.Timestamp = stop
+		e.Send()
+	}
+
+	span.End()
+}
+
+func (t *Tracer) CopyTrace(ctx context.Context, data map[string]interface{}) {
+	stop := time.Now()
+
+	if _, ok := data["time"]; !ok {
+		apm.CaptureError(ctx, ErrUnsupportedPgxVersion).Send()
+		return
+	}
+
+	span, _ := apm.StartSpanOptions(ctx, fmt.Sprintf("COPY TO %s", strings.Join(data["tableName"].(pgx.Identifier), ", ")),
+		copySpanType, apm.SpanOptions{
+			Start: stop.Add(-data["time"].(time.Duration)),
+		})
+
+	span.Duration = data["time"].(time.Duration)
+	span.Context.SetDatabase(apm.DatabaseSpanContext{
+		Type: postgresql,
 	})
 
 	if _, ok := data["err"]; ok {
