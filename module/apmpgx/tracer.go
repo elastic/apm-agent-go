@@ -91,6 +91,8 @@ func (t *Tracer) QueryTrace(ctx context.Context, data map[string]interface{}) {
 		Start: stop.Add(-data["time"].(time.Duration)),
 	})
 
+	span.SetStacktrace(0)
+
 	span.Duration = data["time"].(time.Duration)
 	span.Context.SetDatabase(apm.DatabaseSpanContext{
 		Type:      postgresql,
@@ -120,6 +122,8 @@ func (t *Tracer) CopyTrace(ctx context.Context, data map[string]interface{}) {
 			Start: stop.Add(-data["time"].(time.Duration)),
 		})
 
+	span.SetStacktrace(0)
+
 	span.Duration = data["time"].(time.Duration)
 	span.Context.SetDatabase(apm.DatabaseSpanContext{
 		Type: postgresql,
@@ -141,6 +145,8 @@ func (t *Tracer) BatchTrace(ctx context.Context, data map[string]interface{}) {
 	span, _ := apm.StartSpanOptions(ctx, "BATCH", batchSpanType, apm.SpanOptions{
 		Start: stop.Add(-data["time"].(time.Duration)),
 	})
+
+	span.SetStacktrace(0)
 
 	if _, ok := data["batchLen"]; ok {
 		span.Context.SetLabel("batch.length", data["batchLen"].(int))
