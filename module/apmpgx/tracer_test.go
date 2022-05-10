@@ -44,14 +44,13 @@ func TestLog(t *testing.T) {
 
 	for _, test := range testcases {
 		t.Run(test.name, func(t *testing.T) {
-			tracer := NewTracer(test.logger)
-			tracer.Log(context.TODO(), pgx.LogLevelNone, test.msg, nil)
+			NewTracer(test.logger).Log(context.TODO(), pgx.LogLevelNone, test.msg, nil)
 		})
 	}
 }
 
 func TestQueryTrace(t *testing.T) {
-	tracer := NewTracer(nil)
+	tr := NewTracer(nil)
 
 	testcases := []struct {
 		name      string
@@ -85,7 +84,7 @@ func TestQueryTrace(t *testing.T) {
 	for _, test := range testcases {
 		t.Run(test.name, func(t *testing.T) {
 			_, spans, errs := apmtest.WithTransaction(func(ctx context.Context) {
-				tracer.QueryTrace(ctx, test.data)
+				tr.QueryTrace(ctx, test.data)
 			})
 
 			if test.expectErr {
@@ -105,7 +104,7 @@ func TestQueryTrace(t *testing.T) {
 }
 
 func TestCopyTrace(t *testing.T) {
-	tracer := NewTracer(nil)
+	tr := NewTracer(nil)
 
 	testcases := []struct {
 		name      string
@@ -141,7 +140,7 @@ func TestCopyTrace(t *testing.T) {
 	for _, test := range testcases {
 		t.Run(test.name, func(t *testing.T) {
 			_, spans, errs := apmtest.WithTransaction(func(ctx context.Context) {
-				tracer.CopyTrace(ctx, test.data)
+				tr.CopyTrace(ctx, test.data)
 			})
 
 			if test.expectErr {
@@ -161,7 +160,7 @@ func TestCopyTrace(t *testing.T) {
 }
 
 func TestBatchTrace(t *testing.T) {
-	tracer := NewTracer(nil)
+	tr := NewTracer(nil)
 
 	testcases := []struct {
 		name      string
@@ -197,7 +196,7 @@ func TestBatchTrace(t *testing.T) {
 	for _, test := range testcases {
 		t.Run(test.name, func(t *testing.T) {
 			_, spans, errs := apmtest.WithTransaction(func(ctx context.Context) {
-				tracer.BatchTrace(ctx, test.data)
+				tr.BatchTrace(ctx, test.data)
 			})
 
 			if test.expectErr {

@@ -47,23 +47,23 @@ const (
 // ErrUnsupportedPgxVersion is indicating that data doesn't contain value for "time" key
 var ErrUnsupportedPgxVersion = errors.New("this version of pgx is unsupported for tracing, please upgrade")
 
-// Tracer is an implementation of pgx.Logger.
-type Tracer struct {
+// tracer is an implementation of pgx.Logger.
+type tracer struct {
 	// logger is the pgx.Logger to use for writing data to log.
 	// If logger is nil, then data won't be written to log, and only spans will be created.
 	logger pgx.Logger
 }
 
-// NewTracer returns a new Tracer which creates spans for pgx queries.
+// NewTracer returns a new tracer which creates spans for pgx queries.
 // It is safe to pass nil logger to constructor.
-func NewTracer(logger pgx.Logger) *Tracer {
-	return &Tracer{logger: logger}
+func NewTracer(logger pgx.Logger) *tracer {
+	return &tracer{logger: logger}
 }
 
 // Log is getting type of SQL expression from msg and run suitable trace.
 // If logger was provided in NewTracer constructor, than expression will be
 // written to your logger that implements pgx.Logger interface.
-func (t *Tracer) Log(ctx context.Context, level pgx.LogLevel, msg string, data map[string]interface{}) {
+func (t *tracer) Log(ctx context.Context, level pgx.LogLevel, msg string, data map[string]interface{}) {
 	if t.logger != nil {
 		t.logger.Log(ctx, level, msg, data)
 	}
@@ -79,7 +79,7 @@ func (t *Tracer) Log(ctx context.Context, level pgx.LogLevel, msg string, data m
 }
 
 // QueryTrace traces query and creates spans for them.
-func (t *Tracer) QueryTrace(ctx context.Context, data map[string]interface{}) {
+func (t *tracer) QueryTrace(ctx context.Context, data map[string]interface{}) {
 	stop := time.Now()
 
 	if _, ok := data["time"]; !ok {
@@ -109,7 +109,7 @@ func (t *Tracer) QueryTrace(ctx context.Context, data map[string]interface{}) {
 }
 
 // CopyTrace traces copy queries and creates spans for them.
-func (t *Tracer) CopyTrace(ctx context.Context, data map[string]interface{}) {
+func (t *tracer) CopyTrace(ctx context.Context, data map[string]interface{}) {
 	stop := time.Now()
 
 	if _, ok := data["time"]; !ok {
@@ -139,7 +139,7 @@ func (t *Tracer) CopyTrace(ctx context.Context, data map[string]interface{}) {
 }
 
 // BatchTrace traces batch execution and creates spans for the whole batch.
-func (t *Tracer) BatchTrace(ctx context.Context, data map[string]interface{}) {
+func (t *tracer) BatchTrace(ctx context.Context, data map[string]interface{}) {
 	stop := time.Now()
 
 	span, _ := apm.StartSpanOptions(ctx, "BATCH", batchSpanType, apm.SpanOptions{
