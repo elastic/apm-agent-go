@@ -96,6 +96,8 @@ func TestQueryTrace(t *testing.T) {
 				assert.Equal(t, "query", spans[0].Action)
 				assert.Equal(t, "SELECT FROM foo.bar", spans[0].Name)
 
+				assert.Greater(t, len(spans[0].Stacktrace), 0)
+
 				require.Len(t, errs, 0)
 			}
 		})
@@ -149,6 +151,68 @@ func TestCopyTrace(t *testing.T) {
 				assert.Equal(t, "postgresql", spans[0].Subtype)
 				assert.Equal(t, "copy", spans[0].Action)
 				assert.Equal(t, "COPY TO foo", spans[0].Name)
+
+				assert.Greater(t, len(spans[0].Stacktrace), 0)
+
+				require.Len(t, errs, 0)
+			}
+		})
+	}
+}
+
+func TestBatchTrace(t *testing.T) {
+	tracer := NewTracer(nil)
+
+	testcases := []struct {
+		name      string
+		expectErr bool
+		data      map[string]interface{}
+	}{
+		{
+			name:      "BATCH span, no error",
+			expectErr: false,
+			data: map[string]interface{}{
+				"time":     3 * time.Millisecond,
+				"batchLen": 5,
+			},
+		},
+		{
+			name:      "BATCH span, no batch len",
+			expectErr: false,
+			data: map[string]interface{}{
+				"time": 3 * time.Millisecond,
+			},
+		},
+		{
+			name:      "BATCH span, error in data object",
+			expectErr: true,
+			data: map[string]interface{}{
+				"time":     3 * time.Millisecond,
+				"batchLen": 5,
+				"err":      errors.New("test error"),
+			},
+		},
+	}
+
+	for _, test := range testcases {
+		t.Run(test.name, func(t *testing.T) {
+			_, spans, errs := apmtest.WithTransaction(func(ctx context.Context) {
+				tracer.BatchTrace(ctx, test.data)
+			})
+
+			if test.expectErr {
+				require.Len(t, errs, 1)
+			} else {
+				assert.Equal(t, "db", spans[0].Type)
+				assert.Equal(t, "postgresql", spans[0].Subtype)
+				assert.Equal(t, "batch", spans[0].Action)
+				assert.Equal(t, "BATCH", spans[0].Name)
+
+				assert.Greater(t, len(spans[0].Stacktrace), 0)
+
+				if len(spans[0].Context.Tags) > 0 {
+					assert.Equal(t, float64(5), spans[0].Context.Tags[0].Value)
+				}
 
 				require.Len(t, errs, 0)
 			}
