@@ -1,4 +1,4 @@
-package apmpgx
+package apmpgx_test
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.elastic.co/apm/module/apmpgx/v2"
 	"go.elastic.co/apm/v2/apmtest"
 	"testing"
 	"time"
@@ -44,13 +45,14 @@ func TestLog(t *testing.T) {
 
 	for _, test := range testcases {
 		t.Run(test.name, func(t *testing.T) {
-			NewTracer(test.logger).Log(context.TODO(), pgx.LogLevelNone, test.msg, nil)
+			tr := apmpgx.NewTracer(test.logger)
+			tr.Log(context.TODO(), pgx.LogLevelNone, test.msg, nil)
 		})
 	}
 }
 
 func TestQueryTrace(t *testing.T) {
-	tr := NewTracer(nil)
+	tr := apmpgx.NewTracer(nil)
 
 	testcases := []struct {
 		name      string
@@ -104,7 +106,7 @@ func TestQueryTrace(t *testing.T) {
 }
 
 func TestCopyTrace(t *testing.T) {
-	tr := NewTracer(nil)
+	tr := apmpgx.NewTracer(nil)
 
 	testcases := []struct {
 		name      string
@@ -160,7 +162,7 @@ func TestCopyTrace(t *testing.T) {
 }
 
 func TestBatchTrace(t *testing.T) {
-	tr := NewTracer(nil)
+	tr := apmpgx.NewTracer(nil)
 
 	testcases := []struct {
 		name      string
