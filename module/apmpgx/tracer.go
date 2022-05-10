@@ -31,23 +31,38 @@ import (
 )
 
 const (
+	//querySpanType is setting action for query expression trace in APM server.
 	querySpanType = "db.postgresql.query"
-	copySpanType  = "db.postgresql.copy"
+
+	//querySpanType is setting action for copy expression trace in APM server.
+	copySpanType = "db.postgresql.copy"
+
+	//querySpanType is setting action for batch expression trace in APM server.
 	batchSpanType = "db.postgresql.batch"
 
+	//postgresql is subtype which indicates database type in trace.
 	postgresql = "postgresql"
 )
 
+// ErrUnsupportedPgxVersion is indicating that data doesn't contain value for "time" key
 var ErrUnsupportedPgxVersion = errors.New("this version of pgx is unsupported for tracing, please upgrade")
 
+// Tracer is an implementation of pgx.Logger.
 type Tracer struct {
+	// logger is the pgx.Logger to use for writing data to log.
+	// If logger is nil, then data won't be written to log, and only spans will be created.
 	logger pgx.Logger
 }
 
+// NewTracer returns a new Tracer which creates spans for pgx queries.
+// It is safe to pass nil logger to constructor.
 func NewTracer(logger pgx.Logger) *Tracer {
 	return &Tracer{logger: logger}
 }
 
+// Log is getting type of SQL expression from msg and run suitable trace.
+// If logger was provided in NewTracer constructor, than expression will be
+// written to your logger that implements pgx.Logger interface.
 func (t *Tracer) Log(ctx context.Context, level pgx.LogLevel, msg string, data map[string]interface{}) {
 	if t.logger != nil {
 		t.logger.Log(ctx, level, msg, data)
@@ -63,6 +78,7 @@ func (t *Tracer) Log(ctx context.Context, level pgx.LogLevel, msg string, data m
 	}
 }
 
+// QueryTrace traces query and creates spans for them.
 func (t *Tracer) QueryTrace(ctx context.Context, data map[string]interface{}) {
 	stop := time.Now()
 
@@ -90,6 +106,7 @@ func (t *Tracer) QueryTrace(ctx context.Context, data map[string]interface{}) {
 	span.End()
 }
 
+// CopyTrace traces copy queries and creates spans for them.
 func (t *Tracer) CopyTrace(ctx context.Context, data map[string]interface{}) {
 	stop := time.Now()
 
@@ -117,20 +134,19 @@ func (t *Tracer) CopyTrace(ctx context.Context, data map[string]interface{}) {
 	span.End()
 }
 
+// BatchTrace traces batch execution and creates spans for the whole batch.
 func (t *Tracer) BatchTrace(ctx context.Context, data map[string]interface{}) {
 	stop := time.Now()
-
-	var batchLen int
-	if _, ok := data["batchLen"]; ok {
-		batchLen = data["batchLen"].(int)
-	}
 
 	span, _ := apm.StartSpanOptions(ctx, "BATCH", batchSpanType, apm.SpanOptions{
 		Start: stop.Add(-data["time"].(time.Duration)),
 	})
 
+	if _, ok := data["batchLen"]; ok {
+		span.Context.SetLabel("batch.length", data["batchLen"].(int))
+	}
+
 	span.Duration = data["time"].(time.Duration)
-	span.Context.SetLabel("batch.length", batchLen)
 	span.Context.SetDatabase(apm.DatabaseSpanContext{
 		Type: postgresql,
 	})
