@@ -44,7 +44,11 @@ func TestLog(t *testing.T) {
 	}
 
 	for _, test := range testcases {
+		test := test
+
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
 			tr := apmpgx.NewTracer(test.logger)
 			tr.Log(context.TODO(), pgx.LogLevelNone, test.msg, nil)
 		})
@@ -84,7 +88,11 @@ func TestQueryTrace(t *testing.T) {
 	}
 
 	for _, test := range testcases {
+		test := test
+
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
 			_, spans, errs := apmtest.WithTransaction(func(ctx context.Context) {
 				tr.QueryTrace(ctx, test.data)
 			})
@@ -140,7 +148,11 @@ func TestCopyTrace(t *testing.T) {
 	}
 
 	for _, test := range testcases {
+		test := test
+
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
 			_, spans, errs := apmtest.WithTransaction(func(ctx context.Context) {
 				tr.CopyTrace(ctx, test.data)
 			})
@@ -196,7 +208,11 @@ func TestBatchTrace(t *testing.T) {
 	}
 
 	for _, test := range testcases {
+		test := test
+
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
 			_, spans, errs := apmtest.WithTransaction(func(ctx context.Context) {
 				tr.BatchTrace(ctx, test.data)
 			})
