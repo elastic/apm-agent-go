@@ -121,7 +121,7 @@ var (
 		"*session*",
 		"*credit*",
 		"*card*",
-		"authorization",
+		"*auth*",
 		"set-cookie",
 	}, ","))
 
