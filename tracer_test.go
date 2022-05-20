@@ -48,6 +48,24 @@ import (
 	"go.elastic.co/apm/v2/transport/transporttest"
 )
 
+func TestDefaultTracer(t *testing.T) {
+	defer apm.SetDefaultTracer(nil)
+
+	// Call DefaultTracer concurrently to ensure there are
+	// no races in creating the default tracer.
+	tracers := make(chan *apm.Tracer, 1000)
+	for i := 0; i < cap(tracers); i++ {
+		go func() {
+			tracers <- apm.DefaultTracer()
+		}()
+	}
+
+	tracer0 := <-tracers
+	for i := 1; i < cap(tracers); i++ {
+		assert.Same(t, tracer0, <-tracers)
+	}
+}
+
 func TestTracerStats(t *testing.T) {
 	tracer := apmtest.NewDiscardTracer()
 	defer tracer.Close()
