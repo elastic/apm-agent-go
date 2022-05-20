@@ -50,30 +50,41 @@ var (
 )
 
 // DefaultTracer returns the default global Tracer, set the first time the
-// function is called. It is configured via environment variables.
+// function is called, or after calling SetDefaultTracer(nil).
 //
-// This will always be initialized to a non-nil value. If any of the
-// environment variables are invalid, the corresponding errors will be logged
-// to stderr and the default values will be used instead.
+// The default tracer is configured via environment variables, and will always
+// be non-nil. If any of the environment variables are invalid, the
+// corresponding errors will be logged to stderr and the default values will be
+// used instead.
 func DefaultTracer() *Tracer {
 	tracerMu.RLock()
-	tracer := defaultTracer
-	tracerMu.RUnlock()
-	if tracer != nil {
+	if defaultTracer != nil {
+		tracer := defaultTracer
+		tracerMu.RUnlock()
 		return tracer
+	}
+	tracerMu.RUnlock()
+
+	tracerMu.Lock()
+	defer tracerMu.Unlock()
+	if defaultTracer != nil {
+		return defaultTracer
 	}
 
 	var opts TracerOptions
 	opts.initDefaults(true)
-	tracer = newTracer(opts)
-	SetDefaultTracer(tracer)
-	return tracer
+	defaultTracer = newTracer(opts)
+	return defaultTracer
 }
 
-// SetDefaultTracer sets the tracer returned by DefaultTracer(). If another
-// tracer has already been initialized, it is closed. Any queued events are not
-// flushed; it is the responsibility of the caller to call
-// DefaultTracer().Flush().
+// SetDefaultTracer sets the tracer returned by DefaultTracer.
+//
+// If a default tracer has already been initialized, it is closed.
+// Any queued events are not flushed; it is the responsibility of the
+// caller to call the default tracer's Flush method first, if needed.
+//
+// Calling SetDefaultTracer(nil) will clear the default tracer,
+// causing DefaultTracer to initialize a new default tracer.
 func SetDefaultTracer(t *Tracer) {
 	tracerMu.Lock()
 	defer tracerMu.Unlock()
