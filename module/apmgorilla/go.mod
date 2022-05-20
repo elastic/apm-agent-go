@@ -4,8 +4,8 @@ require (
 	github.com/gorilla/context v1.1.1 // indirect
 	github.com/gorilla/mux v1.6.2
 	github.com/stretchr/testify v1.6.1
-	go.elastic.co/apm/module/apmhttp/v2 v2.0.0
-	go.elastic.co/apm/v2 v2.0.0
+	go.elastic.co/apm/module/apmhttp/v2 v2.1.0
+	go.elastic.co/apm/v2 v2.1.0
 )
 
 replace go.elastic.co/apm/v2 => ../..

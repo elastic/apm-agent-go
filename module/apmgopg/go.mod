@@ -6,8 +6,8 @@ require (
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/onsi/gomega v1.18.1 // indirect
 	github.com/stretchr/testify v1.6.1
-	go.elastic.co/apm/module/apmsql/v2 v2.0.0
-	go.elastic.co/apm/v2 v2.0.0
+	go.elastic.co/apm/module/apmsql/v2 v2.1.0
+	go.elastic.co/apm/v2 v2.1.0
 	mellium.im/sasl v0.2.1 // indirect
 )
 
