@@ -147,7 +147,7 @@
                   "maxLength": 1024
                 },
                 "resource": {
-                  "description": "Resource identifies the destination service resource being operated on e.g. 'http://elastic.co:80', 'elasticsearch', 'rabbitmq/queue_name'",
+                  "description": "Resource identifies the destination service resource being operated on e.g. 'http://elastic.co:80', 'elasticsearch', 'rabbitmq/queue_name' DEPRECATED: this field will be removed in a future release",
                   "type": "string",
                   "maxLength": 1024
                 },
@@ -537,30 +537,29 @@
                     "string"
                   ]
                 }
-              }
-            },
-            "target": {
-              "description": "Target holds information about the outgoing service in case of an outgoing event",
-              "type": [
-                "null",
-                "object"
-              ],
-              "properties": {
-                "name": {
-                  "description": "Immutable name of the target service for the event",
-                  "type": [
-                    "null",
-                    "string"
+              },
+              "anyOf": [
+                {
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type"
                   ]
                 },
-                "type": {
-                  "description": "Immutable type of the target service for the event",
-                  "type": [
-                    "null",
-                    "string"
+                {
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name"
                   ]
                 }
-              }
+              ]
             },
             "version": {
               "description": "Version of the monitored service.",
