@@ -521,7 +521,7 @@ func TestCompressSpanSameKind(t *testing.T) {
 		return transaction, spans, debugFunc
 	}
 
-	t.Run("DefaultThreshold", func(t *testing.T) {
+	t.Run("DefaultDisabled", func(t *testing.T) {
 		// By default same kind compression is disabled thus count will be 7.
 		tracer := apmtest.NewRecordingTracer()
 		defer tracer.Close()
