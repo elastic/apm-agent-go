@@ -66,12 +66,11 @@ const (
 	envUseElasticTraceparentHeader = "ELASTIC_APM_USE_ELASTIC_TRACEPARENT_HEADER"
 	envCloudProvider               = "ELASTIC_APM_CLOUD_PROVIDER"
 
-	// NOTE(marclop) Experimental settings
-	// span_compression (default `false`)
+	// span_compression (default `true`)
 	envSpanCompressionEnabled = "ELASTIC_APM_SPAN_COMPRESSION_ENABLED"
 	// span_compression_exact_match_max_duration (default `50ms`)
 	envSpanCompressionExactMatchMaxDuration = "ELASTIC_APM_SPAN_COMPRESSION_EXACT_MATCH_MAX_DURATION"
-	// span_compression_same_kind_max_duration (default `5ms`)
+	// span_compression_same_kind_max_duration (default `0ms`)
 	envSpanCompressionSameKindMaxDuration = "ELASTIC_APM_SPAN_COMPRESSION_SAME_KIND_MAX_DURATION"
 
 	// exit_span_min_duration (default `1ms`)
@@ -104,10 +103,10 @@ const (
 	minMetricsBufferSize = 10 * configutil.KByte
 	maxMetricsBufferSize = 100 * configutil.MByte
 
-	// Experimental Span Compressions default setting values
-	defaultSpanCompressionEnabled               = false
+	// Span Compressions default setting values
+	defaultSpanCompressionEnabled               = true
 	defaultSpanCompressionExactMatchMaxDuration = 50 * time.Millisecond
-	defaultSpanCompressionSameKindMaxDuration   = 5 * time.Millisecond
+	defaultSpanCompressionSameKindMaxDuration   = 0
 )
 
 var (
