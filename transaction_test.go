@@ -419,6 +419,7 @@ func TestTransactionDroppedSpansStats(t *testing.T) {
 	t.Run("DefaultLimit", func(t *testing.T) {
 		tracer := apmtest.NewRecordingTracer()
 		defer tracer.Close()
+		tracer.SetSpanCompressionEnabled(false)
 
 		tx, _, _ := tracer.WithTransaction(func(ctx context.Context) {
 			generateSpans(ctx, 1000)
@@ -446,6 +447,7 @@ func TestTransactionDroppedSpansStats(t *testing.T) {
 		defer tracer.Close()
 		// Set the exit span minimum duration. This test asserts that spans
 		// with a duration over the span minimum duration are not dropped.
+		tracer.SetSpanCompressionEnabled(false)
 		tracer.SetExitSpanMinDuration(time.Microsecond)
 
 		// Each of the generated spans duration is 10 microseconds.
@@ -460,6 +462,7 @@ func TestTransactionDroppedSpansStats(t *testing.T) {
 		tracer := apmtest.NewRecordingTracer()
 		defer tracer.Close()
 		// Assert that any spans over 100 are dropped and stats are aggregated.
+		tracer.SetSpanCompressionEnabled(false)
 		tracer.SetMaxSpans(100)
 
 		tx, spans, _ := tracer.WithTransaction(func(ctx context.Context) {

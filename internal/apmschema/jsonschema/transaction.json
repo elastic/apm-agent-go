@@ -621,30 +621,29 @@
                     "string"
                   ]
                 }
-              }
-            },
-            "target": {
-              "description": "Target holds information about the outgoing service in case of an outgoing event",
-              "type": [
-                "null",
-                "object"
-              ],
-              "properties": {
-                "name": {
-                  "description": "Immutable name of the target service for the event",
-                  "type": [
-                    "null",
-                    "string"
+              },
+              "anyOf": [
+                {
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type"
                   ]
                 },
-                "type": {
-                  "description": "Immutable type of the target service for the event",
-                  "type": [
-                    "null",
-                    "string"
+                {
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name"
                   ]
                 }
-              }
+              ]
             },
             "version": {
               "description": "Version of the monitored service.",
@@ -779,6 +778,22 @@
               "unknown",
               null
             ]
+          },
+          "service_target_name": {
+            "description": "ServiceTargetName identifies the instance name of the target service being operated on",
+            "type": [
+              "null",
+              "string"
+            ],
+            "maxLength": 512
+          },
+          "service_target_type": {
+            "description": "ServiceTargetType identifies the type of the target service being operated on e.g. 'oracle', 'rabbitmq'",
+            "type": [
+              "null",
+              "string"
+            ],
+            "maxLength": 512
           }
         }
       },

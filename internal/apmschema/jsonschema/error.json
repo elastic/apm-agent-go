@@ -622,30 +622,29 @@
                     "string"
                   ]
                 }
-              }
-            },
-            "target": {
-              "description": "Target holds information about the outgoing service in case of an outgoing event",
-              "type": [
-                "null",
-                "object"
-              ],
-              "properties": {
-                "name": {
-                  "description": "Immutable name of the target service for the event",
-                  "type": [
-                    "null",
-                    "string"
+              },
+              "anyOf": [
+                {
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type"
                   ]
                 },
-                "type": {
-                  "description": "Immutable type of the target service for the event",
-                  "type": [
-                    "null",
-                    "string"
+                {
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name"
                   ]
                 }
-              }
+              ]
             },
             "version": {
               "description": "Version of the monitored service.",
