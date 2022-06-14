@@ -853,6 +853,8 @@ type Faas struct {
 	Name string `json:"name,omitempty"`
 	// The lambda function version.
 	Version string `json:"version,omitempty"`
+	// Indicates if the lambda function triggered a Cold Start
+	Coldstart *bool `json:"coldstart,omitempty"`
 }
 
 type FaasTrigger struct {
