@@ -1612,6 +1612,16 @@ func (v *Faas) MarshalFastJSON(w *fastjson.Writer) error {
 	var firstErr error
 	w.RawByte('{')
 	first := true
+	if v.Coldstart != false {
+		const prefix = ",\"coldstart\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		w.Bool(v.Coldstart)
+	}
 	if v.Execution != "" {
 		const prefix = ",\"execution\":"
 		if first {
