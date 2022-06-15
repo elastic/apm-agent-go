@@ -1611,67 +1611,28 @@ func (v *MetricsSpan) MarshalFastJSON(w *fastjson.Writer) error {
 func (v *Faas) MarshalFastJSON(w *fastjson.Writer) error {
 	var firstErr error
 	w.RawByte('{')
-	first := true
-	if v.Coldstart != false {
-		const prefix = ",\"coldstart\":"
-		if first {
-			first = false
-			w.RawString(prefix[1:])
-		} else {
-			w.RawString(prefix)
-		}
-		w.Bool(v.Coldstart)
-	}
+	w.RawString("\"coldstart\":")
+	w.Bool(v.Coldstart)
 	if v.Execution != "" {
-		const prefix = ",\"execution\":"
-		if first {
-			first = false
-			w.RawString(prefix[1:])
-		} else {
-			w.RawString(prefix)
-		}
+		w.RawString(",\"execution\":")
 		w.String(v.Execution)
 	}
 	if v.ID != "" {
-		const prefix = ",\"id\":"
-		if first {
-			first = false
-			w.RawString(prefix[1:])
-		} else {
-			w.RawString(prefix)
-		}
+		w.RawString(",\"id\":")
 		w.String(v.ID)
 	}
 	if v.Name != "" {
-		const prefix = ",\"name\":"
-		if first {
-			first = false
-			w.RawString(prefix[1:])
-		} else {
-			w.RawString(prefix)
-		}
+		w.RawString(",\"name\":")
 		w.String(v.Name)
 	}
 	if v.Trigger != nil {
-		const prefix = ",\"trigger\":"
-		if first {
-			first = false
-			w.RawString(prefix[1:])
-		} else {
-			w.RawString(prefix)
-		}
+		w.RawString(",\"trigger\":")
 		if err := v.Trigger.MarshalFastJSON(w); err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}
 	if v.Version != "" {
-		const prefix = ",\"version\":"
-		if first {
-			first = false
-			w.RawString(prefix[1:])
-		} else {
-			w.RawString(prefix)
-		}
+		w.RawString(",\"version\":")
 		w.String(v.Version)
 	}
 	w.RawByte('}')
