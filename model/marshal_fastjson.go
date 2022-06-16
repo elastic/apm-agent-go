@@ -1608,7 +1608,7 @@ func (v *MetricsSpan) MarshalFastJSON(w *fastjson.Writer) error {
 	return nil
 }
 
-func (v *Faas) MarshalFastJSON(w *fastjson.Writer) error {
+func (v *FAAS) MarshalFastJSON(w *fastjson.Writer) error {
 	var firstErr error
 	w.RawByte('{')
 	w.RawString("\"coldstart\":")
@@ -1639,7 +1639,7 @@ func (v *Faas) MarshalFastJSON(w *fastjson.Writer) error {
 	return firstErr
 }
 
-func (v *FaasTrigger) MarshalFastJSON(w *fastjson.Writer) error {
+func (v *FAASTrigger) MarshalFastJSON(w *fastjson.Writer) error {
 	w.RawByte('{')
 	first := true
 	if v.RequestID != "" {

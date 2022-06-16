@@ -279,7 +279,8 @@ type Transaction struct {
 	// OTel holds information bridged from OpenTelemetry.
 	OTel *OTel `json:"otel,omitempty"`
 
-	FAAS *Faas `json:"faas,omitempty"`
+	// FAAS holds Function-as-a-Service properties for the transaction.
+	FAAS *FAAS `json:"faas,omitempty"`
 }
 
 // OTel holds bridged OpenTelemetry information.
@@ -813,7 +814,8 @@ type Metrics struct {
 	// with the common schema, anyway.
 	Labels StringMap `json:"tags,omitempty"`
 
-	FAAS *Faas `json:"faas,omitempty"`
+	// FAAS holds Function-as-a-Service related properties for the metrics.
+	FAAS *FAAS `json:"faas,omitempty"`
 
 	// Samples holds a map of metric samples, keyed by metric name.
 	Samples map[string]Metric `json:"samples"`
@@ -836,30 +838,32 @@ type Metric struct {
 	Type string `json:"type,omitempty"`
 	// Value holds the metric value.
 	Value float64 `json:"value"`
-	// Buckets holds the metric bucket values.
+	// Values holds the metric bucket values.
 	Values []float64 `json:"values,omitempty"`
-	// Count holds the metric observation count for the bucket.
+	// Counts holds the metric observation count for the bucket.
 	Counts []uint64 `json:"counts,omitempty"`
 }
 
-type Faas struct {
-	// A unique identifier of the invoked serverless function.
+// FAAS holds Function-as-a-Service properties.
+type FAAS struct {
+	// ID holds a unique identifier of the invoked serverless function.
 	ID string `json:"id,omitempty"`
-	// The request id of the function invocation.
+	// Execution holds the request ID of the function invocation.
 	Execution string `json:"execution,omitempty"`
-	// Trigger attributes.
-	Trigger *FaasTrigger `json:"trigger,omitempty"`
-	// The lambda function name.
+	// Trigger holds information related to the trigger of the function invocation.
+	Trigger *FAASTrigger `json:"trigger,omitempty"`
+	// Name holds the lambda function name.
 	Name string `json:"name,omitempty"`
-	// The lambda function version.
+	// Version holds the lambda function version.
 	Version string `json:"version,omitempty"`
-	// Indicates if the lambda function triggered a Cold Start
+	// Coldstart indicates if the lambda function triggered a Cold Start
 	Coldstart bool `json:"coldstart"`
 }
 
-type FaasTrigger struct {
-	// The trigger type.
+// FAASTrigger holds information related to the trigger of a Function-as-a-Service invocation.
+type FAASTrigger struct {
+	// Type holds the trigger type.
 	Type string `json:"type,omitempty"`
-	// The id of the origin trigger request.
+	// RequestID holds the ID of the origin trigger request.
 	RequestID string `json:"request_id,omitempty"`
 }
