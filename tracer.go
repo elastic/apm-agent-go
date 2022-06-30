@@ -862,6 +862,7 @@ func (t *Tracer) GetECSMetadata() map[string]interface{} {
 	if t.process != nil {
 		process := make(map[string]interface{})
 		process["title"] = t.process.Title
+		process["pid"] = t.process.Pid
 		process["parent"] = map[string]interface{}{
 			"pid": t.process.Ppid,
 		}
