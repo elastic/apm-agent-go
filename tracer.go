@@ -849,6 +849,85 @@ func (t *Tracer) Stats() TracerStats {
 	return t.stats.copy()
 }
 
+// GetECSMetadata returns ECS compliant metadata collected by the agent
+func (t *Tracer) GetECSMetadata() map[string]interface{} {
+	m := make(map[string]interface{})
+
+	service := make(map[string]interface{})
+	service["name"] = t.service.Name
+	service["version"] = t.service.Version
+	service["environment"] = t.service.Environment
+	m["service"] = service
+
+	if t.process != nil {
+		process := make(map[string]interface{})
+		process["title"] = t.process.Title
+		process["parent"] = map[string]interface{}{
+			"pid": t.process.Ppid,
+		}
+		m["process"] = process
+	}
+
+	if mdCloud := getCloudMetadata(); mdCloud != nil {
+		cloud := make(map[string]interface{})
+		cloud["provider"] = mdCloud.Provider
+		cloud["availability_zone"] = mdCloud.AvailabilityZone
+		cloud["region"] = mdCloud.Region
+		if mdCloud.Project != nil {
+			project := make(map[string]interface{})
+			project["id"] = mdCloud.Project.ID
+			project["name"] = mdCloud.Project.Name
+			cloud["project"] = project
+		}
+		if mdCloud.Account != nil {
+			account := make(map[string]interface{})
+			account["id"] = mdCloud.Account.ID
+			account["name"] = mdCloud.Account.Name
+			cloud["account"] = account
+		}
+		if mdCloud.Instance != nil {
+			instance := make(map[string]interface{})
+			instance["id"] = mdCloud.Instance.ID
+			instance["name"] = mdCloud.Instance.Name
+			cloud["instance"] = instance
+		}
+		if mdCloud.Machine != nil {
+			machine := make(map[string]interface{})
+			machine["type"] = mdCloud.Machine.Type
+			cloud["machine"] = machine
+		}
+		m["cloud"] = cloud
+	}
+
+	if mdSystem := t.system; mdSystem != nil {
+		host := make(map[string]interface{})
+		host["architecture"] = mdSystem.Architecture
+		host["hostname"] = mdSystem.Hostname
+		m["host"] = host
+
+		if mdSystem.Kubernetes != nil {
+			orchestrator := make(map[string]interface{})
+			orchestrator["type"] = "kubernetes"
+			orchestrator["namespace"] = mdSystem.Kubernetes.Namespace
+			if pod := mdSystem.Kubernetes.Pod; pod != nil {
+				resource := make(map[string]interface{})
+				resource["id"] = pod.UID
+				resource["name"] = pod.Name
+				resource["type"] = "pod"
+				orchestrator["resource"] = resource
+			}
+			m["orchestrator"] = orchestrator
+		}
+		if mdSystem.Container != nil {
+			container := make(map[string]interface{})
+			container["id"] = mdSystem.Container.ID
+			m["container"] = container
+		}
+	}
+
+	return m
+}
+
 func (t *Tracer) loop() {
 	ctx, cancelContext := context.WithCancel(context.Background())
 	defer cancelContext()
