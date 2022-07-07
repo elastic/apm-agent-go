@@ -4,7 +4,7 @@ set -euxo pipefail
 source ./scripts/jenkins/setenv.sh
 
 export GOFLAGS='-run=NONE -benchmem -bench=.'
-export OUT_FILE="build/bench.out"
+export OUT_FILE="bench.out"
 mkdir -p build
 
 make test | tee ${OUT_FILE}
