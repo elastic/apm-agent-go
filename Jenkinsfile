@@ -130,7 +130,7 @@ pipeline {
           }
         }
         stage('Benchmark') {
-          agent { label 'linux && immutable' }
+          agent { label 'microbenchmarks-pool' }
           options { skipDefaultCheckout() }
           when {
             beforeAgent true
