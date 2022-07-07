@@ -150,7 +150,7 @@ pipeline {
               unstash 'source'
               dir("${BASE_DIR}"){
                 sh script: './scripts/jenkins/bench.sh', label: 'Benchmarking'
-                sendBenchmarks(file: 'bench.out', index: 'benchmark-go')
+                sendBenchmarks(file: 'build/bench.out', index: 'benchmark-go')
               }
             }
           }
