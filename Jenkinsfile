@@ -188,11 +188,14 @@ pipeline {
           }
         }
         stage('OSX') {
-          agent { label 'macosx && x86_64' }
+          agent { label 'macos11 && x86_64' }
           options { skipDefaultCheckout() }
           environment {
             GO_VERSION = "${params.GO_VERSION}"
             PATH = "${env.PATH}:${env.WORKSPACE}/bin"
+            // NOTE: as long as the MacOS workers use a different path then GOPATH and HOME need to be reset
+            GOPATH = "${env.WORKSPACE}"
+            HOME = "${env.WORKSPACE}"
           }
           steps {
             withGithubNotify(context: 'Build-Test - OSX') {
