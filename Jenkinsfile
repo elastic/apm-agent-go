@@ -187,7 +187,7 @@ pipeline {
           }
         }
         stage('OSX') {
-          agent { label 'macos12 && x86_64' }
+          agent { label 'macos11 && x86_64' }
           options { skipDefaultCheckout() }
           environment {
             GO_VERSION = "${params.GO_VERSION}"
