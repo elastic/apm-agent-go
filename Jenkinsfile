@@ -192,7 +192,9 @@ pipeline {
           environment {
             GO_VERSION = "${params.GO_VERSION}"
             PATH = "${env.PATH}:${env.WORKSPACE}/bin"
-            HOME = "${env.WORKSPACE}"  // as long as the MacOS workers use a different Path
+            // NOTE: as long as the MacOS workers use a different path then GOPATH and HOME need to be reset
+            GOPATH = "${env.WORKSPACE}"
+            HOME = "${env.WORKSPACE}"
           }
           steps {
             withGithubNotify(context: 'Build-Test - OSX') {
