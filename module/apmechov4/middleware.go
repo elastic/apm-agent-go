@@ -48,20 +48,30 @@ func Middleware(o ...Option) echo.MiddlewareFunc {
 	if opts.requestIgnorer == nil {
 		opts.requestIgnorer = apmhttp.NewDynamicServerRequestIgnorer(opts.tracer)
 	}
+	if opts.requestName == nil {
+		opts.requestName = func(c echo.Context) string {
+			return c.Request().Method + " " + c.Path()
+		}
+	}
 	return func(h echo.HandlerFunc) echo.HandlerFunc {
 		m := &middleware{
 			tracer:         opts.tracer,
 			handler:        h,
 			requestIgnorer: opts.requestIgnorer,
+			requestName:    opts.requestName,
 		}
 		return m.handle
 	}
 }
 
+// RequestNameFunc should return span name for the given echo context
+type RequestNameFunc func(c echo.Context) string
+
 type middleware struct {
 	handler        echo.HandlerFunc
 	tracer         *apm.Tracer
 	requestIgnorer apmhttp.RequestIgnorerFunc
+	requestName    RequestNameFunc
 }
 
 func (m *middleware) handle(c echo.Context) error {
@@ -69,7 +79,7 @@ func (m *middleware) handle(c echo.Context) error {
 	if !m.tracer.Recording() || m.requestIgnorer(req) {
 		return m.handler(c)
 	}
-	name := req.Method + " " + c.Path()
+	name := m.requestName(c)
 	tx, body, req := apmhttp.StartTransactionWithBody(m.tracer, name, req)
 	defer tx.End()
 	c.SetRequest(req)
@@ -151,6 +161,7 @@ func setContext(ctx *apm.Context, req *http.Request, resp *echo.Response, body *
 type options struct {
 	tracer         *apm.Tracer
 	requestIgnorer apmhttp.RequestIgnorerFunc
+	requestName    RequestNameFunc
 }
 
 // Option sets options for tracing.
@@ -164,6 +175,18 @@ func WithTracer(t *apm.Tracer) Option {
 	}
 	return func(o *options) {
 		o.tracer = t
+	}
+}
+
+// WithRequestName returns an Option which sets r as the function
+// to use to obtain the span name for the given echo request.
+func WithRequestName(r RequestNameFunc) Option {
+	if r == nil {
+		panic("r == nil")
+	}
+
+	return func(o *options) {
+		o.requestName = r
 	}
 }
 
