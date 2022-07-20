@@ -153,7 +153,7 @@ func (w *modelWriter) buildModelSpan(out *model.Span, span *Span, sd *SpanData) 
 	out.Context = sd.Context.build()
 	out.OTel = sd.Context.otel
 	for _, sl := range sd.links {
-		out.Links = append(out.Links, model.SpanLink{TraceID: model.TraceID(sl.TraceID), SpanID: model.SpanID(sl.SpanID)})
+		out.Links = append(out.Links, model.SpanLink{TraceID: model.TraceID(sl.Trace), SpanID: model.SpanID(sl.Span)})
 	}
 	if sd.composite.count > 1 {
 		out.Composite = sd.composite.build()
