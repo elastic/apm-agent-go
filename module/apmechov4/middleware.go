@@ -179,7 +179,7 @@ func WithTracer(t *apm.Tracer) Option {
 }
 
 // WithRequestName returns an Option which sets r as the function
-// to use to obtain the span name for the given echo request.
+// to use to obtain the transaction name for the given echo request.
 func WithRequestName(r RequestNameFunc) Option {
 	if r == nil {
 		panic("r == nil")
