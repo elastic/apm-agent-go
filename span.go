@@ -236,7 +236,7 @@ func (t *Tracer) startSpan(name, spanType string, transactionID SpanID, opts Spa
 	span.transactionID = transactionID
 	span.timestamp = opts.Start
 	span.Type = spanType
-	span.Links = opts.Links
+	span.links = opts.Links
 	if dot := strings.IndexRune(spanType, '.'); dot != -1 {
 		span.Type = spanType[:dot]
 		span.Subtype = spanType[dot+1:]
@@ -582,7 +582,7 @@ type SpanData struct {
 	// Context describes the context in which span occurs.
 	Context SpanContext
 
-	Links []SpanLink
+	links []SpanLink
 
 	mu            sync.Mutex
 	stacktrace    []stacktrace.Frame
