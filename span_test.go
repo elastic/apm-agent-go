@@ -118,6 +118,60 @@ func TestSpanParentID(t *testing.T) {
 	assert.Equal(t, model.SpanID(parentID), payloads.Spans[0].ParentID)
 }
 
+func TestSpanLink(t *testing.T) {
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+
+	runFunc := func(s apm.SpanOptions) *apm.Span {
+		tx := tracer.StartTransaction("name", "type")
+		span := tx.StartSpanOptions("foo", "type", s)
+		traceContext := tx.TraceContext()
+		parentID := span.ParentID()
+
+		span.End()
+		tx.End()
+
+		// Assert that the parentID is not empty when the span hasn't been ended.
+		// And that the Span's parentID equals the traceContext Span.
+		assert.NotEqual(t, parentID, apm.SpanID{})
+		assert.Equal(t, traceContext.Span, parentID)
+
+		// Assert that the parentID is not empty after the span has ended.
+		assert.NotZero(t, span.ParentID())
+		assert.Equal(t, traceContext.Span, span.ParentID())
+
+		return span
+
+	}
+
+	s1 := runFunc(apm.SpanOptions{SpanID: apm.SpanID{0, 1, 2, 3, 4, 5, 6, 7}})
+	s2 := runFunc(apm.SpanOptions{SpanID: apm.SpanID{1, 2, 4, 6, 8, 10, 12, 14}})
+
+	links := []apm.SpanLink{
+		{Trace: s1.TraceContext().Trace, Span: s1.TraceContext().Span},
+		{Trace: s2.TraceContext().Trace, Span: s2.TraceContext().Span},
+	}
+
+	assert.NotEqual(t, s1.TraceContext().Span, s2.TraceContext().Span)
+
+	runFunc(apm.SpanOptions{Links: links})
+
+	tracer.Flush(nil)
+
+	payloads := tracer.Payloads()
+	require.Len(t, payloads.Spans, 3)
+	assert.Equal(t, model.SpanID(s1.ParentID()), payloads.Spans[0].ParentID)
+
+	assert.Len(t, payloads.Spans[2].Links, len(links))
+
+	// Assert equality and elements order
+	for i, sl := range links {
+		l := payloads.Spans[2].Links[i]
+		assert.Equal(t, model.SpanID(sl.Span), l.SpanID)
+		assert.Equal(t, model.TraceID(sl.Trace), l.TraceID)
+	}
+}
+
 func TestSpanTiming(t *testing.T) {
 	var spanStart, spanEnd time.Time
 	txStart := time.Now()
