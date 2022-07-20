@@ -281,6 +281,9 @@ type Transaction struct {
 
 	// FAAS holds Function-as-a-Service properties for the transaction.
 	FAAS *FAAS `json:"faas,omitempty"`
+
+	// Links holds a list of spans linked to the transaction.
+	Links []SpanLink `json:"links,omitempty"`
 }
 
 // OTel holds bridged OpenTelemetry information.

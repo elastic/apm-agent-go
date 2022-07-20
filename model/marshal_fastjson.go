@@ -531,6 +531,19 @@ func (v *Transaction) MarshalFastJSON(w *fastjson.Writer) error {
 			firstErr = err
 		}
 	}
+	if v.Links != nil {
+		w.RawString(",\"links\":")
+		w.RawByte('[')
+		for i, v := range v.Links {
+			if i != 0 {
+				w.RawByte(',')
+			}
+			if err := v.MarshalFastJSON(w); err != nil && firstErr == nil {
+				firstErr = err
+			}
+		}
+		w.RawByte(']')
+	}
 	if v.OTel != nil {
 		w.RawString(",\"otel\":")
 		if err := v.OTel.MarshalFastJSON(w); err != nil && firstErr == nil {

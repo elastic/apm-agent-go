@@ -147,6 +147,7 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 	if tx.timestamp.IsZero() {
 		tx.timestamp = time.Now()
 	}
+	tx.links = opts.Links
 	return tx
 }
 
@@ -163,6 +164,9 @@ type TransactionOptions struct {
 	// Start is the start time of the transaction. If this has the
 	// zero value, time.Now() will be used instead.
 	Start time.Time
+
+	// Links, if non-nil, holds a list of spans linked to the transaction.
+	Links []SpanLink
 }
 
 // Transaction describes an event occurring in the monitored service.
@@ -374,6 +378,7 @@ type TransactionData struct {
 	propagateLegacyHeader   bool
 	timestamp               time.Time
 
+	links             []SpanLink
 	mu                sync.Mutex
 	errorCaptured     bool
 	spansCreated      int

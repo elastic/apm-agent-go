@@ -124,6 +124,9 @@ func (w *modelWriter) buildModelTransaction(out *model.Transaction, tx *Transact
 	out.SpanCount.Started = td.spansCreated
 	out.SpanCount.Dropped = td.spansDropped
 	out.OTel = td.Context.otel
+	for _, sl := range td.links {
+		out.Links = append(out.Links, model.SpanLink{TraceID: model.TraceID(sl.Trace), SpanID: model.SpanID(sl.Span)})
+	}
 	if dss := buildDroppedSpansStats(td.droppedSpansStats); len(dss) > 0 {
 		out.DroppedSpansStats = dss
 	}

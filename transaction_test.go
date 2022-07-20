@@ -371,6 +371,54 @@ func TestTransactionSampleRateOmission(t *testing.T) {
 	}
 }
 
+func TestTransactionSpanLink(t *testing.T) {
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+
+	runFunc := func(to apm.TransactionOptions) *apm.Transaction {
+		tx := tracer.StartTransactionOptions("name", "type", to)
+		tx.End()
+		return tx
+	}
+
+	t1 := runFunc(apm.TransactionOptions{
+		TraceContext: apm.TraceContext{
+			Trace: apm.TraceID{1},
+			Span:  apm.SpanID{1},
+		},
+	})
+
+	t2 := runFunc(apm.TransactionOptions{
+		TraceContext: apm.TraceContext{
+			Trace: apm.TraceID{2},
+			Span:  apm.SpanID{2},
+		},
+	})
+
+	links := []apm.SpanLink{
+		{Trace: t1.TraceContext().Trace, Span: t1.TraceContext().Span},
+		{Trace: t2.TraceContext().Trace, Span: t2.TraceContext().Span},
+	}
+
+	assert.NotEqual(t, t1.TraceContext().Span, t2.TraceContext().Span)
+
+	runFunc(apm.TransactionOptions{
+		Links: links,
+	})
+
+	tracer.Flush(nil)
+
+	payloads := tracer.Payloads()
+	assert.Len(t, payloads.Transactions, 3)
+
+	// Assert equality and elements order
+	for i, sl := range links {
+		l := payloads.Transactions[2].Links[i]
+		assert.Equal(t, model.SpanID(sl.Span), l.SpanID)
+		assert.Equal(t, model.TraceID(sl.Trace), l.TraceID)
+	}
+}
+
 func TestTransactionDiscard(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
