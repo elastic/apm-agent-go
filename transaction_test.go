@@ -388,12 +388,12 @@ func TestTransactionSpanLink(t *testing.T) {
 	payloads := tracer.Payloads()
 	assert.Len(t, payloads.Transactions, 1)
 
-	// Assert equality and elements order
-	for i, sl := range links {
-		l := payloads.Transactions[0].Links[i]
-		assert.Equal(t, model.SpanID(sl.Span), l.SpanID)
-		assert.Equal(t, model.TraceID(sl.Trace), l.TraceID)
+	// Assert span links are identical.
+	expectedLinks := []model.SpanLink{
+		{TraceID: model.TraceID{1}, SpanID: model.SpanID{1}},
+		{TraceID: model.TraceID{2}, SpanID: model.SpanID{2}},
 	}
+	assert.Equal(t, expectedLinks, payloads.Transactions[0].Links)
 }
 
 func TestTransactionDiscard(t *testing.T) {
