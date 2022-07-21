@@ -375,45 +375,22 @@ func TestTransactionSpanLink(t *testing.T) {
 	tracer := apmtest.NewRecordingTracer()
 	defer tracer.Close()
 
-	runFunc := func(to apm.TransactionOptions) *apm.Transaction {
-		tx := tracer.StartTransactionOptions("name", "type", to)
-		tx.End()
-		return tx
-	}
-
-	t1 := runFunc(apm.TransactionOptions{
-		TraceContext: apm.TraceContext{
-			Trace: apm.TraceID{1},
-			Span:  apm.SpanID{1},
-		},
-	})
-
-	t2 := runFunc(apm.TransactionOptions{
-		TraceContext: apm.TraceContext{
-			Trace: apm.TraceID{2},
-			Span:  apm.SpanID{2},
-		},
-	})
-
 	links := []apm.SpanLink{
-		{Trace: t1.TraceContext().Trace, Span: t1.TraceContext().Span},
-		{Trace: t2.TraceContext().Trace, Span: t2.TraceContext().Span},
+		{Trace: apm.TraceID{1}, Span: apm.SpanID{1}},
+		{Trace: apm.TraceID{2}, Span: apm.SpanID{2}},
 	}
 
-	assert.NotEqual(t, t1.TraceContext().Span, t2.TraceContext().Span)
-
-	runFunc(apm.TransactionOptions{
-		Links: links,
-	})
+	tx := tracer.StartTransactionOptions("name", "type", apm.TransactionOptions{Links: links})
+	tx.End()
 
 	tracer.Flush(nil)
 
 	payloads := tracer.Payloads()
-	assert.Len(t, payloads.Transactions, 3)
+	assert.Len(t, payloads.Transactions, 1)
 
 	// Assert equality and elements order
 	for i, sl := range links {
-		l := payloads.Transactions[2].Links[i]
+		l := payloads.Transactions[0].Links[i]
 		assert.Equal(t, model.SpanID(sl.Span), l.SpanID)
 		assert.Equal(t, model.TraceID(sl.Trace), l.TraceID)
 	}
