@@ -411,7 +411,7 @@ type SpanContext struct {
 // SpanLink holds the information of a linked span.
 type SpanLink struct {
 	TraceID TraceID `json:"trace_id"`
-	SpanID  SpanID  `json:"id"`
+	SpanID  SpanID  `json:"span_id"`
 }
 
 // DestinationSpanContext holds contextual information about the destination

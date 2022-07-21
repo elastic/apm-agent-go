@@ -819,7 +819,7 @@ func (v *SpanContext) MarshalFastJSON(w *fastjson.Writer) error {
 func (v *SpanLink) MarshalFastJSON(w *fastjson.Writer) error {
 	var firstErr error
 	w.RawByte('{')
-	w.RawString("\"id\":")
+	w.RawString("\"span_id\":")
 	if err := v.SpanID.MarshalFastJSON(w); err != nil && firstErr == nil {
 		firstErr = err
 	}
