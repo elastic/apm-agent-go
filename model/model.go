@@ -281,6 +281,9 @@ type Transaction struct {
 
 	// FAAS holds Function-as-a-Service properties for the transaction.
 	FAAS *FAAS `json:"faas,omitempty"`
+
+	// Links holds a list of spans linked to the transaction.
+	Links []SpanLink `json:"links,omitempty"`
 }
 
 // OTel holds bridged OpenTelemetry information.
@@ -379,6 +382,9 @@ type Span struct {
 	// aggregated set of spans as defined by `composite.compression_strategy`.
 	Composite *CompositeSpan `json:"composite,omitempty"`
 
+	// Links holds a list of spans linked to the span.
+	Links []SpanLink `json:"links,omitempty"`
+
 	// OTel holds information bridged from OpenTelemetry.
 	OTel *OTel `json:"otel,omitempty"`
 }
@@ -400,6 +406,12 @@ type SpanContext struct {
 
 	// Tags holds user-defined key/value pairs.
 	Tags IfaceMap `json:"tags,omitempty"`
+}
+
+// SpanLink holds the information of a linked span.
+type SpanLink struct {
+	TraceID TraceID `json:"trace_id"`
+	SpanID  SpanID  `json:"span_id"`
 }
 
 // DestinationSpanContext holds contextual information about the destination

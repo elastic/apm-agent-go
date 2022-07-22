@@ -219,6 +219,9 @@ type SpanOptions struct {
 	// transaction timestamp. Calculating the timstamp in this way will ensure
 	// monotonicity of events within a transaction.
 	Start time.Time
+
+	// Links, if non-nil, holds a list of spans linked to the span.
+	Links []SpanLink
 }
 
 func (t *Tracer) startSpan(name, spanType string, transactionID SpanID, opts SpanOptions) *Span {
@@ -233,6 +236,7 @@ func (t *Tracer) startSpan(name, spanType string, transactionID SpanID, opts Spa
 	span.transactionID = transactionID
 	span.timestamp = opts.Start
 	span.Type = spanType
+	span.links = opts.Links
 	if dot := strings.IndexRune(spanType, '.'); dot != -1 {
 		span.Type = spanType[:dot]
 		span.Subtype = spanType[dot+1:]
@@ -577,6 +581,8 @@ type SpanData struct {
 
 	// Context describes the context in which span occurs.
 	Context SpanContext
+
+	links []SpanLink
 
 	mu            sync.Mutex
 	stacktrace    []stacktrace.Frame

@@ -138,6 +138,12 @@ func (id SpanID) MarshalText() ([]byte, error) {
 	return text, nil
 }
 
+// SpanLink describes a linked span.
+type SpanLink struct {
+	Trace TraceID
+	Span  SpanID
+}
+
 // TraceOptions describes the options for a trace.
 type TraceOptions uint8
 

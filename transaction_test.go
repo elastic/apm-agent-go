@@ -371,6 +371,31 @@ func TestTransactionSampleRateOmission(t *testing.T) {
 	}
 }
 
+func TestTransactionSpanLink(t *testing.T) {
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+
+	links := []apm.SpanLink{
+		{Trace: apm.TraceID{1}, Span: apm.SpanID{1}},
+		{Trace: apm.TraceID{2}, Span: apm.SpanID{2}},
+	}
+
+	tx := tracer.StartTransactionOptions("name", "type", apm.TransactionOptions{Links: links})
+	tx.End()
+
+	tracer.Flush(nil)
+
+	payloads := tracer.Payloads()
+	assert.Len(t, payloads.Transactions, 1)
+
+	// Assert span links are identical.
+	expectedLinks := []model.SpanLink{
+		{TraceID: model.TraceID{1}, SpanID: model.SpanID{1}},
+		{TraceID: model.TraceID{2}, SpanID: model.SpanID{2}},
+	}
+	assert.Equal(t, expectedLinks, payloads.Transactions[0].Links)
+}
+
 func TestTransactionDiscard(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
