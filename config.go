@@ -65,6 +65,7 @@ const (
 	envBreakdownMetrics            = "ELASTIC_APM_BREAKDOWN_METRICS"
 	envUseElasticTraceparentHeader = "ELASTIC_APM_USE_ELASTIC_TRACEPARENT_HEADER"
 	envCloudProvider               = "ELASTIC_APM_CLOUD_PROVIDER"
+	envContinuationStrategy        = "ELASTIC_APM_TRACE_CONTINUATION_STRATEGY"
 
 	// span_compression (default `true`)
 	envSpanCompressionEnabled = "ELASTIC_APM_SPAN_COMPRESSION_ENABLED"
@@ -93,6 +94,7 @@ const (
 	defaultCaptureBody           = CaptureBodyOff
 	defaultSpanFramesMinDuration = 5 * time.Millisecond
 	defaultStackTraceLimit       = 50
+	defaultContinuationStrategy  = "continue"
 
 	defaultExitSpanMinDuration = time.Millisecond
 
@@ -249,6 +251,23 @@ func parseSampleRate(name, value string) (Sampler, error) {
 
 func initialSanitizedFieldNames() wildcard.Matchers {
 	return configutil.ParseWildcardPatternsEnv(envSanitizeFieldNames, defaultSanitizedFieldNames)
+}
+
+func initContinuationStrategy() (string, error) {
+	value := os.Getenv(envContinuationStrategy)
+	if value == "" {
+		return defaultContinuationStrategy, nil
+	}
+	return parseContinuationStrategy(value)
+}
+
+func parseContinuationStrategy(value string) (string, error) {
+	switch value {
+	case "continue", "restart", "restart_external":
+		return value, nil
+	default:
+		return "", fmt.Errorf("unknown continuation strategy: %s", value)
+	}
 }
 
 func initialCaptureHeaders() (bool, error) {
@@ -460,6 +479,17 @@ func (t *Tracer) updateRemoteConfig(logger Logger, old, attrs map[string]string)
 			updates = append(updates, func(cfg *instrumentationConfig) {
 				cfg.sanitizedFieldNames = matchers
 			})
+		case envContinuationStrategy:
+			continuationStrategy, err := parseContinuationStrategy(v)
+			if err != nil {
+				errorf("central config failure: failed to parse %s: %s", k, err)
+				delete(attrs, k)
+				continue
+			} else {
+				updates = append(updates, func(cfg *instrumentationConfig) {
+					cfg.continuationStrategy = continuationStrategy
+				})
+			}
 		case envSpanFramesMinDuration:
 			duration, err := configutil.ParseDuration(v)
 			if err != nil {
@@ -637,6 +667,7 @@ type instrumentationConfigValues struct {
 	sampler               Sampler
 	spanFramesMinDuration time.Duration
 	exitSpanMinDuration   time.Duration
+	continuationStrategy  string
 	stackTraceLimit       int
 	propagateLegacyHeader bool
 	sanitizedFieldNames   wildcard.Matchers

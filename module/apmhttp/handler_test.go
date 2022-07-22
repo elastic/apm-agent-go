@@ -502,6 +502,50 @@ func TestHandlerTraceparentHeader(t *testing.T) {
 	}
 }
 
+func TestHandleContinuationStrategy(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	mux := http.NewServeMux()
+	mux.Handle("/foo", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.WriteHeader(http.StatusTeapot)
+	}))
+
+	const traceparentValue = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+	makeReq := func(headers ...string) *http.Request {
+		req, _ := http.NewRequest("GET", "http://server.testing/foo", nil)
+		for i := 0; i < len(headers); i += 2 {
+			req.Header.Set(headers[i], headers[i+1])
+		}
+		return req
+	}
+
+	h := apmhttp.Wrap(mux, apmhttp.WithTracer(tracer))
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, makeReq("Elastic-Apm-Traceparent", traceparentValue))
+
+	tracer.SetContinuationStrategy("restart")
+
+	h.ServeHTTP(w, makeReq("traceparent", traceparentValue))
+	tracer.Flush(nil)
+
+	payloads := transport.Payloads()
+	require.Len(t, payloads.Transactions, 2)
+
+	first := payloads.Transactions[0]
+	assert.Equal(t, "0af7651916cd43dd8448eb211c80319c", apm.TraceID(first.TraceID).String())
+	assert.Equal(t, "b7ad6b7169203331", apm.SpanID(first.ParentID).String())
+	assert.NotZero(t, first.ID)
+
+	second := payloads.Transactions[1]
+	assert.NotEqual(t, first.TraceID, second.TraceID)
+	assert.NotEqual(t, first.ParentID, second.ParentID)
+	assert.Len(t, second.Links, 1)
+	link := second.Links[0]
+	assert.Equal(t, first.TraceID, link.TraceID)
+	assert.Equal(t, first.ParentID, link.SpanID)
+}
+
 func TestHandlerTracestateHeader(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.Handle("/foo", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
