@@ -258,15 +258,15 @@ func initContinuationStrategy() (string, error) {
 	if value == "" {
 		return defaultContinuationStrategy, nil
 	}
-	return parseContinuationStrategy(value)
+	return value, validateContinuationStrategy(value)
 }
 
-func parseContinuationStrategy(value string) (string, error) {
+func validateContinuationStrategy(value string) error {
 	switch value {
 	case "continue", "restart", "restart_external":
-		return value, nil
+		return nil
 	default:
-		return "", fmt.Errorf("unknown continuation strategy: %s", value)
+		return fmt.Errorf("unknown continuation strategy: %s", value)
 	}
 }
 
@@ -480,16 +480,14 @@ func (t *Tracer) updateRemoteConfig(logger Logger, old, attrs map[string]string)
 				cfg.sanitizedFieldNames = matchers
 			})
 		case envContinuationStrategy:
-			continuationStrategy, err := parseContinuationStrategy(v)
-			if err != nil {
+			if err := validateContinuationStrategy(v); err != nil {
 				errorf("central config failure: failed to parse %s: %s", k, err)
 				delete(attrs, k)
 				continue
-			} else {
-				updates = append(updates, func(cfg *instrumentationConfig) {
-					cfg.continuationStrategy = continuationStrategy
-				})
 			}
+			updates = append(updates, func(cfg *instrumentationConfig) {
+				cfg.continuationStrategy = v
+			})
 		case envSpanFramesMinDuration:
 			duration, err := configutil.ParseDuration(v)
 			if err != nil {
