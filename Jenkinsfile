@@ -151,10 +151,7 @@ pipeline {
               dir("${BASE_DIR}"){
                 sh script: './scripts/jenkins/bench.sh', label: 'Benchmarking'
                 sendBenchmarks(file: 'build/bench.out', index: 'benchmark-go')
-                // generateGoBenchmarkDiff doesn't work well with nested folders.
-                dir('build') {
-                  generateGoBenchmarkDiff(file: 'bench.out', filter: 'exclude')
-                }
+                generateGoBenchmarkDiff(file: 'build/bench.out', filter: 'exclude')
               }
             }
           }
