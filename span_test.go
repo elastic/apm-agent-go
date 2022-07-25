@@ -118,6 +118,22 @@ func TestSpanParentID(t *testing.T) {
 	assert.Equal(t, model.SpanID(parentID), payloads.Spans[0].ParentID)
 }
 
+func TestSpanEnsureType(t *testing.T) {
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+
+	tx := tracer.StartTransaction("name", "type")
+	span := tx.StartSpan("name", "", nil)
+	span.End()
+	tx.End()
+	tracer.Flush(nil)
+
+	payloads := tracer.Payloads()
+	require.Len(t, payloads.Spans, 1)
+
+	assert.NotEmpty(t, payloads.Spans[0].Type)
+}
+
 func TestSpanLink(t *testing.T) {
 	tracer := apmtest.NewRecordingTracer()
 	defer tracer.Close()

@@ -42,6 +42,10 @@ func (t *Tracer) StartTransaction(name, transactionType string) *Transaction {
 // StartTransactionOptions returns a new Transaction with the
 // specified name, type, and options.
 func (t *Tracer) StartTransactionOptions(name, transactionType string, opts TransactionOptions) *Transaction {
+	if transactionType == "" {
+		transactionType = "custom"
+	}
+
 	td, _ := t.transactionDataPool.Get().(*TransactionData)
 	if td == nil {
 		td = &TransactionData{

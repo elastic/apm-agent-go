@@ -225,6 +225,9 @@ type SpanOptions struct {
 }
 
 func (t *Tracer) startSpan(name, spanType string, transactionID SpanID, opts SpanOptions) *Span {
+	if spanType == "" {
+		spanType = "custom"
+	}
 	sd, _ := t.spanDataPool.Get().(*SpanData)
 	if sd == nil {
 		sd = &SpanData{Duration: -1}
