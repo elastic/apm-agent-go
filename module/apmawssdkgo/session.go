@@ -18,7 +18,8 @@
 package apmawssdkgo // import "go.elastic.co/apm/module/apmawssdkgo/v2"
 
 import (
-	"go.elastic.co/apm/module/apmhttp/v2"
+	"context"
+
 	"go.elastic.co/apm/v2"
 	"go.elastic.co/apm/v2/stacktrace"
 
@@ -52,6 +53,10 @@ func WrapSession(s *session.Session) *session.Session {
 	return s
 }
 
+// We add AWS spans to context using a separate context key, to avoid
+// modifying spans not created by the "build" handler.
+type awsSpanKey struct{}
+
 const (
 	serviceS3       = "s3"
 	serviceDynamoDB = "dynamodb"
@@ -75,11 +80,12 @@ type service interface {
 }
 
 func build(req *request.Request) {
-	if !supportedRequest(req) {
+	spanSubtype := req.ClientInfo.ServiceName
+	spanType, ok := serviceTypeMap[spanSubtype]
+	if !ok {
+		// Not a supported service.
 		return
 	}
-
-	spanSubtype := req.ClientInfo.ServiceName
 	if spanSubtype == serviceSNS && !supportedSNSMethod(req) {
 		return
 	}
@@ -95,14 +101,9 @@ func build(req *request.Request) {
 
 	// The span name is added in the `send()` function, after other
 	// handlers have generated the necessary information on the request.
-	spanType := serviceTypeMap[spanSubtype]
 	span := tx.StartSpan("", spanType, apm.SpanFromContext(ctx))
-	if !span.Dropped() {
-		ctx = apm.ContextWithSpan(ctx, span)
-		defer req.SetContext(ctx)
-	} else {
+	if span.Dropped() {
 		span.End()
-		span = nil
 		return
 	}
 
@@ -111,9 +112,11 @@ func build(req *request.Request) {
 		addMessageAttributesSQS(req, span, tx.ShouldPropagateLegacyHeader())
 	case serviceSNS:
 		addMessageAttributesSNS(req, span, tx.ShouldPropagateLegacyHeader())
-	default:
-		return
 	}
+
+	ctx = apm.ContextWithSpan(ctx, span)
+	ctx = context.WithValue(ctx, awsSpanKey{}, span)
+	req.SetContext(ctx)
 }
 
 func send(req *request.Request) {
@@ -121,13 +124,8 @@ func send(req *request.Request) {
 		return
 	}
 
-	if !supportedRequest(req) {
-		return
-	}
-
-	ctx := req.Context()
-	tx := apm.TransactionFromContext(ctx)
-	if tx == nil {
+	span, ok := req.Context().Value(awsSpanKey{}).(*apm.Span)
+	if !ok {
 		return
 	}
 
@@ -156,20 +154,11 @@ func send(req *request.Request) {
 		return
 	}
 
-	span := apm.SpanFromContext(ctx)
-	if !span.Dropped() {
-		ctx = apm.ContextWithSpan(ctx, span)
-		req.HTTPRequest = apmhttp.RequestWithContext(ctx, req.HTTPRequest)
-		span.Context.SetHTTPRequest(req.HTTPRequest)
-	} else {
-		span.End()
-		span = nil
-		return
-	}
-
 	span.Name = svc.spanName()
 	span.Subtype = spanSubtype
 	span.Action = req.Operation.Name
+
+	span.Context.SetHTTPRequest(req.HTTPRequest)
 
 	span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
 		Name:     spanSubtype,
@@ -183,18 +172,12 @@ func send(req *request.Request) {
 	}
 
 	svc.setAdditional(span)
-
-	req.SetContext(ctx)
 }
 
 func complete(req *request.Request) {
-	if !supportedRequest(req) {
-		return
-	}
-
 	ctx := req.Context()
-	span := apm.SpanFromContext(ctx)
-	if span.Dropped() {
+	span, ok := ctx.Value(awsSpanKey{}).(*apm.Span)
+	if !ok {
 		return
 	}
 	defer span.End()
@@ -204,9 +187,4 @@ func complete(req *request.Request) {
 	if err := req.Error; err != nil {
 		apm.CaptureError(ctx, err).Send()
 	}
-}
-
-func supportedRequest(req *request.Request) bool {
-	_, ok := serviceTypeMap[req.ClientInfo.ServiceName]
-	return ok
 }
