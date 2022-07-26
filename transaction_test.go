@@ -101,6 +101,16 @@ func TestContinuationStrategy(t *testing.T) {
 			expectNewTraceID: true,
 			expectSpanLink:   true,
 		},
+		"restart with es": {
+			traceContext: apm.TraceContext{
+				Trace: apm.TraceID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+				Span:  apm.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
+				State: apm.NewTraceState(apm.TraceStateEntry{Key: "es", Value: "s:0.5"}),
+			},
+			strategy:         "restart",
+			expectNewTraceID: true,
+			expectSpanLink:   true,
+		},
 		"continue": {
 			traceContext: apm.TraceContext{
 				Trace: apm.TraceID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
