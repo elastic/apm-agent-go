@@ -143,6 +143,24 @@ func TestTracerCentralConfigUpdate(t *testing.T) {
 		require.NoError(t, err)
 		return tracer.IgnoredTransactionURL(u)
 	})
+	run("trace_continuation_strategy", "restart", func(tracer *apmtest.RecordingTracer) bool {
+		tracer.ResetPayloads()
+
+		traceID := apm.TraceID{1}
+
+		tx := tracer.StartTransactionOptions("name", "type", apm.TransactionOptions{TraceContext: apm.TraceContext{
+			Trace: traceID,
+			Span:  apm.SpanID{2},
+		}})
+		tx.End()
+
+		tracer.Flush(nil)
+		payloads := tracer.Payloads()
+		txs := payloads.Transactions
+		require.Len(t, txs, 1)
+
+		return apm.TraceID(txs[0].TraceID) != traceID && len(txs[0].Links) == 1 && apm.TraceID(txs[0].Links[0].TraceID) == traceID
+	})
 	run("span_compression_enabled", "false", func(tracer *apmtest.RecordingTracer) bool {
 		tracer.ResetPayloads()
 		tx := tracer.StartTransaction("name", "type")
