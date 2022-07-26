@@ -131,7 +131,7 @@ func TestSpanEnsureType(t *testing.T) {
 	payloads := tracer.Payloads()
 	require.Len(t, payloads.Spans, 1)
 
-	assert.NotEmpty(t, payloads.Spans[0].Type)
+	assert.Equal(t, "custom", payloads.Spans[0].Type)
 }
 
 func TestSpanLink(t *testing.T) {

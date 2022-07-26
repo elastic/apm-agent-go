@@ -225,9 +225,6 @@ type SpanOptions struct {
 }
 
 func (t *Tracer) startSpan(name, spanType string, transactionID SpanID, opts SpanOptions) *Span {
-	if spanType == "" {
-		spanType = "custom"
-	}
 	sd, _ := t.spanDataPool.Get().(*SpanData)
 	if sd == nil {
 		sd = &SpanData{Duration: -1}
@@ -344,6 +341,9 @@ func (s *Span) End() {
 	defer s.mu.Unlock()
 	if s.ended() {
 		return
+	}
+	if s.Type == "" {
+		s.Type = "custom"
 	}
 	if s.exit && !s.Context.setDestinationServiceCalled {
 		// The span was created as an exit span, but the user did not

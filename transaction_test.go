@@ -153,7 +153,7 @@ func TestTransactionEnsureType(t *testing.T) {
 
 	payloads := transport.Payloads()
 	require.Len(t, payloads.Transactions, 1)
-	assert.NotEmpty(t, payloads.Transactions[0].Type)
+	assert.Equal(t, "custom", payloads.Transactions[0].Type)
 }
 
 func TestTransactionParentID(t *testing.T) {
