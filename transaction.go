@@ -304,6 +304,9 @@ func (tx *Transaction) End() {
 	if tx.ended() {
 		return
 	}
+	if tx.Type == "" {
+		tx.Type = "custom"
+	}
 	if tx.recording {
 		if tx.Duration < 0 {
 			tx.Duration = time.Since(tx.timestamp)

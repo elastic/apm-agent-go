@@ -342,6 +342,9 @@ func (s *Span) End() {
 	if s.ended() {
 		return
 	}
+	if s.Type == "" {
+		s.Type = "custom"
+	}
 	if s.exit && !s.Context.setDestinationServiceCalled {
 		// The span was created as an exit span, but the user did not
 		// manually set the destination.service.resource

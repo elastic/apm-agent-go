@@ -245,6 +245,19 @@ func TestTransactionEnsureParent(t *testing.T) {
 	assert.Equal(t, model.SpanID(parentSpan), payloads.Transactions[0].ParentID)
 }
 
+func TestTransactionEnsureType(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	tx := tracer.StartTransaction("name", "")
+	tx.End()
+	tracer.Flush(nil)
+
+	payloads := transport.Payloads()
+	require.Len(t, payloads.Transactions, 1)
+	assert.Equal(t, "custom", payloads.Transactions[0].Type)
+}
+
 func TestTransactionParentID(t *testing.T) {
 	tracer := apmtest.NewRecordingTracer()
 	defer tracer.Close()
