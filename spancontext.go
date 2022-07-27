@@ -62,13 +62,15 @@ type DatabaseSpanContext struct {
 	User string
 }
 
-// The span service target fields replace the `span.destination.service.*`
-// fields that are deprecated.
+// ServiceSpanContext holds contextual information about the service
+// for a span that relates to an operation involving an external service.
 type ServiceSpanContext struct {
 	// Target holds the destination service.
 	Target *ServiceTargetSpanContext `json:"target,omitempty"`
 }
 
+// ServiceTargetSpanContext fields replace the `span.destination.service.*`
+// fields that are deprecated.
 type ServiceTargetSpanContext struct {
 	// Type holds the destination service type.
 	Type string `json:"type,omitempty"`
@@ -256,6 +258,8 @@ func (c *SpanContext) SetMessage(message MessageSpanContext) {
 //
 // Both service.Name and service.Resource are required. If either is empty,
 // then SetDestinationService is a no-op.
+//
+// Deprecated: use SetServiceTarget
 func (c *SpanContext) SetDestinationService(service DestinationServiceSpanContext) {
 	c.setDestinationServiceCalled = true
 	if service.Resource == "" {
@@ -267,6 +271,7 @@ func (c *SpanContext) SetDestinationService(service DestinationServiceSpanContex
 	c.model.Destination = &c.destination
 }
 
+// SetServiceTarget sets the service target info in the context.
 func (c *SpanContext) SetServiceTarget(service ServiceTargetSpanContext) {
 	c.serviceTarget.Type = truncateString(service.Type)
 	c.serviceTarget.Name = truncateString(service.Name)

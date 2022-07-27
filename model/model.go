@@ -434,13 +434,15 @@ type DestinationSpanContext struct {
 	Cloud *DestinationCloudSpanContext `json:"cloud,omitempty"`
 }
 
-// The span service target fields replace the `span.destination.service.*`
-// fields that are deprecated.
+// ServiceSpanContext holds contextual information about the service
+// for a span that relates to an operation involving an external service.
 type ServiceSpanContext struct {
 	// Target holds the destination service.
 	Target *ServiceTargetSpanContext `json:"target,omitempty"`
 }
 
+// ServiceTargetSpanContext fields replace the `span.destination.service.*`
+// fields that are deprecated.
 type ServiceTargetSpanContext struct {
 	// Type holds the destination service type.
 	Type string `json:"type,omitempty"`
