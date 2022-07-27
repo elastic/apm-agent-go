@@ -170,6 +170,7 @@ type TraceState struct {
 	// These must not be modified after NewTraceState returns.
 	parseElasticTracestateError error
 	haveSampleRate              bool
+	haveElastic                 bool
 	sampleRate                  float64
 }
 
@@ -206,6 +207,7 @@ func NewTraceState(entries ...TraceStateEntry) TraceState {
 	}
 	if haveElastic {
 		out.parseElasticTracestateError = out.parseElasticTracestate(*out.head)
+		out.haveElastic = true
 	}
 	return out
 }
