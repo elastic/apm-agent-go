@@ -394,6 +394,9 @@ type SpanContext struct {
 	// Destination holds information about a destination service.
 	Destination *DestinationSpanContext `json:"destination,omitempty"`
 
+	// Service holds information about the service.
+	Service *ServiceSpanContext `json:"service,omitempty"`
+
 	// Database holds contextual information for database
 	// operation spans.
 	Database *DatabaseSpanContext `json:"db,omitempty"`
@@ -431,17 +434,42 @@ type DestinationSpanContext struct {
 	Cloud *DestinationCloudSpanContext `json:"cloud,omitempty"`
 }
 
+// ServiceSpanContext holds contextual information about the service
+// for a span that relates to an operation involving an external service.
+type ServiceSpanContext struct {
+	// Target holds the destination service.
+	Target *ServiceTargetSpanContext `json:"target,omitempty"`
+}
+
+// ServiceTargetSpanContext fields replace the `span.destination.service.*`
+// fields that are deprecated.
+type ServiceTargetSpanContext struct {
+	// Type holds the destination service type.
+	Type string `json:"type,omitempty"`
+
+	// Name holds the destination service name.
+	Name string `json:"name"`
+}
+
 // DestinationServiceSpanContext holds contextual information about a
 // destination service.
+//
+// Deprecated: replaced by `service.target.{type,name}`.
 type DestinationServiceSpanContext struct {
 	// Type holds the destination service type. Deprecated.
+	//
+	// Deprecated: replaced by `service.target.{type,name}`.
 	Type string `json:"type,omitempty"`
 
 	// Name holds the destination service name. Deprecated.
+	//
+	// Deprecated: replaced by `service.target.{type,name}`.
 	Name string `json:"name"`
 
 	// Resource identifies the destination service
 	// resource, e.g. a URI or message queue name.
+	//
+	// Deprecated: replaced by `service.target.{type,name}`.
 	Resource string `json:"resource,omitempty"`
 }
 

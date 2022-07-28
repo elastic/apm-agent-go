@@ -32,6 +32,8 @@ type SpanContext struct {
 	model                model.SpanContext
 	destination          model.DestinationSpanContext
 	destinationService   model.DestinationServiceSpanContext
+	service              model.ServiceSpanContext
+	serviceTarget        model.ServiceTargetSpanContext
 	destinationCloud     model.DestinationCloudSpanContext
 	message              model.MessageSpanContext
 	databaseRowsAffected int64
@@ -60,14 +62,35 @@ type DatabaseSpanContext struct {
 	User string
 }
 
+// ServiceSpanContext holds contextual information about the service
+// for a span that relates to an operation involving an external service.
+type ServiceSpanContext struct {
+	// Target holds the destination service.
+	Target *ServiceTargetSpanContext `json:"target,omitempty"`
+}
+
+// ServiceTargetSpanContext fields replace the `span.destination.service.*`
+// fields that are deprecated.
+type ServiceTargetSpanContext struct {
+	// Type holds the destination service type.
+	Type string `json:"type,omitempty"`
+
+	// Name holds the destination service name.
+	Name string `json:"name"`
+}
+
 // DestinationServiceSpanContext holds destination service span span.
 type DestinationServiceSpanContext struct {
 	// Name holds a name for the destination service, which may be used
 	// for grouping and labeling in service maps. Deprecated.
+	//
+	// Deprecated: replaced by `service.target.{type,name}`.
 	Name string
 
 	// Resource holds an identifier for a destination service resource,
 	// such as a message queue.
+	//
+	// Deprecated: replaced by `service.target.{type,name}`.
 	Resource string
 }
 
@@ -235,6 +258,8 @@ func (c *SpanContext) SetMessage(message MessageSpanContext) {
 //
 // Both service.Name and service.Resource are required. If either is empty,
 // then SetDestinationService is a no-op.
+//
+// Deprecated: use SetServiceTarget
 func (c *SpanContext) SetDestinationService(service DestinationServiceSpanContext) {
 	c.setDestinationServiceCalled = true
 	if service.Resource == "" {
@@ -244,6 +269,14 @@ func (c *SpanContext) SetDestinationService(service DestinationServiceSpanContex
 	c.destinationService.Resource = truncateString(service.Resource)
 	c.destination.Service = &c.destinationService
 	c.model.Destination = &c.destination
+}
+
+// SetServiceTarget sets the service target info in the context.
+func (c *SpanContext) SetServiceTarget(service ServiceTargetSpanContext) {
+	c.serviceTarget.Type = truncateString(service.Type)
+	c.serviceTarget.Name = truncateString(service.Name)
+	c.service.Target = &c.serviceTarget
+	c.model.Service = &c.service
 }
 
 // SetDestinationCloud sets the destination cloud info in the context.
