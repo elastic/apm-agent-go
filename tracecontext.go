@@ -316,7 +316,7 @@ func (e *TraceStateEntry) writeBuf(buf *bytes.Buffer) {
 //
 // This will return non-nil if either the key or value is invalid.
 func (e *TraceStateEntry) Validate() error {
-	if !tracestateKeyRegexp.MatchString(e.Key) {
+	if e.Key != elasticTracestateVendorKey && !tracestateKeyRegexp.MatchString(e.Key) {
 		return fmt.Errorf("invalid key %q", e.Key)
 	}
 	if err := e.validateValue(); err != nil {
