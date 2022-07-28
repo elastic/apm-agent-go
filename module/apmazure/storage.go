@@ -108,6 +108,10 @@ func (p *apmPipeline) Do(
 	span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
 		Resource: rpc.subtype() + "/" + rpc.storageAccountName(),
 	})
+	span.Context.SetServiceTarget(apm.ServiceTargetSpanContext{
+		Type: rpc.subtype(),
+		Name: rpc.storageAccountName(),
+	})
 
 	resp, err := p.next.Do(ctx, methodFactory, req)
 	if err != nil {
