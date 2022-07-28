@@ -626,6 +626,14 @@ func (v *DroppedSpansStats) MarshalFastJSON(w *fastjson.Writer) error {
 	}
 	w.RawString(",\"outcome\":")
 	w.String(v.Outcome)
+	if v.ServiceTargetName != "" {
+		w.RawString(",\"service_target_name\":")
+		w.String(v.ServiceTargetName)
+	}
+	if v.ServiceTargetType != "" {
+		w.RawString(",\"service_target_type\":")
+		w.String(v.ServiceTargetType)
+	}
 	w.RawByte('}')
 	return firstErr
 }

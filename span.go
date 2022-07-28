@@ -511,7 +511,7 @@ func (s *Span) aggregateDroppedSpanStats() {
 		if !s.composite.empty() {
 			count = s.composite.count
 		}
-		s.tx.droppedSpansStats.add(service, s.Outcome, count, s.Duration)
+		s.tx.droppedSpansStats.add(s.Context.serviceTarget.Type, s.Context.serviceTarget.Name, service, s.Outcome, count, s.Duration)
 	}
 }
 
