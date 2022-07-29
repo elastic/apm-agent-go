@@ -110,7 +110,7 @@ func (p *apmPipeline) Do(
 	})
 	span.Context.SetServiceTarget(apm.ServiceTargetSpanContext{
 		Type: rpc.subtype(),
-		Name: rpc.storageAccountName(),
+		Name: rpc.serviceName(),
 	})
 
 	resp, err := p.next.Do(ctx, methodFactory, req)
@@ -131,6 +131,7 @@ type azureRPC interface {
 	name() string
 	_type() string
 	subtype() string
+	serviceName() string
 	storageAccountName() string
 	resource() string
 	operation() string

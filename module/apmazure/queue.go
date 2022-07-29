@@ -44,6 +44,10 @@ func (q *queueRPC) subtype() string {
 	return "azurequeue"
 }
 
+func (q *queueRPC) serviceName() string {
+	return q.accountName
+}
+
 func (q *queueRPC) storageAccountName() string {
 	return q.accountName
 }
