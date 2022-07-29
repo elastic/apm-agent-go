@@ -72,7 +72,7 @@ func (s *apmSQS) spanName() string { return s.name }
 
 func (s *apmSQS) resource() string { return s.resourceName }
 
-func (s *apmSQS) targetName() string { return "" }
+func (s *apmSQS) targetName() string { return s.queueName }
 
 func (s *apmSQS) setAdditional(span *apm.Span) {
 	span.Action = s.opName

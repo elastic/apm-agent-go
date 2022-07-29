@@ -59,7 +59,7 @@ func (s *apmSNS) spanName() string { return s.name }
 
 func (s *apmSNS) resource() string { return s.resourceName }
 
-func (s *apmSNS) targetName() string { return "" }
+func (s *apmSNS) targetName() string { return s.topicName }
 
 func (s *apmSNS) setAdditional(span *apm.Span) {
 	span.Action = s.opName
