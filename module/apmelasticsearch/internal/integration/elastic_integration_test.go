@@ -74,6 +74,11 @@ func TestElastic(t *testing.T) {
 			Type:      "elasticsearch",
 			Statement: `{"query":{"match_all":{}}}`,
 		},
+		Service: &model.ServiceSpanContext{
+			Target: &model.ServiceTargetSpanContext{
+				Type: "elasticsearch",
+			},
+		},
 		HTTP: &model.HTTPSpanContext{
 			URL:        esurl,
 			StatusCode: 404,

@@ -89,6 +89,11 @@ func TestOlivereElastic(t *testing.T) {
 				Resource: "elasticsearch",
 			},
 		},
+		Service: &model.ServiceSpanContext{
+			Target: &model.ServiceTargetSpanContext{
+				Type: "elasticsearch",
+			},
+		},
 		HTTP: &model.HTTPSpanContext{
 			URL:        esurl,
 			StatusCode: 404,
