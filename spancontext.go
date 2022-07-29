@@ -66,17 +66,17 @@ type DatabaseSpanContext struct {
 // for a span that relates to an operation involving an external service.
 type ServiceSpanContext struct {
 	// Target holds the destination service.
-	Target *ServiceTargetSpanContext `json:"target,omitempty"`
+	Target *ServiceTargetSpanContext
 }
 
 // ServiceTargetSpanContext fields replace the `span.destination.service.*`
 // fields that are deprecated.
 type ServiceTargetSpanContext struct {
 	// Type holds the destination service type.
-	Type string `json:"type,omitempty"`
+	Type string
 
 	// Name holds the destination service name.
-	Name string `json:"name"`
+	Name string
 }
 
 // DestinationServiceSpanContext holds destination service span span.
