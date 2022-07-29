@@ -85,6 +85,108 @@ func startTransactionInvalidTraceContext(t *testing.T, traceContext apm.TraceCon
 	tx.Discard()
 }
 
+func TestContinuationStrategy(t *testing.T) {
+	testCases := map[string]struct {
+		traceContext     apm.TraceContext
+		strategy         string
+		expectNewTraceID bool
+		expectSpanLink   bool
+	}{
+		"restart": {
+			traceContext: apm.TraceContext{
+				Trace: apm.TraceID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+				Span:  apm.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
+			},
+			strategy:         "restart",
+			expectNewTraceID: true,
+			expectSpanLink:   true,
+		},
+		"restart with es": {
+			traceContext: apm.TraceContext{
+				Trace: apm.TraceID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+				Span:  apm.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
+				State: apm.NewTraceState(apm.TraceStateEntry{Key: "es", Value: "s:0.5"}),
+			},
+			strategy:         "restart",
+			expectNewTraceID: true,
+			expectSpanLink:   true,
+		},
+		"continue": {
+			traceContext: apm.TraceContext{
+				Trace: apm.TraceID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+				Span:  apm.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
+			},
+			strategy:         "continue",
+			expectNewTraceID: false,
+			expectSpanLink:   false,
+		},
+		"restart_external": {
+			traceContext: apm.TraceContext{
+				Trace: apm.TraceID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+				Span:  apm.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
+			},
+			strategy:         "restart_external",
+			expectNewTraceID: true,
+			expectSpanLink:   true,
+		},
+		"restart_external with missing header": {
+			traceContext:     apm.TraceContext{},
+			strategy:         "restart_external",
+			expectNewTraceID: true,
+			expectSpanLink:   false,
+		},
+		"restart_external with es": {
+			traceContext: apm.TraceContext{
+				Trace: apm.TraceID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+				Span:  apm.SpanID{0, 1, 2, 3, 4, 5, 6, 7},
+				State: apm.NewTraceState(apm.TraceStateEntry{Key: "es", Value: "s:0.5"}),
+			},
+			strategy:         "restart_external",
+			expectNewTraceID: false,
+			expectSpanLink:   false,
+		},
+	}
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			tracer, transport := transporttest.NewRecorderTracer()
+			defer tracer.Close()
+
+			tracer.SetContinuationStrategy(tc.strategy)
+
+			providedSpanID := model.SpanID(tc.traceContext.Span)
+			providedTraceID := model.TraceID(tc.traceContext.Trace)
+
+			tx := tracer.StartTransactionOptions("name", "type", apm.TransactionOptions{
+				TraceContext: tc.traceContext,
+			})
+			tx.End()
+
+			tracer.Flush(nil)
+			payloads := transport.Payloads()
+
+			require.Len(t, payloads.Transactions, 1)
+
+			tr := payloads.Transactions[0]
+			assert.NotZero(t, tr.ID)
+
+			if tc.expectNewTraceID {
+				assert.NotEqual(t, providedTraceID, tr.TraceID)
+			} else {
+				assert.Equal(t, providedTraceID, tr.TraceID)
+			}
+
+			if tc.expectSpanLink {
+				assert.Len(t, tr.Links, 1)
+				link := tr.Links[0]
+				assert.Equal(t, providedTraceID, link.TraceID)
+				assert.Equal(t, providedSpanID, link.SpanID)
+			} else {
+				assert.Empty(t, tr.Links)
+			}
+		})
+	}
+}
+
 func TestStartTransactionTraceParentSpanIDSpecified(t *testing.T) {
 	startTransactionIDSpecified(t, apm.TraceContext{
 		Trace: apm.TraceID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
@@ -141,6 +243,19 @@ func TestTransactionEnsureParent(t *testing.T) {
 	payloads := transport.Payloads()
 	require.Len(t, payloads.Transactions, 1)
 	assert.Equal(t, model.SpanID(parentSpan), payloads.Transactions[0].ParentID)
+}
+
+func TestTransactionEnsureType(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	tx := tracer.StartTransaction("name", "")
+	tx.End()
+	tracer.Flush(nil)
+
+	payloads := transport.Payloads()
+	require.Len(t, payloads.Transactions, 1)
+	assert.Equal(t, "custom", payloads.Transactions[0].Type)
 }
 
 func TestTransactionParentID(t *testing.T) {
