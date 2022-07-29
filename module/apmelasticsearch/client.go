@@ -93,7 +93,8 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 		Resource: "elasticsearch",
 	})
 	span.Context.SetServiceTarget(apm.ServiceTargetSpanContext{
-		Type:     "elasticsearch",
+		Type: "elasticsearch",
+		Name: req.Header.Get("x-found-handling-cluster"),
 	})
 	span.Context.SetDatabase(apm.DatabaseSpanContext{
 		Type:      "elasticsearch",
