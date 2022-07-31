@@ -445,10 +445,10 @@ type ServiceSpanContext struct {
 // fields that are deprecated.
 type ServiceTargetSpanContext struct {
 	// Type holds the destination service type.
-	Type string `json:"type,omitempty"`
+	Type string `json:"type"`
 
 	// Name holds the destination service name.
-	Name string `json:"name"`
+	Name string `json:"name,omitempty"`
 }
 
 // DestinationServiceSpanContext holds contextual information about a
