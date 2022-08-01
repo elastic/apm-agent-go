@@ -105,8 +105,13 @@ func (p *apmPipeline) Do(
 	}
 	span.Action = rpc.operation()
 	span.Subtype = rpc.subtype()
+
+	resource := rpc.subtype() + "/" + rpc.storageAccountName()
+	if rpc.subtype() == "azurequeue" {
+		resource = rpc.subtype() + "/" + rpc.targetName()
+	}
 	span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
-		Resource: rpc.subtype() + "/" + rpc.storageAccountName(),
+		Resource: resource,
 	})
 	span.Context.SetServiceTarget(apm.ServiceTargetSpanContext{
 		Type: rpc.subtype(),

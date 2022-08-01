@@ -34,7 +34,7 @@ type queueRPC struct {
 }
 
 func (q *queueRPC) name() string {
-	return fmt.Sprintf("AzureQueue %s %s %s", q.operation(), q.dir(), q.accountName)
+	return fmt.Sprintf("AzureQueue %s %s %s", q.operation(), q.dir(), q.queueName)
 }
 
 func (q *queueRPC) _type() string {
