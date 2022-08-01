@@ -41,6 +41,10 @@ func (d *dynamoDB) resource() string {
 	return d.TableName
 }
 
+func (d *dynamoDB) targetName() string {
+	return d.region
+}
+
 func (d *dynamoDB) setAdditional(span *apm.Span) {
 	dbSpanCtx := apm.DatabaseSpanContext{
 		Instance: d.region,
