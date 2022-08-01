@@ -78,8 +78,29 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 	tx.Context.sanitizedFieldNames = instrumentationConfig.sanitizedFieldNames
 	tx.breakdownMetricsEnabled = t.breakdownMetrics.enabled
 
+	continuationStrategy := instrumentationConfig.continuationStrategy
+	shouldRestartTrace := false
+	if continuationStrategy == "restart_external" {
+		if opts.TraceContext.State.haveElastic {
+			continuationStrategy = "continue"
+		} else {
+			continuationStrategy = "restart"
+		}
+	}
+
+	if continuationStrategy == "restart" {
+		if !opts.TraceContext.Trace.isZero() && !opts.TraceContext.Span.isZero() {
+			link := SpanLink{
+				Trace: opts.TraceContext.Trace,
+				Span:  opts.TraceContext.Span,
+			}
+			tx.links = append(tx.links, link)
+			shouldRestartTrace = true
+		}
+	}
+
 	var root bool
-	if opts.TraceContext.Trace.Validate() == nil {
+	if opts.TraceContext.Trace.Validate() == nil && !shouldRestartTrace {
 		tx.traceContext.Trace = opts.TraceContext.Trace
 		tx.traceContext.Options = opts.TraceContext.Options
 		if opts.TraceContext.Span.Validate() == nil {
@@ -147,6 +168,7 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 	if tx.timestamp.IsZero() {
 		tx.timestamp = time.Now()
 	}
+	tx.links = append(tx.links, opts.Links...)
 	return tx
 }
 
@@ -163,6 +185,9 @@ type TransactionOptions struct {
 	// Start is the start time of the transaction. If this has the
 	// zero value, time.Now() will be used instead.
 	Start time.Time
+
+	// Links, if non-nil, holds a list of spans linked to the transaction.
+	Links []SpanLink
 }
 
 // Transaction describes an event occurring in the monitored service.
@@ -279,6 +304,9 @@ func (tx *Transaction) End() {
 	if tx.ended() {
 		return
 	}
+	if tx.Type == "" {
+		tx.Type = "custom"
+	}
 	if tx.recording {
 		if tx.Duration < 0 {
 			tx.Duration = time.Since(tx.timestamp)
@@ -374,6 +402,7 @@ type TransactionData struct {
 	propagateLegacyHeader   bool
 	timestamp               time.Time
 
+	links             []SpanLink
 	mu                sync.Mutex
 	errorCaptured     bool
 	spansCreated      int

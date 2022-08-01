@@ -142,6 +142,7 @@ type TracerOptions struct {
 	sanitizedFieldNames   wildcard.Matchers
 	disabledMetrics       wildcard.Matchers
 	ignoreTransactionURLs wildcard.Matchers
+	continuationStrategy  string
 	captureHeaders        bool
 	captureBody           CaptureBodyMode
 	spanFramesMinDuration time.Duration
@@ -285,6 +286,11 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 		exitSpanMinDuration = defaultExitSpanMinDuration
 	}
 
+	continuationStrategy, err := initContinuationStrategy()
+	if failed(err) {
+		continuationStrategy = defaultContinuationStrategy
+	}
+
 	if opts.ServiceName != "" {
 		err := validateServiceName(opts.ServiceName)
 		if failed(err) {
@@ -343,6 +349,7 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 	opts.recording = recording
 	opts.propagateLegacyHeader = propagateLegacyHeader
 	opts.exitSpanMinDuration = exitSpanMinDuration
+	opts.continuationStrategy = continuationStrategy
 	if centralConfigEnabled {
 		if cw, ok := opts.Transport.(apmconfig.Watcher); ok {
 			opts.configWatcher = cw
@@ -506,6 +513,9 @@ func newTracer(opts TracerOptions) *Tracer {
 	})
 	t.setLocalInstrumentationConfig(envExitSpanMinDuration, func(cfg *instrumentationConfigValues) {
 		cfg.exitSpanMinDuration = opts.exitSpanMinDuration
+	})
+	t.setLocalInstrumentationConfig(envContinuationStrategy, func(cfg *instrumentationConfigValues) {
+		cfg.continuationStrategy = opts.continuationStrategy
 	})
 	if logger := apmlog.DefaultLogger(); logger != nil {
 		defaultLogLevel := logger.Level()
@@ -824,6 +834,13 @@ func (t *Tracer) SetCaptureBody(mode CaptureBodyMode) {
 func (t *Tracer) SetExitSpanMinDuration(v time.Duration) {
 	t.setLocalInstrumentationConfig(envExitSpanMinDuration, func(cfg *instrumentationConfigValues) {
 		cfg.exitSpanMinDuration = v
+	})
+}
+
+// SetContinuationStrategy sets the continuation strategy.
+func (t *Tracer) SetContinuationStrategy(v string) {
+	t.setLocalInstrumentationConfig(envContinuationStrategy, func(cfg *instrumentationConfigValues) {
+		cfg.continuationStrategy = v
 	})
 }
 
