@@ -44,7 +44,7 @@ func (q *queueRPC) subtype() string {
 	return "azurequeue"
 }
 
-func (q *queueRPC) serviceName() string {
+func (q *queueRPC) targetName() string {
 	return q.accountName
 }
 

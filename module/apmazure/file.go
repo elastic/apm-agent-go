@@ -44,7 +44,7 @@ func (f *fileRPC) subtype() string {
 	return "azurefile"
 }
 
-func (f *fileRPC) serviceName() string {
+func (f *fileRPC) targetName() string {
 	return ""
 }
 

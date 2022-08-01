@@ -44,7 +44,7 @@ func (b *blobRPC) subtype() string {
 	return "azureblob"
 }
 
-func (b *blobRPC) serviceName() string {
+func (b *blobRPC) targetName() string {
 	return ""
 }
 
