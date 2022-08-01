@@ -76,6 +76,10 @@ func (c *conn) startSpan(ctx context.Context, name, spanType, stmt string) (*apm
 				Name:     c.driver.driverName,
 				Resource: c.driver.driverName,
 			})
+			span.Context.SetServiceTarget(apm.ServiceTargetSpanContext{
+				Type: c.driver.driverName,
+				Name: c.dsnInfo.Database,
+			})
 		}
 		span.Context.SetDatabase(apm.DatabaseSpanContext{
 			Instance:  c.dsnInfo.Database,

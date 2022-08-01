@@ -76,6 +76,7 @@ var (
 type service interface {
 	spanName() string
 	resource() string
+	targetName() string
 	setAdditional(*apm.Span)
 }
 
@@ -163,6 +164,10 @@ func send(req *request.Request) {
 	span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
 		Name:     spanSubtype,
 		Resource: svc.resource(),
+	})
+	span.Context.SetServiceTarget(apm.ServiceTargetSpanContext{
+		Type: spanSubtype,
+		Name: svc.targetName(),
 	})
 
 	if region := req.Config.Region; region != nil {
