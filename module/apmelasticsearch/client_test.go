@@ -24,8 +24,10 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -66,11 +68,13 @@ func TestWrapRoundTripper(t *testing.T) {
 
 	assert.Equal(t, "q=user:kimchy", spans[0].Context.HTTP.URL.RawQuery)
 	assert.Equal(t, &model.DatabaseSpanContext{
+		Instance:  strings.TrimPrefix(server.URL, "http://"),
 		Type:      "elasticsearch",
 		Statement: "user:kimchy",
 	}, spans[0].Context.Database)
 
 	assert.Equal(t, &model.DatabaseSpanContext{
+		Instance:  strings.TrimPrefix(server.URL, "http://"),
 		Type:      "elasticsearch",
 		Statement: `query":{term":{"user":"kimchy"}}`,
 		User:      "Aladdin",
@@ -171,6 +175,7 @@ func testStatementGetBody(t *testing.T, path string) {
 		require.Len(t, spans, 1)
 
 		assert.Equal(t, &model.DatabaseSpanContext{
+			Instance:  strings.TrimPrefix(server.URL, "http://"),
 			Type:      "elasticsearch",
 			Statement: "Request.GetB", // limited to Content-Length
 		}, spans[0].Context.Database)
@@ -194,6 +199,7 @@ func TestStatementGetBodyErrors(t *testing.T) {
 		require.Len(t, spans, 1)
 
 		assert.Equal(t, &model.DatabaseSpanContext{
+			Instance:  strings.TrimPrefix(server.URL, "http://"),
 			Type:      "elasticsearch",
 			Statement: "", // GetBody/reader returned an error
 		}, spans[0].Context.Database)
@@ -242,6 +248,7 @@ func TestStatementBodyReadError(t *testing.T) {
 	require.Len(t, spans, 1)
 
 	assert.Equal(t, &model.DatabaseSpanContext{
+		Instance:  "testing.invalid",
 		Type:      "elasticsearch",
 		Statement: "", // req.Body.Read returned an error
 	}, spans[0].Context.Database)
@@ -269,6 +276,7 @@ func TestStatementBodyGzipContentEncoding(t *testing.T) {
 	require.Len(t, spans, 1)
 
 	assert.Equal(t, &model.DatabaseSpanContext{
+		Instance:  strings.TrimPrefix(server.URL, "http://"),
 		Type:      "elasticsearch",
 		Statement: "decoded",
 	}, spans[0].Context.Database)
@@ -322,6 +330,9 @@ func TestServiceTarget(t *testing.T) {
 			resp.Body.Close()
 		})
 		require.Len(t, spans, 1)
+		if clusterName == "" {
+			clusterName = net.JoinHostPort(destinationAddr, strconv.Itoa(destinationPort))
+		}
 		assert.Equal(t, &model.ServiceSpanContext{
 			Target: &model.ServiceTargetSpanContext{
 				Type: "elasticsearch",
