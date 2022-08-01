@@ -46,7 +46,7 @@ func (q *queueRPC) subtype() string {
 }
 
 func (q *queueRPC) targetName() string {
-	return q.accountName
+	return q.queueName
 }
 
 func (q *queueRPC) storageAccountName() string {
