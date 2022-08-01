@@ -34,7 +34,7 @@ import (
 
 func TestQueueSend(t *testing.T) {
 	p := WrapPipeline(queuePipeline())
-	u, err := url.Parse("https://fakeaccnt.queue.core.windows.net")
+	u, err := url.Parse("https://fakeaccnt.queue.core.windows.net/myqueue")
 	require.NoError(t, err)
 	queueURL := azqueue.NewQueueURL(*u, p)
 	msgURL := queueURL.NewMessagesURL()
@@ -55,13 +55,15 @@ func TestQueueSend(t *testing.T) {
 	assert.Equal(t, "fakeaccnt.queue.core.windows.net", destination.Address)
 	assert.Equal(t, 443, destination.Port)
 	assert.Equal(t, "azurequeue/fakeaccnt", destination.Service.Resource)
+	assert.Equal(t, "azurequeue", span.Context.Service.Target.Type)
+	assert.Equal(t, "myqueue", span.Context.Service.Target.Name)
 }
 
 func TestQueueReceive(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 	p := WrapPipeline(queuePipeline(), WithTracer(tracer))
-	u, err := url.Parse("https://fakeaccnt.queue.core.windows.net")
+	u, err := url.Parse("https://fakeaccnt.queue.core.windows.net/myqueue")
 	require.NoError(t, err)
 	queueURL := azqueue.NewQueueURL(*u, p)
 	msgURL := queueURL.NewMessagesURL()
@@ -86,6 +88,8 @@ func TestQueueReceive(t *testing.T) {
 	assert.Equal(t, "fakeaccnt.queue.core.windows.net", destination.Address)
 	assert.Equal(t, 443, destination.Port)
 	assert.Equal(t, "azurequeue/fakeaccnt", destination.Service.Resource)
+	assert.Equal(t, "azurequeue", span.Context.Service.Target.Type)
+	assert.Equal(t, "myqueue", span.Context.Service.Target.Name)
 }
 
 func TestQueueGetOperation(t *testing.T) {

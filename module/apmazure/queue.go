@@ -30,6 +30,7 @@ type queueRPC struct {
 	accountName  string
 	resourceName string
 	req          pipeline.Request
+	queueName    string
 }
 
 func (q *queueRPC) name() string {
@@ -42,6 +43,10 @@ func (q *queueRPC) _type() string {
 
 func (q *queueRPC) subtype() string {
 	return "azurequeue"
+}
+
+func (q *queueRPC) targetName() string {
+	return q.queueName
 }
 
 func (q *queueRPC) storageAccountName() string {
