@@ -149,10 +149,14 @@ func newAzureRPC(req pipeline.Request) (azureRPC, error) {
 			req:          req,
 		}
 	case "queue":
+		urlPath := strings.TrimPrefix(req.URL.Path, "/")
+		qn, _, _ := strings.Cut(urlPath, "/")
+
 		rpc = &queueRPC{
-			resourceName: strings.TrimPrefix(req.URL.Path, "/"),
+			resourceName: urlPath,
 			accountName:  accountName,
 			req:          req,
+			queueName:    qn,
 		}
 	case "file":
 		rpc = &fileRPC{

@@ -30,6 +30,7 @@ type queueRPC struct {
 	accountName  string
 	resourceName string
 	req          pipeline.Request
+	queueName    string
 }
 
 func (q *queueRPC) name() string {
