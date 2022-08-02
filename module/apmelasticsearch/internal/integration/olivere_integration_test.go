@@ -77,6 +77,7 @@ func TestOlivereElastic(t *testing.T) {
 	assert.Equal(t, "", spans[0].Action)
 	assert.Equal(t, &model.SpanContext{
 		Database: &model.DatabaseSpanContext{
+			Instance:  esurl.Host,
 			Type:      "elasticsearch",
 			Statement: `{"query":{"match_all":{}}}`,
 		},
@@ -92,6 +93,7 @@ func TestOlivereElastic(t *testing.T) {
 		Service: &model.ServiceSpanContext{
 			Target: &model.ServiceTargetSpanContext{
 				Type: "elasticsearch",
+				Name: esurl.Host,
 			},
 		},
 		HTTP: &model.HTTPSpanContext{
