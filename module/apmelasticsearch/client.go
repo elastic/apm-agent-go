@@ -93,17 +93,17 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 		Resource: "elasticsearch",
 	})
 
-	clustName := req.Header.Get("x-found-handling-cluster")
-	if clustName == "" {
-		clustName = req.URL.Host
+	clusterName := req.Header.Get("x-found-handling-cluster")
+	if clusterName == "" {
+		clusterName = req.URL.Host
 	}
 
 	span.Context.SetServiceTarget(apm.ServiceTargetSpanContext{
 		Type: "elasticsearch",
-		Name: clustName,
+		Name: clusterName,
 	})
 	span.Context.SetDatabase(apm.DatabaseSpanContext{
-		Instance:  clustName,
+		Instance:  clusterName,
 		Type:      "elasticsearch",
 		Statement: statement,
 		User:      username,
