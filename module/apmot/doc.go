@@ -18,7 +18,7 @@
 // Package apmot provides an Elastic APM implementation of the OpenTracing API.
 //
 // Things not implemented by this tracer:
-//  - binary propagation format
-//  - baggage
-//  - logging (generally; errors are reported)
+//   - binary propagation format
+//   - baggage
+//   - logging (generally; errors are reported)
 package apmot // import "go.elastic.co/apm/module/apmot/v2"
