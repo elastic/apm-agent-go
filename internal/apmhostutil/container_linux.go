@@ -46,12 +46,12 @@ var (
 	kubepodsRegexp = regexp.MustCompile(
 		"" +
 			`(?:^/kubepods[\S]*/pod([^/]+)/$)|` +
-			`(?:^/kubepods\.slice/kubepods-[^/]+\.slice/kubepods-[^/]+-pod([^/]+)\.slice/$)`,
+			`(?:kubepods[^/]*-pod([^/]+)\.slice/)`,
 	)
 
 	containerIDRegexp = regexp.MustCompile(
 		"^" +
-			"[[:xdigit:]]{64}|" +
+			"[[:xdigit:]]{64}$|" +
 			"[[:xdigit:]]{8}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4,}" +
 			"$",
 	)
