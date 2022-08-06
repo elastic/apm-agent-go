@@ -426,14 +426,14 @@ The minimum duration allowed for this setting is 1 microsecond (`us`).
 
 [float]
 [[config-span-frames-min-duration-ms]]
-=== `ELASTIC_APM_SPAN_FRAMES_MIN_DURATION`
+=== `ELASTIC_APM_SPAN_STACK_TRACE_MIN_DURATION`
 
 <<dynamic-configuration, image:./images/dynamic-config.svg[] >>
 
 [options="header"]
 |============
-| Environment                            | Default
-| `ELASTIC_APM_SPAN_FRAMES_MIN_DURATION` | `5ms`
+| Environment                                 | Default
+| `ELASTIC_APM_SPAN_STACK_TRACE_MIN_DURATION` | `5ms`
 |============
 
 The APM agent will collect a stack trace for every recorded span whose duration

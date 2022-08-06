@@ -259,8 +259,7 @@ func testTracerCaptureBodyEnv(t *testing.T, envValue string, expectBody bool) {
 }
 
 func TestTracerSpanFramesMinDurationEnv(t *testing.T) {
-	os.Setenv("ELASTIC_APM_SPAN_FRAMES_MIN_DURATION", "10ms")
-	defer os.Unsetenv("ELASTIC_APM_SPAN_FRAMES_MIN_DURATION")
+	t.Setenv("ELASTIC_APM_SPAN_STACK_TRACE_MIN_DURATION", "10ms")
 
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
@@ -286,11 +285,10 @@ func TestTracerSpanFramesMinDurationEnv(t *testing.T) {
 }
 
 func TestTracerSpanFramesMinDurationEnvInvalid(t *testing.T) {
-	os.Setenv("ELASTIC_APM_SPAN_FRAMES_MIN_DURATION", "aeon")
-	defer os.Unsetenv("ELASTIC_APM_SPAN_FRAMES_MIN_DURATION")
+	t.Setenv("ELASTIC_APM_SPAN_STACK_TRACE_MIN_DURATION", "aeon")
 
 	_, err := apm.NewTracer("tracer_testing", "")
-	assert.EqualError(t, err, "failed to parse ELASTIC_APM_SPAN_FRAMES_MIN_DURATION: invalid duration aeon")
+	assert.EqualError(t, err, "failed to parse ELASTIC_APM_SPAN_STACK_TRACE_MIN_DURATION: invalid duration aeon")
 }
 
 func TestTracerStackTraceLimitEnv(t *testing.T) {
