@@ -49,10 +49,9 @@ var (
 	)
 
 	containerIDRegexp = regexp.MustCompile(
-		"^" +
-			"[[:xdigit:]]{64}$|" +
-			"[[:xdigit:]]{8}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4,}" +
-			"$",
+		"" +
+			"^[[:xdigit:]]{64}$|" +
+			"^[[:xdigit:]]{8}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4,}$",
 	)
 )
 
