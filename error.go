@@ -63,24 +63,34 @@ func (t *Tracer) Recovered(v interface{}) *Error {
 // github.com/pkg/errors.
 //
 // If err implements
-//   type interface {
-//       StackTrace() github.com/pkg/errors.StackTrace
-//   }
+//
+//	type interface {
+//	    StackTrace() github.com/pkg/errors.StackTrace
+//	}
+//
 // or
-//   type interface {
-//       StackTrace() []stacktrace.Frame
-//   }
+//
+//	type interface {
+//	    StackTrace() []stacktrace.Frame
+//	}
+//
 // then one of those will be used to set the error
 // stacktrace. Otherwise, NewError will take a stacktrace.
 //
 // If err implements
-//   type interface {Type() string}
+//
+//	type interface {Type() string}
+//
 // then that will be used to set the error type.
 //
 // If err implements
-//   type interface {Code() string}
+//
+//	type interface {Code() string}
+//
 // or
-//   type interface {Code() float64}
+//
+//	type interface {Code() float64}
+//
 // then one of those will be used to set the error code.
 func (t *Tracer) NewError(err error) *Error {
 	if err == nil {

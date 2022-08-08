@@ -532,6 +532,19 @@ want to pin the server certificate, specify the path to the PEM-encoded
 certificate via the `ELASTIC_APM_SERVER_CERT` configuration.
 
 [float]
+[[config-server-ca-cert-file]]
+=== `ELASTIC_APM_SERVER_CA_CERT_FILE`
+
+[options="header"]
+|============
+| Environment                        | Default
+| `ELASTIC_APM_SERVER_CA_CERT_FILE`  |
+|============
+
+The path to a PEM-encoded TLS Certificate Authority certificate that will be
+used for verifying the server's TLS certificate chain.
+
+[float]
 [[config-verify-server-cert]]
 === `ELASTIC_APM_VERIFY_SERVER_CERT`
 

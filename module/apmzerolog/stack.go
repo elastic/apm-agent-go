@@ -30,8 +30,8 @@ import (
 //
 // This is similar to github.com/rs/zerolog/pkgerrors.MarshalStack,
 // with the following differences:
-//  - the "source" field value may be an absolute path
-//  - the "func" field value will be fully qualified
+//   - the "source" field value may be an absolute path
+//   - the "func" field value will be fully qualified
 func MarshalErrorStack(err error) interface{} {
 	frames := stacktrace.AppendErrorStacktrace(nil, err, -1)
 	if len(frames) == 0 {
