@@ -129,11 +129,14 @@ func TestCgroupContainerInfoKubernetes(t *testing.T) {
 		containerID:      "2227daf62df6694645fee5df53c1f91271546a9560e8600a525690ae252b7f63",
 		kubernetesPodUID: "90d81341-92de-11e7-8cf2-507b9d4141fa",
 	}, {
+		input:            "1:name=systemd:/system.slice/containerd.service/kubepods-burstable-podff49d0be_16b7_4a49_bb9e_8ec1f1f4e27f.slice:cri-containerd:0f99ad5f45163ed14ab8eaf92ed34bb4a631d007f8755a7d79be614bcb0df0ef",
+		containerID:      "0f99ad5f45163ed14ab8eaf92ed34bb4a631d007f8755a7d79be614bcb0df0ef",
+		kubernetesPodUID: "ff49d0be-16b7-4a49-bb9e-8ec1f1f4e27f",
+	}, {
 		input:            "9:freezer:/kubepods.slice/kubepods-pod22949dce_fd8b_11ea_8ede_98f2b32c645c.slice/docker-b15a5bdedd2e7645c3be271364324321b908314e4c77857bbfd32a041148c07f.scope",
 		containerID:      "b15a5bdedd2e7645c3be271364324321b908314e4c77857bbfd32a041148c07f",
 		kubernetesPodUID: "22949dce-fd8b-11ea-8ede-98f2b32c645c",
 	}, {
-
 		input:            "12:pids:/kubepods/kubepods/besteffort/pod0e886e9a-3879-45f9-b44d-86ef9df03224/244a65edefdffe31685c42317c9054e71dc1193048cf9459e2a4dd35cbc1dba4",
 		containerID:      "244a65edefdffe31685c42317c9054e71dc1193048cf9459e2a4dd35cbc1dba4",
 		kubernetesPodUID: "0e886e9a-3879-45f9-b44d-86ef9df03224",
