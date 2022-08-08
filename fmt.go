@@ -28,14 +28,14 @@ import (
 //
 // The returned Formatter understands the following verbs:
 //
-//   %v: trace ID, transaction ID, and span ID (if existing), space-separated
-//       the plus flag (%+v) adds field names, e.g. "trace.id=... transaction.id=..."
-//   %t: trace ID (hex-encoded, or empty string if non-existent)
-//       the plus flag (%+T) adds the field name, e.g. "trace.id=..."
-//   %x: transaction ID (hex-encoded, or empty string if non-existent)
-//       the plus flag (%+t) adds the field name, e.g. "transaction.id=..."
-//   %s: span ID (hex-encoded, or empty string if non-existent)
-//       the plus flag (%+s) adds the field name, e.g. "span.id=..."
+//	%v: trace ID, transaction ID, and span ID (if existing), space-separated
+//	    the plus flag (%+v) adds field names, e.g. "trace.id=... transaction.id=..."
+//	%t: trace ID (hex-encoded, or empty string if non-existent)
+//	    the plus flag (%+T) adds the field name, e.g. "trace.id=..."
+//	%x: transaction ID (hex-encoded, or empty string if non-existent)
+//	    the plus flag (%+t) adds the field name, e.g. "transaction.id=..."
+//	%s: span ID (hex-encoded, or empty string if non-existent)
+//	    the plus flag (%+s) adds the field name, e.g. "span.id=..."
 func TraceFormatter(ctx context.Context) fmt.Formatter {
 	f := traceFormatter{tx: TransactionFromContext(ctx)}
 	if f.tx != nil {
