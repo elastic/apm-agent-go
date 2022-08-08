@@ -30,9 +30,9 @@ import (
 // as spans.
 //
 // Open accepts the following signatures:
-//  - a datasource name (i.e. the second argument to sql.Open)
-//  - a driver name and a datasource name
-//  - a *sql.DB, or some other type with the same interface
+//   - a datasource name (i.e. the second argument to sql.Open)
+//   - a driver name and a datasource name
+//   - a *sql.DB, or some other type with the same interface
 //
 // If a driver and datasource name are supplied, and the appropriate
 // apmgorm/dialects package has been imported (or the driver has
