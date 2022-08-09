@@ -32,10 +32,6 @@ import (
 	"go.elastic.co/apm/v2/model"
 )
 
-const (
-	systemdScopeSuffix = ".scope"
-)
-
 var (
 	cgroupContainerInfoOnce  sync.Once
 	cgroupContainerInfoError error
