@@ -41,9 +41,9 @@ var (
 // tracestateKeyRegexp holds a regular expression used for validating
 // tracestate keys according to the standard rules:
 //
-//   key = lcalpha 0*255( lcalpha / DIGIT / "_" / "-"/ "*" / "/" )
-//   key = ( lcalpha / DIGIT ) 0*240( lcalpha / DIGIT / "_" / "-"/ "*" / "/" ) "@" lcalpha 0*13( lcalpha / DIGIT / "_" / "-"/ "*" / "/" )
-//   lcalpha = %x61-7A ; a-z
+//	key = lcalpha 0*255( lcalpha / DIGIT / "_" / "-"/ "*" / "/" )
+//	key = ( lcalpha / DIGIT ) 0*240( lcalpha / DIGIT / "_" / "-"/ "*" / "/" ) "@" lcalpha 0*13( lcalpha / DIGIT / "_" / "-"/ "*" / "/" )
+//	lcalpha = %x61-7A ; a-z
 //
 // nblkchr is used for defining valid runes for tracestate values.
 var (

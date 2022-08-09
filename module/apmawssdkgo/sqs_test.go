@@ -124,6 +124,24 @@ func TestSQS(t *testing.T) {
 			},
 		},
 		{
+			name:      "SQS DELETE_BATCH from OtherQueue",
+			action:    "delete_batch",
+			resource:  "sqs/OtherQueue",
+			queueName: "OtherQueue",
+			queueURL:  "https://sqs.testing.invalid/123456789012/OtherQueue",
+			fn: func(ctx context.Context, svc *sqs.SQS, queueURL string) {
+				svc.DeleteMessageBatchWithContext(ctx, &sqs.DeleteMessageBatchInput{
+					QueueUrl: &queueURL,
+					Entries: []*sqs.DeleteMessageBatchRequestEntry{
+						{
+							Id:            aws.String("1"),
+							ReceiptHandle: aws.String("receiptHandle"),
+						},
+					},
+				})
+			},
+		},
+		{
 			ignored: true,
 			fn: func(ctx context.Context, svc *sqs.SQS, _ string) {
 				svc.CreateQueueWithContext(ctx, &sqs.CreateQueueInput{
