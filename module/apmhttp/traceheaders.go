@@ -58,7 +58,8 @@ func FormatTraceparentHeader(c apm.TraceContext) string {
 
 // ParseTraceparentHeader parses the given header, which is expected to be in
 // the W3C Trace-Context traceparent format according to W3C Editor's Draft 23 May 2018:
-//     https://w3c.github.io/trace-context/#traceparent-field
+//
+//	https://w3c.github.io/trace-context/#traceparent-field
 //
 // Note that the returned TraceContext's Trace and Span fields are not necessarily
 // valid. The caller must decide whether or not it wishes to disregard invalid
@@ -134,7 +135,8 @@ func ParseTraceparentHeader(h string) (apm.TraceContext, error) {
 
 // ParseTracestateHeader parses the given header, which is expected to be in the
 // W3C Trace-Context tracestate format according to W3C Editor's Draft 18 Nov 2019:
-//    https://w3c.github.io/trace-context/#tracestate-header
+//
+//	https://w3c.github.io/trace-context/#tracestate-header
 //
 // Note that the returned TraceState is not necessarily valid. The caller must
 // decide whether or not it wishes to disregard invalid tracestate entries, and
