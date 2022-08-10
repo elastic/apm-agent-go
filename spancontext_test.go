@@ -120,6 +120,10 @@ func TestSpanContextSetHTTPRequest(t *testing.T) {
 					Resource: tc.resource,
 				},
 			}, spans[0].Context.Destination)
+			assert.Equal(t, &model.ServiceTargetSpanContext{
+				Type: "http",
+				Name: tc.resource,
+			}, spans[0].Context.Service.Target)
 		})
 	}
 }
