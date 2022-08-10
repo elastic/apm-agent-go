@@ -24,6 +24,7 @@ import (
 	"io"
 	"log"
 	"math/rand"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -159,6 +160,7 @@ type TracerOptions struct {
 	heapProfileInterval   time.Duration
 	exitSpanMinDuration   time.Duration
 	compressionOptions    compressionOptions
+	globalLabels          model.StringMap
 }
 
 // initDefaults updates opts with default values.
@@ -325,6 +327,7 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 		log.Printf("[apm]: %s", err)
 	}
 
+	opts.globalLabels = parseGlobalLabels()
 	opts.requestDuration = requestDuration
 	opts.metricsInterval = metricsInterval
 	opts.requestSize = requestSize
@@ -407,6 +410,7 @@ type Tracer struct {
 	breakdownMetrics  *breakdownMetrics
 	profileSender     profileSender
 	versionGetter     majorVersionGetter
+	globalLabels      model.StringMap
 
 	// stats is heap-allocated to ensure correct alignment for atomic access.
 	stats *TracerStats
@@ -469,6 +473,7 @@ func newTracer(opts TracerOptions) *Tracer {
 		instrumentationConfigInternal: &instrumentationConfig{
 			local: make(map[string]func(*instrumentationConfigValues)),
 		},
+		globalLabels: opts.globalLabels,
 	}
 	t.breakdownMetrics.enabled = opts.breakdownMetrics
 	// Initialise local transaction config.
@@ -1342,9 +1347,9 @@ func (t *Tracer) encodeRequestMetadata(json *fastjson.Writer) {
 		json.RawString(`,"cloud":`)
 		cloud.MarshalFastJSON(json)
 	}
-	if len(globalLabels) > 0 {
+	if len(t.globalLabels) > 0 {
 		json.RawString(`,"labels":`)
-		globalLabels.MarshalFastJSON(json)
+		t.globalLabels.MarshalFastJSON(json)
 	}
 	json.RawByte('}')
 }
@@ -1452,4 +1457,19 @@ type majorVersionGetter interface {
 	// it will return the cached version. If the returned first argument is 0, the
 	// cache is stale.
 	MajorServerVersion(ctx context.Context, refreshStale bool) uint32
+}
+
+func parseGlobalLabels() model.StringMap {
+	var labels model.StringMap
+	for _, kv := range configutil.ParseListEnv(envGlobalLabels, ",", nil) {
+		i := strings.IndexRune(kv, '=')
+		if i > 0 {
+			k, v := strings.TrimSpace(kv[:i]), strings.TrimSpace(kv[i+1:])
+			labels = append(labels, model.StringMapItem{
+				Key:   cleanLabelKey(k),
+				Value: truncateString(v),
+			})
+		}
+	}
+	return labels
 }
