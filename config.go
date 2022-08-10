@@ -35,7 +35,6 @@ import (
 	"go.elastic.co/apm/v2/internal/apmlog"
 	"go.elastic.co/apm/v2/internal/configutil"
 	"go.elastic.co/apm/v2/internal/wildcard"
-	"go.elastic.co/apm/v2/model"
 	"go.elastic.co/apm/v2/transport"
 )
 
@@ -125,21 +124,6 @@ var (
 		"*auth*",
 		"set-cookie",
 	}, ","))
-
-	globalLabels = func() model.StringMap {
-		var labels model.StringMap
-		for _, kv := range configutil.ParseListEnv(envGlobalLabels, ",", nil) {
-			i := strings.IndexRune(kv, '=')
-			if i > 0 {
-				k, v := strings.TrimSpace(kv[:i]), strings.TrimSpace(kv[i+1:])
-				labels = append(labels, model.StringMapItem{
-					Key:   cleanLabelKey(k),
-					Value: truncateString(v),
-				})
-			}
-		}
-		return labels
-	}()
 )
 
 // Regular expression matching comment characters to escape in the User-Agent header value.
