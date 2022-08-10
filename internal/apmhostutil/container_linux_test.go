@@ -69,6 +69,16 @@ func TestCgroupContainerInfoCloudFoundryGarden(t *testing.T) {
 	assert.Equal(t, &model.Container{ID: "70eb4ce5-a065-4401-6990-88ed"}, container)
 }
 
+func TestUbuntuCgroup(t *testing.T) {
+	container, kubernetes, err := readCgroupContainerInfo(strings.NewReader(`
+1:name=systemd:/user.slice/user-1000.slice/user@1000.service/apps.slice/apps-org.gnome.Terminal.slice/vte-spawn-75bc72bd-6642-4cf5-b62c-0674e11bfc84.scope
+`[1:]))
+
+	assert.NoError(t, err)
+	assert.Nil(t, kubernetes)
+	assert.Nil(t, container)
+}
+
 func TestCgroupContainerInfoNonContainer(t *testing.T) {
 	container, _, err := readCgroupContainerInfo(strings.NewReader(`
 12:devices:/user.slice
