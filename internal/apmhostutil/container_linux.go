@@ -25,16 +25,11 @@ import (
 	"errors"
 	"io"
 	"os"
-	"path"
 	"regexp"
 	"strings"
 	"sync"
 
 	"go.elastic.co/apm/v2/model"
-)
-
-const (
-	systemdScopeSuffix = ".scope"
 )
 
 var (
@@ -45,15 +40,14 @@ var (
 
 	kubepodsRegexp = regexp.MustCompile(
 		"" +
-			`(?:^/kubepods[\S]*/pod([^/]+)/$)|` +
-			`(?:^/kubepods\.slice/kubepods-[^/]+\.slice/kubepods-[^/]+-pod([^/]+)\.slice/$)`,
+			`(?:^/kubepods[\S]*/pod([^/]+)$)|` +
+			`(?:kubepods[^/]*-pod([^/]+)\.slice)`,
 	)
 
 	containerIDRegexp = regexp.MustCompile(
-		"^" +
-			"[[:xdigit:]]{64}|" +
-			"[[:xdigit:]]{8}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4,}" +
-			"$",
+		"" +
+			"^[[:xdigit:]]{64}$|" +
+			"^[[:xdigit:]]{8}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4,}$",
 	)
 )
 
@@ -99,32 +93,40 @@ func readCgroupContainerInfo(r io.Reader) (*model.Container, *model.Kubernetes, 
 	var kubernetes *model.Kubernetes
 	s := bufio.NewScanner(r)
 	for s.Scan() {
+		// split the line according to the format "hierarchy-ID:controller-list:cgroup-path"
 		fields := strings.SplitN(s.Text(), ":", 3)
 		if len(fields) != 3 {
 			continue
 		}
+
+		// extract cgroup-path
 		cgroupPath := fields[2]
 
-		// Depending on the filesystem driver used for cgroup
-		// management, the paths in /proc/pid/cgroup will have
-		// one of the following formats in a Docker container:
-		//
-		//   systemd: /system.slice/docker-<container-ID>.scope
-		//   cgroupfs: /docker/<container-ID>
-		//
-		// In a Kubernetes pod, the cgroup path will look like:
-		//
-		//   systemd: /kubepods.slice/kubepods-<QoS-class>.slice/kubepods-<QoS-class>-pod<pod-UID>.slice/<container-iD>.scope
-		//   cgroupfs: /kubepods/<QoS-class>/pod<pod-UID>/<container-iD>
-		//
-		dir, id := path.Split(cgroupPath)
-		if strings.HasSuffix(id, systemdScopeSuffix) {
-			id = id[:len(id)-len(systemdScopeSuffix)]
-			if dash := strings.IndexRune(id, '-'); dash != -1 {
-				id = id[dash+1:]
+		// split based on the last occurrence of the colon character, if such exists, in order
+		// to support paths of containers created by containerd-cri, where the path part takes
+		// the form: <dirname>:cri-containerd:<container-ID>
+		idx := strings.LastIndex(cgroupPath, ":")
+		if idx == -1 {
+			// if colon char is not found within the path, the split is done based on the
+			// last occurrence of the slash character
+			if idx = strings.LastIndex(cgroupPath, "/"); idx == -1 {
+				continue
 			}
 		}
-		if match := kubepodsRegexp.FindStringSubmatch(dir); match != nil {
+
+		dirname, basename := cgroupPath[:idx], cgroupPath[idx+1:]
+
+		// If the basename ends with ".scope", check for a hyphen and remove everything up to
+		// and including that. This allows us to match .../docker-<container-id>.scope as well
+		// as .../<container-id>.
+		if strings.HasSuffix(basename, ".scope") {
+			basename = strings.TrimSuffix(basename, ".scope")
+
+			if hyphen := strings.Index(basename, "-"); hyphen != -1 {
+				basename = basename[hyphen+1:]
+			}
+		}
+		if match := kubepodsRegexp.FindStringSubmatch(dirname); match != nil {
 			// By default, Kubernetes will set the hostname of
 			// the pod containers to the pod name. Users that
 			// override the name should use the Downard API to
@@ -145,9 +147,9 @@ func readCgroupContainerInfo(r io.Reader) (*model.Container, *model.Kubernetes, 
 			// We don't check the contents of the last path segment
 			// when we've matched "^/kubepods"; we assume that it is
 			// a valid container ID.
-			container = &model.Container{ID: id}
-		} else if containerIDRegexp.MatchString(id) {
-			container = &model.Container{ID: id}
+			container = &model.Container{ID: basename}
+		} else if containerIDRegexp.MatchString(basename) {
+			container = &model.Container{ID: basename}
 		}
 	}
 	if err := s.Err(); err != nil {
