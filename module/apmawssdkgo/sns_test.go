@@ -44,7 +44,7 @@ func TestSNS(t *testing.T) {
 		ignored, hasTraceContext, hasError bool
 	}{
 		{
-			name:            "SNS PUBLISH myTopic",
+			name:            "SNS PUBLISH to myTopic",
 			action:          "publish",
 			resource:        "sns/myTopic",
 			topicName:       "myTopic",
@@ -58,7 +58,7 @@ func TestSNS(t *testing.T) {
 			},
 		},
 		{
-			name:            "SNS PUBLISH myTopic",
+			name:            "SNS PUBLISH to myTopic",
 			action:          "publish",
 			resource:        "sns/myTopic",
 			topicName:       "myTopic",
@@ -67,6 +67,32 @@ func TestSNS(t *testing.T) {
 				svc.PublishWithContext(ctx, &sns.PublishInput{
 					Message:  aws.String("my message"),
 					TopicArn: aws.String("arn:aws:sns:us-east-2:123456789012:myTopic"),
+				})
+			},
+		},
+		{
+			name:            "SNS PUBLISH to endpoint/GCM/gcmpushapp",
+			action:          "publish",
+			resource:        "sns/endpoint/GCM/gcmpushapp",
+			topicName:       "endpoint/GCM/gcmpushapp",
+			hasTraceContext: true,
+			fn: func(ctx context.Context, svc *sns.SNS) {
+				svc.PublishWithContext(ctx, &sns.PublishInput{
+					Message:   aws.String("my message"),
+					TargetArn: aws.String("arn:aws:sns:us-west-2:123456789012:endpoint/GCM/gcmpushapp/5e3e9847-3183-3f18-a7e8-671c3a57d4b3"),
+				})
+			},
+		},
+		{
+			name:            "SNS PUBLISH to [PHONENUMBER]",
+			action:          "publish",
+			resource:        "sns/[PHONENUMBER]",
+			topicName:       "[PHONENUMBER]",
+			hasTraceContext: true,
+			fn: func(ctx context.Context, svc *sns.SNS) {
+				svc.PublishWithContext(ctx, &sns.PublishInput{
+					Message:     aws.String("my message"),
+					PhoneNumber: aws.String("1"),
 				})
 			},
 		},
