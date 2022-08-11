@@ -23,6 +23,8 @@ endif::[]
 
 https://github.com/elastic/apm-agent-go/compare/v2.1.0...main[View commits]
 
+- Global labels are now parsed when the tracer is constructed, instead of parsing only once on package initialization {pull}1290[#(1290)]
+
 [[release-notes-2.x]]
 === Go Agent version 2.x
 
