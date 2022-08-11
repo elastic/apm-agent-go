@@ -350,6 +350,11 @@ func (s *Span) End() {
 		// manually set the destination.service.resource
 		s.setExitSpanDestinationService()
 	}
+	if s.exit && !s.Context.setServiceTargetCalled {
+		// The span was created as an exit span, but the user did not
+		// manually set the service.target fields.
+		s.setExitSpanServiceTarget()
+	}
 	if s.Duration < 0 {
 		s.Duration = time.Since(s.timestamp)
 	}
@@ -487,6 +492,16 @@ func (s *Span) setExitSpanDestinationService() {
 	}
 	s.Context.SetDestinationService(DestinationServiceSpanContext{
 		Resource: resource,
+	})
+}
+
+func (s *Span) setExitSpanServiceTarget() {
+	fallbackType := s.Subtype
+	if fallbackType == "" {
+		fallbackType = s.Type
+	}
+	s.Context.SetServiceTarget(ServiceTargetSpanContext{
+		Type: fallbackType,
 	})
 }
 

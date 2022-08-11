@@ -227,6 +227,10 @@ func TestStartExitSpan(t *testing.T) {
 	// the exit span will assign the value.
 	assert.Equal(t, spans[0].Context.Destination.Service.Resource, "type")
 
+	// When the context's DestinationService is not explicitly set, ending
+	// the exit span will assign the value.
+	assert.Equal(t, spans[0].Context.Service.Target.Type, "type")
+
 	tracer := apmtest.NewRecordingTracer()
 	defer tracer.Close()
 
@@ -1120,6 +1124,20 @@ func TestExitSpanDoesNotOverwriteDestinationServiceResource(t *testing.T) {
 	})
 	require.Len(t, spans, 1)
 	assert.Equal(t, spans[0].Context.Destination.Service.Resource, "my-custom-resource")
+}
+
+func TestExitSpanDoesNotOverwriteServiceTarget(t *testing.T) {
+	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+		span, _ := apm.StartSpanOptions(ctx, "name", "type", apm.SpanOptions{ExitSpan: true})
+		assert.True(t, span.IsExitSpan())
+		span.Context.SetServiceTarget(apm.ServiceTargetSpanContext{
+			Type: "my-custom-resource",
+		})
+		span.Duration = 2 * time.Millisecond
+		span.End()
+	})
+	require.Len(t, spans, 1)
+	assert.Equal(t, spans[0].Context.Service.Target.Type, "my-custom-resource")
 }
 
 func TestTracerStartSpanIDSpecified(t *testing.T) {
