@@ -441,6 +441,9 @@ exceeds this configured value. While this is very helpful to find the exact
 place in your code that causes the span, collecting this stack trace does have
 some processing and storage overhead.
 
+NOTE: This configuration was previously known as `ELASTIC_APM_SPAN_FRAMES_MIN_DURATION`, which has been deprecated and will be removed in a future major
+version of the agent.
+
 [float]
 [[config-stack-trace-limit]]
 === `ELASTIC_APM_STACK_TRACE_LIMIT`
