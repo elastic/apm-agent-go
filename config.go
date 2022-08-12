@@ -48,7 +48,7 @@ const (
 	envServiceName                 = "ELASTIC_APM_SERVICE_NAME"
 	envServiceVersion              = "ELASTIC_APM_SERVICE_VERSION"
 	envEnvironment                 = "ELASTIC_APM_ENVIRONMENT"
-	envSpanFramesMinDuration       = "ELASTIC_APM_SPAN_FRAMES_MIN_DURATION"
+	envSpanStackTraceMinDuration   = "ELASTIC_APM_SPAN_STACK_TRACE_MIN_DURATION"
 	envActive                      = "ELASTIC_APM_ACTIVE"
 	envRecording                   = "ELASTIC_APM_RECORDING"
 	envAPIRequestSize              = "ELASTIC_APM_API_REQUEST_SIZE"
@@ -83,17 +83,17 @@ const (
 	envCPUProfileDuration  = "ELASTIC_APM_CPU_PROFILE_DURATION"
 	envHeapProfileInterval = "ELASTIC_APM_HEAP_PROFILE_INTERVAL"
 
-	defaultAPIRequestSize        = 750 * configutil.KByte
-	defaultAPIRequestTime        = 10 * time.Second
-	defaultAPIBufferSize         = 1 * configutil.MByte
-	defaultMetricsBufferSize     = 750 * configutil.KByte
-	defaultMetricsInterval       = 30 * time.Second
-	defaultMaxSpans              = 500
-	defaultCaptureHeaders        = true
-	defaultCaptureBody           = CaptureBodyOff
-	defaultSpanFramesMinDuration = 5 * time.Millisecond
-	defaultStackTraceLimit       = 50
-	defaultContinuationStrategy  = "continue"
+	defaultAPIRequestSize            = 750 * configutil.KByte
+	defaultAPIRequestTime            = 10 * time.Second
+	defaultAPIBufferSize             = 1 * configutil.MByte
+	defaultMetricsBufferSize         = 750 * configutil.KByte
+	defaultMetricsInterval           = 30 * time.Second
+	defaultMaxSpans                  = 500
+	defaultCaptureHeaders            = true
+	defaultCaptureBody               = CaptureBodyOff
+	defaultSpanStackTraceMinDuration = 5 * time.Millisecond
+	defaultStackTraceLimit           = 50
+	defaultContinuationStrategy      = "continue"
 
 	defaultExitSpanMinDuration = time.Millisecond
 
@@ -294,8 +294,8 @@ func initialService() (name, version, environment string) {
 	return name, version, environment
 }
 
-func initialSpanFramesMinDuration() (time.Duration, error) {
-	return configutil.ParseDurationEnv(envSpanFramesMinDuration, defaultSpanFramesMinDuration)
+func initialSpanStackTraceMinDuration() (time.Duration, error) {
+	return configutil.ParseDurationEnv(envSpanStackTraceMinDuration, defaultSpanStackTraceMinDuration)
 }
 
 func initialActive() (bool, error) {
@@ -472,7 +472,7 @@ func (t *Tracer) updateRemoteConfig(logger Logger, old, attrs map[string]string)
 			updates = append(updates, func(cfg *instrumentationConfig) {
 				cfg.continuationStrategy = v
 			})
-		case envSpanFramesMinDuration:
+		case envSpanStackTraceMinDuration:
 			duration, err := configutil.ParseDuration(v)
 			if err != nil {
 				errorf("central config failure: failed to parse %s: %s", k, err)
@@ -480,7 +480,7 @@ func (t *Tracer) updateRemoteConfig(logger Logger, old, attrs map[string]string)
 				continue
 			} else {
 				updates = append(updates, func(cfg *instrumentationConfig) {
-					cfg.spanFramesMinDuration = duration
+					cfg.spanStackTraceMinDuration = duration
 				})
 			}
 		case envStackTraceLimit:
@@ -642,17 +642,17 @@ type instrumentationConfig struct {
 // set the initial entry in instrumentationConfig.local, in order to properly reset
 // to the local value, even if the default is the zero value.
 type instrumentationConfigValues struct {
-	recording             bool
-	captureBody           CaptureBodyMode
-	captureHeaders        bool
-	maxSpans              int
-	sampler               Sampler
-	spanFramesMinDuration time.Duration
-	exitSpanMinDuration   time.Duration
-	continuationStrategy  string
-	stackTraceLimit       int
-	propagateLegacyHeader bool
-	sanitizedFieldNames   wildcard.Matchers
-	ignoreTransactionURLs wildcard.Matchers
-	compressionOptions    compressionOptions
+	recording                 bool
+	captureBody               CaptureBodyMode
+	captureHeaders            bool
+	maxSpans                  int
+	sampler                   Sampler
+	spanStackTraceMinDuration time.Duration
+	exitSpanMinDuration       time.Duration
+	continuationStrategy      string
+	stackTraceLimit           int
+	propagateLegacyHeader     bool
+	sanitizedFieldNames       wildcard.Matchers
+	ignoreTransactionURLs     wildcard.Matchers
+	compressionOptions        compressionOptions
 }
