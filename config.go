@@ -39,32 +39,33 @@ import (
 )
 
 const (
-	envMetricsInterval             = "ELASTIC_APM_METRICS_INTERVAL"
-	envMaxSpans                    = "ELASTIC_APM_TRANSACTION_MAX_SPANS"
-	envTransactionSampleRate       = "ELASTIC_APM_TRANSACTION_SAMPLE_RATE"
-	envSanitizeFieldNames          = "ELASTIC_APM_SANITIZE_FIELD_NAMES"
-	envCaptureHeaders              = "ELASTIC_APM_CAPTURE_HEADERS"
-	envCaptureBody                 = "ELASTIC_APM_CAPTURE_BODY"
-	envServiceName                 = "ELASTIC_APM_SERVICE_NAME"
-	envServiceVersion              = "ELASTIC_APM_SERVICE_VERSION"
-	envEnvironment                 = "ELASTIC_APM_ENVIRONMENT"
-	envSpanStackTraceMinDuration   = "ELASTIC_APM_SPAN_STACK_TRACE_MIN_DURATION"
-	envActive                      = "ELASTIC_APM_ACTIVE"
-	envRecording                   = "ELASTIC_APM_RECORDING"
-	envAPIRequestSize              = "ELASTIC_APM_API_REQUEST_SIZE"
-	envAPIRequestTime              = "ELASTIC_APM_API_REQUEST_TIME"
-	envAPIBufferSize               = "ELASTIC_APM_API_BUFFER_SIZE"
-	envMetricsBufferSize           = "ELASTIC_APM_METRICS_BUFFER_SIZE"
-	envDisableMetrics              = "ELASTIC_APM_DISABLE_METRICS"
-	envIgnoreURLs                  = "ELASTIC_APM_TRANSACTION_IGNORE_URLS"
-	deprecatedEnvIgnoreURLs        = "ELASTIC_APM_IGNORE_URLS"
-	envGlobalLabels                = "ELASTIC_APM_GLOBAL_LABELS"
-	envStackTraceLimit             = "ELASTIC_APM_STACK_TRACE_LIMIT"
-	envCentralConfig               = "ELASTIC_APM_CENTRAL_CONFIG"
-	envBreakdownMetrics            = "ELASTIC_APM_BREAKDOWN_METRICS"
-	envUseElasticTraceparentHeader = "ELASTIC_APM_USE_ELASTIC_TRACEPARENT_HEADER"
-	envCloudProvider               = "ELASTIC_APM_CLOUD_PROVIDER"
-	envContinuationStrategy        = "ELASTIC_APM_TRACE_CONTINUATION_STRATEGY"
+	envMetricsInterval                 = "ELASTIC_APM_METRICS_INTERVAL"
+	envMaxSpans                        = "ELASTIC_APM_TRANSACTION_MAX_SPANS"
+	envTransactionSampleRate           = "ELASTIC_APM_TRANSACTION_SAMPLE_RATE"
+	envSanitizeFieldNames              = "ELASTIC_APM_SANITIZE_FIELD_NAMES"
+	envCaptureHeaders                  = "ELASTIC_APM_CAPTURE_HEADERS"
+	envCaptureBody                     = "ELASTIC_APM_CAPTURE_BODY"
+	envServiceName                     = "ELASTIC_APM_SERVICE_NAME"
+	envServiceVersion                  = "ELASTIC_APM_SERVICE_VERSION"
+	envEnvironment                     = "ELASTIC_APM_ENVIRONMENT"
+	envSpanStackTraceMinDuration       = "ELASTIC_APM_SPAN_STACK_TRACE_MIN_DURATION"
+	deprecatedEnvSpanFramesMinDuration = "ELASTIC_APM_SPAN_FRAMES_MIN_DURATION"
+	envActive                          = "ELASTIC_APM_ACTIVE"
+	envRecording                       = "ELASTIC_APM_RECORDING"
+	envAPIRequestSize                  = "ELASTIC_APM_API_REQUEST_SIZE"
+	envAPIRequestTime                  = "ELASTIC_APM_API_REQUEST_TIME"
+	envAPIBufferSize                   = "ELASTIC_APM_API_BUFFER_SIZE"
+	envMetricsBufferSize               = "ELASTIC_APM_METRICS_BUFFER_SIZE"
+	envDisableMetrics                  = "ELASTIC_APM_DISABLE_METRICS"
+	envIgnoreURLs                      = "ELASTIC_APM_TRANSACTION_IGNORE_URLS"
+	deprecatedEnvIgnoreURLs            = "ELASTIC_APM_IGNORE_URLS"
+	envGlobalLabels                    = "ELASTIC_APM_GLOBAL_LABELS"
+	envStackTraceLimit                 = "ELASTIC_APM_STACK_TRACE_LIMIT"
+	envCentralConfig                   = "ELASTIC_APM_CENTRAL_CONFIG"
+	envBreakdownMetrics                = "ELASTIC_APM_BREAKDOWN_METRICS"
+	envUseElasticTraceparentHeader     = "ELASTIC_APM_USE_ELASTIC_TRACEPARENT_HEADER"
+	envCloudProvider                   = "ELASTIC_APM_CLOUD_PROVIDER"
+	envContinuationStrategy            = "ELASTIC_APM_TRACE_CONTINUATION_STRATEGY"
 
 	// span_compression (default `true`)
 	envSpanCompressionEnabled = "ELASTIC_APM_SPAN_COMPRESSION_ENABLED"
@@ -295,7 +296,26 @@ func initialService() (name, version, environment string) {
 }
 
 func initialSpanStackTraceMinDuration() (time.Duration, error) {
-	return configutil.ParseDurationEnv(envSpanStackTraceMinDuration, defaultSpanStackTraceMinDuration)
+	if v, err := configutil.ParseDurationEnv(envSpanStackTraceMinDuration, defaultSpanStackTraceMinDuration); err != nil || v != defaultSpanStackTraceMinDuration {
+		// if envSpanStackTraceMinDuration was provided ignore the deprecated option
+		return v, err
+	}
+
+	v, err := configutil.ParseDurationEnv(deprecatedEnvSpanFramesMinDuration, defaultSpanStackTraceMinDuration)
+	if err != nil {
+		return v, err
+	}
+
+	// The meaning of the value was changed.
+	// convert the old value in span_stack_trace_min_duration
+	if v == 0 {
+		return -1, nil
+	}
+	if v == -1 {
+		return 0, nil
+	}
+
+	return v, nil
 }
 
 func initialActive() (bool, error) {

@@ -259,6 +259,33 @@ func testTracerCaptureBodyEnv(t *testing.T, envValue string, expectBody bool) {
 }
 
 func TestTracerSpanFramesMinDurationEnv(t *testing.T) {
+	os.Setenv("ELASTIC_APM_SPAN_FRAMES_MIN_DURATION", "10ms")
+	defer os.Unsetenv("ELASTIC_APM_SPAN_FRAMES_MIN_DURATION")
+
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	tx := tracer.StartTransaction("name", "type")
+	s := tx.StartSpan("name", "type", nil)
+	s.Duration = 9 * time.Millisecond
+	s.End()
+	s = tx.StartSpan("name", "type", nil)
+	s.Duration = 10 * time.Millisecond
+	s.End()
+	tx.End()
+	tracer.Flush(nil)
+
+	spans := transport.Payloads().Spans
+	assert.Len(t, spans, 2)
+
+	// Span 0 took only 9ms, so we don't set its stacktrace.
+	assert.Nil(t, spans[0].Stacktrace)
+
+	// Span 1 took the required 10ms, so we set its stacktrace.
+	assert.NotNil(t, spans[1].Stacktrace)
+}
+
+func TestTracerStackTraceMinDurationEnv(t *testing.T) {
 	os.Setenv("ELASTIC_APM_SPAN_STACK_TRACE_MIN_DURATION", "10ms")
 	defer os.Unsetenv("ELASTIC_APM_SPAN_STACK_TRACE_MIN_DURATION")
 
@@ -286,6 +313,14 @@ func TestTracerSpanFramesMinDurationEnv(t *testing.T) {
 }
 
 func TestTracerSpanFramesMinDurationEnvInvalid(t *testing.T) {
+	os.Setenv("ELASTIC_APM_SPAN_FRAMES_MIN_DURATION", "aeon")
+	defer os.Unsetenv("ELASTIC_APM_SPAN_FRAMES_MIN_DURATION")
+
+	_, err := apm.NewTracer("tracer_testing", "")
+	assert.EqualError(t, err, "failed to parse ELASTIC_APM_SPAN_FRAMES_MIN_DURATION: invalid duration aeon")
+}
+
+func TestTracerStackTraceMinDurationEnvInvalid(t *testing.T) {
 	os.Setenv("ELASTIC_APM_SPAN_STACK_TRACE_MIN_DURATION", "aeon")
 	defer os.Unsetenv("ELASTIC_APM_SPAN_STACK_TRACE_MIN_DURATION")
 
