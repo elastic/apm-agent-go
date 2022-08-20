@@ -44,8 +44,9 @@ const (
 	postgresql = "postgresql"
 )
 
-// ErrUnsupportedPgxVersion is indicating that data doesn't contain value for "time" key
-var ErrUnsupportedPgxVersion = errors.New("this version of pgx is unsupported for tracing, please upgrade")
+// ErrUnsupportedPgxVersion is indicating that data doesn't contain value for "time" key.
+// This fields appeared in pgx v4.17
+var ErrUnsupportedPgxVersion = errors.New("this version of pgx is unsupported, please upgrade to v4.17")
 
 // tracer is an implementation of pgx.Logger.
 type tracer struct {
@@ -91,8 +92,6 @@ func (t *tracer) QueryTrace(ctx context.Context, data map[string]interface{}) {
 		Start: stop.Add(-data["time"].(time.Duration)),
 	})
 
-	span.SetStacktrace(0)
-
 	span.Duration = data["time"].(time.Duration)
 	span.Context.SetDatabase(apm.DatabaseSpanContext{
 		Type:      postgresql,
@@ -122,8 +121,6 @@ func (t *tracer) CopyTrace(ctx context.Context, data map[string]interface{}) {
 			Start: stop.Add(-data["time"].(time.Duration)),
 		})
 
-	span.SetStacktrace(0)
-
 	span.Duration = data["time"].(time.Duration)
 	span.Context.SetDatabase(apm.DatabaseSpanContext{
 		Type: postgresql,
@@ -145,8 +142,6 @@ func (t *tracer) BatchTrace(ctx context.Context, data map[string]interface{}) {
 	span, _ := apm.StartSpanOptions(ctx, "BATCH", batchSpanType, apm.SpanOptions{
 		Start: stop.Add(-data["time"].(time.Duration)),
 	})
-
-	span.SetStacktrace(0)
 
 	if _, ok := data["batchLen"]; ok {
 		span.Context.SetLabel("batch.length", data["batchLen"].(int))

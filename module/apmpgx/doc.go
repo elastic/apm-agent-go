@@ -15,5 +15,5 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Package apmpgx provides helpers for tracing github.com/jackc/pgx/v4.
+// Package apmpgx provides helpers for tracing github.com/jackc/pgx/v4. Minimal required version is v4.17
 package apmpgx // import "go.elastic.co/apm/module/apmpgx/v2"
