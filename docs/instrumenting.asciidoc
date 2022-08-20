@@ -985,20 +985,38 @@ pass logger you want to as argument for `apmpgx.NewTracer()` (it's safe to pass 
 Spans will be created for queries as long as they have context associated, and the
 context includes a transaction.
 
+Example with pool
 [source,go]
 ----
 import (
-    "github.com/jackc/pgxpool"
+    "github.com/jackc/pgx/v4/pgxpool"
 
     "go.elastic.com/apm/module/apmpgx/v2"
 )
 
 func main() {
-    config, err := pgxpool.ParseConfig("dsn_string")
+    c, err := pgxpool.ParseConfig("dsn_string")
     ...
-    config.ConnConfig.Logger = apmpgx.NewTracer(nil)
+    c.ConnConfig.Logger = apmpgx.NewTracer(nil)
 
     pool, err := pgxpool.ConnectConfig(context.Background(), config)
+    ...
+}
+----
+
+Example without pool
+[source,go]
+----
+import (
+    "github.com/jackc/pgx/v4"
+
+    "go.elastic.com/apm/module/apmpgx/v2"
+)
+
+func main() {
+    c, err := pgx.Connect(context.Background, "dsn_string")
+    ...
+    c.Config().Logger = apmpgx.NewTracer(nil)
     ...
 }
 ----
