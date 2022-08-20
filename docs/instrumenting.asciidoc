@@ -273,7 +273,7 @@ func main() {
 	...
 	conn, err := grpc.Dial(addr,
 		grpc.WithUnaryInterceptor(apmgrpc.NewUnaryClientInterceptor()),
-		gprc.WithStreamInterceptor(apmgrpc.NewStreamClientInterceptor()),
+		grpc.WithStreamInterceptor(apmgrpc.NewStreamClientInterceptor()),
 	)
 	...
 }

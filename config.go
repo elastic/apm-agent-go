@@ -35,43 +35,43 @@ import (
 	"go.elastic.co/apm/v2/internal/apmlog"
 	"go.elastic.co/apm/v2/internal/configutil"
 	"go.elastic.co/apm/v2/internal/wildcard"
-	"go.elastic.co/apm/v2/model"
 	"go.elastic.co/apm/v2/transport"
 )
 
 const (
-	envMetricsInterval             = "ELASTIC_APM_METRICS_INTERVAL"
-	envMaxSpans                    = "ELASTIC_APM_TRANSACTION_MAX_SPANS"
-	envTransactionSampleRate       = "ELASTIC_APM_TRANSACTION_SAMPLE_RATE"
-	envSanitizeFieldNames          = "ELASTIC_APM_SANITIZE_FIELD_NAMES"
-	envCaptureHeaders              = "ELASTIC_APM_CAPTURE_HEADERS"
-	envCaptureBody                 = "ELASTIC_APM_CAPTURE_BODY"
-	envServiceName                 = "ELASTIC_APM_SERVICE_NAME"
-	envServiceVersion              = "ELASTIC_APM_SERVICE_VERSION"
-	envEnvironment                 = "ELASTIC_APM_ENVIRONMENT"
-	envSpanFramesMinDuration       = "ELASTIC_APM_SPAN_FRAMES_MIN_DURATION"
-	envActive                      = "ELASTIC_APM_ACTIVE"
-	envRecording                   = "ELASTIC_APM_RECORDING"
-	envAPIRequestSize              = "ELASTIC_APM_API_REQUEST_SIZE"
-	envAPIRequestTime              = "ELASTIC_APM_API_REQUEST_TIME"
-	envAPIBufferSize               = "ELASTIC_APM_API_BUFFER_SIZE"
-	envMetricsBufferSize           = "ELASTIC_APM_METRICS_BUFFER_SIZE"
-	envDisableMetrics              = "ELASTIC_APM_DISABLE_METRICS"
-	envIgnoreURLs                  = "ELASTIC_APM_TRANSACTION_IGNORE_URLS"
-	deprecatedEnvIgnoreURLs        = "ELASTIC_APM_IGNORE_URLS"
-	envGlobalLabels                = "ELASTIC_APM_GLOBAL_LABELS"
-	envStackTraceLimit             = "ELASTIC_APM_STACK_TRACE_LIMIT"
-	envCentralConfig               = "ELASTIC_APM_CENTRAL_CONFIG"
-	envBreakdownMetrics            = "ELASTIC_APM_BREAKDOWN_METRICS"
-	envUseElasticTraceparentHeader = "ELASTIC_APM_USE_ELASTIC_TRACEPARENT_HEADER"
-	envCloudProvider               = "ELASTIC_APM_CLOUD_PROVIDER"
+	envMetricsInterval                 = "ELASTIC_APM_METRICS_INTERVAL"
+	envMaxSpans                        = "ELASTIC_APM_TRANSACTION_MAX_SPANS"
+	envTransactionSampleRate           = "ELASTIC_APM_TRANSACTION_SAMPLE_RATE"
+	envSanitizeFieldNames              = "ELASTIC_APM_SANITIZE_FIELD_NAMES"
+	envCaptureHeaders                  = "ELASTIC_APM_CAPTURE_HEADERS"
+	envCaptureBody                     = "ELASTIC_APM_CAPTURE_BODY"
+	envServiceName                     = "ELASTIC_APM_SERVICE_NAME"
+	envServiceVersion                  = "ELASTIC_APM_SERVICE_VERSION"
+	envEnvironment                     = "ELASTIC_APM_ENVIRONMENT"
+	envSpanStackTraceMinDuration       = "ELASTIC_APM_SPAN_STACK_TRACE_MIN_DURATION"
+	deprecatedEnvSpanFramesMinDuration = "ELASTIC_APM_SPAN_FRAMES_MIN_DURATION"
+	envActive                          = "ELASTIC_APM_ACTIVE"
+	envRecording                       = "ELASTIC_APM_RECORDING"
+	envAPIRequestSize                  = "ELASTIC_APM_API_REQUEST_SIZE"
+	envAPIRequestTime                  = "ELASTIC_APM_API_REQUEST_TIME"
+	envAPIBufferSize                   = "ELASTIC_APM_API_BUFFER_SIZE"
+	envMetricsBufferSize               = "ELASTIC_APM_METRICS_BUFFER_SIZE"
+	envDisableMetrics                  = "ELASTIC_APM_DISABLE_METRICS"
+	envIgnoreURLs                      = "ELASTIC_APM_TRANSACTION_IGNORE_URLS"
+	deprecatedEnvIgnoreURLs            = "ELASTIC_APM_IGNORE_URLS"
+	envGlobalLabels                    = "ELASTIC_APM_GLOBAL_LABELS"
+	envStackTraceLimit                 = "ELASTIC_APM_STACK_TRACE_LIMIT"
+	envCentralConfig                   = "ELASTIC_APM_CENTRAL_CONFIG"
+	envBreakdownMetrics                = "ELASTIC_APM_BREAKDOWN_METRICS"
+	envUseElasticTraceparentHeader     = "ELASTIC_APM_USE_ELASTIC_TRACEPARENT_HEADER"
+	envCloudProvider                   = "ELASTIC_APM_CLOUD_PROVIDER"
+	envContinuationStrategy            = "ELASTIC_APM_TRACE_CONTINUATION_STRATEGY"
 
-	// NOTE(marclop) Experimental settings
-	// span_compression (default `false`)
+	// span_compression (default `true`)
 	envSpanCompressionEnabled = "ELASTIC_APM_SPAN_COMPRESSION_ENABLED"
 	// span_compression_exact_match_max_duration (default `50ms`)
 	envSpanCompressionExactMatchMaxDuration = "ELASTIC_APM_SPAN_COMPRESSION_EXACT_MATCH_MAX_DURATION"
-	// span_compression_same_kind_max_duration (default `5ms`)
+	// span_compression_same_kind_max_duration (default `0ms`)
 	envSpanCompressionSameKindMaxDuration = "ELASTIC_APM_SPAN_COMPRESSION_SAME_KIND_MAX_DURATION"
 
 	// exit_span_min_duration (default `1ms`)
@@ -84,16 +84,17 @@ const (
 	envCPUProfileDuration  = "ELASTIC_APM_CPU_PROFILE_DURATION"
 	envHeapProfileInterval = "ELASTIC_APM_HEAP_PROFILE_INTERVAL"
 
-	defaultAPIRequestSize        = 750 * configutil.KByte
-	defaultAPIRequestTime        = 10 * time.Second
-	defaultAPIBufferSize         = 1 * configutil.MByte
-	defaultMetricsBufferSize     = 750 * configutil.KByte
-	defaultMetricsInterval       = 30 * time.Second
-	defaultMaxSpans              = 500
-	defaultCaptureHeaders        = true
-	defaultCaptureBody           = CaptureBodyOff
-	defaultSpanFramesMinDuration = 5 * time.Millisecond
-	defaultStackTraceLimit       = 50
+	defaultAPIRequestSize            = 750 * configutil.KByte
+	defaultAPIRequestTime            = 10 * time.Second
+	defaultAPIBufferSize             = 1 * configutil.MByte
+	defaultMetricsBufferSize         = 750 * configutil.KByte
+	defaultMetricsInterval           = 30 * time.Second
+	defaultMaxSpans                  = 500
+	defaultCaptureHeaders            = true
+	defaultCaptureBody               = CaptureBodyOff
+	defaultSpanStackTraceMinDuration = 5 * time.Millisecond
+	defaultStackTraceLimit           = 50
+	defaultContinuationStrategy      = "continue"
 
 	defaultExitSpanMinDuration = time.Millisecond
 
@@ -104,10 +105,10 @@ const (
 	minMetricsBufferSize = 10 * configutil.KByte
 	maxMetricsBufferSize = 100 * configutil.MByte
 
-	// Experimental Span Compressions default setting values
-	defaultSpanCompressionEnabled               = false
+	// Span Compressions default setting values
+	defaultSpanCompressionEnabled               = true
 	defaultSpanCompressionExactMatchMaxDuration = 50 * time.Millisecond
-	defaultSpanCompressionSameKindMaxDuration   = 5 * time.Millisecond
+	defaultSpanCompressionSameKindMaxDuration   = 0
 )
 
 var (
@@ -124,21 +125,6 @@ var (
 		"*auth*",
 		"set-cookie",
 	}, ","))
-
-	globalLabels = func() model.StringMap {
-		var labels model.StringMap
-		for _, kv := range configutil.ParseListEnv(envGlobalLabels, ",", nil) {
-			i := strings.IndexRune(kv, '=')
-			if i > 0 {
-				k, v := strings.TrimSpace(kv[:i]), strings.TrimSpace(kv[i+1:])
-				labels = append(labels, model.StringMapItem{
-					Key:   cleanLabelKey(k),
-					Value: truncateString(v),
-				})
-			}
-		}
-		return labels
-	}()
 )
 
 // Regular expression matching comment characters to escape in the User-Agent header value.
@@ -252,6 +238,23 @@ func initialSanitizedFieldNames() wildcard.Matchers {
 	return configutil.ParseWildcardPatternsEnv(envSanitizeFieldNames, defaultSanitizedFieldNames)
 }
 
+func initContinuationStrategy() (string, error) {
+	value := os.Getenv(envContinuationStrategy)
+	if value == "" {
+		return defaultContinuationStrategy, nil
+	}
+	return value, validateContinuationStrategy(value)
+}
+
+func validateContinuationStrategy(value string) error {
+	switch value {
+	case "continue", "restart", "restart_external":
+		return nil
+	default:
+		return fmt.Errorf("unknown continuation strategy: %s", value)
+	}
+}
+
 func initialCaptureHeaders() (bool, error) {
 	return configutil.ParseBoolEnv(envCaptureHeaders, defaultCaptureHeaders)
 }
@@ -292,8 +295,27 @@ func initialService() (name, version, environment string) {
 	return name, version, environment
 }
 
-func initialSpanFramesMinDuration() (time.Duration, error) {
-	return configutil.ParseDurationEnv(envSpanFramesMinDuration, defaultSpanFramesMinDuration)
+func initialSpanStackTraceMinDuration() (time.Duration, error) {
+	if v, err := configutil.ParseDurationEnv(envSpanStackTraceMinDuration, defaultSpanStackTraceMinDuration); err != nil || v != defaultSpanStackTraceMinDuration {
+		// if envSpanStackTraceMinDuration was provided ignore the deprecated option
+		return v, err
+	}
+
+	v, err := configutil.ParseDurationEnv(deprecatedEnvSpanFramesMinDuration, defaultSpanStackTraceMinDuration)
+	if err != nil {
+		return v, err
+	}
+
+	// The meaning of the value was changed.
+	// convert the old value in span_stack_trace_min_duration
+	if v == 0 {
+		return -1, nil
+	}
+	if v == -1 {
+		return 0, nil
+	}
+
+	return v, nil
 }
 
 func initialActive() (bool, error) {
@@ -461,7 +483,16 @@ func (t *Tracer) updateRemoteConfig(logger Logger, old, attrs map[string]string)
 			updates = append(updates, func(cfg *instrumentationConfig) {
 				cfg.sanitizedFieldNames = matchers
 			})
-		case envSpanFramesMinDuration:
+		case envContinuationStrategy:
+			if err := validateContinuationStrategy(v); err != nil {
+				errorf("central config failure: failed to parse %s: %s", k, err)
+				delete(attrs, k)
+				continue
+			}
+			updates = append(updates, func(cfg *instrumentationConfig) {
+				cfg.continuationStrategy = v
+			})
+		case envSpanStackTraceMinDuration:
 			duration, err := configutil.ParseDuration(v)
 			if err != nil {
 				errorf("central config failure: failed to parse %s: %s", k, err)
@@ -469,7 +500,7 @@ func (t *Tracer) updateRemoteConfig(logger Logger, old, attrs map[string]string)
 				continue
 			} else {
 				updates = append(updates, func(cfg *instrumentationConfig) {
-					cfg.spanFramesMinDuration = duration
+					cfg.spanStackTraceMinDuration = duration
 				})
 			}
 		case envStackTraceLimit:
@@ -631,16 +662,17 @@ type instrumentationConfig struct {
 // set the initial entry in instrumentationConfig.local, in order to properly reset
 // to the local value, even if the default is the zero value.
 type instrumentationConfigValues struct {
-	recording             bool
-	captureBody           CaptureBodyMode
-	captureHeaders        bool
-	maxSpans              int
-	sampler               Sampler
-	spanFramesMinDuration time.Duration
-	exitSpanMinDuration   time.Duration
-	stackTraceLimit       int
-	propagateLegacyHeader bool
-	sanitizedFieldNames   wildcard.Matchers
-	ignoreTransactionURLs wildcard.Matchers
-	compressionOptions    compressionOptions
+	recording                 bool
+	captureBody               CaptureBodyMode
+	captureHeaders            bool
+	maxSpans                  int
+	sampler                   Sampler
+	spanStackTraceMinDuration time.Duration
+	exitSpanMinDuration       time.Duration
+	continuationStrategy      string
+	stackTraceLimit           int
+	propagateLegacyHeader     bool
+	sanitizedFieldNames       wildcard.Matchers
+	ignoreTransactionURLs     wildcard.Matchers
+	compressionOptions        compressionOptions
 }

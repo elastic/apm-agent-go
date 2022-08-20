@@ -34,7 +34,7 @@ import (
 
 func TestQueueSend(t *testing.T) {
 	p := WrapPipeline(queuePipeline())
-	u, err := url.Parse("https://fakeaccnt.queue.core.windows.net")
+	u, err := url.Parse("https://fakeaccnt.queue.core.windows.net/myqueue")
 	require.NoError(t, err)
 	queueURL := azqueue.NewQueueURL(*u, p)
 	msgURL := queueURL.NewMessagesURL()
@@ -47,21 +47,23 @@ func TestQueueSend(t *testing.T) {
 	span := spans[0]
 
 	assert.Equal(t, "messaging", span.Type)
-	assert.Equal(t, "AzureQueue SEND to fakeaccnt", span.Name)
+	assert.Equal(t, "AzureQueue SEND to myqueue", span.Name)
 	assert.Equal(t, 403, span.Context.HTTP.StatusCode)
 	assert.Equal(t, "azurequeue", span.Subtype)
 	assert.Equal(t, "SEND", span.Action)
 	destination := span.Context.Destination
 	assert.Equal(t, "fakeaccnt.queue.core.windows.net", destination.Address)
 	assert.Equal(t, 443, destination.Port)
-	assert.Equal(t, "azurequeue/fakeaccnt", destination.Service.Resource)
+	assert.Equal(t, "azurequeue/myqueue", destination.Service.Resource)
+	assert.Equal(t, "azurequeue", span.Context.Service.Target.Type)
+	assert.Equal(t, "myqueue", span.Context.Service.Target.Name)
 }
 
 func TestQueueReceive(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 	p := WrapPipeline(queuePipeline(), WithTracer(tracer))
-	u, err := url.Parse("https://fakeaccnt.queue.core.windows.net")
+	u, err := url.Parse("https://fakeaccnt.queue.core.windows.net/myqueue")
 	require.NoError(t, err)
 	queueURL := azqueue.NewQueueURL(*u, p)
 	msgURL := queueURL.NewMessagesURL()
@@ -73,19 +75,21 @@ func TestQueueReceive(t *testing.T) {
 	transaction := payloads.Transactions[0]
 	// ParentID is empty, a new transaction was created
 	assert.Equal(t, model.SpanID{}, transaction.ParentID)
-	assert.Equal(t, "AzureQueue PEEK from fakeaccnt", transaction.Name)
+	assert.Equal(t, "AzureQueue PEEK from myqueue", transaction.Name)
 	assert.Equal(t, "messaging", transaction.Type)
 
 	span := payloads.Spans[0]
 	assert.Equal(t, "messaging", span.Type)
-	assert.Equal(t, "AzureQueue PEEK from fakeaccnt", span.Name)
+	assert.Equal(t, "AzureQueue PEEK from myqueue", span.Name)
 	assert.Equal(t, 403, span.Context.HTTP.StatusCode)
 	assert.Equal(t, "azurequeue", span.Subtype)
 	assert.Equal(t, "PEEK", span.Action)
 	destination := span.Context.Destination
 	assert.Equal(t, "fakeaccnt.queue.core.windows.net", destination.Address)
 	assert.Equal(t, 443, destination.Port)
-	assert.Equal(t, "azurequeue/fakeaccnt", destination.Service.Resource)
+	assert.Equal(t, "azurequeue/myqueue", destination.Service.Resource)
+	assert.Equal(t, "azurequeue", span.Context.Service.Target.Type)
+	assert.Equal(t, "myqueue", span.Context.Service.Target.Name)
 }
 
 func TestQueueGetOperation(t *testing.T) {

@@ -88,6 +88,9 @@ func TestS3(t *testing.T) {
 		require.NotNil(t, span.Context.Destination.Cloud)
 		assert.Equal(t, region, span.Context.Destination.Cloud.Region)
 
+		assert.Equal(t, "s3", span.Context.Service.Target.Type)
+		assert.Equal(t, tc.bucketName, span.Context.Service.Target.Name)
+
 		assert.Equal(t, tx.ID, span.ParentID)
 	}
 }
@@ -167,6 +170,8 @@ func TestDynamoDB(t *testing.T) {
 		assert.Equal(t, "dynamodb", db.Type)
 
 		assert.Equal(t, region, span.Context.Destination.Cloud.Region)
+		assert.Equal(t, "dynamodb", span.Context.Service.Target.Type)
+		assert.Equal(t, region, span.Context.Service.Target.Name)
 
 		assert.Equal(t, tx.ID, span.ParentID)
 	}
@@ -199,4 +204,32 @@ func TestUnsupportedServices(t *testing.T) {
 
 	svc.BatchGetNamedQueryWithContext(ctx, namedQuery)
 	assert.NotPanics(t, func() { svc.BatchGetNamedQueryWithContext(ctx, namedQuery) })
+}
+
+func TestSpanDropped(t *testing.T) {
+	region := "us-west-2"
+	cfg := aws.NewConfig().
+		WithRegion(region).
+		WithDisableSSL(true).
+		WithCredentials(credentials.AnonymousCredentials)
+
+	session := session.Must(session.NewSession(cfg))
+	wrapped := WrapSession(session)
+	svc := dynamodb.New(wrapped)
+
+	tracer := apmtest.NewRecordingTracer()
+	tracer.SetMaxSpans(0) // drop all spans
+	defer tracer.Close()
+
+	_, spans, errors := tracer.WithTransaction(func(ctx context.Context) {
+		svc.QueryWithContext(ctx, &dynamodb.QueryInput{
+			ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+				":v1": {S: aws.String("No One You Know")},
+			},
+			KeyConditionExpression: aws.String("Artist = :v1"),
+			TableName:              aws.String("Music"),
+		})
+	})
+	assert.Len(t, spans, 0)
+	assert.Len(t, errors, 0)
 }

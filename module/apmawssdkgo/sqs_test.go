@@ -124,6 +124,24 @@ func TestSQS(t *testing.T) {
 			},
 		},
 		{
+			name:      "SQS DELETE_BATCH from OtherQueue",
+			action:    "delete_batch",
+			resource:  "sqs/OtherQueue",
+			queueName: "OtherQueue",
+			queueURL:  "https://sqs.testing.invalid/123456789012/OtherQueue",
+			fn: func(ctx context.Context, svc *sqs.SQS, queueURL string) {
+				svc.DeleteMessageBatchWithContext(ctx, &sqs.DeleteMessageBatchInput{
+					QueueUrl: &queueURL,
+					Entries: []*sqs.DeleteMessageBatchRequestEntry{
+						{
+							Id:            aws.String("1"),
+							ReceiptHandle: aws.String("receiptHandle"),
+						},
+					},
+				})
+			},
+		},
+		{
 			ignored: true,
 			fn: func(ctx context.Context, svc *sqs.SQS, _ string) {
 				svc.CreateQueueWithContext(ctx, &sqs.CreateQueueInput{
@@ -197,6 +215,8 @@ func TestSQS(t *testing.T) {
 		assert.Equal(t, port, strconv.Itoa(span.Context.Destination.Port))
 
 		assert.Equal(t, region, span.Context.Destination.Cloud.Region)
+		assert.Equal(t, "sqs", span.Context.Service.Target.Type)
+		assert.Equal(t, tc.queueName, span.Context.Service.Target.Name)
 
 		assert.Equal(t, tx.ID, span.ParentID)
 	}

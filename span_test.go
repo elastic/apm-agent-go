@@ -118,6 +118,53 @@ func TestSpanParentID(t *testing.T) {
 	assert.Equal(t, model.SpanID(parentID), payloads.Spans[0].ParentID)
 }
 
+func TestSpanEnsureType(t *testing.T) {
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+
+	tx := tracer.StartTransaction("name", "type")
+	span := tx.StartSpan("name", "", nil)
+	span.End()
+	tx.End()
+	tracer.Flush(nil)
+
+	payloads := tracer.Payloads()
+	require.Len(t, payloads.Spans, 1)
+
+	assert.Equal(t, "custom", payloads.Spans[0].Type)
+}
+
+func TestSpanLink(t *testing.T) {
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+
+	links := []apm.SpanLink{
+		{Trace: apm.TraceID{1}, Span: apm.SpanID{1}},
+		{Trace: apm.TraceID{2}, Span: apm.SpanID{2}},
+	}
+
+	tx := tracer.StartTransaction("name", "type")
+	span := tx.StartSpanOptions("name", "type", apm.SpanOptions{
+		Links: links,
+	})
+
+	span.End()
+	tx.End()
+
+	tracer.Flush(nil)
+
+	payloads := tracer.Payloads()
+	require.Len(t, payloads.Spans, 1)
+	require.Len(t, payloads.Spans[0].Links, len(links))
+
+	// Assert span links are identical.
+	expectedLinks := []model.SpanLink{
+		{TraceID: model.TraceID{1}, SpanID: model.SpanID{1}},
+		{TraceID: model.TraceID{2}, SpanID: model.SpanID{2}},
+	}
+	assert.Equal(t, expectedLinks, payloads.Spans[0].Links)
+}
+
 func TestSpanTiming(t *testing.T) {
 	var spanStart, spanEnd time.Time
 	txStart := time.Now()
@@ -196,11 +243,11 @@ func TestStartExitSpan(t *testing.T) {
 	assert.True(t, span.IsExitSpan())
 }
 
-func TestFramesMinDurationSpecialCases(t *testing.T) {
+func TestSpanStackTraceMinDurationSpecialCases(t *testing.T) {
 	tracer := apmtest.NewRecordingTracer()
 
 	// verify that no stacktraces are recorded
-	tracer.SetSpanFramesMinDuration(0)
+	tracer.SetSpanStackTraceMinDuration(-1)
 	tx := tracer.StartTransaction("name", "type")
 	span := tx.StartSpan("span", "span", nil)
 	span.End()
@@ -216,7 +263,7 @@ func TestFramesMinDurationSpecialCases(t *testing.T) {
 	// verify that stacktraces are always recorded
 	tracer = apmtest.NewRecordingTracer()
 	defer tracer.Close()
-	tracer.SetSpanFramesMinDuration(-1)
+	tracer.SetSpanStackTraceMinDuration(0)
 	tx = tracer.StartTransaction("name", "type")
 	span = tx.StartSpan("span2", "span2", nil)
 	span.End()
@@ -489,7 +536,7 @@ func TestCompressSpanSameKind(t *testing.T) {
 		// These should be compressed into 1 since they meet the compression
 		// criteria.
 		path := []string{"/a", "/b", "/c", "/d", "/e"}
-		for i := 0; i < 5; i++ {
+		for i := 0; i < len(path); i++ {
 			span := tx.StartSpanOptions(fmt.Sprint("GET ", path[i]), "request", apm.SpanOptions{
 				ExitSpan: true, Start: currentTime,
 			})
@@ -521,8 +568,8 @@ func TestCompressSpanSameKind(t *testing.T) {
 		return transaction, spans, debugFunc
 	}
 
-	t.Run("DefaultThreshold", func(t *testing.T) {
-		// With the default threshold the composite count will be 5.
+	t.Run("DefaultDisabled", func(t *testing.T) {
+		// By default same kind compression is disabled thus count will be 7.
 		tracer := apmtest.NewRecordingTracer()
 		defer tracer.Close()
 		tracer.SetSpanCompressionEnabled(true)
@@ -532,21 +579,16 @@ func TestCompressSpanSameKind(t *testing.T) {
 		_, spans, debugFunc := testCase(tracer)
 		defer debugFunc()
 
-		require.Equal(t, 3, len(spans))
+		require.Equal(t, 7, len(spans))
 		mysqlSpan := spans[0]
 		assert.Equal(t, "mysql", mysqlSpan.Context.Destination.Service.Resource)
 		assert.Nil(t, mysqlSpan.Composite)
 
 		requestSpan := spans[1]
 		assert.Equal(t, "request", requestSpan.Context.Destination.Service.Resource)
-		require.NotNil(t, requestSpan.Composite)
-		assert.Equal(t, 5, requestSpan.Composite.Count)
-		assert.Equal(t, "same_kind", requestSpan.Composite.CompressionStrategy)
-		assert.Equal(t, "Calls to request", requestSpan.Name)
-		// Check that the sum and span duration is at least the duration of the time set.
-		assert.Equal(t, 0.0005, requestSpan.Composite.Sum, requestSpan.Composite.Sum)
-		assert.Equal(t, 0.0005, requestSpan.Duration, requestSpan.Duration)
+		require.Nil(t, requestSpan.Composite)
 	})
+
 	t.Run("10msThreshold", func(t *testing.T) {
 		// With this threshold the composite count will be 6.
 		os.Setenv("ELASTIC_APM_SPAN_COMPRESSION_SAME_KIND_MAX_DURATION", "10ms")
@@ -599,6 +641,7 @@ func TestCompressSpanSameKindParentSpan(t *testing.T) {
 	tracer := apmtest.NewRecordingTracer()
 	tracer.SetSpanCompressionEnabled(true)
 	tracer.SetExitSpanMinDuration(0)
+	tracer.SetSpanCompressionSameKindMaxDuration(5 * time.Millisecond)
 
 	// This test case covers spans that have other spans as parents.
 	// |_______________transaction (6b1e4866252dea6f) - 1.45ms________________|
@@ -708,6 +751,7 @@ func TestCompressSpanSameKindParentSpanContext(t *testing.T) {
 	tracer := apmtest.NewRecordingTracer()
 	tracer.SetSpanCompressionEnabled(true)
 	tracer.SetExitSpanMinDuration(0)
+	tracer.SetSpanCompressionSameKindMaxDuration(5 * time.Millisecond)
 
 	txStart := time.Now()
 	tx := tracer.StartTransactionOptions("name", "type",
@@ -951,6 +995,7 @@ func TestCompressSpanPrematureEnd(t *testing.T) {
 			defer tracer.Close()
 			tracer.SetSpanCompressionEnabled(true)
 			tracer.SetExitSpanMinDuration(test.exitSpanMinDuration)
+			tracer.SetSpanCompressionSameKindMaxDuration(5 * time.Millisecond)
 
 			txStart := time.Now()
 			tx := tracer.StartTransaction("name", "type")
@@ -1001,6 +1046,7 @@ func TestCompressSpanPrematureEnd(t *testing.T) {
 		defer tracer.Close()
 		tracer.SetSpanCompressionEnabled(true)
 		tracer.SetExitSpanMinDuration(time.Nanosecond)
+		tracer.SetSpanCompressionSameKindMaxDuration(5 * time.Millisecond)
 
 		tx := tracer.StartTransaction("name", "type")
 		ctx := apm.ContextWithTransaction(context.Background(), tx)
@@ -1036,6 +1082,7 @@ func TestCompressSpanPrematureEnd(t *testing.T) {
 		defer tracer.Close()
 		tracer.SetSpanCompressionEnabled(true)
 		tracer.SetExitSpanMinDuration(time.Nanosecond)
+		tracer.SetSpanCompressionSameKindMaxDuration(5 * time.Millisecond)
 
 		tx := tracer.StartTransaction("name", "type")
 		parent := tx.StartSpan("parent", "internal", nil)

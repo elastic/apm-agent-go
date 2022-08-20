@@ -44,6 +44,10 @@ func (b *blobRPC) subtype() string {
 	return "azureblob"
 }
 
+func (b *blobRPC) targetName() string {
+	return ""
+}
+
 func (b *blobRPC) storageAccountName() string {
 	return b.accountName
 }

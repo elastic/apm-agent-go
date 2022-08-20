@@ -81,7 +81,7 @@ func TestTracerCentralConfigUpdate(t *testing.T) {
 	run("recording", "false", func(tracer *apmtest.RecordingTracer) bool {
 		return !tracer.Recording()
 	})
-	run("span_frames_min_duration", "1ms", func(tracer *apmtest.RecordingTracer) bool {
+	run("span_stack_trace_min_duration", "1ms", func(tracer *apmtest.RecordingTracer) bool {
 		tracer.ResetPayloads()
 
 		tx := tracer.StartTransaction("name", "type")
@@ -143,7 +143,25 @@ func TestTracerCentralConfigUpdate(t *testing.T) {
 		require.NoError(t, err)
 		return tracer.IgnoredTransactionURL(u)
 	})
-	run("span_compression_enabled", "true", func(tracer *apmtest.RecordingTracer) bool {
+	run("trace_continuation_strategy", "restart", func(tracer *apmtest.RecordingTracer) bool {
+		tracer.ResetPayloads()
+
+		traceID := apm.TraceID{1}
+
+		tx := tracer.StartTransactionOptions("name", "type", apm.TransactionOptions{TraceContext: apm.TraceContext{
+			Trace: traceID,
+			Span:  apm.SpanID{2},
+		}})
+		tx.End()
+
+		tracer.Flush(nil)
+		payloads := tracer.Payloads()
+		txs := payloads.Transactions
+		require.Len(t, txs, 1)
+
+		return apm.TraceID(txs[0].TraceID) != traceID && len(txs[0].Links) == 1 && apm.TraceID(txs[0].Links[0].TraceID) == traceID
+	})
+	run("span_compression_enabled", "false", func(tracer *apmtest.RecordingTracer) bool {
 		tracer.ResetPayloads()
 		tx := tracer.StartTransaction("name", "type")
 		exitSpanOpts := apm.SpanOptions{ExitSpan: true}
@@ -154,12 +172,10 @@ func TestTracerCentralConfigUpdate(t *testing.T) {
 		}
 		tx.End()
 		tracer.Flush(nil)
-		return len(tracer.Payloads().Spans) == 1
+		return len(tracer.Payloads().Spans) == 2
 	})
 	run("span_compression_exact_match_max_duration", "100ms", func(tracer *apmtest.RecordingTracer) bool {
 		tracer.ResetPayloads()
-		tracer.SetSpanCompressionEnabled(true)
-		defer tracer.SetSpanCompressionEnabled(false)
 		tx := tracer.StartTransaction("name", "type")
 		exitSpanOpts := apm.SpanOptions{ExitSpan: true}
 		for i := 0; i < 2; i++ {
@@ -177,8 +193,6 @@ func TestTracerCentralConfigUpdate(t *testing.T) {
 	})
 	run("span_compression_same_kind_max_duration", "10ms", func(tracer *apmtest.RecordingTracer) bool {
 		tracer.ResetPayloads()
-		tracer.SetSpanCompressionEnabled(true)
-		defer tracer.SetSpanCompressionEnabled(false)
 		tx := tracer.StartTransaction("name", "type")
 		exitSpanOpts := apm.SpanOptions{ExitSpan: true}
 		for i := 0; i < 2; i++ {

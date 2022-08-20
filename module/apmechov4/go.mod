@@ -4,8 +4,8 @@ require (
 	github.com/labstack/echo/v4 v4.6.1
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.6.1
-	go.elastic.co/apm/module/apmhttp/v2 v2.0.0
-	go.elastic.co/apm/v2 v2.0.0
+	go.elastic.co/apm/module/apmhttp/v2 v2.1.0
+	go.elastic.co/apm/v2 v2.1.0
 )
 
 replace go.elastic.co/apm/v2 => ../..

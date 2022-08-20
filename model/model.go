@@ -278,6 +278,12 @@ type Transaction struct {
 
 	// OTel holds information bridged from OpenTelemetry.
 	OTel *OTel `json:"otel,omitempty"`
+
+	// FAAS holds Function-as-a-Service properties for the transaction.
+	FAAS *FAAS `json:"faas,omitempty"`
+
+	// Links holds a list of spans linked to the transaction.
+	Links []SpanLink `json:"links,omitempty"`
 }
 
 // OTel holds bridged OpenTelemetry information.
@@ -376,6 +382,9 @@ type Span struct {
 	// aggregated set of spans as defined by `composite.compression_strategy`.
 	Composite *CompositeSpan `json:"composite,omitempty"`
 
+	// Links holds a list of spans linked to the span.
+	Links []SpanLink `json:"links,omitempty"`
+
 	// OTel holds information bridged from OpenTelemetry.
 	OTel *OTel `json:"otel,omitempty"`
 }
@@ -384,6 +393,9 @@ type Span struct {
 type SpanContext struct {
 	// Destination holds information about a destination service.
 	Destination *DestinationSpanContext `json:"destination,omitempty"`
+
+	// Service holds information about the service.
+	Service *ServiceSpanContext `json:"service,omitempty"`
 
 	// Database holds contextual information for database
 	// operation spans.
@@ -397,6 +409,12 @@ type SpanContext struct {
 
 	// Tags holds user-defined key/value pairs.
 	Tags IfaceMap `json:"tags,omitempty"`
+}
+
+// SpanLink holds the information of a linked span.
+type SpanLink struct {
+	TraceID TraceID `json:"trace_id"`
+	SpanID  SpanID  `json:"span_id"`
 }
 
 // DestinationSpanContext holds contextual information about the destination
@@ -416,17 +434,42 @@ type DestinationSpanContext struct {
 	Cloud *DestinationCloudSpanContext `json:"cloud,omitempty"`
 }
 
+// ServiceSpanContext holds contextual information about the service
+// for a span that relates to an operation involving an external service.
+type ServiceSpanContext struct {
+	// Target holds the destination service.
+	Target *ServiceTargetSpanContext `json:"target,omitempty"`
+}
+
+// ServiceTargetSpanContext fields replace the `span.destination.service.*`
+// fields that are deprecated.
+type ServiceTargetSpanContext struct {
+	// Type holds the destination service type.
+	Type string `json:"type"`
+
+	// Name holds the destination service name.
+	Name string `json:"name,omitempty"`
+}
+
 // DestinationServiceSpanContext holds contextual information about a
 // destination service.
+//
+// Deprecated: replaced by `service.target.{type,name}`.
 type DestinationServiceSpanContext struct {
 	// Type holds the destination service type. Deprecated.
+	//
+	// Deprecated: replaced by `service.target.{type,name}`.
 	Type string `json:"type,omitempty"`
 
 	// Name holds the destination service name. Deprecated.
+	//
+	// Deprecated: replaced by `service.target.{type,name}`.
 	Name string `json:"name"`
 
 	// Resource identifies the destination service
 	// resource, e.g. a URI or message queue name.
+	//
+	// Deprecated: replaced by `service.target.{type,name}`.
 	Resource string `json:"resource,omitempty"`
 }
 
@@ -811,6 +854,9 @@ type Metrics struct {
 	// with the common schema, anyway.
 	Labels StringMap `json:"tags,omitempty"`
 
+	// FAAS holds Function-as-a-Service related properties for the metrics.
+	FAAS *FAAS `json:"faas,omitempty"`
+
 	// Samples holds a map of metric samples, keyed by metric name.
 	Samples map[string]Metric `json:"samples"`
 }
@@ -832,8 +878,32 @@ type Metric struct {
 	Type string `json:"type,omitempty"`
 	// Value holds the metric value.
 	Value float64 `json:"value"`
-	// Buckets holds the metric bucket values.
+	// Values holds the metric bucket values.
 	Values []float64 `json:"values,omitempty"`
-	// Count holds the metric observation count for the bucket.
+	// Counts holds the metric observation count for the bucket.
 	Counts []uint64 `json:"counts,omitempty"`
+}
+
+// FAAS holds Function-as-a-Service properties.
+type FAAS struct {
+	// ID holds a unique identifier of the invoked serverless function.
+	ID string `json:"id,omitempty"`
+	// Execution holds the request ID of the function invocation.
+	Execution string `json:"execution,omitempty"`
+	// Trigger holds information related to the trigger of the function invocation.
+	Trigger *FAASTrigger `json:"trigger,omitempty"`
+	// Name holds the lambda function name.
+	Name string `json:"name,omitempty"`
+	// Version holds the lambda function version.
+	Version string `json:"version,omitempty"`
+	// Coldstart indicates if the lambda function triggered a Cold Start
+	Coldstart bool `json:"coldstart"`
+}
+
+// FAASTrigger holds information related to the trigger of a Function-as-a-Service invocation.
+type FAASTrigger struct {
+	// Type holds the trigger type.
+	Type string `json:"type,omitempty"`
+	// RequestID holds the ID of the origin trigger request.
+	RequestID string `json:"request_id,omitempty"`
 }
