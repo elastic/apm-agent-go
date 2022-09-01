@@ -118,6 +118,53 @@ func TestSpanParentID(t *testing.T) {
 	assert.Equal(t, model.SpanID(parentID), payloads.Spans[0].ParentID)
 }
 
+func TestSpanEnsureType(t *testing.T) {
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+
+	tx := tracer.StartTransaction("name", "type")
+	span := tx.StartSpan("name", "", nil)
+	span.End()
+	tx.End()
+	tracer.Flush(nil)
+
+	payloads := tracer.Payloads()
+	require.Len(t, payloads.Spans, 1)
+
+	assert.Equal(t, "custom", payloads.Spans[0].Type)
+}
+
+func TestSpanLink(t *testing.T) {
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+
+	links := []apm.SpanLink{
+		{Trace: apm.TraceID{1}, Span: apm.SpanID{1}},
+		{Trace: apm.TraceID{2}, Span: apm.SpanID{2}},
+	}
+
+	tx := tracer.StartTransaction("name", "type")
+	span := tx.StartSpanOptions("name", "type", apm.SpanOptions{
+		Links: links,
+	})
+
+	span.End()
+	tx.End()
+
+	tracer.Flush(nil)
+
+	payloads := tracer.Payloads()
+	require.Len(t, payloads.Spans, 1)
+	require.Len(t, payloads.Spans[0].Links, len(links))
+
+	// Assert span links are identical.
+	expectedLinks := []model.SpanLink{
+		{TraceID: model.TraceID{1}, SpanID: model.SpanID{1}},
+		{TraceID: model.TraceID{2}, SpanID: model.SpanID{2}},
+	}
+	assert.Equal(t, expectedLinks, payloads.Spans[0].Links)
+}
+
 func TestSpanTiming(t *testing.T) {
 	var spanStart, spanEnd time.Time
 	txStart := time.Now()
@@ -196,11 +243,11 @@ func TestStartExitSpan(t *testing.T) {
 	assert.True(t, span.IsExitSpan())
 }
 
-func TestFramesMinDurationSpecialCases(t *testing.T) {
+func TestSpanStackTraceMinDurationSpecialCases(t *testing.T) {
 	tracer := apmtest.NewRecordingTracer()
 
 	// verify that no stacktraces are recorded
-	tracer.SetSpanFramesMinDuration(0)
+	tracer.SetSpanStackTraceMinDuration(-1)
 	tx := tracer.StartTransaction("name", "type")
 	span := tx.StartSpan("span", "span", nil)
 	span.End()
@@ -216,7 +263,7 @@ func TestFramesMinDurationSpecialCases(t *testing.T) {
 	// verify that stacktraces are always recorded
 	tracer = apmtest.NewRecordingTracer()
 	defer tracer.Close()
-	tracer.SetSpanFramesMinDuration(-1)
+	tracer.SetSpanStackTraceMinDuration(0)
 	tx = tracer.StartTransaction("name", "type")
 	span = tx.StartSpan("span2", "span2", nil)
 	span.End()

@@ -295,7 +295,7 @@ func TestTracerServiceNameValidation(t *testing.T) {
 func TestSpanStackTrace(t *testing.T) {
 	tracer, r := transporttest.NewRecorderTracer()
 	defer tracer.Close()
-	tracer.SetSpanFramesMinDuration(10 * time.Millisecond)
+	tracer.SetSpanStackTraceMinDuration(10 * time.Millisecond)
 
 	tx := tracer.StartTransaction("name", "type")
 	s := tx.StartSpan("name", "type", nil)

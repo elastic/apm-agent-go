@@ -162,10 +162,11 @@ func TestBreakdownMetrics_Disabled(t *testing.T) {
 	assertBreakdownMetrics(t, []model.Metrics{}, payloadsBreakdownMetrics(transport))
 }
 
-//                                 total self type
-//  ██████████████████████████████    30   30 transaction
-//           10        20        30
 func TestBreakdownMetrics_AcceptanceTest1(t *testing.T) {
+	//                                 total self type
+	//  ██████████████████████████████    30   30 transaction
+	//           10        20        30
+
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
@@ -181,11 +182,12 @@ func TestBreakdownMetrics_AcceptanceTest1(t *testing.T) {
 	}, payloadsBreakdownMetrics(transport))
 }
 
-//                                 total self type
-//  ██████████░░░░░░░░░░██████████    30   20 transaction
-//  └─────────██████████              10   10 db.mysql
-//           10        20        30
 func TestBreakdownMetrics_AcceptanceTest2(t *testing.T) {
+	//                                 total self type
+	//  ██████████░░░░░░░░░░██████████    30   20 transaction
+	//  └─────────██████████              10   10 db.mysql
+	//           10        20        30
+
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
@@ -206,11 +208,12 @@ func TestBreakdownMetrics_AcceptanceTest2(t *testing.T) {
 	}, payloadsBreakdownMetrics(transport))
 }
 
-//                                 total self type
-//  ██████████░░░░░░░░░░██████████    30   20 transaction
-//  └─────────██████████              10   10 app
-//           10        20        30
 func TestBreakdownMetrics_AcceptanceTest3(t *testing.T) {
+	//                                 total self type
+	//  ██████████░░░░░░░░░░██████████    30   20 transaction
+	//  └─────────██████████              10   10 app
+	//           10        20        30
+
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
@@ -232,12 +235,13 @@ func TestBreakdownMetrics_AcceptanceTest3(t *testing.T) {
 	}, payloadsBreakdownMetrics(transport))
 }
 
-//                                 total self type
-//  ██████████░░░░░░░░░░██████████    30   20 transaction
-//  └─────────██████████              10   10 db.mysql
-//  └─────────██████████              10   10 db.mysql
-//           10        20        30
 func TestBreakdownMetrics_AcceptanceTest4(t *testing.T) {
+	//                                 total self type
+	//  ██████████░░░░░░░░░░██████████    30   20 transaction
+	//  └─────────██████████              10   10 db.mysql
+	//  └─────────██████████              10   10 db.mysql
+	//           10        20        30
+
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
@@ -261,12 +265,13 @@ func TestBreakdownMetrics_AcceptanceTest4(t *testing.T) {
 	}, payloadsBreakdownMetrics(transport))
 }
 
-//                                 total self type
-//  ██████████░░░░░░░░░░░░░░░█████    30   15 transaction
-//  └─────────██████████              10   10 db.mysql
-//  └──────────────██████████         10   10 db.mysql
-//           10        20        30
 func TestBreakdownMetrics_AcceptanceTest5(t *testing.T) {
+	//                                 total self type
+	//  ██████████░░░░░░░░░░░░░░░█████    30   15 transaction
+	//  └─────────██████████              10   10 db.mysql
+	//  └──────────────██████████         10   10 db.mysql
+	//           10        20        30
+
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
@@ -290,12 +295,13 @@ func TestBreakdownMetrics_AcceptanceTest5(t *testing.T) {
 	}, payloadsBreakdownMetrics(transport))
 }
 
-//                                 total self type
-//  █████░░░░░░░░░░░░░░░░░░░░█████    30   15 transaction
-//  └────██████████                   10   10 db.mysql
-//  └──────────────██████████         10   10 db.mysql
-//           10        20        30
 func TestBreakdownMetrics_AcceptanceTest6(t *testing.T) {
+	//                                 total self type
+	//  █████░░░░░░░░░░░░░░░░░░░░█████    30   15 transaction
+	//  └────██████████                   10   10 db.mysql
+	//  └──────────────██████████         10   10 db.mysql
+	//           10        20        30
+
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
@@ -319,12 +325,13 @@ func TestBreakdownMetrics_AcceptanceTest6(t *testing.T) {
 	}, payloadsBreakdownMetrics(transport))
 }
 
-//                                 total self type
-//  ██████████░░░░░█████░░░░░█████    30   15 transaction
-//  └─────────█████                    5    5 db.mysql
-//  └───────────────────█████          5    5 db.mysql
-//           10        20        30
 func TestBreakdownMetrics_AcceptanceTest7(t *testing.T) {
+	//                                 total self type
+	//  ██████████░░░░░█████░░░░░█████    30   15 transaction
+	//  └─────────█████                    5    5 db.mysql
+	//  └───────────────────█████          5    5 db.mysql
+	//           10        20        30
+
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
@@ -348,12 +355,13 @@ func TestBreakdownMetrics_AcceptanceTest7(t *testing.T) {
 	}, payloadsBreakdownMetrics(transport))
 }
 
-//                                 total self type
-//  ██████████░░░░░░░░░░██████████    30   20 transaction
-//  └─────────█████░░░░░              10    5 app
-//            └────██████████         10   10 db.mysql
-//           10        20        30
 func TestBreakdownMetrics_AcceptanceTest8(t *testing.T) {
+	//                                 total self type
+	//  ██████████░░░░░░░░░░██████████    30   20 transaction
+	//  └─────────█████░░░░░              10    5 app
+	//            └────██████████         10   10 db.mysql
+	//           10        20        30
+
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
@@ -379,12 +387,13 @@ func TestBreakdownMetrics_AcceptanceTest8(t *testing.T) {
 	}, payloadsBreakdownMetrics(transport))
 }
 
-//                                 total self type
-//  ██████████░░░░░░░░░░              20   20 transaction
-//  └─────────██████████░░░░░░░░░░    20   10 app
-//            └─────────██████████    10   10 db.mysql
-//           10        20        30
 func TestBreakdownMetrics_AcceptanceTest9(t *testing.T) {
+	//                                 total self type
+	//  ██████████░░░░░░░░░░              20   20 transaction
+	//  └─────────██████████░░░░░░░░░░    20   10 app
+	//            └─────────██████████    10   10 db.mysql
+	//           10        20        30
+
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
@@ -414,11 +423,12 @@ func TestBreakdownMetrics_AcceptanceTest9(t *testing.T) {
 	}, payloadsBreakdownMetrics(transport))
 }
 
-//                                 total self type
-//  ██████████░░░░░░░░░░              20   10 transaction
-//  └─────────████████████████████    20   20 db.mysql
-//           10        20        30
 func TestBreakdownMetrics_AcceptanceTest10(t *testing.T) {
+	//                                 total self type
+	//  ██████████░░░░░░░░░░              20   10 transaction
+	//  └─────────████████████████████    20   20 db.mysql
+	//           10        20        30
+
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
@@ -440,11 +450,12 @@ func TestBreakdownMetrics_AcceptanceTest10(t *testing.T) {
 	}, payloadsBreakdownMetrics(transport))
 }
 
-//                                 total self type
-//  ██████████                        10   10 transaction
-//  └───────────────────██████████    10   10 db.mysql
-//           10        20        30
 func TestBreakdownMetrics_AcceptanceTest11(t *testing.T) {
+	//                                 total self type
+	//  ██████████                        10   10 transaction
+	//  └───────────────────██████████    10   10 db.mysql
+	//           10        20        30
+
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 

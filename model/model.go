@@ -281,6 +281,9 @@ type Transaction struct {
 
 	// FAAS holds Function-as-a-Service properties for the transaction.
 	FAAS *FAAS `json:"faas,omitempty"`
+
+	// Links holds a list of spans linked to the transaction.
+	Links []SpanLink `json:"links,omitempty"`
 }
 
 // OTel holds bridged OpenTelemetry information.
@@ -379,6 +382,9 @@ type Span struct {
 	// aggregated set of spans as defined by `composite.compression_strategy`.
 	Composite *CompositeSpan `json:"composite,omitempty"`
 
+	// Links holds a list of spans linked to the span.
+	Links []SpanLink `json:"links,omitempty"`
+
 	// OTel holds information bridged from OpenTelemetry.
 	OTel *OTel `json:"otel,omitempty"`
 }
@@ -387,6 +393,9 @@ type Span struct {
 type SpanContext struct {
 	// Destination holds information about a destination service.
 	Destination *DestinationSpanContext `json:"destination,omitempty"`
+
+	// Service holds information about the service.
+	Service *ServiceSpanContext `json:"service,omitempty"`
 
 	// Database holds contextual information for database
 	// operation spans.
@@ -400,6 +409,12 @@ type SpanContext struct {
 
 	// Tags holds user-defined key/value pairs.
 	Tags IfaceMap `json:"tags,omitempty"`
+}
+
+// SpanLink holds the information of a linked span.
+type SpanLink struct {
+	TraceID TraceID `json:"trace_id"`
+	SpanID  SpanID  `json:"span_id"`
 }
 
 // DestinationSpanContext holds contextual information about the destination
@@ -419,17 +434,42 @@ type DestinationSpanContext struct {
 	Cloud *DestinationCloudSpanContext `json:"cloud,omitempty"`
 }
 
+// ServiceSpanContext holds contextual information about the service
+// for a span that relates to an operation involving an external service.
+type ServiceSpanContext struct {
+	// Target holds the destination service.
+	Target *ServiceTargetSpanContext `json:"target,omitempty"`
+}
+
+// ServiceTargetSpanContext fields replace the `span.destination.service.*`
+// fields that are deprecated.
+type ServiceTargetSpanContext struct {
+	// Type holds the destination service type.
+	Type string `json:"type"`
+
+	// Name holds the destination service name.
+	Name string `json:"name,omitempty"`
+}
+
 // DestinationServiceSpanContext holds contextual information about a
 // destination service.
+//
+// Deprecated: replaced by `service.target.{type,name}`.
 type DestinationServiceSpanContext struct {
 	// Type holds the destination service type. Deprecated.
+	//
+	// Deprecated: replaced by `service.target.{type,name}`.
 	Type string `json:"type,omitempty"`
 
 	// Name holds the destination service name. Deprecated.
+	//
+	// Deprecated: replaced by `service.target.{type,name}`.
 	Name string `json:"name"`
 
 	// Resource identifies the destination service
 	// resource, e.g. a URI or message queue name.
+	//
+	// Deprecated: replaced by `service.target.{type,name}`.
 	Resource string `json:"resource,omitempty"`
 }
 

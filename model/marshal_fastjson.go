@@ -531,6 +531,19 @@ func (v *Transaction) MarshalFastJSON(w *fastjson.Writer) error {
 			firstErr = err
 		}
 	}
+	if v.Links != nil {
+		w.RawString(",\"links\":")
+		w.RawByte('[')
+		for i, v := range v.Links {
+			if i != 0 {
+				w.RawByte(',')
+			}
+			if err := v.MarshalFastJSON(w); err != nil && firstErr == nil {
+				firstErr = err
+			}
+		}
+		w.RawByte(']')
+	}
 	if v.OTel != nil {
 		w.RawString(",\"otel\":")
 		if err := v.OTel.MarshalFastJSON(w); err != nil && firstErr == nil {
@@ -675,6 +688,19 @@ func (v *Span) MarshalFastJSON(w *fastjson.Writer) error {
 			firstErr = err
 		}
 	}
+	if v.Links != nil {
+		w.RawString(",\"links\":")
+		w.RawByte('[')
+		for i, v := range v.Links {
+			if i != 0 {
+				w.RawByte(',')
+			}
+			if err := v.MarshalFastJSON(w); err != nil && firstErr == nil {
+				firstErr = err
+			}
+		}
+		w.RawByte(']')
+	}
 	if v.OTel != nil {
 		w.RawString(",\"otel\":")
 		if err := v.OTel.MarshalFastJSON(w); err != nil && firstErr == nil {
@@ -774,6 +800,18 @@ func (v *SpanContext) MarshalFastJSON(w *fastjson.Writer) error {
 			firstErr = err
 		}
 	}
+	if v.Service != nil {
+		const prefix = ",\"service\":"
+		if first {
+			first = false
+			w.RawString(prefix[1:])
+		} else {
+			w.RawString(prefix)
+		}
+		if err := v.Service.MarshalFastJSON(w); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
 	if !v.Tags.isZero() {
 		const prefix = ",\"tags\":"
 		if first {
@@ -785,6 +823,21 @@ func (v *SpanContext) MarshalFastJSON(w *fastjson.Writer) error {
 		if err := v.Tags.MarshalFastJSON(w); err != nil && firstErr == nil {
 			firstErr = err
 		}
+	}
+	w.RawByte('}')
+	return firstErr
+}
+
+func (v *SpanLink) MarshalFastJSON(w *fastjson.Writer) error {
+	var firstErr error
+	w.RawByte('{')
+	w.RawString("\"span_id\":")
+	if err := v.SpanID.MarshalFastJSON(w); err != nil && firstErr == nil {
+		firstErr = err
+	}
+	w.RawString(",\"trace_id\":")
+	if err := v.TraceID.MarshalFastJSON(w); err != nil && firstErr == nil {
+		firstErr = err
 	}
 	w.RawByte('}')
 	return firstErr
@@ -840,6 +893,31 @@ func (v *DestinationSpanContext) MarshalFastJSON(w *fastjson.Writer) error {
 	}
 	w.RawByte('}')
 	return firstErr
+}
+
+func (v *ServiceSpanContext) MarshalFastJSON(w *fastjson.Writer) error {
+	var firstErr error
+	w.RawByte('{')
+	if v.Target != nil {
+		w.RawString("\"target\":")
+		if err := v.Target.MarshalFastJSON(w); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	w.RawByte('}')
+	return firstErr
+}
+
+func (v *ServiceTargetSpanContext) MarshalFastJSON(w *fastjson.Writer) error {
+	w.RawByte('{')
+	w.RawString("\"name\":")
+	w.String(v.Name)
+	if v.Type != "" {
+		w.RawString(",\"type\":")
+		w.String(v.Type)
+	}
+	w.RawByte('}')
+	return nil
 }
 
 func (v *DestinationServiceSpanContext) MarshalFastJSON(w *fastjson.Writer) error {

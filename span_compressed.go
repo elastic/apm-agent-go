@@ -62,11 +62,12 @@ func (cs compositeSpan) empty() bool {
 }
 
 // A span is eligible for compression if all the following conditions are met
-// 1. It's an exit span
-// 2. The trace context has not been propagated to a downstream service
-// 3. If the span has outcome (i.e., outcome is present and it's not null) then
-//    it should be success. It means spans with outcome indicating an issue of
-//    potential interest should not be compressed.
+//  1. It's an exit span
+//  2. The trace context has not been propagated to a downstream service
+//  3. If the span has outcome (i.e., outcome is present and it's not null) then
+//     it should be success. It means spans with outcome indicating an issue of
+//     potential interest should not be compressed.
+//
 // The second condition is important so that we don't remove (compress) a span
 // that may be the parent of a downstream service. This would orphan the sub-
 // graph started by the downstream service and cause it to not appear in the
@@ -109,19 +110,21 @@ func (s *Span) compress(sibling *Span) bool {
 //
 
 // attemptCompress tries to compress a span into a "composite span" when:
-// * Compression is enabled on agent.
-// * The cached span and the incoming span:
-//   * Share the same parent (are siblings).
-//   * Are consecutive spans.
-//   * Are both exit spans, outcome == success and are short enough (See
+//  1. Compression is enabled on agent.
+//  2. The cached span and the incoming span share the same parent (are siblings).
+//  3. The cached span and the incoming span are consecutive spans.
+//  4. The cached span and the incoming span are both exit spans,
+//     outcome == success and are short enough (See
 //     `ELASTIC_APM_SPAN_COMPRESSION_EXACT_MATCH_MAX_DURATION` and
 //     `ELASTIC_APM_SPAN_COMPRESSION_SAME_KIND_MAX_DURATION` for more info).
-//   * Represent the same exact operation or the same kind of operation:
-//     * Are an exact match (same name, kind and destination service).
-//       OR
-//     * Are the same kind match (same kind and destination service).
-//     When a span has already been compressed using a particular strategy, it
-//     CANNOT continue to compress spans using a different strategy.
+//  5. The cached span and the incoming span represent the same exact operation
+//     or the same kind of operation:
+//     - Are an exact match (same name, kind and destination service).
+//     - Are the same kind match (same kind and destination service).
+//
+// When a span has already been compressed using a particular strategy, it
+// CANNOT continue to compress spans using a different strategy.
+//
 // The compression algorithm is fairly simple and only compresses spans into a
 // composite span when the conditions listed above are met for all consecutive
 // spans, at any point any span that doesn't meet the conditions, will cause
