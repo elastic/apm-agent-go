@@ -350,7 +350,7 @@ func (s *Span) End() {
 		// manually set the destination.service.resource
 		s.setExitSpanDestinationService()
 	}
-	if s.exit && !s.Context.setServiceTargetCalled {
+	if s.exit {
 		// The span was created as an exit span, but the user did not
 		// manually set the service.target fields.
 		s.setExitSpanServiceTarget()
@@ -500,8 +500,32 @@ func (s *Span) setExitSpanServiceTarget() {
 	if fallbackType == "" {
 		fallbackType = s.Type
 	}
+
+	// Service target fields explicitly provided.
+	if s.Context.setServiceTargetCalled {
+		// if the user calls SetServiceTarget with a non-empty name, but empty type,
+		// we'll use the specified name and infer the type
+		if s.Context.serviceTarget.Type == "" && s.Context.serviceTarget.Name != "" {
+			s.Context.SetServiceTarget(ServiceTargetSpanContext{
+				Type: fallbackType,
+				Name: s.Context.serviceTarget.Name,
+			})
+		}
+		return
+	}
+
+	var fallbackName string
+	if s.Context.database.Type != "" { // database spans
+		fallbackName = s.Context.database.Instance
+	} else if s.Context.message.Queue != nil { // messaging spans
+		fallbackName = s.Context.message.Queue.Name
+	} else if s.Context.http.URL != nil { // http spans
+		fallbackName = s.Context.http.URL.Host
+	}
+
 	s.Context.SetServiceTarget(ServiceTargetSpanContext{
 		Type: fallbackType,
+		Name: fallbackName,
 	})
 }
 

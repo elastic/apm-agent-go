@@ -1132,12 +1132,47 @@ func TestExitSpanDoesNotOverwriteServiceTarget(t *testing.T) {
 		assert.True(t, span.IsExitSpan())
 		span.Context.SetServiceTarget(apm.ServiceTargetSpanContext{
 			Type: "my-custom-resource",
+			Name: "foo",
 		})
 		span.Duration = 2 * time.Millisecond
 		span.End()
 	})
 	require.Len(t, spans, 1)
 	assert.Equal(t, spans[0].Context.Service.Target.Type, "my-custom-resource")
+	assert.Equal(t, spans[0].Context.Service.Target.Name, "foo")
+}
+
+func TestExitSpanDisableInferTarget(t *testing.T) {
+	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+		span, _ := apm.StartSpanOptions(ctx, "name", "type", apm.SpanOptions{ExitSpan: true})
+		assert.True(t, span.IsExitSpan())
+		span.Context.SetDatabase(apm.DatabaseSpanContext{
+			Type:     "mysql",
+			Instance: "foo",
+		})
+		span.Context.SetServiceTarget(apm.ServiceTargetSpanContext{})
+		span.Duration = 2 * time.Millisecond
+		span.End()
+	})
+	require.Len(t, spans, 1)
+	assert.Empty(t, spans[0].Context.Service.Target.Type)
+	assert.Empty(t, spans[0].Context.Service.Target.Name)
+}
+
+func TestExitSpanInferTarget(t *testing.T) {
+	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+		span, _ := apm.StartSpanOptions(ctx, "name", "type", apm.SpanOptions{ExitSpan: true})
+		assert.True(t, span.IsExitSpan())
+		span.Context.SetDatabase(apm.DatabaseSpanContext{
+			Type:     "mysql",
+			Instance: "foo",
+		})
+		span.Duration = 2 * time.Millisecond
+		span.End()
+	})
+	require.Len(t, spans, 1)
+	assert.Equal(t, spans[0].Context.Service.Target.Type, "type")
+	assert.Equal(t, spans[0].Context.Service.Target.Name, "foo")
 }
 
 func TestTracerStartSpanIDSpecified(t *testing.T) {
