@@ -150,7 +150,10 @@ pipeline {
               unstash 'source'
               dir("${BASE_DIR}"){
                 sh script: './scripts/jenkins/bench.sh', label: 'Benchmarking'
-                sendBenchmarks(file: 'build/bench.out', index: 'benchmark-go')
+                dir('build') {
+                  sendBenchmarks(file: 'bench.out', index: 'benchmark-go')
+                  generateGoBenchmarkDiff(file: 'bench.out', filter: 'exclude')
+                }
               }
             }
           }
@@ -279,7 +282,7 @@ pipeline {
   }
   post {
     cleanup {
-      notifyBuildResult()
+      notifyBuildResult(goBenchmarkComment: true)
     }
   }
 }
