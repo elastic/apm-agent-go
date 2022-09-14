@@ -1175,6 +1175,25 @@ func TestExitSpanInferTarget(t *testing.T) {
 	assert.Equal(t, spans[0].Context.Service.Target.Name, "foo")
 }
 
+func TestExitSpanInferTargetWithName(t *testing.T) {
+	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+		span, _ := apm.StartSpanOptions(ctx, "name", "type", apm.SpanOptions{ExitSpan: true})
+		assert.True(t, span.IsExitSpan())
+		span.Context.SetDatabase(apm.DatabaseSpanContext{
+			Type:     "mysql",
+			Instance: "foo",
+		})
+		span.Context.SetServiceTarget(apm.ServiceTargetSpanContext{
+			Name: "bar",
+		})
+		span.Duration = 2 * time.Millisecond
+		span.End()
+	})
+	require.Len(t, spans, 1)
+	assert.Equal(t, spans[0].Context.Service.Target.Type, "type")
+	assert.Equal(t, spans[0].Context.Service.Target.Name, "bar")
+}
+
 func TestTracerStartSpanIDSpecified(t *testing.T) {
 	spanID := apm.SpanID{0, 1, 2, 3, 4, 5, 6, 7}
 	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
