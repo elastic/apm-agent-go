@@ -570,10 +570,10 @@ func TestTransactionDroppedSpansStats(t *testing.T) {
 		})
 		// Ensure that the extra spans we generated are aggregated
 		for _, span := range tx.DroppedSpansStats {
-			if span.DestinationServiceResource == "request_501" {
+			if span.ServiceTargetType == "request_501" {
 				assert.Equal(t, 101, span.Duration.Count)
 				assert.Equal(t, int64(1010), span.Duration.Sum.Us)
-			} else if span.DestinationServiceResource == "request_600" {
+			} else if span.ServiceTargetType == "request_600" {
 				assert.Equal(t, 51, span.Duration.Count)
 				assert.Equal(t, int64(510), span.Duration.Sum.Us)
 			} else {
@@ -617,10 +617,10 @@ func TestTransactionDroppedSpansStats(t *testing.T) {
 		require.Equal(t, 128, len(tx.DroppedSpansStats))
 
 		for _, span := range tx.DroppedSpansStats {
-			if span.DestinationServiceResource == "request_51" {
+			if span.ServiceTargetType == "request_51" {
 				assert.Equal(t, 51, span.Duration.Count)
 				assert.Equal(t, int64(510), span.Duration.Sum.Us)
-			} else if span.DestinationServiceResource == "request_60" {
+			} else if span.ServiceTargetType == "request_60" {
 				assert.Equal(t, 21, span.Duration.Count)
 				assert.Equal(t, int64(210), span.Duration.Sum.Us)
 			} else {
