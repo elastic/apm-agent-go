@@ -69,7 +69,7 @@ func DefaultClusterName(rt http.RoundTripper) ClusterNameFunc {
 			Path:   "/_nodes/http",
 		}
 
-		req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 		if err != nil {
 			return "", err
 		}
