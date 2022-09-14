@@ -227,7 +227,7 @@ func TestStartExitSpan(t *testing.T) {
 	// the exit span will assign the value.
 	assert.Equal(t, spans[0].Context.Destination.Service.Resource, "type")
 
-	// When the context's DestinationService is not explicitly set, ending
+	// When the context's ServiceTarget is not explicitly set, ending
 	// the exit span will assign the value.
 	assert.Equal(t, spans[0].Context.Service.Target.Type, "type")
 
