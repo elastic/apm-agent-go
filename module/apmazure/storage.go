@@ -105,8 +105,17 @@ func (p *apmPipeline) Do(
 	}
 	span.Action = rpc.operation()
 	span.Subtype = rpc.subtype()
+
+	resource := rpc.subtype() + "/" + rpc.storageAccountName()
+	if rpc.subtype() == "azurequeue" {
+		resource = rpc.subtype() + "/" + rpc.targetName()
+	}
 	span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
-		Resource: rpc.subtype() + "/" + rpc.storageAccountName(),
+		Resource: resource,
+	})
+	span.Context.SetServiceTarget(apm.ServiceTargetSpanContext{
+		Type: rpc.subtype(),
+		Name: rpc.targetName(),
 	})
 
 	resp, err := p.next.Do(ctx, methodFactory, req)
@@ -127,6 +136,7 @@ type azureRPC interface {
 	name() string
 	_type() string
 	subtype() string
+	targetName() string
 	storageAccountName() string
 	resource() string
 	operation() string
@@ -144,10 +154,12 @@ func newAzureRPC(req pipeline.Request) (azureRPC, error) {
 			req:          req,
 		}
 	case "queue":
+
 		rpc = &queueRPC{
 			resourceName: strings.TrimPrefix(req.URL.Path, "/"),
 			accountName:  accountName,
 			req:          req,
+			queueName:    queueNameFromURL(req.URL.Path),
 		}
 	case "file":
 		rpc = &fileRPC{
@@ -161,4 +173,12 @@ func newAzureRPC(req pipeline.Request) (azureRPC, error) {
 	}
 
 	return rpc, nil
+}
+
+func queueNameFromURL(urlPath string) string {
+	urlPath = strings.TrimPrefix(urlPath, "/")
+	if i := strings.Index(urlPath, "/"); i >= 0 {
+		return urlPath[:i]
+	}
+	return ""
 }

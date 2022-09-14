@@ -123,7 +123,7 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 		} else {
 			binary.LittleEndian.PutUint64(span.traceContext.Span[:], tx.rand.Uint64())
 		}
-		span.stackFramesMinDuration = tx.spanFramesMinDuration
+		span.stackStackTraceMinDuration = tx.spanStackTraceMinDuration
 		span.stackTraceLimit = tx.stackTraceLimit
 		span.compressedSpan.options = tx.compressedSpan.options
 		span.exitSpanMinDuration = tx.exitSpanMinDuration
@@ -176,7 +176,7 @@ func (t *Tracer) StartSpan(name, spanType string, transactionID SpanID, opts Spa
 	span.traceContext.Span = spanID
 
 	instrumentationConfig := t.instrumentationConfig()
-	span.stackFramesMinDuration = instrumentationConfig.spanFramesMinDuration
+	span.stackStackTraceMinDuration = instrumentationConfig.spanStackTraceMinDuration
 	span.stackTraceLimit = instrumentationConfig.stackTraceLimit
 	span.compressedSpan.options = instrumentationConfig.compressionOptions
 	span.exitSpanMinDuration = instrumentationConfig.exitSpanMinDuration
@@ -350,6 +350,11 @@ func (s *Span) End() {
 		// manually set the destination.service.resource
 		s.setExitSpanDestinationService()
 	}
+	if s.exit {
+		// The span was created as an exit span, but the user did not
+		// manually set the service.target fields.
+		s.setExitSpanServiceTarget()
+	}
 	if s.Duration < 0 {
 		s.Duration = time.Since(s.timestamp)
 	}
@@ -363,15 +368,15 @@ func (s *Span) End() {
 			}
 		}
 	}
-	switch s.stackFramesMinDuration {
-	case -1:
+	switch {
+	case s.stackStackTraceMinDuration < 0:
+		// If s.stackFramesMinDuration < 0, we never set stacktrace.
+	case s.stackStackTraceMinDuration == 0:
 		// Always set stacktrace
 		s.setStacktrace(1)
-	case 0:
-		// If s.stackFramesMinDuration == 0, we never set stacktrace.
 	default:
 		if !s.dropped() && len(s.stacktrace) == 0 &&
-			s.Duration >= s.stackFramesMinDuration {
+			s.Duration >= s.stackStackTraceMinDuration {
 			s.setStacktrace(1)
 		}
 	}
@@ -490,6 +495,40 @@ func (s *Span) setExitSpanDestinationService() {
 	})
 }
 
+func (s *Span) setExitSpanServiceTarget() {
+	fallbackType := s.Subtype
+	if fallbackType == "" {
+		fallbackType = s.Type
+	}
+
+	// Service target fields explicitly provided.
+	if s.Context.setServiceTargetCalled {
+		// if the user calls SetServiceTarget with a non-empty name, but empty type,
+		// we'll use the specified name and infer the type
+		if s.Context.serviceTarget.Type == "" && s.Context.serviceTarget.Name != "" {
+			s.Context.SetServiceTarget(ServiceTargetSpanContext{
+				Type: fallbackType,
+				Name: s.Context.serviceTarget.Name,
+			})
+		}
+		return
+	}
+
+	var fallbackName string
+	if s.Context.database.Type != "" { // database spans
+		fallbackName = s.Context.database.Instance
+	} else if s.Context.message.Queue != nil { // messaging spans
+		fallbackName = s.Context.message.Queue.Name
+	} else if s.Context.http.URL != nil { // http spans
+		fallbackName = s.Context.http.URL.Host
+	}
+
+	s.Context.SetServiceTarget(ServiceTargetSpanContext{
+		Type: fallbackType,
+		Name: fallbackName,
+	})
+}
+
 // IsExitSpan returns true if the span is an exit span.
 func (s *Span) IsExitSpan() bool {
 	if s == nil {
@@ -544,13 +583,13 @@ func (s *Span) dropFastExitSpan() {
 // When a span is ended or discarded, its SpanData field will be set
 // to nil.
 type SpanData struct {
-	exitSpanMinDuration    time.Duration
-	stackFramesMinDuration time.Duration
-	stackTraceLimit        int
-	timestamp              time.Time
-	childrenTimer          childrenTimer
-	composite              compositeSpan
-	compressedSpan         compressedSpan
+	exitSpanMinDuration        time.Duration
+	stackStackTraceMinDuration time.Duration
+	stackTraceLimit            int
+	timestamp                  time.Time
+	childrenTimer              childrenTimer
+	composite                  compositeSpan
+	compressedSpan             compressedSpan
 
 	// Name holds the span name, initialized with the value passed to StartSpan.
 	Name string

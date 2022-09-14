@@ -41,7 +41,7 @@ func newSNS(req *request.Request) (*apmSNS, error) {
 
 	topicName := getTopicName(req)
 	if topicName != "" {
-		name += " " + topicName
+		name += " to " + topicName
 		resourceName += "/" + topicName
 	}
 
@@ -59,6 +59,8 @@ func (s *apmSNS) spanName() string { return s.name }
 
 func (s *apmSNS) resource() string { return s.resourceName }
 
+func (s *apmSNS) targetName() string { return s.topicName }
+
 func (s *apmSNS) setAdditional(span *apm.Span) {
 	span.Action = s.opName
 	// According to the spec:
@@ -72,21 +74,44 @@ func (s *apmSNS) setAdditional(span *apm.Span) {
 }
 
 func getTopicName(req *request.Request) string {
-	// TODO: PhoneNumber is the third possibility, but I'm guessing we
-	// don't want to store that for customers?
-	arn := req.HTTPRequest.FormValue("TopicArn")
-	if arn == "" {
-		arn = req.HTTPRequest.FormValue("TargetArn")
+	// format: arn:aws:sns:us-east-2:123456789012:My-Topic
+	// should return My-Topic
+	if topicArn := req.HTTPRequest.FormValue("TopicArn"); topicArn != "" {
+		idx := strings.LastIndex(topicArn, ":")
+		if idx == -1 {
+			return ""
+		}
+
+		// special check for format: arn:aws:sns:us-east-2:123456789012/MyTopic
+		if slashIdx := strings.LastIndex(topicArn, "/"); slashIdx != -1 {
+			return topicArn[slashIdx+1:]
+		}
+
+		return topicArn[idx+1:]
 	}
 
-	// SNS ARN can be in the following formats:
-	// - arn:aws:sns:us-east-2:123456789012:MyTopic
-	// - arn:aws:sns:us-east-2:123456789012/MyTopic
-	parts := strings.Split(arn, "/")
-	if len(parts) == 1 {
-		parts = strings.Split(arn, ":")
+	// format: arn:aws:sns:us-west-2:123456789012:endpoint/GCM/gcmpushapp/5e3e9847-3183-3f18-a7e8-671c3a57d4b3
+	// should return endpoint/GCM/gcmpushapp
+	if targetArn := req.HTTPRequest.FormValue("TargetArn"); targetArn != "" {
+		idx := strings.LastIndex(targetArn, ":")
+		if idx == -1 {
+			return ""
+		}
+
+		endIdx := strings.LastIndex(targetArn, "/")
+		if endIdx == -1 {
+			return ""
+		}
+
+		return targetArn[idx+1 : endIdx]
 	}
-	return parts[len(parts)-1]
+
+	// The actual phone number MUST NOT be included because it is PII and cardinality is too high.
+	if phoneNumber := req.HTTPRequest.FormValue("PhoneNumber"); phoneNumber != "" {
+		return "[PHONENUMBER]"
+	}
+
+	return ""
 }
 
 // addMessageAttributesSNS adds message attributes to `Publish` RPC calls.

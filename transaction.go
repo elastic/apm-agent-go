@@ -71,7 +71,7 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 	tx.maxSpans = instrumentationConfig.maxSpans
 	tx.compressedSpan.options = instrumentationConfig.compressionOptions
 	tx.exitSpanMinDuration = instrumentationConfig.exitSpanMinDuration
-	tx.spanFramesMinDuration = instrumentationConfig.spanFramesMinDuration
+	tx.spanStackTraceMinDuration = instrumentationConfig.spanStackTraceMinDuration
 	tx.stackTraceLimit = instrumentationConfig.stackTraceLimit
 	tx.Context.captureHeaders = instrumentationConfig.captureHeaders
 	tx.propagateLegacyHeader = instrumentationConfig.propagateLegacyHeader
@@ -393,14 +393,14 @@ type TransactionData struct {
 	// error rate calculations.
 	Outcome string
 
-	recording               bool
-	maxSpans                int
-	exitSpanMinDuration     time.Duration
-	spanFramesMinDuration   time.Duration
-	stackTraceLimit         int
-	breakdownMetricsEnabled bool
-	propagateLegacyHeader   bool
-	timestamp               time.Time
+	recording                 bool
+	maxSpans                  int
+	exitSpanMinDuration       time.Duration
+	spanStackTraceMinDuration time.Duration
+	stackTraceLimit           int
+	breakdownMetricsEnabled   bool
+	propagateLegacyHeader     bool
+	timestamp                 time.Time
 
 	links             []SpanLink
 	mu                sync.Mutex

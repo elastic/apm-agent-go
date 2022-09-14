@@ -44,6 +44,10 @@ func (f *fileRPC) subtype() string {
 	return "azurefile"
 }
 
+func (f *fileRPC) targetName() string {
+	return ""
+}
+
 func (f *fileRPC) storageAccountName() string {
 	return f.accountName
 }

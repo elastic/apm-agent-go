@@ -69,6 +69,16 @@ func TestCgroupContainerInfoCloudFoundryGarden(t *testing.T) {
 	assert.Equal(t, &model.Container{ID: "70eb4ce5-a065-4401-6990-88ed"}, container)
 }
 
+func TestUbuntuCgroup(t *testing.T) {
+	container, kubernetes, err := readCgroupContainerInfo(strings.NewReader(`
+1:name=systemd:/user.slice/user-1000.slice/user@1000.service/apps.slice/apps-org.gnome.Terminal.slice/vte-spawn-75bc72bd-6642-4cf5-b62c-0674e11bfc84.scope
+`[1:]))
+
+	assert.NoError(t, err)
+	assert.Nil(t, kubernetes)
+	assert.Nil(t, container)
+}
+
 func TestCgroupContainerInfoNonContainer(t *testing.T) {
 	container, _, err := readCgroupContainerInfo(strings.NewReader(`
 12:devices:/user.slice
@@ -128,6 +138,14 @@ func TestCgroupContainerInfoKubernetes(t *testing.T) {
 		input:            "1:name=systemd:/kubepods.slice/kubepods-burstable.slice/kubepods-burstable-pod90d81341_92de_11e7_8cf2_507b9d4141fa.slice/crio-2227daf62df6694645fee5df53c1f91271546a9560e8600a525690ae252b7f63.scope",
 		containerID:      "2227daf62df6694645fee5df53c1f91271546a9560e8600a525690ae252b7f63",
 		kubernetesPodUID: "90d81341-92de-11e7-8cf2-507b9d4141fa",
+	}, {
+		input:            "1:name=systemd:/system.slice/containerd.service/kubepods-burstable-podff49d0be_16b7_4a49_bb9e_8ec1f1f4e27f.slice:cri-containerd:0f99ad5f45163ed14ab8eaf92ed34bb4a631d007f8755a7d79be614bcb0df0ef",
+		containerID:      "0f99ad5f45163ed14ab8eaf92ed34bb4a631d007f8755a7d79be614bcb0df0ef",
+		kubernetesPodUID: "ff49d0be-16b7-4a49-bb9e-8ec1f1f4e27f",
+	}, {
+		input:            "9:freezer:/kubepods.slice/kubepods-pod22949dce_fd8b_11ea_8ede_98f2b32c645c.slice/docker-b15a5bdedd2e7645c3be271364324321b908314e4c77857bbfd32a041148c07f.scope",
+		containerID:      "b15a5bdedd2e7645c3be271364324321b908314e4c77857bbfd32a041148c07f",
+		kubernetesPodUID: "22949dce-fd8b-11ea-8ede-98f2b32c645c",
 	}, {
 		input:            "12:pids:/kubepods/kubepods/besteffort/pod0e886e9a-3879-45f9-b44d-86ef9df03224/244a65edefdffe31685c42317c9054e71dc1193048cf9459e2a4dd35cbc1dba4",
 		containerID:      "244a65edefdffe31685c42317c9054e71dc1193048cf9459e2a4dd35cbc1dba4",

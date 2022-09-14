@@ -44,6 +44,10 @@ type SpanContext struct {
 	// If SetDestinationService has been called, we do not auto-set its
 	// resource value on span end.
 	setDestinationServiceCalled bool
+
+	// If SetServiceTarget has been called, we do not auto-set its
+	// values on span end.
+	setServiceTargetCalled bool
 }
 
 // DatabaseSpanContext holds database span context.
@@ -66,17 +70,17 @@ type DatabaseSpanContext struct {
 // for a span that relates to an operation involving an external service.
 type ServiceSpanContext struct {
 	// Target holds the destination service.
-	Target *ServiceTargetSpanContext `json:"target,omitempty"`
+	Target *ServiceTargetSpanContext
 }
 
 // ServiceTargetSpanContext fields replace the `span.destination.service.*`
 // fields that are deprecated.
 type ServiceTargetSpanContext struct {
 	// Type holds the destination service type.
-	Type string `json:"type,omitempty"`
+	Type string
 
 	// Name holds the destination service name.
-	Name string `json:"name"`
+	Name string
 }
 
 // DestinationServiceSpanContext holds destination service span span.
@@ -273,6 +277,7 @@ func (c *SpanContext) SetDestinationService(service DestinationServiceSpanContex
 
 // SetServiceTarget sets the service target info in the context.
 func (c *SpanContext) SetServiceTarget(service ServiceTargetSpanContext) {
+	c.setServiceTargetCalled = true
 	c.serviceTarget.Type = truncateString(service.Type)
 	c.serviceTarget.Name = truncateString(service.Name)
 	c.service.Target = &c.serviceTarget

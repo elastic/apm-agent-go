@@ -306,6 +306,33 @@ func TestDestination(t *testing.T) {
 	test("http://[2001:db8::1]:80/_search", "2001:db8::1", 80)
 }
 
+func TestServiceTarget(t *testing.T) {
+	var rt roundTripperFunc = func(req *http.Request) (*http.Response, error) {
+		return httptest.NewRecorder().Result(), nil
+	}
+	client := &http.Client{Transport: apmelasticsearch.WrapRoundTripper(rt)}
+
+	test := func(url, foundHandlingCluster, expectedClusterName string) {
+		req, err := http.NewRequest("GET", url, nil)
+		req.Header.Add("x-found-handling-cluster", foundHandlingCluster)
+		require.NoError(t, err)
+		_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+			resp, err := client.Do(req.WithContext(ctx))
+			assert.NoError(t, err)
+			resp.Body.Close()
+		})
+		require.Len(t, spans, 1)
+		assert.Equal(t, &model.ServiceSpanContext{
+			Target: &model.ServiceTargetSpanContext{
+				Type: "elasticsearch",
+				Name: expectedClusterName,
+			},
+		}, spans[0].Context.Service)
+	}
+	test("http://testing.invalid:9200/_search", "", "")
+	test("http://testing.invalid:9200/_search", "foo", "foo")
+}
+
 func TestTraceHeaders(t *testing.T) {
 	headers := make(map[string]string)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {

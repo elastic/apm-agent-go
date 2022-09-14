@@ -63,6 +63,12 @@ func TestQueryContext(t *testing.T) {
 				Resource: "postgresql",
 			},
 		},
+		Service: &model.ServiceSpanContext{
+			Target: &model.ServiceTargetSpanContext{
+				Type: "postgresql",
+				Name: "test_db",
+			},
+		},
 		Database: &model.DatabaseSpanContext{
 			Instance:  "test_db",
 			Statement: "SELECT * FROM foo",
