@@ -24,6 +24,7 @@ import (
 	"io"
 	"log"
 	"math/rand"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -132,33 +133,34 @@ type TracerOptions struct {
 	//   MajorServerVersion(ctx context.Context, refreshStale bool) uint32
 	Transport transport.Transport
 
-	requestDuration       time.Duration
-	metricsInterval       time.Duration
-	maxSpans              int
-	requestSize           int
-	bufferSize            int
-	metricsBufferSize     int
-	sampler               Sampler
-	sanitizedFieldNames   wildcard.Matchers
-	disabledMetrics       wildcard.Matchers
-	ignoreTransactionURLs wildcard.Matchers
-	continuationStrategy  string
-	captureHeaders        bool
-	captureBody           CaptureBodyMode
-	spanFramesMinDuration time.Duration
-	stackTraceLimit       int
-	active                bool
-	recording             bool
-	configWatcher         apmconfig.Watcher
-	breakdownMetrics      bool
-	propagateLegacyHeader bool
-	profileSender         profileSender
-	versionGetter         majorVersionGetter
-	cpuProfileInterval    time.Duration
-	cpuProfileDuration    time.Duration
-	heapProfileInterval   time.Duration
-	exitSpanMinDuration   time.Duration
-	compressionOptions    compressionOptions
+	requestDuration           time.Duration
+	metricsInterval           time.Duration
+	maxSpans                  int
+	requestSize               int
+	bufferSize                int
+	metricsBufferSize         int
+	sampler                   Sampler
+	sanitizedFieldNames       wildcard.Matchers
+	disabledMetrics           wildcard.Matchers
+	ignoreTransactionURLs     wildcard.Matchers
+	continuationStrategy      string
+	captureHeaders            bool
+	captureBody               CaptureBodyMode
+	spanStackTraceMinDuration time.Duration
+	stackTraceLimit           int
+	active                    bool
+	recording                 bool
+	configWatcher             apmconfig.Watcher
+	breakdownMetrics          bool
+	propagateLegacyHeader     bool
+	profileSender             profileSender
+	versionGetter             majorVersionGetter
+	cpuProfileInterval        time.Duration
+	cpuProfileDuration        time.Duration
+	heapProfileInterval       time.Duration
+	exitSpanMinDuration       time.Duration
+	compressionOptions        compressionOptions
+	globalLabels              model.StringMap
 }
 
 // initDefaults updates opts with default values.
@@ -236,9 +238,9 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 		captureBody = CaptureBodyOff
 	}
 
-	spanFramesMinDuration, err := initialSpanFramesMinDuration()
+	spanStackTraceMinDuration, err := initialSpanStackTraceMinDuration()
 	if failed(err) {
-		spanFramesMinDuration = defaultSpanFramesMinDuration
+		spanStackTraceMinDuration = defaultSpanStackTraceMinDuration
 	}
 
 	stackTraceLimit, err := initialStackTraceLimit()
@@ -325,6 +327,7 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 		log.Printf("[apm]: %s", err)
 	}
 
+	opts.globalLabels = parseGlobalLabels()
 	opts.requestDuration = requestDuration
 	opts.metricsInterval = metricsInterval
 	opts.requestSize = requestSize
@@ -343,7 +346,7 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 	opts.breakdownMetrics = breakdownMetricsEnabled
 	opts.captureHeaders = captureHeaders
 	opts.captureBody = captureBody
-	opts.spanFramesMinDuration = spanFramesMinDuration
+	opts.spanStackTraceMinDuration = spanStackTraceMinDuration
 	opts.stackTraceLimit = stackTraceLimit
 	opts.active = active
 	opts.recording = recording
@@ -407,6 +410,7 @@ type Tracer struct {
 	breakdownMetrics  *breakdownMetrics
 	profileSender     profileSender
 	versionGetter     majorVersionGetter
+	globalLabels      model.StringMap
 
 	// stats is heap-allocated to ensure correct alignment for atomic access.
 	stats *TracerStats
@@ -469,6 +473,7 @@ func newTracer(opts TracerOptions) *Tracer {
 		instrumentationConfigInternal: &instrumentationConfig{
 			local: make(map[string]func(*instrumentationConfigValues)),
 		},
+		globalLabels: opts.globalLabels,
 	}
 	t.breakdownMetrics.enabled = opts.breakdownMetrics
 	// Initialise local transaction config.
@@ -496,8 +501,8 @@ func newTracer(opts TracerOptions) *Tracer {
 	t.setLocalInstrumentationConfig(envTransactionSampleRate, func(cfg *instrumentationConfigValues) {
 		cfg.sampler = opts.sampler
 	})
-	t.setLocalInstrumentationConfig(envSpanFramesMinDuration, func(cfg *instrumentationConfigValues) {
-		cfg.spanFramesMinDuration = opts.spanFramesMinDuration
+	t.setLocalInstrumentationConfig(envSpanStackTraceMinDuration, func(cfg *instrumentationConfigValues) {
+		cfg.spanStackTraceMinDuration = opts.spanStackTraceMinDuration
 	})
 	t.setLocalInstrumentationConfig(envStackTraceLimit, func(cfg *instrumentationConfigValues) {
 		cfg.stackTraceLimit = opts.stackTraceLimit
@@ -799,11 +804,11 @@ func (t *Tracer) SetSpanCompressionSameKindMaxDuration(v time.Duration) {
 	})
 }
 
-// SetSpanFramesMinDuration sets the minimum duration for a span after which
+// SetSpanStackTraceMinDuration sets the minimum duration for a span after which
 // we will capture its stack frames.
-func (t *Tracer) SetSpanFramesMinDuration(d time.Duration) {
+func (t *Tracer) SetSpanStackTraceMinDuration(d time.Duration) {
 	t.setLocalInstrumentationConfig(envMaxSpans, func(cfg *instrumentationConfigValues) {
-		cfg.spanFramesMinDuration = d
+		cfg.spanStackTraceMinDuration = d
 	})
 }
 
@@ -1342,9 +1347,9 @@ func (t *Tracer) encodeRequestMetadata(json *fastjson.Writer) {
 		json.RawString(`,"cloud":`)
 		cloud.MarshalFastJSON(json)
 	}
-	if len(globalLabels) > 0 {
+	if len(t.globalLabels) > 0 {
 		json.RawString(`,"labels":`)
-		globalLabels.MarshalFastJSON(json)
+		t.globalLabels.MarshalFastJSON(json)
 	}
 	json.RawByte('}')
 }
@@ -1452,4 +1457,19 @@ type majorVersionGetter interface {
 	// it will return the cached version. If the returned first argument is 0, the
 	// cache is stale.
 	MajorServerVersion(ctx context.Context, refreshStale bool) uint32
+}
+
+func parseGlobalLabels() model.StringMap {
+	var labels model.StringMap
+	for _, kv := range configutil.ParseListEnv(envGlobalLabels, ",", nil) {
+		i := strings.IndexRune(kv, '=')
+		if i > 0 {
+			k, v := strings.TrimSpace(kv[:i]), strings.TrimSpace(kv[i+1:])
+			labels = append(labels, model.StringMapItem{
+				Key:   cleanLabelKey(k),
+				Value: truncateString(v),
+			})
+		}
+	}
+	return labels
 }

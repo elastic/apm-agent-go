@@ -81,7 +81,7 @@ func TestTracerCentralConfigUpdate(t *testing.T) {
 	run("recording", "false", func(tracer *apmtest.RecordingTracer) bool {
 		return !tracer.Recording()
 	})
-	run("span_frames_min_duration", "1ms", func(tracer *apmtest.RecordingTracer) bool {
+	run("span_stack_trace_min_duration", "1ms", func(tracer *apmtest.RecordingTracer) bool {
 		tracer.ResetPayloads()
 
 		tx := tracer.StartTransaction("name", "type")

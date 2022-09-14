@@ -432,14 +432,36 @@ The minimum duration allowed for this setting is 1 microsecond (`us`).
 
 [options="header"]
 |============
-| Environment                            | Default
-| `ELASTIC_APM_SPAN_FRAMES_MIN_DURATION` | `5ms`
+| Environment                                 | Default
+| `ELASTIC_APM_SPAN_FRAMES_MIN_DURATION`      | `5ms`
 |============
 
 The APM agent will collect a stack trace for every recorded span whose duration
 exceeds this configured value. While this is very helpful to find the exact
 place in your code that causes the span, collecting this stack trace does have
 some processing and storage overhead.
+
+NOTE: This configuration has been deprecated and will be removed in a future major version of the agent.
+
+[float]
+[[config-span-stack-trace-min-duration]]
+=== `ELASTIC_APM_SPAN_STACK_TRACE_MIN_DURATION`
+
+<<dynamic-configuration, image:./images/dynamic-config.svg[] >>
+
+[options="header"]
+|============
+| Environment                                 | Default
+| `ELASTIC_APM_SPAN_STACK_TRACE_MIN_DURATION` | `5ms`
+|============
+
+The APM agent will collect a stack trace for every recorded span whose duration
+exceeds this configured value. While this is very helpful to find the exact
+place in your code that causes the span, collecting this stack trace does have
+some processing and storage overhead.
+
+NOTE: This configuration was previously known as `ELASTIC_APM_SPAN_FRAMES_MIN_DURATION`, which has been deprecated and will be removed in a future major
+version of the agent.
 
 [float]
 [[config-stack-trace-limit]]

@@ -71,7 +71,7 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 	tx.maxSpans = instrumentationConfig.maxSpans
 	tx.compressedSpan.options = instrumentationConfig.compressionOptions
 	tx.exitSpanMinDuration = instrumentationConfig.exitSpanMinDuration
-	tx.spanFramesMinDuration = instrumentationConfig.spanFramesMinDuration
+	tx.spanStackTraceMinDuration = instrumentationConfig.spanStackTraceMinDuration
 	tx.stackTraceLimit = instrumentationConfig.stackTraceLimit
 	tx.Context.captureHeaders = instrumentationConfig.captureHeaders
 	tx.propagateLegacyHeader = instrumentationConfig.propagateLegacyHeader
@@ -393,14 +393,14 @@ type TransactionData struct {
 	// error rate calculations.
 	Outcome string
 
-	recording               bool
-	maxSpans                int
-	exitSpanMinDuration     time.Duration
-	spanFramesMinDuration   time.Duration
-	stackTraceLimit         int
-	breakdownMetricsEnabled bool
-	propagateLegacyHeader   bool
-	timestamp               time.Time
+	recording                 bool
+	maxSpans                  int
+	exitSpanMinDuration       time.Duration
+	spanStackTraceMinDuration time.Duration
+	stackTraceLimit           int
+	breakdownMetricsEnabled   bool
+	propagateLegacyHeader     bool
+	timestamp                 time.Time
 
 	links             []SpanLink
 	mu                sync.Mutex
@@ -432,8 +432,10 @@ func (td *TransactionData) reset(tracer *Tracer) {
 }
 
 type droppedSpanTimingsKey struct {
-	destination string
-	outcome     string
+	serviceTargetType string
+	serviceTargetName string
+	destination       string
+	outcome           string
 }
 
 // droppedSpanTimingsMap records span timings for groups of dropped spans.
@@ -441,8 +443,13 @@ type droppedSpanTimingsMap map[droppedSpanTimingsKey]spanTiming
 
 // add accumulates the timing for a {destination, outcome} pair, silently drops
 // any pairs that would cause the map to exceed the maxDroppedSpanStats.
-func (m droppedSpanTimingsMap) add(dst, outcome string, count int, d time.Duration) {
-	k := droppedSpanTimingsKey{destination: dst, outcome: outcome}
+func (m droppedSpanTimingsMap) add(targetType, targetName, dst, outcome string, count int, d time.Duration) {
+	k := droppedSpanTimingsKey{
+		serviceTargetType: targetType,
+		serviceTargetName: targetName,
+		destination:       dst,
+		outcome:           outcome,
+	}
 	timing, ok := m[k]
 	if ok || maxDroppedSpanStats > len(m) {
 		timing.count += uint64(count)
