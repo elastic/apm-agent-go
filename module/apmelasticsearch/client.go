@@ -93,10 +93,9 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 		Resource: "elasticsearch",
 	})
 
+	// TODO implement the rest of the spec for determining the cluster name:
+	// https://github.com/elastic/apm/blob/main/specs/agents/tracing-instrumentation-db.md#cluster-name
 	clusterName := req.Header.Get("x-found-handling-cluster")
-	if clusterName == "" {
-		clusterName = req.URL.Host
-	}
 
 	span.Context.SetServiceTarget(apm.ServiceTargetSpanContext{
 		Type: "elasticsearch",

@@ -24,10 +24,8 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -68,13 +66,11 @@ func TestWrapRoundTripper(t *testing.T) {
 
 	assert.Equal(t, "q=user:kimchy", spans[0].Context.HTTP.URL.RawQuery)
 	assert.Equal(t, &model.DatabaseSpanContext{
-		Instance:  strings.TrimPrefix(server.URL, "http://"),
 		Type:      "elasticsearch",
 		Statement: "user:kimchy",
 	}, spans[0].Context.Database)
 
 	assert.Equal(t, &model.DatabaseSpanContext{
-		Instance:  strings.TrimPrefix(server.URL, "http://"),
 		Type:      "elasticsearch",
 		Statement: `query":{term":{"user":"kimchy"}}`,
 		User:      "Aladdin",
@@ -175,7 +171,6 @@ func testStatementGetBody(t *testing.T, path string) {
 		require.Len(t, spans, 1)
 
 		assert.Equal(t, &model.DatabaseSpanContext{
-			Instance:  strings.TrimPrefix(server.URL, "http://"),
 			Type:      "elasticsearch",
 			Statement: "Request.GetB", // limited to Content-Length
 		}, spans[0].Context.Database)
@@ -199,7 +194,6 @@ func TestStatementGetBodyErrors(t *testing.T) {
 		require.Len(t, spans, 1)
 
 		assert.Equal(t, &model.DatabaseSpanContext{
-			Instance:  strings.TrimPrefix(server.URL, "http://"),
 			Type:      "elasticsearch",
 			Statement: "", // GetBody/reader returned an error
 		}, spans[0].Context.Database)
@@ -248,7 +242,6 @@ func TestStatementBodyReadError(t *testing.T) {
 	require.Len(t, spans, 1)
 
 	assert.Equal(t, &model.DatabaseSpanContext{
-		Instance:  "testing.invalid",
 		Type:      "elasticsearch",
 		Statement: "", // req.Body.Read returned an error
 	}, spans[0].Context.Database)
@@ -276,7 +269,6 @@ func TestStatementBodyGzipContentEncoding(t *testing.T) {
 	require.Len(t, spans, 1)
 
 	assert.Equal(t, &model.DatabaseSpanContext{
-		Instance:  strings.TrimPrefix(server.URL, "http://"),
 		Type:      "elasticsearch",
 		Statement: "decoded",
 	}, spans[0].Context.Database)
@@ -320,9 +312,9 @@ func TestServiceTarget(t *testing.T) {
 	}
 	client := &http.Client{Transport: apmelasticsearch.WrapRoundTripper(rt)}
 
-	test := func(url, destinationAddr string, destinationPort int, clusterName string) {
+	test := func(url, foundHandlingCluster, expectedClusterName string) {
 		req, err := http.NewRequest("GET", url, nil)
-		req.Header.Add("x-found-handling-cluster", clusterName)
+		req.Header.Add("x-found-handling-cluster", foundHandlingCluster)
 		require.NoError(t, err)
 		_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
 			resp, err := client.Do(req.WithContext(ctx))
@@ -330,21 +322,15 @@ func TestServiceTarget(t *testing.T) {
 			resp.Body.Close()
 		})
 		require.Len(t, spans, 1)
-		if clusterName == "" {
-			clusterName = net.JoinHostPort(destinationAddr, strconv.Itoa(destinationPort))
-		}
 		assert.Equal(t, &model.ServiceSpanContext{
 			Target: &model.ServiceTargetSpanContext{
 				Type: "elasticsearch",
-				Name: clusterName,
+				Name: expectedClusterName,
 			},
 		}, spans[0].Context.Service)
 	}
-	test("http://host:9200/_search", "host", 9200, "foo")
-	test("http://host:80/_search", "host", 80, "bar")
-	test("http://127.0.0.1:9200/_search", "127.0.0.1", 9200, "baz")
-	test("http://[2001:db8::1]:9200/_search", "2001:db8::1", 9200, "foobar")
-	test("http://[2001:db8::1]:80/_search", "2001:db8::1", 80, "")
+	test("http://testing.invalid:9200/_search", "", "")
+	test("http://testing.invalid:9200/_search", "foo", "foo")
 }
 
 func TestTraceHeaders(t *testing.T) {

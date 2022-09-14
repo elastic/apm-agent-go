@@ -123,7 +123,7 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 		} else {
 			binary.LittleEndian.PutUint64(span.traceContext.Span[:], tx.rand.Uint64())
 		}
-		span.stackFramesMinDuration = tx.spanFramesMinDuration
+		span.stackStackTraceMinDuration = tx.spanStackTraceMinDuration
 		span.stackTraceLimit = tx.stackTraceLimit
 		span.compressedSpan.options = tx.compressedSpan.options
 		span.exitSpanMinDuration = tx.exitSpanMinDuration
@@ -176,7 +176,7 @@ func (t *Tracer) StartSpan(name, spanType string, transactionID SpanID, opts Spa
 	span.traceContext.Span = spanID
 
 	instrumentationConfig := t.instrumentationConfig()
-	span.stackFramesMinDuration = instrumentationConfig.spanFramesMinDuration
+	span.stackStackTraceMinDuration = instrumentationConfig.spanStackTraceMinDuration
 	span.stackTraceLimit = instrumentationConfig.stackTraceLimit
 	span.compressedSpan.options = instrumentationConfig.compressionOptions
 	span.exitSpanMinDuration = instrumentationConfig.exitSpanMinDuration
@@ -368,15 +368,15 @@ func (s *Span) End() {
 			}
 		}
 	}
-	switch s.stackFramesMinDuration {
-	case -1:
+	switch {
+	case s.stackStackTraceMinDuration < 0:
+		// If s.stackFramesMinDuration < 0, we never set stacktrace.
+	case s.stackStackTraceMinDuration == 0:
 		// Always set stacktrace
 		s.setStacktrace(1)
-	case 0:
-		// If s.stackFramesMinDuration == 0, we never set stacktrace.
 	default:
 		if !s.dropped() && len(s.stacktrace) == 0 &&
-			s.Duration >= s.stackFramesMinDuration {
+			s.Duration >= s.stackStackTraceMinDuration {
 			s.setStacktrace(1)
 		}
 	}
@@ -583,13 +583,13 @@ func (s *Span) dropFastExitSpan() {
 // When a span is ended or discarded, its SpanData field will be set
 // to nil.
 type SpanData struct {
-	exitSpanMinDuration    time.Duration
-	stackFramesMinDuration time.Duration
-	stackTraceLimit        int
-	timestamp              time.Time
-	childrenTimer          childrenTimer
-	composite              compositeSpan
-	compressedSpan         compressedSpan
+	exitSpanMinDuration        time.Duration
+	stackStackTraceMinDuration time.Duration
+	stackTraceLimit            int
+	timestamp                  time.Time
+	childrenTimer              childrenTimer
+	composite                  compositeSpan
+	compressedSpan             compressedSpan
 
 	// Name holds the span name, initialized with the value passed to StartSpan.
 	Name string

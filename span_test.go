@@ -247,11 +247,11 @@ func TestStartExitSpan(t *testing.T) {
 	assert.True(t, span.IsExitSpan())
 }
 
-func TestFramesMinDurationSpecialCases(t *testing.T) {
+func TestSpanStackTraceMinDurationSpecialCases(t *testing.T) {
 	tracer := apmtest.NewRecordingTracer()
 
 	// verify that no stacktraces are recorded
-	tracer.SetSpanFramesMinDuration(0)
+	tracer.SetSpanStackTraceMinDuration(-1)
 	tx := tracer.StartTransaction("name", "type")
 	span := tx.StartSpan("span", "span", nil)
 	span.End()
@@ -267,7 +267,7 @@ func TestFramesMinDurationSpecialCases(t *testing.T) {
 	// verify that stacktraces are always recorded
 	tracer = apmtest.NewRecordingTracer()
 	defer tracer.Close()
-	tracer.SetSpanFramesMinDuration(-1)
+	tracer.SetSpanStackTraceMinDuration(0)
 	tx = tracer.StartTransaction("name", "type")
 	span = tx.StartSpan("span2", "span2", nil)
 	span.End()
