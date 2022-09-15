@@ -39,30 +39,36 @@ const (
 
 	//querySpanType is setting action for batch expression trace in APM server.
 	batchSpanType = "db.postgresql.batch"
-
-	//postgresql is subtype which indicates database type in trace.
-	postgresql = "postgresql"
 )
 
-// ErrUnsupportedPgxVersion is indicating that data doesn't contain value for "time" key.
-// This fields appeared in pgx v4.17
-var ErrUnsupportedPgxVersion = errors.New("this version of pgx is unsupported, please upgrade to v4.17")
+var (
+	// ErrUnsupportedPgxVersion is indicating that data doesn't contain value for "time" key. This field appeared in pgx v4.17
+	ErrUnsupportedPgxVersion = errors.New("this version of pgx is unsupported, please upgrade to v4.17+")
 
-// tracer is an implementation of pgx.Logger.
+	// ErrInvalidType is indicating that field type doesn't meet expected one
+	ErrInvalidType = errors.New("invalid field type")
+)
+
+// tracer struct contains pgx.ConnConfig inside and pgx.Logger implementation.
 type tracer struct {
-	// logger is the pgx.Logger to use for writing data to log.
-	// If logger is nil, then data won't be written to log, and only spans will be created.
+	// cfg is the pgx.ConnConfig which used for setting metadata in spans such as host, port, etc.
+	cfg *pgx.ConnConfig
+
+	// logger used for writing data to log. If it's nil, then data won't be written to log, and only spans will be created.
 	logger pgx.Logger
 }
 
-// NewTracer returns a new tracer which creates spans for pgx queries.
-// It is safe to pass nil logger to constructor.
-func NewTracer(logger pgx.Logger) *tracer {
-	return &tracer{logger: logger}
+// Instrument is getting pgx.ConnConfig and wrap logger into tracer.
+// It's safe to pass nil logger into pgx.ConnConfig, if so, then only spans will be created
+func Instrument(cfg *pgx.ConnConfig) {
+	cfg.Logger = &tracer{
+		cfg:    cfg,
+		logger: cfg.Logger,
+	}
 }
 
 // Log is getting type of SQL expression from msg and run suitable trace.
-// If logger was provided in NewTracer constructor, than expression will be
+// If logger in tracer struct isn't nil, than log will be
 // written to your logger that implements pgx.Logger interface.
 func (t *tracer) Log(ctx context.Context, level pgx.LogLevel, msg string, data map[string]interface{}) {
 	if t.logger != nil {
@@ -81,82 +87,87 @@ func (t *tracer) Log(ctx context.Context, level pgx.LogLevel, msg string, data m
 
 // QueryTrace traces query and creates spans for them.
 func (t *tracer) QueryTrace(ctx context.Context, data map[string]interface{}) {
-	stop := time.Now()
-
-	if _, ok := data["time"]; !ok {
-		apm.CaptureError(ctx, ErrUnsupportedPgxVersion).Send()
+	statement, ok := data["sql"].(string)
+	if !ok {
+		apm.CaptureError(ctx,
+			fmt.Errorf("%w: expect string, got: %T",
+				ErrInvalidType,
+				data["sql"],
+			),
+		).Send()
 		return
 	}
 
-	span, _ := apm.StartSpanOptions(ctx, apmsql.QuerySignature(data["sql"].(string)), querySpanType, apm.SpanOptions{
-		Start: stop.Add(-data["time"].(time.Duration)),
-	})
-
-	span.Duration = data["time"].(time.Duration)
-	span.Context.SetDatabase(apm.DatabaseSpanContext{
-		Type:      postgresql,
-		Statement: data["sql"].(string),
-	})
-
-	if _, ok := data["err"]; ok {
-		e := apm.CaptureError(ctx, data["err"].(error))
-		e.Timestamp = stop
-		e.Send()
+	span, ok := t.startSpan(ctx, apmsql.QuerySignature(statement), querySpanType, data)
+	if !ok {
+		return
 	}
-
-	span.End()
+	defer span.End()
 }
 
 // CopyTrace traces copy queries and creates spans for them.
 func (t *tracer) CopyTrace(ctx context.Context, data map[string]interface{}) {
-	stop := time.Now()
-
-	if _, ok := data["time"]; !ok {
-		apm.CaptureError(ctx, ErrUnsupportedPgxVersion).Send()
+	tableName, ok := data["tableName"].(pgx.Identifier)
+	if !ok {
 		return
 	}
 
-	span, _ := apm.StartSpanOptions(ctx, fmt.Sprintf("COPY TO %s", strings.Join(data["tableName"].(pgx.Identifier), ", ")),
-		copySpanType, apm.SpanOptions{
-			Start: stop.Add(-data["time"].(time.Duration)),
-		})
-
-	span.Duration = data["time"].(time.Duration)
-	span.Context.SetDatabase(apm.DatabaseSpanContext{
-		Type: postgresql,
-	})
-
-	if _, ok := data["err"]; ok {
-		e := apm.CaptureError(ctx, data["err"].(error))
-		e.Timestamp = stop
-		e.Send()
-	}
-
-	span.End()
+	span, ok := t.startSpan(ctx,
+		fmt.Sprintf("COPY TO %s", strings.Join(tableName, ", ")),
+		copySpanType,
+		data,
+	)
+	defer span.End()
 }
 
 // BatchTrace traces batch execution and creates spans for the whole batch.
 func (t *tracer) BatchTrace(ctx context.Context, data map[string]interface{}) {
+	span, ok := t.startSpan(ctx, "BATCH", batchSpanType, data)
+	if !ok {
+		return
+	}
+	defer span.End()
+
+	if batchLen, ok := data["batchLen"].(int); ok {
+		span.Context.SetLabel("batch.length", batchLen)
+	}
+}
+
+func (t *tracer) startSpan(ctx context.Context, spanName, spanType string, data map[string]interface{}) (*apm.Span, bool) {
 	stop := time.Now()
 
-	span, _ := apm.StartSpanOptions(ctx, "BATCH", batchSpanType, apm.SpanOptions{
-		Start: stop.Add(-data["time"].(time.Duration)),
-	})
-
-	if _, ok := data["batchLen"]; ok {
-		span.Context.SetLabel("batch.length", data["batchLen"].(int))
+	duration, ok := data["time"].(time.Duration)
+	if !ok {
+		apm.CaptureError(ctx, ErrUnsupportedPgxVersion).Send()
+		return nil, false
 	}
 
-	span.Duration = data["time"].(time.Duration)
-	span.Context.SetDatabase(apm.DatabaseSpanContext{
-		Type: postgresql,
+	span, _ := apm.StartSpanOptions(ctx, spanName, spanType, apm.SpanOptions{
+		Start:    stop.Add(-duration),
+		ExitSpan: true,
 	})
 
-	if _, ok := data["err"]; ok {
-		e := apm.CaptureError(ctx, data["err"].(error))
+	if span.Dropped() {
+		span.End()
+		return nil, false
+	}
+
+	span.Duration = duration
+	span.Context.SetDatabase(apm.DatabaseSpanContext{
+		Instance:  t.cfg.Database,
+		Statement: spanName,
+		Type:      "sql",
+		User:      t.cfg.User,
+	})
+
+	span.Context.SetDestinationAddress(t.cfg.Host, int(t.cfg.Port))
+
+	if err, ok := data["err"].(error); ok {
+		e := apm.CaptureError(ctx, err)
 		e.Timestamp = stop
+		e.SetSpan(span)
 		e.Send()
 	}
 
-	span.End()
+	return span, true
 }
