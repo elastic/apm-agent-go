@@ -49,14 +49,23 @@ func TestLog(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			tr := apmpgx.NewTracer(test.logger)
-			tr.Log(context.TODO(), pgx.LogLevelNone, test.msg, nil)
+			cfg := &pgx.ConnConfig{
+				Logger: nil,
+			}
+
+			apmpgx.Instrument(cfg)
+
+			cfg.Logger.Log(context.TODO(), pgx.LogLevelNone, test.msg, nil)
 		})
 	}
 }
 
 func TestQueryTrace(t *testing.T) {
-	tr := apmpgx.NewTracer(nil)
+	cfg := &pgx.ConnConfig{
+		Logger: nil,
+	}
+
+	apmpgx.Instrument(cfg)
 
 	testcases := []struct {
 		name      string
@@ -94,7 +103,7 @@ func TestQueryTrace(t *testing.T) {
 			t.Parallel()
 
 			_, spans, errs := apmtest.WithTransaction(func(ctx context.Context) {
-				tr.QueryTrace(ctx, test.data)
+				cfg.Logger.Log(ctx, pgx.LogLevelNone, "Query", test.data)
 			})
 
 			if test.expectErr {
@@ -105,7 +114,7 @@ func TestQueryTrace(t *testing.T) {
 				assert.Equal(t, "query", spans[0].Action)
 				assert.Equal(t, "SELECT FROM foo.bar", spans[0].Name)
 
-				assert.Greater(t, len(spans[0].Stacktrace), 0)
+				assert.Equal(t, 0, len(spans[0].Stacktrace))
 
 				require.Len(t, errs, 0)
 			}
@@ -114,7 +123,11 @@ func TestQueryTrace(t *testing.T) {
 }
 
 func TestCopyTrace(t *testing.T) {
-	tr := apmpgx.NewTracer(nil)
+	cfg := &pgx.ConnConfig{
+		Logger: nil,
+	}
+
+	apmpgx.Instrument(cfg)
 
 	testcases := []struct {
 		name      string
@@ -154,18 +167,20 @@ func TestCopyTrace(t *testing.T) {
 			t.Parallel()
 
 			_, spans, errs := apmtest.WithTransaction(func(ctx context.Context) {
-				tr.CopyTrace(ctx, test.data)
+				cfg.Logger.Log(ctx, pgx.LogLevelNone, "CopyFrom", test.data)
 			})
 
-			if test.expectErr {
+			if test.expectErr && test.data != nil {
 				require.Len(t, errs, 1)
-			} else {
+			}
+
+			if !test.expectErr {
 				assert.Equal(t, "db", spans[0].Type)
 				assert.Equal(t, "postgresql", spans[0].Subtype)
 				assert.Equal(t, "copy", spans[0].Action)
 				assert.Equal(t, "COPY TO foo", spans[0].Name)
 
-				assert.Greater(t, len(spans[0].Stacktrace), 0)
+				assert.Equal(t, len(spans[0].Stacktrace), 0)
 
 				require.Len(t, errs, 0)
 			}
@@ -174,7 +189,11 @@ func TestCopyTrace(t *testing.T) {
 }
 
 func TestBatchTrace(t *testing.T) {
-	tr := apmpgx.NewTracer(nil)
+	cfg := &pgx.ConnConfig{
+		Logger: nil,
+	}
+
+	apmpgx.Instrument(cfg)
 
 	testcases := []struct {
 		name      string
@@ -214,7 +233,7 @@ func TestBatchTrace(t *testing.T) {
 			t.Parallel()
 
 			_, spans, errs := apmtest.WithTransaction(func(ctx context.Context) {
-				tr.BatchTrace(ctx, test.data)
+				cfg.Logger.Log(ctx, pgx.LogLevelNone, "SendBatch", test.data)
 			})
 
 			if test.expectErr {
@@ -225,7 +244,7 @@ func TestBatchTrace(t *testing.T) {
 				assert.Equal(t, "batch", spans[0].Action)
 				assert.Equal(t, "BATCH", spans[0].Name)
 
-				assert.Greater(t, len(spans[0].Stacktrace), 0)
+				assert.Equal(t, len(spans[0].Stacktrace), 0)
 
 				if len(spans[0].Context.Tags) > 0 {
 					assert.Equal(t, float64(5), spans[0].Context.Tags[0].Value)
