@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmpgx
+package apmpgx // import "go.elastic.co/apm/module/apmpgx/v2"
 
 import (
 	"context"
