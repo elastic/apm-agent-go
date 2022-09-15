@@ -44,8 +44,9 @@ func init() {
 // Use WithTracer to specify an alternative tracer.
 func Middleware(engine *gin.Engine, o ...Option) gin.HandlerFunc {
 	m := &middleware{
-		engine: engine,
-		tracer: apm.DefaultTracer(),
+		engine:           engine,
+		tracer:           apm.DefaultTracer(),
+		panicPropagation: false,
 	}
 	for _, o := range o {
 		o(m)
@@ -57,9 +58,10 @@ func Middleware(engine *gin.Engine, o ...Option) gin.HandlerFunc {
 }
 
 type middleware struct {
-	engine         *gin.Engine
-	tracer         *apm.Tracer
-	requestIgnorer apmhttp.RequestIgnorerFunc
+	engine           *gin.Engine
+	tracer           *apm.Tracer
+	requestIgnorer   apmhttp.RequestIgnorerFunc
+	panicPropagation bool
 }
 
 func (m *middleware) handle(c *gin.Context) {
@@ -75,17 +77,20 @@ func (m *middleware) handle(c *gin.Context) {
 
 	defer func() {
 		if v := recover(); v != nil {
-			if !c.Writer.Written() {
-				c.AbortWithStatus(http.StatusInternalServerError)
+			if m.panicPropagation {
+				defer panic(v)
 			} else {
-				c.Abort()
+				if !c.Writer.Written() {
+					c.AbortWithStatus(http.StatusInternalServerError)
+				} else {
+					c.Abort()
+				}
 			}
 			e := m.tracer.Recovered(v)
 			e.SetTransaction(tx)
 			setContext(&e.Context, c, body)
 			e.Send()
 		}
-		c.Writer.WriteHeaderNow()
 		tx.Result = apmhttp.StatusCodeResult(c.Writer.Status())
 
 		if tx.Sampled() {
@@ -142,5 +147,14 @@ func WithRequestIgnorer(r apmhttp.RequestIgnorerFunc) Option {
 	}
 	return func(m *middleware) {
 		m.requestIgnorer = r
+	}
+}
+
+// WithPanicPropagation returns an Option which enable panic propagation.
+// Any panic will be recovered and recorded as an error in a transaction, then
+// panic will be caused again.
+func WithPanicPropagation() Option {
+	return func(m *middleware) {
+		m.panicPropagation = true
 	}
 }
