@@ -223,7 +223,6 @@ func (c *SpanContext) SetHTTPRequest(req *http.Request) {
 		Resource: destinationServiceResource,
 	})
 	c.SetServiceTarget(ServiceTargetSpanContext{
-		Type: "http",
 		Name: destinationServiceResource,
 	})
 }
