@@ -84,7 +84,6 @@ func NewUnaryClientInterceptor(o ...ClientOption) grpc.UnaryClientInterceptor {
 				})
 			}
 			span.Context.SetServiceTarget(apm.ServiceTargetSpanContext{
-				Type: "grpc",
 				Name: url.Host,
 			})
 		}
