@@ -309,6 +309,10 @@ type DroppedSpansStats struct {
 	// DestinationServiceResource identifies the destination service resource
 	// being operated on. e.g. 'http://elastic.co:80', 'elasticsearch', 'rabbitmq/queue_name'.
 	DestinationServiceResource string `json:"destination_service_resource"`
+	// ServiceTargetType holds the target type.
+	ServiceTargetType string `json:"service_target_type,omitempty"`
+	// ServiceTargetName holds the target name.
+	ServiceTargetName string `json:"service_target_name,omitempty"`
 	// Outcome of the span: success, failure, or unknown. Outcome may be one of
 	// a limited set of permitted values describing the success or failure of
 	// the span. It can be used for calculating error rates for outgoing requests.

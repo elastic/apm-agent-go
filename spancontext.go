@@ -44,6 +44,10 @@ type SpanContext struct {
 	// If SetDestinationService has been called, we do not auto-set its
 	// resource value on span end.
 	setDestinationServiceCalled bool
+
+	// If SetServiceTarget has been called, we do not auto-set its
+	// values on span end.
+	setServiceTargetCalled bool
 }
 
 // DatabaseSpanContext holds database span context.
@@ -273,6 +277,7 @@ func (c *SpanContext) SetDestinationService(service DestinationServiceSpanContex
 
 // SetServiceTarget sets the service target info in the context.
 func (c *SpanContext) SetServiceTarget(service ServiceTargetSpanContext) {
+	c.setServiceTargetCalled = true
 	c.serviceTarget.Type = truncateString(service.Type)
 	c.serviceTarget.Name = truncateString(service.Name)
 	c.service.Target = &c.serviceTarget
