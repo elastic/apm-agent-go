@@ -117,6 +117,9 @@ func (t *tracer) CopyTrace(ctx context.Context, data map[string]interface{}) {
 		copySpanType,
 		data,
 	)
+	if !ok {
+		return
+	}
 	defer span.End()
 }
 
