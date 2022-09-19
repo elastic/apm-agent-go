@@ -55,8 +55,6 @@ func TestQueueSend(t *testing.T) {
 	assert.Equal(t, "fakeaccnt.queue.core.windows.net", destination.Address)
 	assert.Equal(t, 443, destination.Port)
 	assert.Equal(t, "azurequeue/myqueue", destination.Service.Resource)
-	assert.Equal(t, "azurequeue", span.Context.Service.Target.Type)
-	assert.Equal(t, "myqueue", span.Context.Service.Target.Name)
 }
 
 func TestQueueReceive(t *testing.T) {
@@ -88,8 +86,6 @@ func TestQueueReceive(t *testing.T) {
 	assert.Equal(t, "fakeaccnt.queue.core.windows.net", destination.Address)
 	assert.Equal(t, 443, destination.Port)
 	assert.Equal(t, "azurequeue/myqueue", destination.Service.Resource)
-	assert.Equal(t, "azurequeue", span.Context.Service.Target.Type)
-	assert.Equal(t, "myqueue", span.Context.Service.Target.Name)
 }
 
 func TestQueueGetOperation(t *testing.T) {

@@ -215,8 +215,6 @@ func TestSQS(t *testing.T) {
 		assert.Equal(t, port, strconv.Itoa(span.Context.Destination.Port))
 
 		assert.Equal(t, region, span.Context.Destination.Cloud.Region)
-		assert.Equal(t, "sqs", span.Context.Service.Target.Type)
-		assert.Equal(t, tc.queueName, span.Context.Service.Target.Name)
 
 		assert.Equal(t, tx.ID, span.ParentID)
 	}

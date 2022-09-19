@@ -88,9 +88,6 @@ func TestS3(t *testing.T) {
 		require.NotNil(t, span.Context.Destination.Cloud)
 		assert.Equal(t, region, span.Context.Destination.Cloud.Region)
 
-		assert.Equal(t, "s3", span.Context.Service.Target.Type)
-		assert.Equal(t, tc.bucketName, span.Context.Service.Target.Name)
-
 		assert.Equal(t, tx.ID, span.ParentID)
 	}
 }
@@ -170,8 +167,6 @@ func TestDynamoDB(t *testing.T) {
 		assert.Equal(t, "dynamodb", db.Type)
 
 		assert.Equal(t, region, span.Context.Destination.Cloud.Region)
-		assert.Equal(t, "dynamodb", span.Context.Service.Target.Type)
-		assert.Equal(t, region, span.Context.Service.Target.Name)
 
 		assert.Equal(t, tx.ID, span.ParentID)
 	}
