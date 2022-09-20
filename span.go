@@ -55,7 +55,6 @@ func (tx *Transaction) StartSpan(name, spanType string, parent *Span) *Span {
 	})
 }
 
-
 // StartExitSpan starts and returns a new Span within the transaction,
 // with the specified name, type, and optional parent span, and
 // with the start time set to the current time.
@@ -72,7 +71,7 @@ func (tx *Transaction) StartSpan(name, spanType string, parent *Span) *Span {
 // parent is non-nil and the span being marked as an exit span.
 func (tx *Transaction) StartExitSpan(name, spanType string, parent *Span) *Span {
 	return tx.StartSpanOptions(name, spanType, SpanOptions{
-		parent: parent,
+		parent:   parent,
 		ExitSpan: true,
 	})
 }
