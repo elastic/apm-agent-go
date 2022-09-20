@@ -91,6 +91,12 @@ func TestClient(t *testing.T) {
 				Resource: serverAddr.String(),
 			},
 		},
+		Service: &model.ServiceSpanContext{
+			Target: &model.ServiceTargetSpanContext{
+				Type: "http",
+				Name: serverAddr.String(),
+			},
+		},
 		HTTP: &model.HTTPSpanContext{
 			// Note no user info included in server.URL.
 			URL:        serverURL,

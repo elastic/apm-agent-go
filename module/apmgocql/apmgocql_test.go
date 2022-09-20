@@ -126,6 +126,18 @@ func TestBatchObserver(t *testing.T) {
 			Instance:  "quay ",
 			Statement: "INSERT INTO foo.bar(id) VALUES(1)",
 		},
+		Destination: &model.DestinationSpanContext{
+			Service: &model.DestinationServiceSpanContext{
+				Type:     "db",
+				Resource: "cassandra",
+			},
+		},
+		Service: &model.ServiceSpanContext{
+			Target: &model.ServiceTargetSpanContext{
+				Type: "cassandra",
+				Name: "quay ",
+			},
+		},
 	}, spans[0].Context)
 
 	require.Len(t, errors, 1)

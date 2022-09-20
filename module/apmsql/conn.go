@@ -68,7 +68,9 @@ func (c *conn) startStmtSpan(ctx context.Context, stmt, spanType string) (*apm.S
 }
 
 func (c *conn) startSpan(ctx context.Context, name, spanType, stmt string) (*apm.Span, context.Context) {
-	span, ctx := apm.StartSpan(ctx, name, spanType)
+	span, ctx := apm.StartSpanOptions(ctx, name, spanType, apm.SpanOptions{
+		ExitSpan: true,
+	})
 	if !span.Dropped() {
 		if c.dsnInfo.Address != "" {
 			span.Context.SetDestinationAddress(c.dsnInfo.Address, c.dsnInfo.Port)

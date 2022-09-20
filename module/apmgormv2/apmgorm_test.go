@@ -84,7 +84,7 @@ func TestWithContext(t *testing.T) {
 }
 
 func testWithContext(t *testing.T, dsnInfo apmsql.DSNInfo, dialect gorm.Dialector, config *gorm.Config) {
-	_, spans, errors := apmtest.WithTransaction(func(ctx context.Context) {
+	_, spans, errors := apmtest.WithUncompressedTransaction(func(ctx context.Context) {
 		db, err := gorm.Open(dialect, config)
 		require.NoError(t, err)
 		ddb, _ := db.DB()
@@ -121,12 +121,10 @@ func testWithContext(t *testing.T, dsnInfo apmsql.DSNInfo, dialect gorm.Dialecto
 		assert.NotEmpty(t, span.Context.Database.Statement)
 		assert.Equal(t, "sql", span.Context.Database.Type)
 		assert.Equal(t, dsnInfo.User, span.Context.Database.User)
-		if dsnInfo.Address == "" {
-			assert.Nil(t, span.Context.Destination)
-		} else {
-			assert.Equal(t, dsnInfo.Address, span.Context.Destination.Address)
-			assert.Equal(t, dsnInfo.Port, span.Context.Destination.Port)
-		}
+		assert.Equal(t, dsnInfo.Address, span.Context.Destination.Address)
+		assert.Equal(t, dsnInfo.Port, span.Context.Destination.Port)
+		assert.Equal(t, dsnInfo.User, span.Context.Destination.Service.Name)
+		assert.Equal(t, "db", span.Context.Destination.Service.Type)
 	}
 	assert.Equal(t, []string{
 		"INSERT INTO products",

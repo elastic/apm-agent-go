@@ -75,7 +75,7 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	propagateLegacyHeader := tx.ShouldPropagateLegacyHeader()
 	name := requestName(req)
-	span := tx.StartSpan(name, "db.elasticsearch", apm.SpanFromContext(ctx))
+	span := tx.StartExitSpan(name, "db.elasticsearch", apm.SpanFromContext(ctx))
 
 	if span.Dropped() {
 		span.End()

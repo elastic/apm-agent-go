@@ -55,6 +55,28 @@ func (tx *Transaction) StartSpan(name, spanType string, parent *Span) *Span {
 	})
 }
 
+
+// StartExitSpan starts and returns a new Span within the transaction,
+// with the specified name, type, and optional parent span, and
+// with the start time set to the current time.
+//
+// StartExitSpan always returns a non-nil Span, with a non-nil SpanData
+// field. Its End method must be called when the span completes.
+//
+// If the span type contains two dots, they are assumed to separate
+// the span type, subtype, and action; a single dot separates span
+// type and subtype, and the action will not be set.
+//
+// StartExitSpan is equivalent to calling StartSpanOptions with
+// SpanOptions.Parent set to the trace context of parent if
+// parent is non-nil and the span being marked as an exit span.
+func (tx *Transaction) StartExitSpan(name, spanType string, parent *Span) *Span {
+	return tx.StartSpanOptions(name, spanType, SpanOptions{
+		parent: parent,
+		ExitSpan: true,
+	})
+}
+
 // StartSpanOptions starts and returns a new Span within the transaction,
 // with the specified name, type, and options.
 //
