@@ -98,7 +98,7 @@ func (t *tracer) QueryTrace(ctx context.Context, data map[string]interface{}) {
 		return
 	}
 
-	span, ok := t.startSpan(ctx, apmsql.QuerySignature(statement), querySpanType, data)
+	span, ok := t.startSpan(ctx, apmsql.QuerySignature(statement), querySpanType, statement, data)
 	if !ok {
 		return
 	}
@@ -115,6 +115,7 @@ func (t *tracer) CopyTrace(ctx context.Context, data map[string]interface{}) {
 	span, ok := t.startSpan(ctx,
 		fmt.Sprintf("COPY TO %s", strings.Join(tableName, ", ")),
 		copySpanType,
+		"",
 		data,
 	)
 	if !ok {
@@ -125,7 +126,7 @@ func (t *tracer) CopyTrace(ctx context.Context, data map[string]interface{}) {
 
 // BatchTrace traces batch execution and creates spans for the whole batch.
 func (t *tracer) BatchTrace(ctx context.Context, data map[string]interface{}) {
-	span, ok := t.startSpan(ctx, "BATCH", batchSpanType, data)
+	span, ok := t.startSpan(ctx, "BATCH", batchSpanType, "", data)
 	if !ok {
 		return
 	}
@@ -136,7 +137,7 @@ func (t *tracer) BatchTrace(ctx context.Context, data map[string]interface{}) {
 	}
 }
 
-func (t *tracer) startSpan(ctx context.Context, spanName, spanType string, data map[string]interface{}) (*apm.Span, bool) {
+func (t *tracer) startSpan(ctx context.Context, spanName, spanType, statement string, data map[string]interface{}) (*apm.Span, bool) {
 	stop := time.Now()
 
 	duration, ok := data["time"].(time.Duration)
@@ -158,12 +159,20 @@ func (t *tracer) startSpan(ctx context.Context, spanName, spanType string, data 
 	span.Duration = duration
 	span.Context.SetDatabase(apm.DatabaseSpanContext{
 		Instance:  t.cfg.Database,
-		Statement: spanName,
+		Statement: statement,
 		Type:      "sql",
 		User:      t.cfg.User,
 	})
 
 	span.Context.SetDestinationAddress(t.cfg.Host, int(t.cfg.Port))
+	span.Context.SetServiceTarget(apm.ServiceTargetSpanContext{
+		Type: "postgresql",
+		Name: t.cfg.Database,
+	})
+	span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
+		Name:     "postgresql",
+		Resource: "postgresql",
+	})
 
 	if err, ok := data["err"].(error); ok {
 		e := apm.CaptureError(ctx, err)

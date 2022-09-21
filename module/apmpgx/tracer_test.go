@@ -132,6 +132,7 @@ func TestQueryTrace(t *testing.T) {
 				assert.Equal(t, "postgresql", spans[0].Subtype)
 				assert.Equal(t, "query", spans[0].Action)
 				assert.Equal(t, "SELECT FROM foo.bar", spans[0].Name)
+				assert.Equal(t, "SELECT * FROM foo.bar", spans[0].Context.Database.Statement)
 
 				assert.Equal(t, 0, len(spans[0].Stacktrace))
 
