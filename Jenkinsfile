@@ -14,8 +14,6 @@ pipeline {
     GOPATH = "${env.WORKSPACE}"
     GOPROXY = 'https://proxy.golang.org'
     HOME = "${env.WORKSPACE}"
-    GITHUB_CHECK_ITS_NAME = 'Integration Tests'
-    ITS_PIPELINE = 'apm-integration-tests-selector-mbp/main'
     OPBEANS_REPO = 'opbeans-go'
     SLACK_CHANNEL = '#apm-agent-go'
   }
@@ -222,28 +220,6 @@ pipeline {
             }
           }
         }
-      }
-    }
-    stage('Integration Tests') {
-      agent none
-      when {
-        beforeAgent true
-        allOf {
-          expression { return env.ONLY_DOCS == "false" }
-          anyOf {
-            changeRequest()
-            expression { return !params.Run_As_Main_Branch }
-          }
-        }
-      }
-      steps {
-        build(job: env.ITS_PIPELINE, propagate: false, wait: false,
-              parameters: [string(name: 'INTEGRATION_TEST', value: 'Go'),
-                           string(name: 'BUILD_OPTS', value: "--go-agent-version ${env.GIT_BASE_COMMIT} --opbeans-go-agent-branch ${env.GIT_BASE_COMMIT}"),
-                           string(name: 'GITHUB_CHECK_NAME', value: env.GITHUB_CHECK_ITS_NAME),
-                           string(name: 'GITHUB_CHECK_REPO', value: env.REPO),
-                           string(name: 'GITHUB_CHECK_SHA1', value: env.GIT_BASE_COMMIT)])
-        githubNotify(context: "${env.GITHUB_CHECK_ITS_NAME}", description: "${env.GITHUB_CHECK_ITS_NAME} ...", status: 'PENDING', targetUrl: "${env.JENKINS_URL}search/?q=${env.ITS_PIPELINE.replaceAll('/','+')}")
       }
     }
     stage('Release') {
