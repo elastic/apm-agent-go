@@ -979,13 +979,13 @@ so that SQL queries are reported as spans within the current transaction.
 Also this lib have extended support of pgx, such as COPY FROM queries and BATCH which have their own span types:
 `db.postgresql.copy` and `db.postgresql.batch` accordingly.
 
-To report `pgx` queries, create `pgx` config, and then assign `apmpgx.NewTracer()` to config logger. Also you can
-pass logger you want to as argument for `apmpgx.NewTracer()` (it's safe to pass `nil`)
+To report `pgx` queries, create `pgx` connection, and then provide config to `apmpgx.Instrument()`. If logger is presented in config,
+then traces will be written to log. (It's safe to use without logger)
 
 Spans will be created for queries as long as they have context associated, and the
 context includes a transaction.
 
-Example with pool
+Example with pool:
 [source,go]
 ----
 import (
@@ -997,14 +997,15 @@ import (
 func main() {
     c, err := pgxpool.ParseConfig("dsn_string")
     ...
-    c.ConnConfig.Logger = apmpgx.NewTracer(nil)
-
-    pool, err := pgxpool.ConnectConfig(context.Background(), config)
+    pool, err := pgxpool.ParseConfig("dsn")
+    ...
+    // set custom logger before instrumenting
+    apmpgx.Instrument(pool.ConnConfig)
     ...
 }
 ----
 
-Example without pool
+Example without pool:
 [source,go]
 ----
 import (
@@ -1016,7 +1017,8 @@ import (
 func main() {
     c, err := pgx.Connect(context.Background, "dsn_string")
     ...
-    c.Config().Logger = apmpgx.NewTracer(nil)
+    // set custom logger before instrumenting
+    apmpgx.Instrument(c.Config())
     ...
 }
 ----
