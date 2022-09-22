@@ -70,8 +70,14 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 	}
 
 	if opts.parent.IsExitSpan() {
-		spanType, after, _ := strings.Cut(spanType, ".")
-		subType, _, _ := strings.Cut(after, ".")
+		arr := strings.SplitN(spanType, ".", 3)
+
+		spanType := arr[0]
+		subType := ""
+
+		if len(arr) > 1 {
+			subType = arr[1]
+		}
 
 		if spanType != opts.parent.Type || subType != opts.parent.Subtype {
 			return newDroppedSpan()
