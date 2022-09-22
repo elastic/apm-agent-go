@@ -60,7 +60,7 @@ func withClientTrace(ctx context.Context, tx *apm.Transaction, parent *apm.Span)
 			r.mu.Lock()
 			defer r.mu.Unlock()
 			if !r.ended {
-				r.DNS = tx.StartExitSpan(fmt.Sprintf("DNS %s", i.Host), "external.http.dns", parent)
+				r.DNS = tx.StartSpan(fmt.Sprintf("DNS %s", i.Host), "external.http.dns", parent)
 			}
 		},
 
@@ -78,7 +78,7 @@ func withClientTrace(ctx context.Context, tx *apm.Transaction, parent *apm.Span)
 			defer r.mu.Unlock()
 			if !r.ended {
 				key := connectKey{network: network, addr: addr}
-				span := tx.StartExitSpan(fmt.Sprintf("Connect %s", addr), "external.http.connect", parent)
+				span := tx.StartSpan(fmt.Sprintf("Connect %s", addr), "external.http.connect", parent)
 				r.Connects[key] = span
 			}
 		},
@@ -100,7 +100,7 @@ func withClientTrace(ctx context.Context, tx *apm.Transaction, parent *apm.Span)
 			r.mu.Lock()
 			defer r.mu.Unlock()
 			if !r.ended {
-				r.Request = tx.StartExitSpan("Request", "external.http.request", parent)
+				r.Request = tx.StartSpan("Request", "external.http.request", parent)
 			}
 		},
 
@@ -108,7 +108,7 @@ func withClientTrace(ctx context.Context, tx *apm.Transaction, parent *apm.Span)
 			r.mu.Lock()
 			defer r.mu.Unlock()
 			if !r.ended {
-				r.TLS = tx.StartExitSpan("TLS", "external.http.tls", parent)
+				r.TLS = tx.StartSpan("TLS", "external.http.tls", parent)
 			}
 		},
 
@@ -131,7 +131,7 @@ func withClientTrace(ctx context.Context, tx *apm.Transaction, parent *apm.Span)
 				r.Request = nil
 			}
 			if !r.ended {
-				r.Response = tx.StartExitSpan("Response", "external.http.response", parent)
+				r.Response = tx.StartSpan("Response", "external.http.response", parent)
 			}
 		},
 	}), &r

@@ -104,15 +104,7 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	name := r.requestName(req)
-	var span *apm.Span
-	if r.traceRequests {
-		// Trace requests are enabled, use this as the parent span and mark the trace requests as
-		// exit spans.
-		span = tx.StartSpan(name, r.spanType, apm.SpanFromContext(ctx))
-	} else {
-		// No trace requests, mark the span as exit span.
-		span = tx.StartExitSpan(name, r.spanType, apm.SpanFromContext(ctx))
-	}
+	span := tx.StartExitSpan(name, r.spanType, apm.SpanFromContext(ctx))
 	var rt *requestTracer
 	if !span.Dropped() {
 		traceContext = span.TraceContext()

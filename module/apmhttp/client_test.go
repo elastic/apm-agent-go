@@ -322,7 +322,7 @@ func TestWithClientTrace(t *testing.T) {
 	server := httptest.NewServer(http.NotFoundHandler())
 	defer server.Close()
 
-	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+	_, spans, _ := apmtest.WithUncompressedTransaction(func(ctx context.Context) {
 		mustGET(ctx, server.URL, apmhttp.WithClientTrace())
 	})
 
