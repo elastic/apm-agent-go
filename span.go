@@ -65,8 +65,17 @@ func (tx *Transaction) StartSpan(name, spanType string, parent *Span) *Span {
 // span type, subtype, and action; a single dot separates span type and
 // subtype, and the action will not be set.
 func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions) *Span {
-	if tx == nil || opts.parent.IsExitSpan() {
+	if tx == nil {
 		return newDroppedSpan()
+	}
+
+	if opts.parent.IsExitSpan() {
+		spanType, after, _ := strings.Cut(spanType, ".")
+		subType, _, _ := strings.Cut(after, ".")
+
+		if spanType != opts.parent.Type || subType != opts.parent.Subtype {
+			return newDroppedSpan()
+		}
 	}
 
 	if opts.Parent == (TraceContext{}) {
