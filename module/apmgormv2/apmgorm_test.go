@@ -123,7 +123,9 @@ func testWithContext(t *testing.T, dsnInfo apmsql.DSNInfo, dialect gorm.Dialecto
 		assert.Equal(t, dsnInfo.User, span.Context.Database.User)
 		assert.Equal(t, dsnInfo.Address, span.Context.Destination.Address)
 		assert.Equal(t, dsnInfo.Port, span.Context.Destination.Port)
-		assert.Equal(t, dsnInfo.Database, span.Context.Destination.Service.Name)
+		if dsnInfo.Address != "" {
+			assert.Equal(t, "sqlite3", span.Context.Destination.Service.Name)
+		}
 		assert.Equal(t, "db", span.Context.Destination.Service.Type)
 	}
 	assert.Equal(t, []string{
