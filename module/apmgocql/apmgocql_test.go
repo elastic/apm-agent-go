@@ -186,7 +186,7 @@ func TestBatchObserverIntegration(t *testing.T) {
 	err = execQuery(context.Background(), session, `CREATE TABLE IF NOT EXISTS foo.bar (id int, PRIMARY KEY(id));`)
 	assert.NoError(t, err)
 
-	tx, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+	tx, spans, _ := apmtest.WithUncompressedTransaction(func(ctx context.Context) {
 		batch := session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
 		batch.Query("INSERT INTO foo.bar(id) VALUES(1)")
 		batch.Query("INSERT INTO foo.bar(id) VALUES(2)")
