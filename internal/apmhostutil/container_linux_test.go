@@ -110,6 +110,16 @@ func TestCgroupContainerInfoDockerSystemd(t *testing.T) {
 	assert.Equal(t, &model.Container{ID: "cde7c2bab394630a42d73dc610b9c57415dced996106665d427f6d0566594411"}, container)
 }
 
+func TestCgroupContainerInfoECSFargate(t *testing.T) {
+	container, kubernetes, err := readCgroupContainerInfo(strings.NewReader(`
+1:name=systemd:/ecs/03752a671e744971a862edcee6195646/03752a671e744971a862edcee6195646-4015103728
+`[1:]))
+
+	assert.NoError(t, err)
+	assert.Nil(t, kubernetes)
+	assert.Equal(t, &model.Container{ID: "03752a671e744971a862edcee6195646-4015103728"}, container)
+}
+
 func TestCgroupContainerInfoNonHex(t *testing.T) {
 	// Imaginary future format. We use the last part of the path,
 	// trimming legacy prefix/suffix, and check the expected

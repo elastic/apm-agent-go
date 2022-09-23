@@ -86,7 +86,7 @@ func (tx *Transaction) StartExitSpan(name, spanType string, parent *Span) *Span 
 // span type, subtype, and action; a single dot separates span type and
 // subtype, and the action will not be set.
 func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions) *Span {
-	if tx == nil || opts.parent.IsExitSpan() {
+	if tx == nil {
 		return newDroppedSpan()
 	}
 
@@ -365,6 +365,16 @@ func (s *Span) End() {
 	}
 	if s.Type == "" {
 		s.Type = "custom"
+	}
+	if s.parent.IsExitSpan() {
+		s.Context.model.Destination = nil
+		s.Context.model.Service = nil
+
+		if s.Type != s.parent.Type || s.Subtype != s.parent.Subtype {
+			s.dropWhen(true)
+			s.end()
+			return
+		}
 	}
 	if s.exit && !s.Context.setDestinationServiceCalled {
 		// The span was created as an exit span, but the user did not
