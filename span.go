@@ -69,21 +69,6 @@ func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions)
 		return newDroppedSpan()
 	}
 
-	if opts.parent.IsExitSpan() {
-		arr := strings.SplitN(spanType, ".", 3)
-
-		spanType := arr[0]
-		subType := ""
-
-		if len(arr) > 1 {
-			subType = arr[1]
-		}
-
-		if spanType != opts.parent.Type || subType != opts.parent.Subtype {
-			return newDroppedSpan()
-		}
-	}
-
 	if opts.Parent == (TraceContext{}) {
 		if opts.parent != nil {
 			opts.Parent = opts.parent.TraceContext()
@@ -359,6 +344,12 @@ func (s *Span) End() {
 	}
 	if s.Type == "" {
 		s.Type = "custom"
+	}
+	if s.parent.IsExitSpan() {
+		if s.Type != s.parent.Type || s.Subtype != s.parent.Subtype {
+			s.tracer = nil
+			return
+		}
 	}
 	if s.exit && !s.Context.setDestinationServiceCalled {
 		// The span was created as an exit span, but the user did not
