@@ -191,6 +191,12 @@ func TestHTTPSpan(t *testing.T) {
 				Resource: "testing.invalid:8443",
 			},
 		},
+		Service: &model.ServiceSpanContext{
+			Target: &model.ServiceTargetSpanContext{
+				Type: "http",
+				Name: "testing.invalid:8443",
+			},
+		},
 	}, modelSpan.Context)
 }
 
@@ -233,6 +239,12 @@ func TestHTTPSpanTraefik(t *testing.T) {
 				Type:     "external",
 				Name:     "http://202.1.1.1:5000",
 				Resource: "202.1.1.1:5000",
+			},
+		},
+		Service: &model.ServiceSpanContext{
+			Target: &model.ServiceTargetSpanContext{
+				Type: "http",
+				Name: "202.1.1.1:5000",
 			},
 		},
 		Tags: model.IfaceMap{
