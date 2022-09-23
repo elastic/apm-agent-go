@@ -197,7 +197,7 @@ func startSpan(ctx context.Context, name string) (*apm.Span, context.Context) {
 	if !traceContext.Options.Recorded() {
 		return nil, outgoingContextWithTraceContext(ctx, traceContext, propagateLegacyHeader)
 	}
-	span := tx.StartSpan(name, "external.grpc", apm.SpanFromContext(ctx))
+	span := tx.StartExitSpan(name, "external.grpc", apm.SpanFromContext(ctx))
 	if !span.Dropped() {
 		traceContext = span.TraceContext()
 		ctx = apm.ContextWithSpan(ctx, span)

@@ -73,7 +73,7 @@ func TestExecContext(t *testing.T) {
 
 	db.Ping() // connect
 	const N = 5
-	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+	_, spans, _ := apmtest.WithUncompressedTransaction(func(ctx context.Context) {
 		_, err := db.ExecContext(ctx, "CREATE TABLE foo (bar INT)")
 		require.NoError(t, err)
 		for i := 0; i < N; i++ {
@@ -109,6 +109,18 @@ func TestExecContext(t *testing.T) {
 			Statement:    "CREATE TABLE foo (bar INT)",
 			Type:         "sql",
 		},
+		Destination: &model.DestinationSpanContext{
+			Service: &model.DestinationServiceSpanContext{
+				Type:     "db",
+				Resource: "sqlite3",
+			},
+		},
+		Service: &model.ServiceSpanContext{
+			Target: &model.ServiceTargetSpanContext{
+				Type: "sqlite3",
+				Name: ":memory:",
+			},
+		},
 	}, spans[0].Context)
 
 	for i := 0; i < N; i++ {
@@ -121,6 +133,18 @@ func TestExecContext(t *testing.T) {
 				Statement:    "INSERT INTO foo VALUES (?)",
 				Type:         "sql",
 			},
+			Destination: &model.DestinationSpanContext{
+				Service: &model.DestinationServiceSpanContext{
+					Type:     "db",
+					Resource: "sqlite3",
+				},
+			},
+			Service: &model.ServiceSpanContext{
+				Target: &model.ServiceTargetSpanContext{
+					Type: "sqlite3",
+					Name: ":memory:",
+				},
+			},
 		}, span.Context)
 	}
 
@@ -131,6 +155,18 @@ func TestExecContext(t *testing.T) {
 			RowsAffected: int64ptr(N),
 			Statement:    "DELETE FROM foo",
 			Type:         "sql",
+		},
+		Destination: &model.DestinationSpanContext{
+			Service: &model.DestinationServiceSpanContext{
+				Type:     "db",
+				Resource: "sqlite3",
+			},
+		},
+		Service: &model.ServiceSpanContext{
+			Target: &model.ServiceTargetSpanContext{
+				Type: "sqlite3",
+				Name: ":memory:",
+			},
 		},
 	}, spans[N+1].Context)
 }
@@ -161,6 +197,18 @@ func TestQueryContext(t *testing.T) {
 			Instance:  ":memory:",
 			Statement: "SELECT * FROM foo",
 			Type:      "sql",
+		},
+		Destination: &model.DestinationSpanContext{
+			Service: &model.DestinationServiceSpanContext{
+				Type:     "db",
+				Resource: "sqlite3",
+			},
+		},
+		Service: &model.ServiceSpanContext{
+			Target: &model.ServiceTargetSpanContext{
+				Type: "sqlite3",
+				Name: ":memory:",
+			},
 		},
 	}, spans[0].Context)
 }

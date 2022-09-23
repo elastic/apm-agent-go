@@ -105,6 +105,12 @@ func testClientSpan(t *testing.T, traceparentHeaders ...string) {
 				Resource: tcpAddr.String(),
 			},
 		},
+		Service: &model.ServiceSpanContext{
+			Target: &model.ServiceTargetSpanContext{
+				Type: "grpc",
+				Name: tcpAddr.String(),
+			},
+		},
 	}, clientSpans[0].Context)
 
 	serverTracer.Flush(nil)

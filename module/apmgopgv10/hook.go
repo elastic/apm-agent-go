@@ -64,7 +64,9 @@ func (qh *queryHook) BeforeQuery(ctx context.Context, evt *pg.QueryEvent) (conte
 		return ctx, errors.Wrap(err, "failed to generate sql")
 	}
 
-	span, ctx := apm.StartSpan(ctx, apmsql.QuerySignature(string(sql)), "db.postgresql.query")
+	span, ctx := apm.StartSpanOptions(ctx, apmsql.QuerySignature(string(sql)), "db.postgresql.query", apm.SpanOptions{
+		ExitSpan: true,
+	})
 	span.Context.SetDatabase(apm.DatabaseSpanContext{
 		Statement: string(sql),
 

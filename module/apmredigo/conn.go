@@ -93,7 +93,9 @@ func Do(ctx context.Context, conn redis.Conn, commandName string, args ...interf
 	if spanName == "" {
 		spanName = "(flush pipeline)"
 	}
-	span, _ := apm.StartSpan(ctx, spanName, "db.redis")
+	span, _ := apm.StartSpanOptions(ctx, spanName, "db.redis", apm.SpanOptions{
+		ExitSpan: true,
+	})
 	defer span.End()
 	return conn.Do(commandName, args...)
 }
