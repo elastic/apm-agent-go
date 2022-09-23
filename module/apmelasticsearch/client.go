@@ -41,7 +41,7 @@ func WrapRoundTripper(r http.RoundTripper, o ...ClientOption) http.RoundTripper 
 	if r == nil {
 		r = http.DefaultTransport
 	}
-	rt := &roundTripper{r: r}
+	rt := &roundTripper{r: r, clusterNameFunc: DefaultClusterName(r)}
 	for _, o := range o {
 		o(rt)
 	}
@@ -49,7 +49,8 @@ func WrapRoundTripper(r http.RoundTripper, o ...ClientOption) http.RoundTripper 
 }
 
 type roundTripper struct {
-	r http.RoundTripper
+	r               http.RoundTripper
+	clusterNameFunc ClusterNameFunc
 }
 
 // RoundTrip delegates to r.r, emitting a span if req's context contains a transaction.
@@ -87,17 +88,30 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	username, _, _ := req.BasicAuth()
 	ctx = apm.ContextWithSpan(ctx, span)
 	req = apmhttp.RequestWithContext(ctx, req)
+
 	span.Context.SetHTTPRequest(req)
 	span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
 		Name:     "elasticsearch",
 		Resource: "elasticsearch",
 	})
+	apmhttp.SetHeaders(req, traceContext, propagateLegacyHeader)
 
-	clusterName := req.Header.Get("x-found-handling-cluster")
-	if clusterName == "" {
-		clusterName = req.URL.Host
+	resp, err := r.r.RoundTrip(req)
+	if err != nil {
+		clusterName := "" // undefined in error case
+		setDatabaseSpanContext(span, statement, username, clusterName)
+		span.End()
+		return resp, err
 	}
 
+	clusterName := r.clusterNameFunc(resp)
+	setDatabaseSpanContext(span, statement, username, clusterName)
+	span.Context.SetHTTPStatusCode(resp.StatusCode)
+	resp.Body = &responseBody{span: span, body: resp.Body}
+	return resp, nil
+}
+
+func setDatabaseSpanContext(span *apm.Span, statement, username, clusterName string) {
 	span.Context.SetServiceTarget(apm.ServiceTargetSpanContext{
 		Type: "elasticsearch",
 		Name: clusterName,
@@ -108,16 +122,6 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 		Statement: statement,
 		User:      username,
 	})
-
-	apmhttp.SetHeaders(req, traceContext, propagateLegacyHeader)
-	resp, err := r.r.RoundTrip(req)
-	if err != nil {
-		span.End()
-	} else {
-		span.Context.SetHTTPStatusCode(resp.StatusCode)
-		resp.Body = &responseBody{span: span, body: resp.Body}
-	}
-	return resp, err
 }
 
 // CloseIdleConnections calls r.r.CloseIdleConnections if the method exists.
