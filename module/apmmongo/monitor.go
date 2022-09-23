@@ -90,7 +90,9 @@ func (c *commandMonitor) started(ctx context.Context, event *event.CommandStarte
 	if collectionName, ok := collectionName(event.CommandName, event.Command); ok {
 		spanName = collectionName + "." + spanName
 	}
-	span, _ := apm.StartSpan(ctx, spanName, "db.mongodb.query")
+	span, _ := apm.StartSpanOptions(ctx, spanName, "db.mongodb.query", apm.SpanOptions{
+		ExitSpan: true,
+	})
 	if span.Dropped() {
 		return
 	}

@@ -147,6 +147,18 @@ func testCommandMonitorFinished(t *testing.T, failure string) {
 			Type:      "mongodb",
 			Statement: `{"find":"test_coll"}`,
 		},
+		Destination: &model.DestinationSpanContext{
+			Service: &model.DestinationServiceSpanContext{
+				Type:     "db",
+				Resource: "mongodb",
+			},
+		},
+		Service: &model.ServiceSpanContext{
+			Target: &model.ServiceTargetSpanContext{
+				Type: "mongodb",
+				Name: "test_db",
+			},
+		},
 	}, spans[0].Context)
 }
 

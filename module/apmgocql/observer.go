@@ -66,7 +66,8 @@ func (o *Observer) ObserveBatch(ctx context.Context, batch gocql.ObservedBatch) 
 
 	for _, statement := range batch.Statements {
 		span, _ := apm.StartSpanOptions(ctx, querySignature(statement), "db.cassandra.query", apm.SpanOptions{
-			Start: batch.Start,
+			Start:    batch.Start,
+			ExitSpan: true,
 		})
 		span.Duration = batchSpan.Duration
 		span.Context.SetDatabase(apm.DatabaseSpanContext{

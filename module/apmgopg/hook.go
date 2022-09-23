@@ -69,7 +69,9 @@ func (qh *queryHook) BeforeQuery(evt *pg.QueryEvent) {
 		sql = fmt.Sprintf("[go-pg] error: %s", err.Error())
 	}
 
-	span, _ := apm.StartSpan(evt.DB.Context(), apmsql.QuerySignature(sql), "db.postgresql.query")
+	span, _ := apm.StartSpanOptions(evt.DB.Context(), apmsql.QuerySignature(sql), "db.postgresql.query", apm.SpanOptions{
+		ExitSpan: true,
+	})
 	span.Context.SetDatabase(apm.DatabaseSpanContext{
 		Statement: sql,
 
