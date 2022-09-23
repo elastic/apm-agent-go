@@ -25,7 +25,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"go.elastic.co/apm/v2/model"
 	"go.elastic.co/apm/v2/stacktrace"
 )
 
@@ -347,13 +346,14 @@ func (s *Span) End() {
 		s.Type = "custom"
 	}
 	if s.parent.IsExitSpan() {
-		if s.Type != s.parent.Type || s.Subtype != s.parent.Subtype {
-			s.tracer = nil
-			return
-		}
-
 		s.Context.model.Destination = nil
 		s.Context.model.Service = nil
+
+		if s.Type != s.parent.Type || s.Subtype != s.parent.Subtype {
+			s.dropWhen(true)
+			s.end()
+			return
+		}
 	}
 	if s.exit && !s.Context.setDestinationServiceCalled {
 		// The span was created as an exit span, but the user did not
