@@ -241,13 +241,13 @@ func TestStartExitSpan(t *testing.T) {
 
 	// when the parent span is an exit span, any children should be noops.
 	span2 := tx.StartSpan("name", "differenttype", span)
-	assert.True(t, span2.Dropped())
 	span2.End()
+	assert.True(t, span2.Dropped())
 
 	// Exit spans MAY have child spans that have the same `type` and `subtype`.
 	span3 := tx.StartSpan("name", "type", span)
-	assert.False(t, span3.Dropped())
 	span3.End()
+	assert.False(t, span3.Dropped())
 
 	span.End()
 
