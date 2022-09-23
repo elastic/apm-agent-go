@@ -25,6 +25,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"go.elastic.co/apm/v2/model"
 	"go.elastic.co/apm/v2/stacktrace"
 )
 
@@ -350,6 +351,8 @@ func (s *Span) End() {
 			s.tracer = nil
 			return
 		}
+
+		s.Context.destination = model.DestinationSpanContext{}
 	}
 	if s.exit && !s.Context.setDestinationServiceCalled {
 		// The span was created as an exit span, but the user did not
