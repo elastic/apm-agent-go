@@ -217,6 +217,17 @@ func TestBatchObserverIntegration(t *testing.T) {
 			Type:      "cassandra",
 			Statement: "INSERT INTO foo.bar(id) VALUES(1)",
 		},
+		Destination: &model.DestinationSpanContext{
+			Service: &model.DestinationServiceSpanContext{
+				Type:     "db",
+				Resource: "cassandra",
+			},
+		},
+		Service: &model.ServiceSpanContext{
+			Target: &model.ServiceTargetSpanContext{
+				Type: "cassandra",
+			},
+		},
 	}, spans[0].Context)
 }
 
