@@ -352,7 +352,8 @@ func (s *Span) End() {
 			return
 		}
 
-		s.Context.destination = model.DestinationSpanContext{}
+		s.Context.model.Destination = nil
+		s.Context.model.Service = nil
 	}
 	if s.exit && !s.Context.setDestinationServiceCalled {
 		// The span was created as an exit span, but the user did not
