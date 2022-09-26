@@ -90,9 +90,11 @@ func (p *apmPipeline) Do(
 		r := req.Request.WithContext(ctx)
 		req.Request = r
 		defer tx.End()
-		span = tx.StartSpan(rpc.name(), rpc._type(), apm.SpanFromContext(ctx))
+		span = tx.StartExitSpan(rpc.name(), rpc._type(), apm.SpanFromContext(ctx))
 	} else {
-		span, ctx = apm.StartSpan(ctx, rpc.name(), rpc._type())
+		span, ctx = apm.StartSpanOptions(ctx, rpc.name(), rpc._type(), apm.SpanOptions{
+			ExitSpan: true,
+		})
 	}
 
 	defer span.End()

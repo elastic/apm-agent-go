@@ -219,6 +219,25 @@ func TestMiddlewarePanicHeadersSent(t *testing.T) {
 	assert.NotContains(t, debugOutput.String(), "[WARNING] Headers were already written")
 }
 
+func TestMiddlewarePanicPropagation(t *testing.T) {
+	debugOutput.Reset()
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	e := gin.New()
+	e.Use(
+		gin.CustomRecovery(func(c *gin.Context, err interface{}) {
+			c.AbortWithStatus(http.StatusNotImplemented)
+		}),
+		apmgin.Middleware(e, apmgin.WithTracer(tracer), apmgin.WithPanicPropagation()))
+	e.GET("/panic", handlePanic)
+
+	w := doRequest(e, "GET", "http://server.testing/panic")
+	assert.Equal(t, http.StatusNotImplemented, w.Code)
+	tracer.Flush(nil)
+	assertError(t, transport.Payloads(), "handlePanic", "boom", false)
+}
+
 func TestMiddlewareError(t *testing.T) {
 	debugOutput.Reset()
 	tracer, transport := transporttest.NewRecorderTracer()
