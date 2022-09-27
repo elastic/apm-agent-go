@@ -83,6 +83,9 @@ func NewUnaryClientInterceptor(o ...ClientOption) grpc.UnaryClientInterceptor {
 					Resource: url.Host,
 				})
 			}
+			span.Context.SetServiceTarget(apm.ServiceTargetSpanContext{
+				Name: url.Host,
+			})
 		}
 		return err
 	}
