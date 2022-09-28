@@ -181,7 +181,9 @@ type driverConnector struct {
 }
 
 func (d *driverConnector) Connect(ctx context.Context) (driver.Conn, error) {
-	span, ctx := apm.StartSpan(ctx, "connect", d.driver.connectSpanType)
+	span, ctx := apm.StartSpanOptions(ctx, "connect", d.driver.connectSpanType, apm.SpanOptions{
+		ExitSpan: true,
+	})
 	defer span.End()
 	dsnInfo := d.driver.dsnParser(d.name)
 	if !span.Dropped() {
