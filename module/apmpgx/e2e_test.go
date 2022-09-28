@@ -117,15 +117,12 @@ func Test_E2E_QueryTrace(t *testing.T) {
 }
 
 func Test_E2E_CopyTrace(t *testing.T) {
-	//host := os.Getenv("PGHOST")
-	//if host == "" {
-	//	t.Skipf("PGHOST not specified")
-	//}
-	//
-	//cfg, err := pgx.ParseConfig(fmt.Sprintf("postgres://postgres:hunter2@%s:5432/test_db", host))
-	//require.NoError(t, err)
+	host := os.Getenv("PGHOST")
+	if host == "" {
+		t.Skipf("PGHOST not specified")
+	}
 
-	cfg, err := pgx.ParseConfig("postgres://postgres:password@localhost:5432/playground")
+	cfg, err := pgx.ParseConfig(fmt.Sprintf("postgres://postgres:hunter2@%s:5432/test_db", host))
 	require.NoError(t, err)
 
 	ctx := context.TODO()
