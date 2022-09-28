@@ -77,7 +77,7 @@ func TestConnWithTimeout(t *testing.T) {
 
 func TestWrapPipeline(t *testing.T) {
 	var conn mockConnWithTimeout
-	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+	_, spans, _ := apmtest.WithUncompressedTransaction(func(ctx context.Context) {
 		conn := apmredigo.Wrap(conn).WithContext(ctx)
 		conn.Do("")
 		redis.DoWithTimeout(conn, time.Second, "")
