@@ -222,6 +222,9 @@ func (c *SpanContext) SetHTTPRequest(req *http.Request) {
 		Name:     destinationServiceURL.String(),
 		Resource: destinationServiceResource,
 	})
+	c.SetServiceTarget(ServiceTargetSpanContext{
+		Name: destinationServiceResource,
+	})
 }
 
 // SetHTTPStatusCode records the HTTP response status code.

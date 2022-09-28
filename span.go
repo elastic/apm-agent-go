@@ -55,6 +55,27 @@ func (tx *Transaction) StartSpan(name, spanType string, parent *Span) *Span {
 	})
 }
 
+// StartExitSpan starts and returns a new Span within the transaction,
+// with the specified name, type, and optional parent span, and
+// with the start time set to the current time.
+//
+// StartExitSpan always returns a non-nil Span, with a non-nil SpanData
+// field. Its End method must be called when the span completes.
+//
+// If the span type contains two dots, they are assumed to separate
+// the span type, subtype, and action; a single dot separates span
+// type and subtype, and the action will not be set.
+//
+// StartExitSpan is equivalent to calling StartSpanOptions with
+// SpanOptions.Parent set to the trace context of parent if
+// parent is non-nil and the span being marked as an exit span.
+func (tx *Transaction) StartExitSpan(name, spanType string, parent *Span) *Span {
+	return tx.StartSpanOptions(name, spanType, SpanOptions{
+		parent:   parent,
+		ExitSpan: true,
+	})
+}
+
 // StartSpanOptions starts and returns a new Span within the transaction,
 // with the specified name, type, and options.
 //
@@ -65,7 +86,7 @@ func (tx *Transaction) StartSpan(name, spanType string, parent *Span) *Span {
 // span type, subtype, and action; a single dot separates span type and
 // subtype, and the action will not be set.
 func (tx *Transaction) StartSpanOptions(name, spanType string, opts SpanOptions) *Span {
-	if tx == nil || opts.parent.IsExitSpan() {
+	if tx == nil {
 		return newDroppedSpan()
 	}
 
@@ -345,16 +366,24 @@ func (s *Span) End() {
 	if s.Type == "" {
 		s.Type = "custom"
 	}
+	if s.parent.IsExitSpan() {
+		s.Context.model.Destination = nil
+		s.Context.model.Service = nil
+
+		if s.Type != s.parent.Type || s.Subtype != s.parent.Subtype {
+			s.dropWhen(true)
+			s.end()
+			return
+		}
+	}
 	if s.exit && !s.Context.setDestinationServiceCalled {
 		// The span was created as an exit span, but the user did not
 		// manually set the destination.service.resource
 		s.setExitSpanDestinationService()
 	}
-	if s.exit {
-		// The span was created as an exit span, but the user did not
-		// manually set the service.target fields.
-		s.setExitSpanServiceTarget()
-	}
+
+	s.updateSpanServiceTarget()
+
 	if s.Duration < 0 {
 		s.Duration = time.Since(s.timestamp)
 	}
@@ -495,7 +524,13 @@ func (s *Span) setExitSpanDestinationService() {
 	})
 }
 
-func (s *Span) setExitSpanServiceTarget() {
+func (s *Span) updateSpanServiceTarget() {
+	if !s.exit {
+		// span.context.service.target.* fields should be omitted for non-exit spans.
+		s.Context.model.Service = nil
+		return
+	}
+
 	fallbackType := s.Subtype
 	if fallbackType == "" {
 		fallbackType = s.Type

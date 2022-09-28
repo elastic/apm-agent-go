@@ -102,7 +102,7 @@ func build(req *request.Request) {
 
 	// The span name is added in the `send()` function, after other
 	// handlers have generated the necessary information on the request.
-	span := tx.StartSpan("", spanType, apm.SpanFromContext(ctx))
+	span := tx.StartExitSpan("", spanType, apm.SpanFromContext(ctx))
 	if span.Dropped() {
 		span.End()
 		return

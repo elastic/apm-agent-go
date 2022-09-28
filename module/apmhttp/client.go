@@ -104,7 +104,7 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	name := r.requestName(req)
-	span := tx.StartSpan(name, r.spanType, apm.SpanFromContext(ctx))
+	span := tx.StartExitSpan(name, r.spanType, apm.SpanFromContext(ctx))
 	var rt *requestTracer
 	if !span.Dropped() {
 		traceContext = span.TraceContext()
