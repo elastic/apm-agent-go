@@ -105,7 +105,9 @@ func TestSpanContextSetHTTPRequest(t *testing.T) {
 			require.NoError(t, err)
 
 			_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
-				span, _ := apm.StartSpan(ctx, "name", "type")
+				span, _ := apm.StartSpanOptions(ctx, "name", "http", apm.SpanOptions{
+					ExitSpan: true,
+				})
 				span.Context.SetHTTPRequest(&http.Request{URL: url})
 				span.End()
 			})
@@ -120,6 +122,10 @@ func TestSpanContextSetHTTPRequest(t *testing.T) {
 					Resource: tc.resource,
 				},
 			}, spans[0].Context.Destination)
+			assert.Equal(t, &model.ServiceTargetSpanContext{
+				Type: "http",
+				Name: tc.resource,
+			}, spans[0].Context.Service.Target)
 		})
 	}
 }
