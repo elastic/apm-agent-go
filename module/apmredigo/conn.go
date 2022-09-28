@@ -106,7 +106,9 @@ func DoWithTimeout(ctx context.Context, conn redis.Conn, timeout time.Duration, 
 	if spanName == "" {
 		spanName = "(flush pipeline)"
 	}
-	span, _ := apm.StartSpan(ctx, spanName, "db.redis")
+	span, _ := apm.StartSpanOptions(ctx, spanName, "db.redis", apm.SpanOptions{
+		ExitSpan: true,
+	})
 	defer span.End()
 	return redis.DoWithTimeout(conn, timeout, commandName, args...)
 }
