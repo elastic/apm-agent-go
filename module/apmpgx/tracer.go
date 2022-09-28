@@ -112,10 +112,20 @@ func (t *tracer) CopyTrace(ctx context.Context, data map[string]interface{}) {
 		return
 	}
 
+	columnNames, ok := data["columnNames"].([]string)
+	if !ok {
+		return
+	}
+
+	statement := fmt.Sprintf("COPY TO %s(%s)",
+		strings.Join(tableName, ", "),
+		strings.Join(columnNames, ", "),
+	)
+
 	span, ok := t.startSpan(ctx,
 		fmt.Sprintf("COPY TO %s", strings.Join(tableName, ", ")),
 		copySpanType,
-		"",
+		statement,
 		data,
 	)
 	if !ok {
