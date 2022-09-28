@@ -20,15 +20,17 @@ package apmpgx_test
 import (
 	"context"
 	"fmt"
-	"github.com/jackc/pgx/v4"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"go.elastic.co/apm/module/apmpgx/v2"
-	"go.elastic.co/apm/v2/apmtest"
-	"go.elastic.co/apm/v2/model"
 	"os"
 	_ "os"
 	"testing"
+
+	"github.com/jackc/pgx/v4"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"go.elastic.co/apm/module/apmpgx/v2"
+	"go.elastic.co/apm/v2/apmtest"
+	"go.elastic.co/apm/v2/model"
 )
 
 func Test_E2E_QueryTrace(t *testing.T) {
@@ -115,12 +117,15 @@ func Test_E2E_QueryTrace(t *testing.T) {
 }
 
 func Test_E2E_CopyTrace(t *testing.T) {
-	host := os.Getenv("PGHOST")
-	if host == "" {
-		t.Skipf("PGHOST not specified")
-	}
+	//host := os.Getenv("PGHOST")
+	//if host == "" {
+	//	t.Skipf("PGHOST not specified")
+	//}
+	//
+	//cfg, err := pgx.ParseConfig(fmt.Sprintf("postgres://postgres:hunter2@%s:5432/test_db", host))
+	//require.NoError(t, err)
 
-	cfg, err := pgx.ParseConfig(fmt.Sprintf("postgres://postgres:hunter2@%s:5432/test_db", host))
+	cfg, err := pgx.ParseConfig("postgres://postgres:password@localhost:5432/playground")
 	require.NoError(t, err)
 
 	ctx := context.TODO()
@@ -199,7 +204,7 @@ func Test_E2E_CopyTrace(t *testing.T) {
 					},
 					Database: &model.DatabaseSpanContext{
 						Instance:  cfg.Database,
-						Statement: "",
+						Statement: "COPY TO foo(bar)",
 						Type:      "sql",
 						User:      "postgres",
 					},
