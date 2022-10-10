@@ -160,6 +160,7 @@ var benchmarkPatterns = []string{
 	"*session*",
 	"*credit*",
 	"*card*",
+	"*principal*",
 }
 
 func BenchmarkWildcardMatcher(b *testing.B) {
