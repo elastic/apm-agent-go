@@ -33,6 +33,7 @@ import (
 	_ "go.elastic.co/apm/module/apmgorm/v2/dialects/sqlite"
 	"go.elastic.co/apm/module/apmsql/v2"
 	"go.elastic.co/apm/v2/apmtest"
+	"go.elastic.co/apm/v2/model"
 )
 
 type Product struct {
@@ -83,7 +84,7 @@ func TestWithContext(t *testing.T) {
 }
 
 func testWithContext(t *testing.T, dsnInfo apmsql.DSNInfo, dialect string, args ...interface{}) {
-	_, spans, errors := apmtest.WithTransaction(func(ctx context.Context) {
+	_, spans, errors := apmtest.WithUncompressedTransaction(func(ctx context.Context) {
 		db, err := apmgorm.Open(dialect, args...)
 		require.NoError(t, err)
 		defer db.Close()
@@ -114,12 +115,15 @@ func testWithContext(t *testing.T, dsnInfo apmsql.DSNInfo, dialect string, args 
 		assert.NotEmpty(t, span.Context.Database.Statement)
 		assert.Equal(t, "sql", span.Context.Database.Type)
 		assert.Equal(t, dsnInfo.User, span.Context.Database.User)
-		if dsnInfo.Address == "" {
-			assert.Nil(t, span.Context.Destination)
-		} else {
-			assert.Equal(t, dsnInfo.Address, span.Context.Destination.Address)
-			assert.Equal(t, dsnInfo.Port, span.Context.Destination.Port)
-		}
+		require.NotNil(t, span.Context.Destination)
+		assert.Equal(t, &model.DestinationSpanContext{
+			Address: dsnInfo.Address, // might be ""
+			Port:    dsnInfo.Port,    // might be ""
+			Service: &model.DestinationServiceSpanContext{
+				Type:     "db",
+				Resource: "sqlite3",
+			},
+		}, span.Context.Destination)
 	}
 	assert.Equal(t, []string{
 		"INSERT INTO products",
@@ -157,7 +161,7 @@ func TestWithContextNonSampled(t *testing.T) {
 	db.DropTableIfExists(&Product{})
 	db.AutoMigrate(&Product{})
 
-	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+	_, spans, _ := apmtest.WithUncompressedTransaction(func(ctx context.Context) {
 		db = apmgorm.WithContext(ctx, db)
 		db.Create(&Product{Code: "L1212", Price: 1000})
 	})
@@ -189,7 +193,7 @@ func testCaptureErrors(t *testing.T, db *gorm.DB) {
 	db.DropTableIfExists(&Product{})
 	db.AutoMigrate(&Product{})
 
-	_, spans, errors := apmtest.WithTransaction(func(ctx context.Context) {
+	_, spans, errors := apmtest.WithUncompressedTransaction(func(ctx context.Context) {
 		db = apmgorm.WithContext(ctx, db)
 
 		// gorm.ErrRecordNotFound should not cause an error
@@ -224,7 +228,7 @@ func TestOpenWithDriver(t *testing.T) {
 	db.DropTableIfExists(&Product{})
 	db.AutoMigrate(&Product{})
 
-	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+	_, spans, _ := apmtest.WithUncompressedTransaction(func(ctx context.Context) {
 		db = apmgorm.WithContext(ctx, db)
 		db.Create(&Product{Code: "L1212", Price: 1000})
 	})
@@ -243,7 +247,7 @@ func TestOpenWithDB(t *testing.T) {
 	db.DropTableIfExists(&Product{})
 	db.AutoMigrate(&Product{})
 
-	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+	_, spans, _ := apmtest.WithUncompressedTransaction(func(ctx context.Context) {
 		db = apmgorm.WithContext(ctx, db)
 		db.Create(&Product{Code: "L1212", Price: 1000})
 	})

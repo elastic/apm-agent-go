@@ -110,7 +110,9 @@ func newBeforeCallback(spanType string) func(*gorm.Scope) {
 		if !ok {
 			return
 		}
-		span, ctx := apm.StartSpan(ctx, "", spanType)
+		span, ctx := apm.StartSpanOptions(ctx, "", spanType, apm.SpanOptions{
+			ExitSpan: true,
+		})
 		if span.Dropped() {
 			span.End()
 			ctx = nil

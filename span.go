@@ -370,6 +370,9 @@ func (s *Span) End() {
 		s.Context.model.Destination = nil
 		s.Context.model.Service = nil
 
+		// BUG(axw) s.parent.SpanData must be accessed with s.parent.mu held.
+		// Even then, s.parent.SpanData will be nil if ended, so we need to
+		// find an alternative approach.
 		if s.Type != s.parent.Type || s.Subtype != s.parent.Subtype {
 			s.dropWhen(true)
 			s.end()

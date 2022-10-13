@@ -74,6 +74,18 @@ func TestQueryObserver(t *testing.T) {
 			Instance:  "quay ",
 			Statement: "SELECT * FROM foo.bar",
 		},
+		Destination: &model.DestinationSpanContext{
+			Service: &model.DestinationServiceSpanContext{
+				Type:     "db",
+				Resource: "cassandra",
+			},
+		},
+		Service: &model.ServiceSpanContext{
+			Target: &model.ServiceTargetSpanContext{
+				Type: "cassandra",
+				Name: "quay ",
+			},
+		},
 	}, spans[0].Context)
 
 	require.Len(t, errors, 1)

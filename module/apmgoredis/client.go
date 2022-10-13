@@ -148,7 +148,9 @@ func process(ctx context.Context) func(oldProcess func(cmd redis.Cmder) error) f
 	return func(oldProcess func(cmd redis.Cmder) error) func(cmd redis.Cmder) error {
 		return func(cmd redis.Cmder) error {
 			spanName := strings.ToUpper(cmd.Name())
-			span, _ := apm.StartSpan(ctx, spanName, "db.redis")
+			span, _ := apm.StartSpanOptions(ctx, spanName, "db.redis", apm.SpanOptions{
+				ExitSpan: true,
+			})
 			defer span.End()
 
 			return oldProcess(cmd)
@@ -159,7 +161,10 @@ func process(ctx context.Context) func(oldProcess func(cmd redis.Cmder) error) f
 func processPipeline(ctx context.Context) func(oldProcess func(cmds []redis.Cmder) error) func(cmds []redis.Cmder) error {
 	return func(oldProcess func(cmds []redis.Cmder) error) func(cmds []redis.Cmder) error {
 		return func(cmds []redis.Cmder) error {
-			pipelineSpan, ctx := apm.StartSpan(ctx, "(pipeline)", "db.redis")
+			pipelineSpan, ctx := apm.StartSpanOptions(ctx, "(pipeline)", "db.redis", apm.SpanOptions{
+				ExitSpan: true,
+			})
+			defer pipelineSpan.End()
 
 			for i := len(cmds); i > 0; i-- {
 				cmdName := strings.ToUpper(cmds[i-1].Name())
@@ -170,8 +175,6 @@ func processPipeline(ctx context.Context) func(oldProcess func(cmds []redis.Cmde
 				span, _ := apm.StartSpan(ctx, cmdName, "db.redis")
 				defer span.End()
 			}
-
-			defer pipelineSpan.End()
 
 			return oldProcess(cmds)
 		}
