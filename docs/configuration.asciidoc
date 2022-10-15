@@ -279,7 +279,7 @@ version of the agent.
 [options="header"]
 |============
 | Environment                        | Default                                                                                                | Example
-| `ELASTIC_APM_SANITIZE_FIELD_NAMES` | `password, passwd, pwd, secret, *key, *token*, *session*, *credit*, *card*, *auth*, set-cookie` | `sekrits`
+| `ELASTIC_APM_SANITIZE_FIELD_NAMES` | `password, passwd, pwd, secret, *key, *token*, *session*, *credit*, *card*, *auth*, set-cookie, *principal*` | `sekrits`
 |============
 
 A list of patterns to match the names of HTTP headers, cookies, and POST form fields to redact.
