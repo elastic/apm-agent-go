@@ -239,7 +239,8 @@ func TestStartExitSpan(t *testing.T) {
 	span := tx.StartSpanOptions("name", "type", apm.SpanOptions{ExitSpan: true})
 	assert.True(t, span.IsExitSpan())
 
-	// when the parent span is an exit span, any children should be noops.
+	// when the parent span is an exit span, children with a different type or
+	// subtype should be noops.
 	span2 := tx.StartSpan("name", "differenttype", span)
 	span2.End()
 	assert.True(t, span2.Dropped())
@@ -254,6 +255,12 @@ func TestStartExitSpan(t *testing.T) {
 	// Spans should still be marked as an exit span after they've been
 	// ended.
 	assert.True(t, span.IsExitSpan())
+
+	// Even ended exit spans MAY have child spans that have the same
+	// `type` and `subtype`.
+	span4 := tx.StartSpan("name", "type", span)
+	span4.End()
+	assert.False(t, span4.Dropped())
 }
 
 func TestSpanStackTraceMinDurationSpecialCases(t *testing.T) {
