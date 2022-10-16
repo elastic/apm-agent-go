@@ -112,7 +112,7 @@ func (t *tracer) CopyTrace(ctx context.Context, data map[string]interface{}) {
 		return
 	}
 
-	columnNames, ok := data["columnNames"].([]string)
+	columnNames, ok := data["columnNames"].(pgx.Identifier)
 	if !ok {
 		return
 	}
