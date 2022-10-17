@@ -121,7 +121,7 @@ func testWithContext(t *testing.T, dsnInfo apmsql.DSNInfo, dialect string, args 
 			Port:    dsnInfo.Port,    // might be ""
 			Service: &model.DestinationServiceSpanContext{
 				Type:     "db",
-				Resource: "sqlite3",
+				Resource: span.Subtype,
 			},
 		}, span.Context.Destination)
 	}
