@@ -87,7 +87,7 @@ func TestWrap(t *testing.T) {
 		t.Run(fmt.Sprintf("test %d", i), func(t *testing.T) {
 			client := testCase.client
 
-			_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+			_, spans, _ := apmtest.WithUncompressedTransaction(func(ctx context.Context) {
 				client := apmgoredis.Wrap(client).WithContext(ctx)
 				client.Ping()
 			})
@@ -113,7 +113,7 @@ func TestWithContext(t *testing.T) {
 				client.Ping()
 			}
 
-			_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+			_, spans, _ := apmtest.WithUncompressedTransaction(func(ctx context.Context) {
 				client := apmgoredis.Wrap(client)
 				ping(ctx, client)
 			})
@@ -131,7 +131,7 @@ func TestWrapPipeline(t *testing.T) {
 		t.Run(fmt.Sprintf("test %d", i), func(t *testing.T) {
 			client := testCase.client
 
-			_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+			_, spans, _ := apmtest.WithUncompressedTransaction(func(ctx context.Context) {
 				client := apmgoredis.Wrap(client).WithContext(ctx)
 				pipe := client.Pipeline()
 				pipe.Do("")
@@ -140,9 +140,9 @@ func TestWrapPipeline(t *testing.T) {
 			})
 
 			require.Len(t, spans, 3)
-			assert.Equal(t, "(pipeline)", spans[0].Name)
+			assert.Equal(t, "(empty command)", spans[0].Name)
 			assert.Equal(t, "(empty command)", spans[1].Name)
-			assert.Equal(t, "(empty command)", spans[2].Name)
+			assert.Equal(t, "(pipeline)", spans[2].Name)
 		})
 	}
 }
@@ -156,7 +156,7 @@ func TestWrapPipelineTransaction(t *testing.T) {
 
 			client := testCase.client
 
-			_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+			_, spans, _ := apmtest.WithUncompressedTransaction(func(ctx context.Context) {
 				client := apmgoredis.Wrap(client).WithContext(ctx)
 				pipe := client.TxPipeline()
 				pipe.Do("")
@@ -165,9 +165,9 @@ func TestWrapPipelineTransaction(t *testing.T) {
 			})
 
 			require.Len(t, spans, 3)
-			assert.Equal(t, "(pipeline)", spans[0].Name)
+			assert.Equal(t, "(empty command)", spans[0].Name)
 			assert.Equal(t, "(empty command)", spans[1].Name)
-			assert.Equal(t, "(empty command)", spans[2].Name)
+			assert.Equal(t, "(pipeline)", spans[2].Name)
 		})
 	}
 }
@@ -177,7 +177,7 @@ func TestWrapPipelined(t *testing.T) {
 		t.Run(fmt.Sprintf("test %d", i), func(t *testing.T) {
 			client := testCase.client
 
-			_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+			_, spans, _ := apmtest.WithUncompressedTransaction(func(ctx context.Context) {
 				client := apmgoredis.Wrap(client).WithContext(ctx)
 
 				client.Pipelined(func(pipe redis.Pipeliner) error {
@@ -190,10 +190,10 @@ func TestWrapPipelined(t *testing.T) {
 			})
 
 			require.Len(t, spans, 4)
-			assert.Equal(t, "(pipeline)", spans[0].Name)
-			assert.Equal(t, "SET", spans[1].Name)
-			assert.Equal(t, "GET", spans[2].Name)
-			assert.Equal(t, "FLUSHDB", spans[3].Name)
+			assert.Equal(t, "SET", spans[0].Name)
+			assert.Equal(t, "GET", spans[1].Name)
+			assert.Equal(t, "FLUSHDB", spans[2].Name)
+			assert.Equal(t, "(pipeline)", spans[3].Name)
 		})
 	}
 }
@@ -207,7 +207,7 @@ func TestWrapPipelinedTransaction(t *testing.T) {
 
 			client := testCase.client
 
-			_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
+			_, spans, _ := apmtest.WithUncompressedTransaction(func(ctx context.Context) {
 				client := apmgoredis.Wrap(client).WithContext(ctx)
 
 				client.TxPipelined(func(pipe redis.Pipeliner) error {
@@ -220,10 +220,10 @@ func TestWrapPipelinedTransaction(t *testing.T) {
 			})
 
 			require.Len(t, spans, 4)
-			assert.Equal(t, "(pipeline)", spans[0].Name)
-			assert.Equal(t, "SET", spans[1].Name)
-			assert.Equal(t, "GET", spans[2].Name)
-			assert.Equal(t, "FLUSHDB", spans[3].Name)
+			assert.Equal(t, "SET", spans[0].Name)
+			assert.Equal(t, "GET", spans[1].Name)
+			assert.Equal(t, "FLUSHDB", spans[2].Name)
+			assert.Equal(t, "(pipeline)", spans[3].Name)
 		})
 	}
 }

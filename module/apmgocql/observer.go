@@ -87,7 +87,8 @@ func (o *Observer) ObserveBatch(ctx context.Context, batch gocql.ObservedBatch) 
 // ObserveQuery observes query results, and creates spans for them.
 func (o *Observer) ObserveQuery(ctx context.Context, query gocql.ObservedQuery) {
 	span, _ := apm.StartSpanOptions(ctx, querySignature(query.Statement), "db.cassandra.query", apm.SpanOptions{
-		Start: query.Start,
+		Start:    query.Start,
+		ExitSpan: true,
 	})
 	span.Duration = query.End.Sub(query.Start)
 	span.Context.SetDatabase(apm.DatabaseSpanContext{
