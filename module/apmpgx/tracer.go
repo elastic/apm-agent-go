@@ -112,8 +112,14 @@ func (t *tracer) CopyTrace(ctx context.Context, data map[string]interface{}) {
 		return
 	}
 
-	columnNames, ok := data["columnNames"].(pgx.Identifier)
-	if !ok {
+	var columnNames []string
+
+	switch data["columnNames"].(type) {
+	case pgx.Identifier:
+		columnNames = data["columnNames"].(pgx.Identifier)
+	case []string:
+		columnNames = data["columnNames"].([]string)
+	default:
 		return
 	}
 
