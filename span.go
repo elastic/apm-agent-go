@@ -295,6 +295,12 @@ type Span struct {
 	// SpanData holds the span data. This field is set to nil when
 	// the span's End method is called.
 	*SpanData
+
+	// finalType and finalSubtype are set to SpanData.Type and SpanData.Subtype
+	// respectively when the span is ended. This is necessary for filtering out
+	// child spans of exit spans that have non-matching type/subtype.
+	finalType    string
+	finalSubtype string
 }
 
 // TraceContext returns the span's TraceContext.
@@ -366,11 +372,30 @@ func (s *Span) End() {
 	if s.Type == "" {
 		s.Type = "custom"
 	}
+	// Store the span type and subtype on the Span struct so we can filter
+	// out child spans of exit spans with non-matching type/subtype below.
+	s.finalType = s.Type
+	s.finalSubtype = s.Subtype
+
 	if s.parent.IsExitSpan() {
+		// Children of exit spans must not have service destination/target
+		// context, as otherwise service destination metrics will be double
+		// counted.
 		s.Context.model.Destination = nil
 		s.Context.model.Service = nil
 
-		if s.Type != s.parent.Type || s.Subtype != s.parent.Subtype {
+		var parentType, parentSubtype string
+		s.parent.mu.RLock()
+		if s.parent.ended() {
+			parentType = s.parent.finalType
+			parentSubtype = s.parent.finalSubtype
+		} else {
+			parentType = s.parent.Type
+			parentSubtype = s.parent.Subtype
+		}
+		s.parent.mu.RUnlock()
+
+		if s.Type != parentType || s.Subtype != parentSubtype {
 			s.dropWhen(true)
 			s.end()
 			return
