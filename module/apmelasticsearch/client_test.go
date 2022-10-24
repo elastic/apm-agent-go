@@ -22,11 +22,11 @@ import (
 	"compress/gzip"
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -310,29 +310,22 @@ func TestDestination(t *testing.T) {
 }
 
 func TestServiceTarget(t *testing.T) {
+	baseURL := "https://testing.invalid:9200"
 	var foundHandlingCluster string
 	var requestError error
-	var nodesInfoResponse string
-	var nodesInfoError error
-
-	baseURL := "https://testing.invalid:9200"
 	var requestPaths []string
 	var rt roundTripperFunc = func(req *http.Request) (*http.Response, error) {
 		requestPaths = append(requestPaths, req.URL.Path)
-		assert.Equal(t, baseURL+req.URL.Path, req.URL.String())
-
+		if requestError != nil {
+			return nil, requestError
+		}
 		rec := httptest.NewRecorder()
-		if req.URL.Path == "/_nodes/http" {
-			if nodesInfoError != nil {
-				return nil, nodesInfoError
-			}
-			rec.Body.WriteString(nodesInfoResponse)
-		} else {
+		if foundHandlingCluster != "" {
 			rec.Header().Add("x-found-handling-cluster", foundHandlingCluster)
 		}
 		res := rec.Result()
 		res.Request = req
-		return res, requestError
+		return res, nil
 	}
 	client := &http.Client{Transport: apmelasticsearch.WrapRoundTripper(rt)}
 
@@ -345,40 +338,23 @@ func TestServiceTarget(t *testing.T) {
 		}
 		_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
 			resp, err := client.Do(req.WithContext(ctx))
-			assert.NoError(t, err)
-			resp.Body.Close()
+			if requestError != nil {
+				expectedError := &url.Error{Op: "Get", URL: req.URL.String(), Err: requestError}
+				assert.EqualError(t, err, expectedError.Error())
+			} else {
+				assert.NoError(t, err)
+			}
+			if err == nil {
+				resp.Body.Close()
+			}
 		})
 		require.Len(t, spans, 1)
 		return spans[0].Context.Service.Target
 	}
 
-	// No X-Found-Handling-Cluster, empty/invalid response from /_nodes/http is cached.
+	// No X-Found-Handling-Cluster: no cluster name recorded.
 	assert.Equal(t, &model.ServiceTargetSpanContext{Type: "elasticsearch"}, doRequest())
-	assert.Equal(t, &model.ServiceTargetSpanContext{Type: "elasticsearch"}, doRequest())
-	assert.Equal(t, []string{"/_search", "/_nodes/http", "/_search"}, requestPaths)
-	requestPaths = nil
-
-	// Error querying /_nodes/http (different host) is cached.
-	baseURL = "https://testing2.invalid:9200"
-	nodesInfoError = errors.New("nope")
-	assert.Equal(t, &model.ServiceTargetSpanContext{Type: "elasticsearch"}, doRequest())
-	assert.Equal(t, &model.ServiceTargetSpanContext{Type: "elasticsearch"}, doRequest())
-	assert.Equal(t, []string{"/_search", "/_nodes/http", "/_search"}, requestPaths)
-	requestPaths = nil
-
-	// Valid response from /_nodes/http (different host again) is cached.
-	overrideHost = "testing3.invalid:9200"
-	nodesInfoError = nil
-	nodesInfoResponse = `{"cluster_name":"nodes_info_cluster_name"}`
-	assert.Equal(t, &model.ServiceTargetSpanContext{
-		Type: "elasticsearch",
-		Name: "nodes_info_cluster_name",
-	}, doRequest())
-	assert.Equal(t, &model.ServiceTargetSpanContext{
-		Type: "elasticsearch",
-		Name: "nodes_info_cluster_name",
-	}, doRequest())
-	assert.Equal(t, []string{"/_search", "/_nodes/http", "/_search"}, requestPaths)
+	assert.Equal(t, []string{"/_search"}, requestPaths)
 	requestPaths = nil
 
 	// X-Found-Handling-Cluster specified.
@@ -389,55 +365,12 @@ func TestServiceTarget(t *testing.T) {
 	}, doRequest())
 	assert.Equal(t, []string{"/_search"}, requestPaths)
 	requestPaths = nil
-}
 
-func TestServiceTargetCaching(t *testing.T) {
-	nodesInfoQueries := make(map[string]int)
-	var rt roundTripperFunc = func(req *http.Request) (*http.Response, error) {
-		rec := httptest.NewRecorder()
-		if req.URL.Path == "/_nodes/http" {
-			nodesInfoQueries[req.URL.Host]++
-		}
-		res := rec.Result()
-		res.Request = req
-		return res, nil
-	}
-	client := &http.Client{Transport: apmelasticsearch.WrapRoundTripper(rt)}
-
-	const N = 3
-	expectedNodesInfoQueries := make(map[string]int)
-	hosts := make([]string, 101)
-	for i := range hosts {
-		host := fmt.Sprintf("host_%d", i)
-		hosts[i] = host
-		expectedNodesInfoQueries[host] = N
-	}
-
-	tracer := apmtest.NewDiscardTracer()
-	defer tracer.Flush(nil)
-	tracer.SetMaxSpans(2 * N * len(hosts))
-	tx := tracer.StartTransaction("name", "type")
-	defer tx.Discard()
-	ctx := apm.ContextWithTransaction(context.Background(), tx)
-
-	// Each iteration of the outer loop for i>0 will evict
-	// a host from the LRU, as there are more hosts than
-	// the LRU size.
-	for i := 0; i < N; i++ {
-		for _, host := range hosts {
-			// The second iteration of the loop below will reuse
-			// the existing cache entry.
-			for i := 0; i < 2; i++ {
-				url := fmt.Sprintf("https://%s/_search", host)
-				req, err := http.NewRequest("GET", url, nil)
-				require.NoError(t, err)
-				resp, err := client.Do(req.WithContext(ctx))
-				assert.NoError(t, err)
-				resp.Body.Close()
-			}
-		}
-	}
-	assert.Equal(t, expectedNodesInfoQueries, nodesInfoQueries)
+	// Search request returned an error: no cluster name recorded.
+	requestError = errors.New("boom")
+	assert.Equal(t, &model.ServiceTargetSpanContext{Type: "elasticsearch"}, doRequest())
+	assert.Equal(t, []string{"/_search"}, requestPaths)
+	requestPaths = nil
 }
 
 func TestTraceHeaders(t *testing.T) {
