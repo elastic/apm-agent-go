@@ -74,6 +74,18 @@ func TestQueryObserver(t *testing.T) {
 			Instance:  "quay ",
 			Statement: "SELECT * FROM foo.bar",
 		},
+		Destination: &model.DestinationSpanContext{
+			Service: &model.DestinationServiceSpanContext{
+				Type:     "db",
+				Resource: "cassandra",
+			},
+		},
+		Service: &model.ServiceSpanContext{
+			Target: &model.ServiceTargetSpanContext{
+				Type: "cassandra",
+				Name: "quay ",
+			},
+		},
 	}, spans[0].Context)
 
 	require.Len(t, errors, 1)
@@ -170,6 +182,17 @@ func TestQueryObserverIntegration(t *testing.T) {
 		Database: &model.DatabaseSpanContext{
 			Type:      "cassandra",
 			Statement: createKeyspaceStatement,
+		},
+		Destination: &model.DestinationSpanContext{
+			Service: &model.DestinationServiceSpanContext{
+				Type:     "db",
+				Resource: "cassandra",
+			},
+		},
+		Service: &model.ServiceSpanContext{
+			Target: &model.ServiceTargetSpanContext{
+				Type: "cassandra",
+			},
 		},
 	}, spans[0].Context)
 	assert.Equal(t, "CREATE", spans[1].Name)
