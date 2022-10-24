@@ -71,14 +71,12 @@ func TestElastic(t *testing.T) {
 	assert.Equal(t, "", spans[0].Action)
 	assert.Equal(t, &model.SpanContext{
 		Database: &model.DatabaseSpanContext{
-			Instance:  "docker-cluster",
 			Type:      "elasticsearch",
 			Statement: `{"query":{"match_all":{}}}`,
 		},
 		Service: &model.ServiceSpanContext{
 			Target: &model.ServiceTargetSpanContext{
 				Type: "elasticsearch",
-				Name: "docker-cluster",
 			},
 		},
 		HTTP: &model.HTTPSpanContext{
