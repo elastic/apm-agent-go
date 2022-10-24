@@ -111,10 +111,10 @@ func TestPipelined(t *testing.T) {
 			})
 
 			require.Len(t, spans, 4)
-			assert.Equal(t, "(pipeline)", spans[0].Name)
-			assert.Equal(t, "SET", spans[1].Name)
-			assert.Equal(t, "GET", spans[2].Name)
-			assert.Equal(t, "FLUSHDB", spans[3].Name)
+			assert.Equal(t, "SET", spans[0].Name)
+			assert.Equal(t, "GET", spans[1].Name)
+			assert.Equal(t, "FLUSHDB", spans[2].Name)
+			assert.Equal(t, "(pipeline)", spans[3].Name)
 		})
 	}
 }
@@ -151,10 +151,10 @@ func TestPipeline(t *testing.T) {
 			})
 
 			require.Len(t, spans, 4)
-			assert.Equal(t, "(pipeline)", spans[0].Name)
-			assert.Equal(t, "SET", spans[1].Name)
-			assert.Equal(t, "GET", spans[2].Name)
-			assert.Equal(t, "FLUSHDB", spans[3].Name)
+			assert.Equal(t, "SET", spans[0].Name)
+			assert.Equal(t, "GET", spans[1].Name)
+			assert.Equal(t, "FLUSHDB", spans[2].Name)
+			assert.Equal(t, "(pipeline)", spans[3].Name)
 		})
 	}
 }
@@ -203,10 +203,10 @@ func TestPipelinedTransaction(t *testing.T) {
 			})
 
 			require.Len(t, spans, 4)
-			assert.Equal(t, "(pipeline)", spans[0].Name)
+			assert.Equal(t, "INCR", spans[0].Name)
 			assert.Equal(t, "INCR", spans[1].Name)
 			assert.Equal(t, "INCR", spans[2].Name)
-			assert.Equal(t, "INCR", spans[3].Name)
+			assert.Equal(t, "(pipeline)", spans[3].Name)
 		})
 	}
 }
@@ -251,10 +251,10 @@ func TestPipelineTransaction(t *testing.T) {
 			})
 
 			require.Len(t, spans, 4)
-			assert.Equal(t, "(pipeline)", spans[0].Name)
+			assert.Equal(t, "INCR", spans[0].Name)
 			assert.Equal(t, "INCR", spans[1].Name)
 			assert.Equal(t, "INCR", spans[2].Name)
-			assert.Equal(t, "INCR", spans[3].Name)
+			assert.Equal(t, "(pipeline)", spans[3].Name)
 		})
 	}
 }
