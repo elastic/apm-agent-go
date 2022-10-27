@@ -206,6 +206,11 @@ func (c *conn) CheckNamedValue(nv *driver.NamedValue) error {
 	return checkNamedValue(nv, c.namedValueChecker)
 }
 
+// Unwrap returns the wrapped database/sql/driver.Conn.
+func (c *conn) Unwrap() driver.Conn {
+	return c.Conn
+}
+
 type connBeginTx struct {
 	*conn
 	connBeginTx driver.ConnBeginTx
