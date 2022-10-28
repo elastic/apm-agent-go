@@ -25,7 +25,7 @@ func TestConnUnwrap(t *testing.T) {
 	conn, err := db.Conn(ctx)
 	_ = conn.Raw(func(driverConn interface{}) error {
 		unwrappedConn := driverConn.(Unwrapper)
-		require.Equal(t, "*apmsql.connBeginTx", fmt.Sprintf("%T", unwrappedConn))
+		require.Equal(t, "*sqlite3.SQLiteConn", fmt.Sprintf("%T", unwrappedConn.Unwrap()))
 		return nil
 	})
 }
