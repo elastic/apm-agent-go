@@ -80,8 +80,11 @@ func (b BatchTracer) TraceBatchEnd(ctx context.Context, conn *pgx.Conn, data pgx
 		return
 	}
 
-	span.Context.SetDestinationAddress(conn.Config().Host, int(conn.Config().Port))
-	span.Action = "batch"
+	// check if span is ended or not
+	if span.SpanData != nil {
+		span.Context.SetDestinationAddress(conn.Config().Host, int(conn.Config().Port))
+		span.Action = "batch"
+	}
 
 	if apmErr := apm.CaptureError(ctx, data.Err); apmErr != nil {
 		apmErr.SetSpan(span)
