@@ -10,7 +10,6 @@ import (
 	"go.elastic.co/apm/v2/apmtest"
 	"go.elastic.co/apm/v2/model"
 	_ "go.elastic.co/apm/v2/model"
-	"log"
 	"os"
 	"testing"
 )
@@ -43,16 +42,18 @@ func TestBatchTrace(t *testing.T) {
 			name:      "BATCH spans, success",
 			expectErr: false,
 			queryQueue: []string{
-				"SELECT * FROM foo WHERE bar = $1",
-				"SELECT bar FROM foo WHERE bar = $1",
+				"SELECT * FROM foo WHERE bar = 1",
+				"SELECT bar FROM foo WHERE bar = 1",
 			},
 		},
-		// TODO: maybe add test with error? possible problems: non-clear work of errors in batch itself
-		//{
-		//	name:       "QUERY span, error",
-		//	expectErr:  true,
-		//	queryQueue: "SELECT * FROM foo2",
-		//},
+		{
+			name:      "BATCH spans, error",
+			expectErr: true,
+			queryQueue: []string{
+				"SELECT * FROM foo WHERE bar = 1",
+				"SELECT bar FROM foo2",
+			},
+		},
 	}
 
 	for _, tt := range testcases {
@@ -61,20 +62,17 @@ func TestBatchTrace(t *testing.T) {
 				batch := &pgx.Batch{}
 
 				for _, query := range tt.queryQueue {
-					batch.Queue(query, 1)
+					batch.Queue(query)
 				}
 
 				br := conn.SendBatch(ctx, batch)
 				defer func() {
-					err = br.Close()
-					if err != nil {
-						log.Println(err)
-					}
+					_ = br.Close()
 				}()
 			})
 
 			if tt.expectErr {
-				require.Len(t, errs, 1)
+				require.Len(t, errs, 2)
 				assert.Equal(t, "failure", spans[0].Outcome)
 			} else {
 				for i, expectedStmt := range tt.queryQueue {
