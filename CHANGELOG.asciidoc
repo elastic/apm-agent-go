@@ -21,15 +21,31 @@ endif::[]
 [[unreleased]]
 === Unreleased
 
-https://github.com/elastic/apm-agent-go/compare/v2.1.0...main[View commits]
-
-- Global labels are now parsed when the tracer is constructed, instead of parsing only once on package initialization {pull}1290[#1290]
-- Rename span_frames_min_duration to span_stack_trace_min_duration {pull}1285[#1285]
-- Ignore *principal* headers by default {pull}1332[#1332]
-- Add *apmpgx* module for postgres tracing with jackc/pgx driver enhanced support e.g. Copy and Batch statements {pull}1301[#1301]
+https://github.com/elastic/apm-agent-go/compare/v2.2.0...main[View commits]
 
 [[release-notes-2.x]]
 === Go Agent version 2.x
+
+[[release-notes-2.2.0]]
+==== 2.2.0 - 2022/10/31
+
+- Global labels are now parsed when the tracer is constructed, instead of parsing only once on package initialization {pull}1290[#1290]
+- Rename span_frames_min_duration to span_stack_trace_min_duration {pull}1285[#1285]
+- Ignore `\*principal\*` headers by default {pull}1332[#1332]
+- Add `apmpgx` module for postgres tracing with jackc/pgx driver enhanced support e.g. Copy and Batch statements {pull}1301[#1301]
+- Disable same-kind and enable exact-match compression by default {pull}1256[#1256]
+- module/apmechov4: add `WithRequestName` option {pull}1268[#1268]
+- Added support for adding span links when starting transactions and spans {pull}1269[#1269]
+- module/apmawssdkgo: fixed a panic related to drop spans {pull}1273[#1273]
+- Added support for the `trace_continuation_strategy` {pull}1270[#1270]
+- `transaction.type` and `span.type` are now set to "custom" if an empty string is specified {pull}1272[#1272]
+- We now capture the database instance name in `service.target.*`, for improved backend granularity {pull}1279[#1279]
+- Improved Kubernetes pod UID and container ID discovery coverage {pull}1288[#1288]
+- Fixed `span.name` for AWS SNS spans to match the spec {pull}1286[#1286]
+- Introduced `span_stack_trace_min_duration` config, deprecated `span_frames_min_duration` {pull}1285[#1285]
+- module/apmgin: add `WithPanicPropagation` option {pull}1314[#1314]
+- Exit spans may now have non-exit child spans if they have the same type and subtype {pull}1320[#1320]
+- Updated instrumentation modules to mark spans as exit spans where possible {pull}1317[#1317]
 
 [[release-notes-2.1.0]]
 ==== 2.1.0 - 2022/05/20
