@@ -16,17 +16,16 @@ var (
 
 func getMessageTraceparent(headers map[string]interface{}, header string) (apm.TraceContext, bool) {
 	headerValue, ok := headers[fmt.Sprintf("%s_%s", apmStreadwayAmqpPrefix, header)]
-	if ok {
-		if headerValue != nil {
-			switch headerValue.(type) {
-			case string:
-				if trP, err := apmhttp.ParseTraceparentHeader(headerValue.(string)); err == nil {
-					return trP, true
-				}
-			default:
-				return apm.TraceContext{}, false
-			}
+	if !ok || headerValue == nil {
+		return apm.TraceContext{}, false
+	}
+	switch headerValue.(type) {
+	case string:
+		if trP, err := apmhttp.ParseTraceparentHeader(headerValue.(string)); err == nil {
+			return trP, true
 		}
+	default:
+		return apm.TraceContext{}, false
 	}
 	return apm.TraceContext{}, false
 }
