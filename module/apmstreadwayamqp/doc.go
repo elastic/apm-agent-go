@@ -15,5 +15,5 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Package apmrediapmstreadwayamqpgo provides helpers for tracing https://github.com/streadway/amqp client operations as transactions.
+// Package apmrediapmstreadwayamqpgo provides helpers for tracing https://github.com/streadway/amqp
 package apmstreadwayamqp // import "go.elastic.co/apm/module/apmstreadwayamqp"
