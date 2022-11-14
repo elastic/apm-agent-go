@@ -34,9 +34,9 @@ jobs:
           check-latest: true
           cache: true
       - name: Build
-        run: ./scripts/jenkins/build.sh
+        run: ./scripts/github/build.sh
       - name: Test
-        run: ./scripts/jenkins/test.sh
+        run: ./scripts/github/test.sh
 
   coverage:
     runs-on: ubuntu-latest
@@ -50,7 +50,7 @@ jobs:
           check-latest: true
           cache: true
       - name: Coverage
-        run: ./scripts/jenkins/docker-test.sh
+        run: ./scripts/github/docker-test.sh
 
   test-windows:
     runs-on: windows-latest
@@ -64,7 +64,7 @@ jobs:
           check-latest: true
           cache: true
       - name: Build
-        run: scripts/jenkins/windows/build-test.bat
+        run: go test -v ./...
 
   test-macos:
     runs-on: macos-latest
@@ -78,7 +78,7 @@ jobs:
           check-latest: true
           cache: true
       - name: Build
-        run: ./scripts/jenkins/build.sh
+        run: ./scripts/github/build.sh
       - name: Test
-        run: ./scripts/jenkins/test.sh
+        run: ./scripts/github/test.sh
 
