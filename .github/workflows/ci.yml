@@ -1,0 +1,84 @@
+name: ci
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - '**.asciidoc'
+  pull_request:
+    paths-ignore:
+      - '**.md'
+      - '**.asciidoc'
+
+# limit the access of the generated GITHUB_TOKEN
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        # wait for https://github.com/actions/setup-go/issues/232
+        # to support stable/main
+        go-version: [ "1.15", "1.16", "1.17", "1.18", "1.19" ]
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ${{ matrix.go-version }}
+          check-latest: true
+          cache: true
+      - name: Build
+        run: ./scripts/jenkins/build.sh
+      - name: Test
+        run: ./scripts/jenkins/test.sh
+
+  coverage:
+    runs-on: ubuntu-latest
+    needs: [test]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version: '1.15.10'
+          check-latest: true
+          cache: true
+      - name: Coverage
+        run: ./scripts/jenkins/docker-test.sh
+
+  test-windows:
+    runs-on: windows-latest
+    needs: [test]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version: '1.15.10'
+          check-latest: true
+          cache: true
+      - name: Build
+        run: scripts/jenkins/windows/build-test.bat
+
+  test-macos:
+    runs-on: macos-latest
+    needs: [test]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version: '1.15.10'
+          check-latest: true
+          cache: true
+      - name: Build
+        run: ./scripts/jenkins/build.sh
+      - name: Test
+        run: ./scripts/jenkins/test.sh
+
