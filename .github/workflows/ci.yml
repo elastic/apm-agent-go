@@ -51,9 +51,9 @@ jobs:
           cache: true
       - name: Coverage
         run: |
-					./scripts/docker-compose-testing run -T --rm trace-context-harness
-					./scripts/docker-compose-testing up -d --build
-					./scripts/docker-compose-testing run -T --rm go-agent-tests make coverage GOFLAGS=-v
+          ./scripts/docker-compose-testing run -T --rm trace-context-harness
+          ./scripts/docker-compose-testing up -d --build
+          ./scripts/docker-compose-testing run -T --rm go-agent-tests make coverage GOFLAGS=-v
 
   test-windows:
     runs-on: windows-latest
