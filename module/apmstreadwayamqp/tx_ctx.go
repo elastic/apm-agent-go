@@ -1,7 +1,6 @@
 package apmstreadwayamqp
 
 import (
-	"context"
 	"github.com/streadway/amqp"
 	"go.elastic.co/apm/module/apmhttp/v2"
 	"go.elastic.co/apm/v2"
@@ -34,7 +33,7 @@ func InjectTraceContext(tc apm.TraceContext, msg amqp.Publishing) {
 // trace information stored in the headers.
 //
 // It's the client's choice how to use the provided apm.TraceContext
-func ExtractTraceContext(ctx context.Context, tracer *apm.Tracer, del amqp.Delivery) (apm.TraceContext, error) {
+func ExtractTraceContext(del amqp.Delivery) (apm.TraceContext, error) {
 	if err := del.Headers.Validate(); err != nil {
 		return apm.TraceContext{}, err
 	}
@@ -51,8 +50,8 @@ func ExtractTraceContext(ctx context.Context, tracer *apm.Tracer, del amqp.Deliv
 }
 
 func getMessageTraceparent(headers map[string]interface{}, header string) (apm.TraceContext, bool) {
-	headerValue, ok := headers[header].(string)
-	if !ok {
+	headerValue := getHeaderValueAsStringIfPresent(headers, header)
+	if len(headerValue) == 0 {
 		return apm.TraceContext{}, false
 	}
 	if trP, err := apmhttp.ParseTraceparentHeader(headerValue); err == nil {
@@ -62,12 +61,24 @@ func getMessageTraceparent(headers map[string]interface{}, header string) (apm.T
 }
 
 func getMessageTracestate(headers map[string]interface{}, header string) (apm.TraceState, bool) {
-	headerValue, ok := headers[header].(string)
-	if !ok {
+	headerValue := getHeaderValueAsStringIfPresent(headers, header)
+
+	if len(headerValue) == 0 {
 		return apm.TraceState{}, false
 	}
-	if trP, err := apmhttp.ParseTracestateHeader(strings.Split(headerValue, ",")...); err == nil {
+	if trP, err := apmhttp.ParseTracestateHeader(headerValue); err == nil {
 		return trP, true
 	}
 	return apm.TraceState{}, false
+}
+
+func getHeaderValueAsStringIfPresent(headers map[string]interface{}, header string) string {
+	for h, val := range headers {
+		if val != nil {
+			if hv, ok := val.(string); ok && strings.EqualFold(header, h) {
+				return hv
+			}
+		}
+	}
+	return ""
 }

@@ -42,10 +42,10 @@ func (c WrappedChannel) Publish(exchange, key string, mandatory, immediate bool,
 	if tx == nil {
 		return c.Channel.Publish(exchange, key, mandatory, immediate, msg)
 	}
-	
+
 	traceContext := tx.TraceContext()
 	if traceContext.Options.Recorded() {
-		span, ctx := apm.StartSpanOptions(ctx, sn, "messaging", apm.SpanOptions{ExitSpan: true})
+		span, _ := apm.StartSpanOptions(ctx, sn, "messaging", apm.SpanOptions{ExitSpan: true})
 		if !span.Dropped() {
 			traceContext = span.TraceContext()
 			span.Subtype = "rabbitmq"
@@ -53,9 +53,8 @@ func (c WrappedChannel) Publish(exchange, key string, mandatory, immediate bool,
 		} else {
 			span.End()
 		}
+		InjectTraceContext(span.TraceContext(), msg)
 	}
-
-	InjectTraceContext(span.TraceContext(), msg)
 
 	pubErr := c.Channel.Publish(
 		exchange,
