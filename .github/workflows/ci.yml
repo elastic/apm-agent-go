@@ -17,8 +17,6 @@ on:
 permissions:
   contents: read
 
-env:
-  DEFAULT_GO_VERSION: '1.15.10'
 
 jobs:
   test:
@@ -46,7 +44,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v3
         with:
-          go-version: ${{ env.DEFAULT_GO_VERSION }}
+          go-version-file: 'go.mod'
           check-latest: true
           cache: true
       - name: Coverage
@@ -62,7 +60,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v3
         with:
-          go-version: ${{ env.DEFAULT_GO_VERSION }}
+          go-version-file: 'go.mod'
           check-latest: true
           cache: true
       - name: Build
@@ -75,7 +73,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v3
         with:
-          go-version: ${{ env.DEFAULT_GO_VERSION }}
+          go-version-file: 'go.mod'
           check-latest: true
           cache: true
       - name: Check
