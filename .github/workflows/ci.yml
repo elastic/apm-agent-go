@@ -33,10 +33,8 @@ jobs:
           go-version: ${{ matrix.go-version }}
           check-latest: true
           cache: true
-      - name: Build
-        run: ./scripts/github/build.sh
-      - name: Test
-        run: ./scripts/github/test.sh
+      - name: Check
+        run: make check
 
   coverage:
     runs-on: ubuntu-latest
@@ -49,7 +47,10 @@ jobs:
           check-latest: true
           cache: true
       - name: Coverage
-        run: ./scripts/github/docker-test.sh
+        run: |
+					./scripts/docker-compose-testing run -T --rm trace-context-harness
+					./scripts/docker-compose-testing up -d --build
+					./scripts/docker-compose-testing run -T --rm go-agent-tests make coverage GOFLAGS=-v
 
   test-windows:
     runs-on: windows-latest
@@ -74,8 +75,6 @@ jobs:
           go-version: '1.15.10'
           check-latest: true
           cache: true
-      - name: Build
-        run: ./scripts/github/build.sh
-      - name: Test
-        run: ./scripts/github/test.sh
+      - name: Check
+        run: make check
 
