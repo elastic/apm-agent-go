@@ -25,20 +25,35 @@ func (c WrappedChannel) WithContext(ctx context.Context) WrappedChannel {
 	return WrappedChannel{Channel: c.Channel, ctx: ctx}
 }
 
-// Publish publishes a message and returns an error in encountered.
+// Publish publishes a message and returns an error if encountered.
+//
+// Publish will trace the operation as a span if the context associated with the channel
+// (i.e. supplied with WithContext) contains an `*apm.Transaction.`. The trace context
+// will be propagated as headers in the published message.
 func (c WrappedChannel) Publish(exchange, key string, mandatory, immediate bool, msg amqp.Publishing) error {
 	ctx := c.ctx
 	var sn string
 	if len(exchange) == 0 {
-		sn = "default"
+		sn = "<default>"
 	} else {
 		sn = exchange
 	}
-	span, ctx := apm.StartSpanOptions(ctx, sn, "messaging", apm.SpanOptions{
-		ExitSpan: true,
-	})
-	span.Subtype = "rabbitmq"
-	defer span.End()
+	tx := apm.TransactionFromContext(ctx)
+	if tx == nil {
+		return c.Channel.Publish(exchange, key, mandatory, immediate, msg)
+	}
+	
+	traceContext := tx.TraceContext()
+	if traceContext.Options.Recorded() {
+		span, ctx := apm.StartSpanOptions(ctx, sn, "messaging", apm.SpanOptions{ExitSpan: true})
+		if !span.Dropped() {
+			traceContext = span.TraceContext()
+			span.Subtype = "rabbitmq"
+			defer span.End()
+		} else {
+			span.End()
+		}
+	}
 
 	InjectTraceContext(span.TraceContext(), msg)
 

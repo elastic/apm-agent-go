@@ -24,9 +24,9 @@ var (
 func InjectTraceContext(tc apm.TraceContext, msg amqp.Publishing) {
 	if msg.Headers != nil {
 		msg.Headers[w3cTraceparentHeader] = apmhttp.FormatTraceparentHeader(tc)
-	}
-	if encoded := tc.State.String(); encoded != "" && msg.Headers != nil {
-		msg.Headers[tracestateHeader] = encoded
+		if encoded := tc.State.String(); encoded != "" {
+			msg.Headers[tracestateHeader] = encoded
+		}
 	}
 }
 
