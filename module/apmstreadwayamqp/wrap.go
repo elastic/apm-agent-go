@@ -74,8 +74,8 @@ func (c WrappedChannel) Publish(exchange, key string, mandatory, immediate bool,
 		} else {
 			span.End()
 		}
-		InjectTraceContext(span.TraceContext(), msg)
 	}
+	InjectTraceContext(traceContext, msg)
 
 	pubErr := c.Channel.Publish(
 		exchange,

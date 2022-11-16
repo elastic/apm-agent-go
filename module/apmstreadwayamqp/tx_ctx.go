@@ -50,11 +50,7 @@ func InjectTraceContext(tc apm.TraceContext, msg amqp.Publishing) {
 // trace information stored in the headers.
 //
 // It's the client's choice how to use the provided apm.TraceContext
-func ExtractTraceContext(del amqp.Delivery) (apm.TraceContext, error) {
-	if err := del.Headers.Validate(); err != nil {
-		return apm.TraceContext{}, err
-	}
-
+func ExtractTraceContext(del amqp.Delivery) (apm.TraceContext, bool) {
 	txCtx, ok := getMessageTraceparent(del.Headers, w3cTraceparentHeader)
 	if !ok {
 		txCtx, ok = getMessageTraceparent(del.Headers, elasticTraceparentHeader)
@@ -63,7 +59,7 @@ func ExtractTraceContext(del amqp.Delivery) (apm.TraceContext, error) {
 	if ok {
 		txCtx.State, _ = getMessageTracestate(del.Headers, tracestateHeader)
 	}
-	return txCtx, nil
+	return txCtx, ok
 }
 
 func getMessageTraceparent(headers map[string]interface{}, header string) (apm.TraceContext, bool) {
@@ -91,10 +87,8 @@ func getMessageTracestate(headers map[string]interface{}, header string) (apm.Tr
 
 func getHeaderValueAsStringIfPresent(headers map[string]interface{}, header string) string {
 	for h, val := range headers {
-		if val != nil {
-			if hv, ok := val.(string); ok && strings.EqualFold(header, h) {
-				return hv
-			}
+		if hv, ok := val.(string); ok && strings.EqualFold(header, h) {
+			return hv
 		}
 	}
 	return ""

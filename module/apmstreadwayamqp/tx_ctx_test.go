@@ -57,7 +57,7 @@ func TestExtractTraceContext(t *testing.T) {
 		},
 	}
 	InjectTraceContext(tx, msg)
-	extrTraceCtx, extrErr := ExtractTraceContext(amqp.Delivery{Headers: msg.Headers})
-	require.Nil(t, extrErr)
+	extrTraceCtx, extrOk := ExtractTraceContext(amqp.Delivery{Headers: msg.Headers})
+	require.True(t, extrOk)
 	assert.Equal(t, tx, extrTraceCtx)
 }
