@@ -53,16 +53,10 @@ func TestWrappedChannel_Publish(t *testing.T) {
 	require.Len(t, spans, 1)
 }
 
-func startTestAmqpServer() func() {
+func startTestAmqpServer(t testing.TB) {
 	cfg, _ := config.CreateDefault()
 	metrics.NewTrackRegistry(15, time.Second, false)
 	srv := server.NewServer("0.0.0.0", "1000", amqp2.ProtoRabbit, cfg)
-
-	go func() {
-		srv.Start()
-	}()
-
-	return func() {
-		srv.Stop()
-	}
+	go srv.Start()
+	t.Cleanup(srv.Stop)
 }
