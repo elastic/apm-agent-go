@@ -18,8 +18,10 @@
 package apmlambda // import "go.elastic.co/apm/module/apmlambda/v2"
 
 import (
+	"bytes"
 	"log"
 	"net"
+	"net/http"
 	"net/rpc"
 	"os"
 	"unicode/utf8"
@@ -28,7 +30,9 @@ import (
 	"github.com/aws/aws-lambda-go/lambdacontext"
 
 	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/model"
 	"go.elastic.co/apm/v2/stacktrace"
+	"go.elastic.co/fastjson"
 )
 
 const (
@@ -51,6 +55,10 @@ var (
 		Request         string `json:"request,omitempty"`
 		Response        string `json:"response,omitempty"`
 	}
+
+	jsonw fastjson.Writer
+
+	ignoreTxnRegistration bool
 )
 
 func init() {
@@ -70,6 +78,17 @@ type Function struct {
 // Ping pings the function implementation.
 func (f *Function) Ping(req *messages.PingRequest, response *messages.PingResponse) error {
 	return f.client.Call("Function.Ping", req, response)
+}
+
+func createPartialTransactionJSON(apmTx *apm.Transaction, w *fastjson.Writer) error {
+	var tx model.Transaction
+	apm.BuildModelTransaction(&tx, apmTx, apmTx.TransactionData)
+	w.RawString(`{"transaction":`)
+	if err := tx.MarshalFastJSON(w); err != nil {
+		return err
+	}
+	w.RawByte('}')
+	return nil
 }
 
 // Invoke invokes the Lambda function. This is our main trace point.
@@ -92,6 +111,30 @@ func (f *Function) Invoke(req *messages.InvokeRequest, response *messages.Invoke
 	lambdaContext.Request = formatPayload(req.Payload)
 	lambdaContext.Response = ""
 
+	if !ignoreTxnRegistration {
+		defer jsonw.Reset()
+		if err := createPartialTransactionJSON(tx, &jsonw); err != nil {
+			log.Printf("failed to create partial transaction for registration: %v", err)
+		} else {
+			resp, err := http.Post(
+				// TODO: @lahsivjar better way to get base URI
+				"http://localhost:8200/register/transaction",
+				"application/vnd.elastic.apm.transaction+json",
+				bytes.NewReader(jsonw.Bytes()),
+			)
+			// Don't attempt registration for next invocations if network
+			// error or the registration endpoint is not found.
+			if err != nil || resp.StatusCode == 404 {
+				ignoreTxnRegistration = true
+			}
+			if err != nil {
+				log.Printf("failed to register transaction, req failed with error: %v", err)
+			}
+			if resp.StatusCode/100 != 2 {
+				log.Printf("failed to register transaction, req failed with status code: %d", resp.StatusCode)
+			}
+		}
+	}
 	err := f.client.Call("Function.Invoke", req, response)
 	if err != nil {
 		e := f.tracer.NewError(err)
