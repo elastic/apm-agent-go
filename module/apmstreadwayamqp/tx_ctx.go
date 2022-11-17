@@ -18,10 +18,12 @@
 package apmstreadwayamqp // import "go.elastic.co/apm/module/apmstreadwayamqp/v2"
 
 import (
+	"strings"
+
 	"github.com/streadway/amqp"
+
 	"go.elastic.co/apm/module/apmhttp/v2"
 	"go.elastic.co/apm/v2"
-	"strings"
 )
 
 var (

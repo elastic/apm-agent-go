@@ -1,12 +1,14 @@
 package apmstreadwayamqp
 
 import (
+	"testing"
+
 	"github.com/streadway/amqp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"go.elastic.co/apm/module/apmhttp/v2"
 	"go.elastic.co/apm/v2"
-	"testing"
 )
 
 func TestInjectTraceContext(t *testing.T) {

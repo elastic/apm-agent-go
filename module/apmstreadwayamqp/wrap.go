@@ -19,7 +19,10 @@ package apmstreadwayamqp // import "go.elastic.co/apm/module/apmstreadwayamqp/v2
 
 import (
 	"context"
+	"fmt"
+
 	"github.com/streadway/amqp"
+
 	"go.elastic.co/apm/v2"
 )
 
@@ -66,7 +69,7 @@ func (c WrappedChannel) Publish(exchange, key string, mandatory, immediate bool,
 
 	traceContext := tx.TraceContext()
 	if traceContext.Options.Recorded() {
-		span, _ := apm.StartSpanOptions(ctx, sn, "messaging", apm.SpanOptions{ExitSpan: true})
+		span, _ := apm.StartSpanOptions(ctx, fmt.Sprintf("RabbitMQ SEND to %s", sn), "messaging", apm.SpanOptions{ExitSpan: true})
 		if !span.Dropped() {
 			traceContext = span.TraceContext()
 			span.Subtype = "rabbitmq"

@@ -23,6 +23,8 @@ endif::[]
 
 https://github.com/elastic/apm-agent-go/compare/v2.2.0...main[View commits]
 
+- Add `apmstreadwayamqp` module for tracing messages by streadway/amqp
+
 [[release-notes-2.x]]
 === Go Agent version 2.x
 

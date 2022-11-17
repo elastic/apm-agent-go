@@ -1,6 +1,6 @@
 module go.elastic.co/apm/module/apmstreadwayamqp/v2
 
-go 1.18
+go 1.15
 
 require (
 	github.com/streadway/amqp v1.0.0
@@ -50,3 +50,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
 	howett.net/plist v1.0.0 // indirect
 )
+
+replace go.elastic.co/apm/module/apmhttp/v2 => ../apmhttp
+
+replace go.elastic.co/apm/v2 => ../..
