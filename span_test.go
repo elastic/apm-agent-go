@@ -405,6 +405,7 @@ func TestCompressSpanExactMatch(t *testing.T) {
 				require.Equal(t, 5, len(spans))
 				composite := spans[0]
 				require.NotNil(t, composite.Composite)
+				assert.Equal(t, "SELECT * FROM users", composite.Name)
 				assert.Equal(t, "exact_match", composite.Composite.CompressionStrategy)
 				assert.Equal(t, composite.Composite.Count, 10)
 				assert.Equal(t, 0.001, composite.Composite.Sum)
@@ -429,6 +430,7 @@ func TestCompressSpanExactMatch(t *testing.T) {
 				assert.Equal(t, composite.Context.Destination.Service.Resource, "mysql")
 
 				require.NotNil(t, composite.Composite)
+				assert.Equal(t, "SELECT * FROM users", composite.Name)
 				assert.Equal(t, composite.Composite.Count, 11)
 				assert.Equal(t, "exact_match", composite.Composite.CompressionStrategy)
 				// Sum should be at least the time that each span ran for. The
@@ -850,12 +852,14 @@ func TestCompressSpanSameKindParentSpanContext(t *testing.T) {
 
 	redisSpan := spans[1]
 	require.NotNil(t, redisSpan.Composite)
+	assert.Equal(t, "db", redisSpan.Name)
 	assert.Equal(t, 3, redisSpan.Composite.Count)
 	assert.Equal(t, float64(3), redisSpan.Composite.Sum)
 	assert.Equal(t, "exact_match", redisSpan.Composite.CompressionStrategy)
 
 	clientSpan := spans[3]
 	require.NotNil(t, clientSpan.Composite)
+	assert.Equal(t, "Calls to client", clientSpan.Name)
 	assert.Equal(t, clientSpan.ParentID, spans[2].ID)
 	assert.Equal(t, 2, clientSpan.Composite.Count)
 	assert.Equal(t, float64(3), clientSpan.Composite.Sum)
