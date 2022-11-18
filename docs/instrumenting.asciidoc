@@ -32,6 +32,7 @@ that framework's API. The request context can be used for reporting <<custom-ins
 * <<builtin-modules-apmmongo>>
 * <<builtin-modules-apmawssdkgo>>
 * <<builtin-modules-apmazure>>
+* <<builtin-modules-apmpgx>>
 
 [[builtin-modules-apmhttp]]
 ==== module/apmhttp
@@ -967,5 +968,57 @@ func main() {
   blobURL := containerURL.NewBlobURL("readme.txt")
   // Use the blobURL to interact with Blob Storage
   ...
+}
+----
+
+[[builtin-modules-apmpgx]]
+== module/apmpgx
+Package apmpgx provides a means of instrumenting the
+https://github.com/jackc/pgx[Pgx] for v4.17+,
+so that SQL queries are reported as spans within the current transaction.
+Also this lib have extended support of pgx, such as COPY FROM queries and BATCH which have their own span types:
+`db.postgresql.copy` and `db.postgresql.batch` accordingly.
+
+To report `pgx` queries, create `pgx` connection, and then provide config to `apmpgx.Instrument()`. If logger is presented in config,
+then traces will be written to log. (It's safe to use without logger)
+
+Spans will be created for queries as long as they have context associated, and the
+context includes a transaction.
+
+Example with pool:
+[source,go]
+----
+import (
+    "github.com/jackc/pgx/v4/pgxpool"
+
+    "go.elastic.com/apm/module/apmpgx/v2"
+)
+
+func main() {
+    c, err := pgxpool.ParseConfig("dsn_string")
+    ...
+    pool, err := pgxpool.ParseConfig("dsn")
+    ...
+    // set custom logger before instrumenting
+    apmpgx.Instrument(pool.ConnConfig)
+    ...
+}
+----
+
+Example without pool:
+[source,go]
+----
+import (
+    "github.com/jackc/pgx/v4"
+
+    "go.elastic.com/apm/module/apmpgx/v2"
+)
+
+func main() {
+    c, err := pgx.Connect(context.Background, "dsn_string")
+    ...
+    // set custom logger before instrumenting
+    apmpgx.Instrument(c.Config())
+    ...
 }
 ----
