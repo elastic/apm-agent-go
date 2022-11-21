@@ -9,4 +9,4 @@ require (
 
 replace go.elastic.co/apm/v2 => ../..
 
-go 1.17
+go 1.15
