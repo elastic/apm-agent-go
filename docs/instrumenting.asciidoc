@@ -1022,3 +1022,52 @@ func main() {
     ...
 }
 ----
+
+[[builtin-modules-apmstreadwayamqp]]
+== module/apmstreadwayamqp
+Package apmstreadwayamqp provides means for instrumenting parts of
+https://github.com/streadway/amqp[streadway/amqp], Publish calls are traced,
+and trace context is injected into msg.Headers.
+Also this module have provides support to extract and inject apm.TraceContext
+from/in the headers:
+`ExtractTraceContext(...)` and `InjectTraceContext(...)` accordingly.
+
+To report `Publish` calls, create `amqp.Channel`, and then wrap the channel
+with `WrapChannel(ch *amqp.Channel)`. It is possible to provide `context.Context` with
+`WithContext(...)`, if no context is provided `context.Background()` is used.
+
+Publishing `apm.Span` will be created as long as the wrapped channel have `context.Context`
+associated, and the context includes a transaction that is being recorded.
+
+Example channel wrapping:
+[source,go]
+----
+import (
+    "github.com/streadway/amqp"
+
+    "go.elastic.com/apm/module/apmstreadwayamqp/v2"
+)
+
+func main() {
+    connection, dialErr := amqp.Dial(...)
+
+    channel, channelErr := conn.Channel()
+    wrappedChannel := apmstreadwayamqp.WrapChannel(ch).WithContext(ctx)
+    pubErr := wrappedChannel.Publish(exchange, key, true, true, msg)
+}
+----
+
+Example extracting `apm.TraceContext`:
+[source,go]
+----
+import (
+    "github.com/streadway/amqp"
+
+    "go.elastic.com/apm/module/apmstreadwayamqp/v2"
+)
+
+func main() {
+    extractedTraceCtx, extrctionOk := apmstreadwayamqp.ExtractTraceContext(amqp.Delivery{Headers: msg.Headers})
+    //Use the extracted apm.TraceContext to correlate the message further.
+}
+----
