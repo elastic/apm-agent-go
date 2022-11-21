@@ -557,9 +557,6 @@ func (t *HTTPTransport) configRequest(req *http.Request) configResponse {
 	if response.maxAge < 0 {
 		response.maxAge = defaultMaxAge
 	}
-	if response.maxAge < 5*time.Second {
-		response.maxAge = 5 * time.Second
-	}
 
 	switch resp.StatusCode {
 	case http.StatusNotModified, http.StatusForbidden, http.StatusNotFound:
@@ -579,6 +576,9 @@ func (t *HTTPTransport) configRequest(req *http.Request) configResponse {
 		return response
 	}
 	response.err = newHTTPError(resp)
+	if response.maxAge < 5*time.Second {
+		response.maxAge = 5 * time.Second
+	}
 	return response
 }
 
