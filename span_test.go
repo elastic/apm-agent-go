@@ -580,9 +580,9 @@ func TestCompressSpanSameKind(t *testing.T) {
 				ExitSpan: true, Start: currentTime,
 			})
 			span.Duration = 100 * time.Nanosecond
-			span.Context.SetDatabase(apm.DatabaseSpanContext{
-				Type:     "mysql",
-				Instance: "foo",
+			span.Context.SetServiceTarget(apm.ServiceTargetSpanContext{
+				Type: "db",
+				Name: "foo",
 			})
 			currentTime = currentTime.Add(span.Duration)
 			span.End()
@@ -592,9 +592,9 @@ func TestCompressSpanSameKind(t *testing.T) {
 				ExitSpan: true, Start: currentTime,
 			})
 			span.Duration = 100 * time.Nanosecond
-			span.Context.SetDatabase(apm.DatabaseSpanContext{
-				Type:     "mysql",
-				Instance: "bar",
+			span.Context.SetServiceTarget(apm.ServiceTargetSpanContext{
+				Type: "db",
+				Name: "bar",
 			})
 			currentTime = currentTime.Add(span.Duration)
 			span.End()
