@@ -19,6 +19,7 @@ package apmlambda // import "go.elastic.co/apm/module/apmlambda/v2"
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -111,29 +112,8 @@ func (f *Function) Invoke(req *messages.InvokeRequest, response *messages.Invoke
 	lambdaContext.Request = formatPayload(req.Payload)
 	lambdaContext.Response = ""
 
-	if !ignoreTxnRegistration {
-		defer jsonw.Reset()
-		if err := createPartialTransactionJSON(tx, &jsonw); err != nil {
-			log.Printf("failed to create partial transaction for registration: %v", err)
-		} else {
-			resp, err := http.Post(
-				// TODO: @lahsivjar better way to get base URI
-				"http://localhost:8200/register/transaction",
-				"application/vnd.elastic.apm.transaction+json",
-				bytes.NewReader(jsonw.Bytes()),
-			)
-			// Don't attempt registration for next invocations if network
-			// error or the registration endpoint is not found.
-			if err != nil || resp.StatusCode == 404 {
-				ignoreTxnRegistration = true
-			}
-			if err != nil {
-				log.Printf("failed to register transaction, req failed with error: %v", err)
-			}
-			if resp.StatusCode/100 != 2 {
-				log.Printf("failed to register transaction, req failed with status code: %d", resp.StatusCode)
-			}
-		}
+	if err := registerTxn(tx, req.RequestId); err != nil {
+		log.Printf("failed to register txn: %v", err)
 	}
 	err := f.client.Call("Function.Invoke", req, response)
 	if err != nil {
@@ -150,6 +130,42 @@ func (f *Function) Invoke(req *messages.InvokeRequest, response *messages.Invoke
 		e := f.tracer.NewError(invokeResponseError{response.Error})
 		e.SetTransaction(tx)
 		e.Send()
+	}
+	return nil
+}
+
+func registerTxn(tx *apm.Transaction, requestID string) error {
+	if ignoreTxnRegistration {
+		return nil
+	}
+
+	defer jsonw.Reset()
+	if err := createPartialTransactionJSON(tx, &jsonw); err != nil {
+		return fmt.Errorf("failed to create txn registration body: %v", err)
+	}
+	req, err := http.NewRequest(
+		http.MethodPost,
+		// TODO: @lahsivjar better way to get base URI
+		"http://localhost:8200/register/transaction",
+		bytes.NewReader(jsonw.Bytes()),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create txn registration request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/vnd.elastic.apm.transaction+json")
+	req.Header.Set("x-elastic-aws-request-id", requestID)
+
+	resp, err := http.DefaultClient.Do(req)
+	// Don't attempt registration for next invocations if network
+	// error or the registration endpoint is not found.
+	if err != nil || resp.StatusCode == 404 {
+		ignoreTxnRegistration = true
+	}
+	if err != nil {
+		return fmt.Errorf("failed to register transaction, req failed with error: %v", err)
+	}
+	if resp.StatusCode/100 != 2 {
+		return fmt.Errorf("failed to register transaction, req failed with status code: %d", resp.StatusCode)
 	}
 	return nil
 }
