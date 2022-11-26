@@ -4,7 +4,7 @@
 # After "docker-compose-testing up", tests can be run like this:
 #     scripts/docker-compose-testing run --rm go-agent-tests make test
 
-version: '3'
+version: "3"
 services:
   go-agent-tests:
     build:
@@ -13,6 +13,7 @@ services:
     environment:
       CASSANDRA_HOST: cassandra
       MYSQL_HOST: mysql
+      SQLSERVER_HOST: sqlserver
       PGHOST: postgres
       REDIS_URL: redis://redis
       REDIS_CLUSTER_URLS: redis://redis-node-1:6380 redis://redis-node-2:6381 redis://redis-node-3:6382
@@ -21,6 +22,7 @@ services:
     depends_on:
       - cassandra
       - mysql
+      - sqlserver
       - postgres
       - redis
       - redis-2
@@ -50,6 +52,15 @@ services:
       - MYSQL_DATABASE=test_db
     volumes:
       - mysqldata:/var/lib/mysql
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      - MSSQL_PID=Developer
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=hunter2
+    volumes:
+      - sqlserverdata:/var/opt/mssql
 
   postgres:
     image: postgres:latest
@@ -107,7 +118,7 @@ services:
     entrypoint:
       - sh
       - -c
-      - "echo \"yes\" | redis-cli --cluster create $$(getent hosts redis-node-1 | awk '{ print $$1 }'):6380 $$(getent hosts redis-node-2 | awk '{ print $$1 }'):6381 $$(getent hosts redis-node-3 | awk '{ print $$1 }'):6382 --cluster-replicas 0"
+      - 'echo "yes" | redis-cli --cluster create $$(getent hosts redis-node-1 | awk ''{ print $$1 }''):6380 $$(getent hosts redis-node-2 | awk ''{ print $$1 }''):6381 $$(getent hosts redis-node-3 | awk ''{ print $$1 }''):6382 --cluster-replicas 0'
     restart: on-failure
 
   elasticsearch:
@@ -135,6 +146,8 @@ services:
 
 volumes:
   mysqldata:
+    driver: local
+  sqlserverdata:
     driver: local
   pgdata:
     driver: local

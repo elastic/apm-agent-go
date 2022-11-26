@@ -5,7 +5,8 @@ require (
 	github.com/jackc/pgx/v4 v4.9.0
 	github.com/lib/pq v1.3.0
 	github.com/mattn/go-sqlite3 v1.10.0
-	github.com/stretchr/testify v1.6.1
+	github.com/microsoft/go-mssqldb v0.17.0
+	github.com/stretchr/testify v1.7.0
 	go.elastic.co/apm/v2 v2.2.0
 )
 

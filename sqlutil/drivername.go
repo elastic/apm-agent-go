@@ -45,6 +45,10 @@ func DriverName(d driver.Driver) string {
 		if strings.HasPrefix(t.PkgPath(), "github.com/jackc/pgx/") {
 			return "postgresql"
 		}
+
+		if strings.HasPrefix(t.PkgPath(), "github.com/microsoft/go-mssqldb") {
+			return "sqlserver"
+		}
 	}
 	// TODO include the package path of the driver in context
 	// so we can easily determine how the rules above should
