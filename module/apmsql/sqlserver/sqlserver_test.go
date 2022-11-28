@@ -38,7 +38,7 @@ func TestQueryContext(t *testing.T) {
 		t.Skipf("SQLSERVER_HOST not specified")
 	}
 
-	db, err := apmsql.Open("sqlserver", "sqlserver://sa:hunter2@"+sqlserverHost+":1433?database=test_db")
+	db, err := apmsql.Open("sqlserver", "sqlserver://sa:Password123@"+sqlserverHost+":1433?database=test_db")
 	require.NoError(t, err)
 	defer db.Close()
 

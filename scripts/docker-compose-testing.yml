@@ -58,9 +58,10 @@ services:
     environment:
       - MSSQL_PID=Developer
       - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=hunter2
+      - MSSQL_SA_PASSWORD=Password123
     volumes:
       - sqlserverdata:/var/opt/mssql
+    command: /bin/sh -c "(/opt/mssql/bin/sqlservr &) && sleep 10s && /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P Password123 -d master -q \"IF DB_ID('test_db') IS NULL CREATE DATABASE test_db\" && sleep infinity"
 
   postgres:
     image: postgres:latest

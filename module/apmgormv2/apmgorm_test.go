@@ -98,7 +98,7 @@ func TestWithContext(t *testing.T) {
 					Database: "test_db",
 					User:     "sa",
 				},
-				sqlserver.Open("sqlserver://sa:hunter2@"+sqlserverHost+":1433?database=test_db"), &gorm.Config{},
+				sqlserver.Open("sqlserver://sa:Password123@"+sqlserverHost+":1433?database=test_db"), &gorm.Config{},
 			)
 		})
 	}
