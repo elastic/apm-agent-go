@@ -18,7 +18,7 @@
 package apmsqlserver // import "go.elastic.co/apm/module/apmsql/v2/sqlserver"
 
 import (
-	mssql "github.com/microsoft/go-mssqldb"
+	mssql "github.com/denisenkom/go-mssqldb"
 
 	"go.elastic.co/apm/module/apmsql/v2"
 )

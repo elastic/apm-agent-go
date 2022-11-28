@@ -1,7 +1,6 @@
 module go.elastic.co/apm/module/apmgorm/v2
 
 require (
-	cloud.google.com/go v0.40.0 // indirect
 	github.com/jinzhu/gorm v1.9.10
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.7.0

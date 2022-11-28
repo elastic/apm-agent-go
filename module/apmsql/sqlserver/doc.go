@@ -16,6 +16,6 @@
 // under the License.
 
 // Package apmsqlserver registers the "sqlserver" driver with
-// apmsql, so that you can trace microsoft/go-mssqldb
+// apmsql, so that you can trace denisenkom/go-mssqldb
 // database connections.
 package apmsqlserver // import "go.elastic.co/apm/module/apmsql/v2/sqlserver"
