@@ -26,7 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"go.elastic.co/apm/module/apmsql/v2"
-	_ "go.elastic.co/apm/module/apmsql/v2/mysql"
+	_ "go.elastic.co/apm/module/apmsql/v2/sqlserver"
 	"go.elastic.co/apm/v2/apmtest"
 	"go.elastic.co/apm/v2/model"
 )
