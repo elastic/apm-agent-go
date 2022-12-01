@@ -1,0 +1,9 @@
+FROM mcr.microsoft.com/mssql/server:2022-latest
+
+WORKDIR /opt
+COPY ./docker_sqlserver_entrypoint.sh ./entrypoint.sh
+
+USER root
+RUN chmod +x ./entrypoint.sh
+
+CMD /bin/bash ./entrypoint.sh & /opt/mssql/bin/sqlservr
