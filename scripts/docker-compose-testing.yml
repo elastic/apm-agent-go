@@ -56,7 +56,7 @@ services:
   sqlserver:
     build:
       context: .
-      dockerfile: Dockerfile.sqlserver
+      dockerfile: Dockerfile-sqlserver
     environment:
       - MSSQL_PID=Developer
       - ACCEPT_EULA=Y
