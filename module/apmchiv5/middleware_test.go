@@ -195,6 +195,25 @@ func TestWithRequestIgnorer(t *testing.T) {
 	}
 }
 
+func TestWithPanicPropagation(t *testing.T) {
+	r := chi.NewRouter()
+	r.Route("/panic", func(r chi.Router) {
+		r.With(apmchiv5.Middleware(apmchiv5.WithPanicPropagation())).Get("/with-propagation", panicHandler)
+		r.With(apmchiv5.Middleware()).Get("/with-no-propagation", panicHandler)
+	})
+
+	w := doRequest(r, "GET", "http://server.testing/panic/with-no-propagation")
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+
+	assert.Panics(t, func() {
+		doRequest(r, "GET", "http://server.testing/panic/with-propagation")
+	})
+}
+
+func panicHandler(w http.ResponseWriter, req *http.Request) {
+	panic("panic")
+}
+
 func articleHandler(w http.ResponseWriter, req *http.Request) {
 	category := chi.URLParam(req, "category")
 	id := chi.URLParam(req, "id")
