@@ -275,7 +275,7 @@ func (s *SpanData) getCompositeSpanName() string {
 	} else if s.Context.serviceTarget.Name == "" {
 		return compressedSpanSameKindName + s.Context.serviceTarget.Type
 	} else {
-		return compressedSpanSameKindName + s.Context.serviceTarget.Type + "/" + s.Context.destinationService.Name
+		return compressedSpanSameKindName + s.Context.serviceTarget.Type + "/" + s.Context.serviceTarget.Name
 	}
 }
 
