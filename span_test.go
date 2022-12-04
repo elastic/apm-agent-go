@@ -658,6 +658,32 @@ func TestCompressSpanSameKind(t *testing.T) {
 			currentTime = currentTime.Add(span.Duration)
 			span.End()
 		}
+		// Span is compressable and the next span is the same kind, but cannot be compressed
+		// since the service target fields are different (inferred by the db instance).
+		{
+			span := tx.StartSpanOptions("SELECT * FROM users", "mysql", apm.SpanOptions{
+				ExitSpan: true, Start: currentTime,
+			})
+			span.Duration = 100 * time.Nanosecond
+			span.Context.SetServiceTarget(apm.ServiceTargetSpanContext{
+				Type: "db",
+				Name: "foo",
+			})
+			currentTime = currentTime.Add(span.Duration)
+			span.End()
+		}
+		{
+			span := tx.StartSpanOptions("SELECT * FROM users", "mysql", apm.SpanOptions{
+				ExitSpan: true, Start: currentTime,
+			})
+			span.Duration = 100 * time.Nanosecond
+			span.Context.SetServiceTarget(apm.ServiceTargetSpanContext{
+				Type: "db",
+				Name: "bar",
+			})
+			currentTime = currentTime.Add(span.Duration)
+			span.End()
+		}
 		tx.Duration = currentTime.Sub(txStart)
 		tx.End()
 		tracer.Flush(nil)
@@ -684,7 +710,7 @@ func TestCompressSpanSameKind(t *testing.T) {
 		_, spans, debugFunc := testCase(tracer)
 		defer debugFunc()
 
-		require.Equal(t, 7, len(spans))
+		require.Equal(t, 9, len(spans))
 		mysqlSpan := spans[0]
 		assert.Equal(t, "mysql", mysqlSpan.Context.Destination.Service.Resource)
 		assert.Nil(t, mysqlSpan.Composite)
@@ -736,7 +762,7 @@ func TestCompressSpanSameKind(t *testing.T) {
 		// drops all spans except the last request span.
 		require.Equal(t, 1, len(spans))
 		// Collects statistics about the dropped spans (request and mysql).
-		require.Equal(t, 2, len(tx.DroppedSpansStats))
+		require.Equal(t, 4, len(tx.DroppedSpansStats))
 	})
 }
 

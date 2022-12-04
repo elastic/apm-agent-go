@@ -248,12 +248,13 @@ func (s *SpanData) isExactMatch(span *Span) bool {
 func (s *SpanData) isSameKind(span *Span) bool {
 	sameType := s.Type == span.Type
 	sameSubType := s.Subtype == span.Subtype
-	dstService := s.Context.destination.Service
-	otherDstService := span.Context.destination.Service
-	sameService := dstService != nil && otherDstService != nil &&
-		dstService.Resource == otherDstService.Resource
+	dstServiceTarget := s.Context.service.Target
+	otherDstServiceTarget := span.Context.service.Target
+	sameServiceTarget := dstServiceTarget != nil && otherDstServiceTarget != nil &&
+		dstServiceTarget.Type == otherDstServiceTarget.Type &&
+		dstServiceTarget.Name == otherDstServiceTarget.Name
 
-	return sameType && sameSubType && sameService
+	return sameType && sameSubType && sameServiceTarget
 }
 
 // setCompressedSpanName changes the span name to "Calls to <destination service>"
