@@ -32,6 +32,7 @@ import (
 	mysql "go.elastic.co/apm/module/apmgormv2/v2/driver/mysql"
 	postgres "go.elastic.co/apm/module/apmgormv2/v2/driver/postgres"
 	sqlite "go.elastic.co/apm/module/apmgormv2/v2/driver/sqlite"
+	sqlserver "go.elastic.co/apm/module/apmgormv2/v2/driver/sqlserver"
 	"go.elastic.co/apm/module/apmsql/v2"
 	"go.elastic.co/apm/v2/apmtest"
 )
@@ -81,6 +82,23 @@ func TestWithContext(t *testing.T) {
 					User:     "root",
 				},
 				mysql.Open("root:hunter2@tcp("+mysqlHost+")/test_db?parseTime=true"), &gorm.Config{},
+			)
+		})
+	}
+
+	if sqlserverHost := os.Getenv("SQLSERVER_HOST"); sqlserverHost == "" {
+		t.Logf("SQLSERVER_HOST not specified, skipping")
+	} else {
+		t.Run("sqlserver", func(t *testing.T) {
+			testWithContext(t,
+				"sqlserver",
+				apmsql.DSNInfo{
+					Address:  sqlserverHost,
+					Port:     1433,
+					Database: "test_db",
+					User:     "sa",
+				},
+				sqlserver.Open("sqlserver://sa:Password123@"+sqlserverHost+":1433?database=test_db"), &gorm.Config{},
 			)
 		})
 	}
