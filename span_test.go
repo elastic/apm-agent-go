@@ -535,6 +535,89 @@ func TestCompressSpanExactMatch(t *testing.T) {
 	}
 }
 
+func TestCompressSpanName(t *testing.T) {
+	type testcase struct {
+		name              string
+		serviceTargetName string
+		serviceTargetType string
+		expectedName      string
+	}
+	testcases := []testcase{{
+		name:         "unknown",
+		expectedName: "Calls to unknown",
+	}, {
+		name:              "unknown type",
+		serviceTargetName: "foo",
+		// service target type is inferred so the expected name is type/name
+		expectedName:      "Calls to request/foo",
+	}, {
+		name:              "unknown name",
+		serviceTargetType: "bar",
+		expectedName:      "Calls to bar",
+	}, {
+		name:              "known",
+		serviceTargetName: "foo",
+		serviceTargetType: "bar",
+		expectedName:      "Calls to bar/foo",
+	}}
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			tracer := apmtest.NewRecordingTracer()
+			t.Cleanup(tracer.Close)
+
+			tracer.SetSpanCompressionEnabled(true)
+			tracer.SetSpanCompressionSameKindMaxDuration(5 * time.Second)
+			// Don't drop fast exit spans.
+			tracer.SetExitSpanMinDuration(0)
+
+			txStart := time.Now()
+			tx := tracer.StartTransactionOptions("name", "type",
+				apm.TransactionOptions{
+					Start: txStart,
+				},
+			)
+			currentTime := txStart
+
+			// These should be compressed into 1 since they meet the compression
+			// criteria.
+			path := []string{"/a", "/b", "/c", "/d", "/e"}
+			for i := 0; i < len(path); i++ {
+				span := tx.StartSpanOptions(fmt.Sprint("GET ", path[i]), "request", apm.SpanOptions{
+					ExitSpan: true, Start: currentTime,
+				})
+				span.Duration = 100 * time.Nanosecond
+				currentTime = currentTime.Add(span.Duration)
+				span.Context.SetServiceTarget(apm.ServiceTargetSpanContext{
+					Type: tc.serviceTargetType,
+					Name: tc.serviceTargetName,
+				})
+				span.End()
+			}
+
+			tx.Duration = currentTime.Sub(txStart)
+			tx.End()
+			tracer.Flush(nil)
+
+			transaction := tracer.Payloads().Transactions[0]
+			spans := tracer.Payloads().Spans
+
+			t.Cleanup(func() {
+				if t.Failed() {
+					apmtest.WriteTraceWaterfall(os.Stdout, transaction, spans)
+					apmtest.WriteTraceTable(os.Stdout, transaction, spans)
+				}
+			})
+
+			require.Equal(t, 1, len(spans))
+			requestSpan := spans[0]
+			assert.NotNil(t, requestSpan.Composite)
+			assert.Equal(t, 5, requestSpan.Composite.Count)
+			assert.Equal(t, tc.expectedName, requestSpan.Name)
+			assert.Equal(t, "same_kind", requestSpan.Composite.CompressionStrategy)
+		})
+	}
+}
+
 func TestCompressSpanSameKind(t *testing.T) {
 	// Aserts that that span compression works on compressable spans with
 	// "same_kind" strategy, and that different span types are not compressed.
