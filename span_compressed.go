@@ -18,7 +18,6 @@
 package apm // import "go.elastic.co/apm/v2"
 
 import (
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -264,13 +263,21 @@ func (s *SpanData) setCompressedSpanName() {
 	if s.composite.compressionStrategy != compressedStrategySameKind {
 		return
 	}
-	service := s.Context.destinationService.Resource
+	s.Name = s.getCompositeSpanName()
+}
 
-	var builder strings.Builder
-	builder.Grow(len(compressedSpanSameKindName) + len(service))
-	builder.WriteString(compressedSpanSameKindName)
-	builder.WriteString(service)
-	s.Name = builder.String()
+func (s *SpanData) getCompositeSpanName() string {
+	if s.Context.serviceTarget.Type == "" {
+		if s.Context.serviceTarget.Name == "" {
+			return compressedSpanSameKindName + "unknown"
+		} else {
+			return compressedSpanSameKindName + s.Context.serviceTarget.Name
+		}
+	} else if s.Context.serviceTarget.Name == "" {
+		return compressedSpanSameKindName + s.Context.serviceTarget.Type
+	} else {
+		return compressedSpanSameKindName + s.Context.serviceTarget.Type + "/" + s.Context.serviceTarget.Name
+	}
 }
 
 type compressedSpan struct {
