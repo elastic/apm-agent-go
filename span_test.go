@@ -549,7 +549,7 @@ func TestCompressSpanName(t *testing.T) {
 		name:              "unknown type",
 		serviceTargetName: "foo",
 		// service target type is inferred so the expected name is type/name
-		expectedName:      "Calls to request/foo",
+		expectedName: "Calls to request/foo",
 	}, {
 		name:              "unknown name",
 		serviceTargetType: "bar",
