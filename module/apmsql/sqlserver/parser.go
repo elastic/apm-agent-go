@@ -15,9 +15,26 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apm // import "go.elastic.co/apm/v2"
+package apmsqlserver // import "go.elastic.co/apm/module/apmsql/v2/sqlserver"
 
-const (
-	// AgentVersion is the Elastic APM Go Agent version.
-	AgentVersion = "2.2.0"
+import (
+	"github.com/denisenkom/go-mssqldb/msdsn"
+
+	"go.elastic.co/apm/module/apmsql/v2"
 )
+
+// ParseDSN parses the given denisenkom/go-mssqldb datasource name.
+func ParseDSN(name string) apmsql.DSNInfo {
+	cfg, _, err := msdsn.Parse(name)
+	if err != nil {
+		// sqlserver.Open will fail with the same error,
+		// so just return a zero value.
+		return apmsql.DSNInfo{}
+	}
+	return apmsql.DSNInfo{
+		Address:  cfg.Host,
+		Port:     int(cfg.Port),
+		Database: cfg.Database,
+		User:     cfg.User,
+	}
+}
