@@ -15,9 +15,28 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apm // import "go.elastic.co/apm/v2"
+// Package apmsqlserver imports the gorm sqlserver dialect package,
+// and also registers the sqlserver driver with apmsql.
+package apmsqlserver // import "go.elastic.co/apm/module/apmgormv2/v2/driver/sqlserver"
 
-const (
-	// AgentVersion is the Elastic APM Go Agent version.
-	AgentVersion = "2.2.0"
+import (
+	"gorm.io/driver/sqlserver"
+	"gorm.io/gorm"
+
+	"go.elastic.co/apm/module/apmsql/v2"
+
+	_ "go.elastic.co/apm/module/apmsql/v2/sqlserver" // register sqlserver with apmsql
 )
+
+// Open creates a dialect with apmsql
+func Open(dsn string) gorm.Dialector {
+
+	dialect := &sqlserver.Dialector{
+		Config: &sqlserver.Config{
+			DriverName: apmsql.DriverPrefix + sqlserver.Dialector{}.Name(),
+			DSN:        dsn,
+		},
+	}
+
+	return dialect
+}

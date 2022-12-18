@@ -405,6 +405,7 @@ func TestCompressSpanExactMatch(t *testing.T) {
 				require.Equal(t, 5, len(spans))
 				composite := spans[0]
 				require.NotNil(t, composite.Composite)
+				assert.Equal(t, "SELECT * FROM users", composite.Name)
 				assert.Equal(t, "exact_match", composite.Composite.CompressionStrategy)
 				assert.Equal(t, composite.Composite.Count, 10)
 				assert.Equal(t, 0.001, composite.Composite.Sum)
@@ -429,6 +430,7 @@ func TestCompressSpanExactMatch(t *testing.T) {
 				assert.Equal(t, composite.Context.Destination.Service.Resource, "mysql")
 
 				require.NotNil(t, composite.Composite)
+				assert.Equal(t, "SELECT * FROM users", composite.Name)
 				assert.Equal(t, composite.Composite.Count, 11)
 				assert.Equal(t, "exact_match", composite.Composite.CompressionStrategy)
 				// Sum should be at least the time that each span ran for. The
@@ -533,6 +535,89 @@ func TestCompressSpanExactMatch(t *testing.T) {
 	}
 }
 
+func TestCompressSpanName(t *testing.T) {
+	type testcase struct {
+		name              string
+		serviceTargetName string
+		serviceTargetType string
+		expectedName      string
+	}
+	testcases := []testcase{{
+		name:         "unknown",
+		expectedName: "Calls to unknown",
+	}, {
+		name:              "unknown type",
+		serviceTargetName: "foo",
+		// service target type is inferred so the expected name is type/name
+		expectedName: "Calls to request/foo",
+	}, {
+		name:              "unknown name",
+		serviceTargetType: "bar",
+		expectedName:      "Calls to bar",
+	}, {
+		name:              "known",
+		serviceTargetName: "foo",
+		serviceTargetType: "bar",
+		expectedName:      "Calls to bar/foo",
+	}}
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			tracer := apmtest.NewRecordingTracer()
+			t.Cleanup(tracer.Close)
+
+			tracer.SetSpanCompressionEnabled(true)
+			tracer.SetSpanCompressionSameKindMaxDuration(5 * time.Second)
+			// Don't drop fast exit spans.
+			tracer.SetExitSpanMinDuration(0)
+
+			txStart := time.Now()
+			tx := tracer.StartTransactionOptions("name", "type",
+				apm.TransactionOptions{
+					Start: txStart,
+				},
+			)
+			currentTime := txStart
+
+			// These should be compressed into 1 since they meet the compression
+			// criteria.
+			path := []string{"/a", "/b", "/c", "/d", "/e"}
+			for i := 0; i < len(path); i++ {
+				span := tx.StartSpanOptions(fmt.Sprint("GET ", path[i]), "request", apm.SpanOptions{
+					ExitSpan: true, Start: currentTime,
+				})
+				span.Duration = 100 * time.Nanosecond
+				currentTime = currentTime.Add(span.Duration)
+				span.Context.SetServiceTarget(apm.ServiceTargetSpanContext{
+					Type: tc.serviceTargetType,
+					Name: tc.serviceTargetName,
+				})
+				span.End()
+			}
+
+			tx.Duration = currentTime.Sub(txStart)
+			tx.End()
+			tracer.Flush(nil)
+
+			transaction := tracer.Payloads().Transactions[0]
+			spans := tracer.Payloads().Spans
+
+			t.Cleanup(func() {
+				if t.Failed() {
+					apmtest.WriteTraceWaterfall(os.Stdout, transaction, spans)
+					apmtest.WriteTraceTable(os.Stdout, transaction, spans)
+				}
+			})
+
+			require.Equal(t, 1, len(spans))
+			requestSpan := spans[0]
+			assert.NotNil(t, requestSpan.Composite)
+			assert.Equal(t, 5, requestSpan.Composite.Count)
+			assert.Equal(t, tc.expectedName, requestSpan.Name)
+			assert.Equal(t, "same_kind", requestSpan.Composite.CompressionStrategy)
+		})
+	}
+}
+
 func TestCompressSpanSameKind(t *testing.T) {
 	// Aserts that that span compression works on compressable spans with
 	// "same_kind" strategy, and that different span types are not compressed.
@@ -573,6 +658,32 @@ func TestCompressSpanSameKind(t *testing.T) {
 			currentTime = currentTime.Add(span.Duration)
 			span.End()
 		}
+		// Span is compressable and the next span is the same kind, but cannot be compressed
+		// since the service target fields are different (inferred by the db instance).
+		{
+			span := tx.StartSpanOptions("SELECT * FROM users", "mysql", apm.SpanOptions{
+				ExitSpan: true, Start: currentTime,
+			})
+			span.Duration = 100 * time.Nanosecond
+			span.Context.SetServiceTarget(apm.ServiceTargetSpanContext{
+				Type: "db",
+				Name: "foo",
+			})
+			currentTime = currentTime.Add(span.Duration)
+			span.End()
+		}
+		{
+			span := tx.StartSpanOptions("SELECT * FROM users", "mysql", apm.SpanOptions{
+				ExitSpan: true, Start: currentTime,
+			})
+			span.Duration = 100 * time.Nanosecond
+			span.Context.SetServiceTarget(apm.ServiceTargetSpanContext{
+				Type: "db",
+				Name: "bar",
+			})
+			currentTime = currentTime.Add(span.Duration)
+			span.End()
+		}
 		tx.Duration = currentTime.Sub(txStart)
 		tx.End()
 		tracer.Flush(nil)
@@ -599,7 +710,7 @@ func TestCompressSpanSameKind(t *testing.T) {
 		_, spans, debugFunc := testCase(tracer)
 		defer debugFunc()
 
-		require.Equal(t, 7, len(spans))
+		require.Equal(t, 9, len(spans))
 		mysqlSpan := spans[0]
 		assert.Equal(t, "mysql", mysqlSpan.Context.Destination.Service.Resource)
 		assert.Nil(t, mysqlSpan.Composite)
@@ -651,7 +762,7 @@ func TestCompressSpanSameKind(t *testing.T) {
 		// drops all spans except the last request span.
 		require.Equal(t, 1, len(spans))
 		// Collects statistics about the dropped spans (request and mysql).
-		require.Equal(t, 2, len(tx.DroppedSpansStats))
+		require.Equal(t, 4, len(tx.DroppedSpansStats))
 	})
 }
 
@@ -850,12 +961,14 @@ func TestCompressSpanSameKindParentSpanContext(t *testing.T) {
 
 	redisSpan := spans[1]
 	require.NotNil(t, redisSpan.Composite)
+	assert.Equal(t, "db", redisSpan.Name)
 	assert.Equal(t, 3, redisSpan.Composite.Count)
 	assert.Equal(t, float64(3), redisSpan.Composite.Sum)
 	assert.Equal(t, "exact_match", redisSpan.Composite.CompressionStrategy)
 
 	clientSpan := spans[3]
 	require.NotNil(t, clientSpan.Composite)
+	assert.Equal(t, "Calls to client", clientSpan.Name)
 	assert.Equal(t, clientSpan.ParentID, spans[2].ID)
 	assert.Equal(t, 2, clientSpan.Composite.Count)
 	assert.Equal(t, float64(3), clientSpan.Composite.Sum)

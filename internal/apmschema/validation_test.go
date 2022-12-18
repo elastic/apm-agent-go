@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apm_test
+package apmschema_test
 
 import (
 	"bufio"
@@ -36,8 +36,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"go.elastic.co/apm/internal/apmschema/v2"
 	"go.elastic.co/apm/v2"
-	"go.elastic.co/apm/v2/internal/apmschema"
 )
 
 func TestValidateServiceName(t *testing.T) {

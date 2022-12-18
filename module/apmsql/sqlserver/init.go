@@ -15,9 +15,14 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apm // import "go.elastic.co/apm/v2"
+package apmsqlserver // import "go.elastic.co/apm/module/apmsql/v2/sqlserver"
 
-const (
-	// AgentVersion is the Elastic APM Go Agent version.
-	AgentVersion = "2.2.0"
+import (
+	mssql "github.com/denisenkom/go-mssqldb"
+
+	"go.elastic.co/apm/module/apmsql/v2"
 )
+
+func init() {
+	apmsql.Register("sqlserver", &mssql.Driver{}, apmsql.WithDSNParser(ParseDSN))
+}
