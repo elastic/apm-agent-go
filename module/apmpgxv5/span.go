@@ -16,6 +16,12 @@ const (
 	batchSpanType   spanType = "db.postgresql.batch"
 )
 
+const (
+	databaseName           = "postgresql"
+	databaseType           = "sql"
+	destinationServiceType = "db"
+)
+
 var action = map[spanType]string{
 	querySpanType:   "query",
 	connectSpanType: "connect",
@@ -36,7 +42,7 @@ func startSpan(ctx context.Context, name string, spanType spanType, conn *pgx.Co
 		span.Context.SetDatabase(apm.DatabaseSpanContext{
 			Instance:  conn.Database,
 			Statement: name,
-			Type:      "sql",
+			Type:      databaseType,
 			User:      conn.User,
 		})
 
@@ -45,8 +51,8 @@ func startSpan(ctx context.Context, name string, spanType spanType, conn *pgx.Co
 
 	span.Action = action[spanType]
 	span.Context.SetServiceTarget(apm.ServiceTargetSpanContext{
-		Name: "postgresql",
-		Type: "db",
+		Name: databaseName,
+		Type: destinationServiceType,
 	})
 
 	return span, spanCtx, true
