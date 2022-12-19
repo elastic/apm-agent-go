@@ -15,7 +15,8 @@ import (
 func Test_Connect(t *testing.T) {
 	host := os.Getenv("PGHOST")
 	if host == "" {
-		t.Skipf("PGHOST not specified")
+		host = "localhost"
+		//t.Skipf("PGHOST not specified")
 	}
 
 	testcases := []struct {
@@ -51,10 +52,10 @@ func Test_Connect(t *testing.T) {
 			if tt.expectErr {
 				require.Len(t, errs, 1)
 				assert.Equal(t, "failure", spans[0].Outcome)
-				assert.Equal(t, "connect", spans[0].Name)
+				assert.Equal(t, "CONNECT", spans[0].Name)
 			} else {
 				assert.Equal(t, "success", spans[0].Outcome)
-				assert.Equal(t, "connect", spans[0].Name)
+				assert.Equal(t, "CONNECT", spans[0].Name)
 			}
 		})
 	}

@@ -16,7 +16,8 @@ import (
 func Test_CopyFromTrace(t *testing.T) {
 	host := os.Getenv("PGHOST")
 	if host == "" {
-		t.Skipf("PGHOST not specified")
+		host = "localhost"
+		//t.Skipf("PGHOST not specified")
 	}
 
 	cfg, err := pgx.ParseConfig(fmt.Sprintf("postgres://postgres:hunter2@%s:5432/test_db", host))

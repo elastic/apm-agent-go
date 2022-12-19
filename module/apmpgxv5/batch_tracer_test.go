@@ -9,7 +9,6 @@ import (
 	"go.elastic.co/apm/module/apmpgxv5/v2"
 	"go.elastic.co/apm/v2/apmtest"
 	"go.elastic.co/apm/v2/model"
-	_ "go.elastic.co/apm/v2/model"
 	"os"
 	"testing"
 )
@@ -17,7 +16,8 @@ import (
 func TestBatchTrace(t *testing.T) {
 	host := os.Getenv("PGHOST")
 	if host == "" {
-		t.Skipf("PGHOST not specified")
+		host = "localhost"
+		//t.Skipf("PGHOST not specified")
 	}
 
 	cfg, err := pgx.ParseConfig(fmt.Sprintf("postgres://postgres:hunter2@%s:5432/test_db", host))
