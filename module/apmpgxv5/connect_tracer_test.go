@@ -15,8 +15,7 @@ import (
 func Test_Connect(t *testing.T) {
 	host := os.Getenv("PGHOST")
 	if host == "" {
-		host = "localhost"
-		//t.Skipf("PGHOST not specified")
+		t.Skipf("PGHOST not specified")
 	}
 
 	testcases := []struct {

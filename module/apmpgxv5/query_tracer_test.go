@@ -16,8 +16,7 @@ import (
 func Test_QueryTrace(t *testing.T) {
 	host := os.Getenv("PGHOST")
 	if host == "" {
-		host = "localhost"
-		//t.Skipf("PGHOST not specified")
+		t.Skipf("PGHOST not specified")
 	}
 
 	cfg, err := pgx.ParseConfig(fmt.Sprintf("postgres://postgres:hunter2@%s:5432/test_db", host))
