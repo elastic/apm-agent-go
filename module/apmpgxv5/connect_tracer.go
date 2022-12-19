@@ -29,75 +29,19 @@ type ConnectTracer struct{}
 
 var _ pgx.ConnectTracer = (*ConnectTracer)(nil)
 
-const (
-	connectSpanType = "db.postgresql.connect"
-)
-
-type contextKey string
-
-const (
-	dataContextKey contextKey = "data"
-)
-
-func (c ConnectTracer) TraceConnectStart(ctx context.Context, _ pgx.TraceConnectStartData) context.Context {
-	statement := "connect"
-
-	span, apmCtx := apm.StartSpanOptions(ctx, statement, connectSpanType, apm.SpanOptions{
+func (c ConnectTracer) TraceConnectStart(ctx context.Context, conn pgx.TraceConnectStartData) context.Context {
+	span, spanCtx, ok := startSpan(ctx, "CONNECT", connectSpanType, conn.ConnConfig, apm.SpanOptions{
+		Start:    time.Now(),
 		ExitSpan: false,
 	})
+	if !ok {
+		return nil
+	}
 
-	newCtx := context.WithValue(apmCtx, dataContextKey, values{
-		start:     time.Now(),
-		statement: statement,
-	})
-
-	return apm.ContextWithSpan(newCtx, span)
+	return apm.ContextWithSpan(spanCtx, span)
 }
 
 func (c ConnectTracer) TraceConnectEnd(ctx context.Context, data pgx.TraceConnectEndData) {
-	span := apm.SpanFromContext(ctx)
-	defer span.End()
-
-	var (
-		statement string
-		db        string
-		user      string
-		host      string
-		port      int
-	)
-
-	if d, ok := ctx.Value(dataContextKey).(values); ok {
-		statement = d.statement
-	}
-
-	// TODO: refactor
-	if data.Conn != nil {
-		db = data.Conn.Config().Database
-		user = data.Conn.Config().User
-		host = data.Conn.Config().Host
-		port = int(data.Conn.Config().Port)
-	}
-
-	if span.Dropped() {
-		return
-	}
-
-	span.Context.SetDatabase(apm.DatabaseSpanContext{
-		Instance:  db,
-		Statement: statement,
-		Type:      "sql",
-		User:      user,
-	})
-	span.Context.SetDestinationAddress(host, port)
-	span.Context.SetServiceTarget(apm.ServiceTargetSpanContext{
-		Name: "postgresql",
-		Type: "db",
-	})
-
-	if apmErr := apm.CaptureError(ctx, data.Err); apmErr != nil {
-		apmErr.SetSpan(span)
-		apmErr.Send()
-	}
-
+	endSpan(ctx, data)
 	return
 }

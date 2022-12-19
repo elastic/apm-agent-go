@@ -29,66 +29,33 @@ type BatchTracer struct{}
 
 var _ pgx.BatchTracer = (*BatchTracer)(nil)
 
-const (
-	batchSpanType = "db.postgresql.batch"
-)
-
 func (b BatchTracer) TraceBatchStart(ctx context.Context, conn *pgx.Conn, _ pgx.TraceBatchStartData) context.Context {
-	span, apmCtx := apm.StartSpanOptions(ctx, "BATCH", batchSpanType, apm.SpanOptions{
+	span, spanCtx, ok := startSpan(ctx, "BATCH", batchSpanType, conn.Config(), apm.SpanOptions{
 		Start:    time.Now(),
 		ExitSpan: false,
 	})
-
-	if span.Dropped() {
-		span.End()
-		return nil // todo: should be discussed
+	if !ok {
+		return nil
 	}
-	span.Action = "batch"
 
-	return apmCtx
+	return apm.ContextWithSpan(spanCtx, span)
 }
 
 func (b BatchTracer) TraceBatchQuery(ctx context.Context, conn *pgx.Conn, data pgx.TraceBatchQueryData) {
-	span, apmCtx := apm.StartSpanOptions(ctx, data.SQL, querySpanType, apm.SpanOptions{
+	span, _, ok := startSpan(ctx, data.SQL, querySpanType, conn.Config(), apm.SpanOptions{
 		Start:    time.Now(),
 		ExitSpan: false,
 	})
 	defer span.End()
 
-	span.Action = "batch"
-	span.Context.SetDatabase(apm.DatabaseSpanContext{
-		Instance:  conn.Config().Database,
-		Statement: data.SQL,
-		Type:      "sql",
-		User:      conn.Config().User,
-	})
-	span.Context.SetDestinationAddress(conn.Config().Host, int(conn.Config().Port))
-
-	if apmErr := apm.CaptureError(apmCtx, data.Err); apmErr != nil {
-		apmErr.SetSpan(span)
-		apmErr.Send()
+	if !ok {
 		return
 	}
+
+	return
 }
 
-func (b BatchTracer) TraceBatchEnd(ctx context.Context, conn *pgx.Conn, data pgx.TraceBatchEndData) {
-	span := apm.SpanFromContext(ctx)
-	defer span.End()
-
-	if span.Dropped() {
-		span.End()
-		return
-	}
-
-	// check if span is ended or not
-	if span.SpanData != nil {
-		span.Context.SetDestinationAddress(conn.Config().Host, int(conn.Config().Port))
-		span.Action = "batch"
-	}
-
-	if apmErr := apm.CaptureError(ctx, data.Err); apmErr != nil {
-		apmErr.SetSpan(span)
-		apmErr.Send()
-		return
-	}
+func (b BatchTracer) TraceBatchEnd(ctx context.Context, _ *pgx.Conn, data pgx.TraceBatchEndData) {
+	endSpan(ctx, data)
+	return
 }

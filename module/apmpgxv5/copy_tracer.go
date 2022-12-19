@@ -31,59 +31,23 @@ type CopyFromTracer struct{}
 
 var _ pgx.CopyFromTracer = (*CopyFromTracer)(nil)
 
-const (
-	copySpanType = "db.postgresql.copy"
-)
-
-func (c CopyFromTracer) TraceCopyFromStart(ctx context.Context, _ *pgx.Conn, data pgx.TraceCopyFromStartData) context.Context {
-	statement := fmt.Sprintf("COPY TO %s(%s)",
+func (c CopyFromTracer) TraceCopyFromStart(ctx context.Context, conn *pgx.Conn, data pgx.TraceCopyFromStartData) context.Context {
+	span, spanCtx, ok := startSpan(ctx, fmt.Sprintf(
+		"COPY TO %s(%s)",
 		strings.Join(data.TableName, ", "),
 		strings.Join(data.ColumnNames, ", "),
-	)
-
-	span, apmCtx := apm.StartSpanOptions(ctx, statement, copySpanType, apm.SpanOptions{
+	), copySpanType, conn.Config(), apm.SpanOptions{
+		Start:    time.Now(),
 		ExitSpan: false,
 	})
+	if !ok {
+		return nil
+	}
 
-	newCtx := context.WithValue(apmCtx, "data", values{
-		start:     time.Now(),
-		statement: statement,
-	})
-
-	return apm.ContextWithSpan(newCtx, span)
+	return apm.ContextWithSpan(spanCtx, span)
 }
 
-func (c CopyFromTracer) TraceCopyFromEnd(ctx context.Context, conn *pgx.Conn, data pgx.TraceCopyFromEndData) {
-	v, ok := ctx.Value("data").(values)
-	if !ok {
-		return
-	}
-
-	span := apm.SpanFromContext(ctx)
-	defer span.End()
-
-	span.Duration = time.Now().Sub(v.start)
-
-	if span.Dropped() {
-		return
-	}
-
-	span.Context.SetDatabase(apm.DatabaseSpanContext{
-		Instance:  conn.Config().Database,
-		Statement: v.statement,
-		Type:      "sql",
-		User:      conn.Config().User,
-	})
-	span.Context.SetDestinationAddress(conn.Config().Host, int(conn.Config().Port))
-	span.Context.SetServiceTarget(apm.ServiceTargetSpanContext{
-		Name: "postgresql",
-		Type: "db",
-	})
-
-	if apmErr := apm.CaptureError(ctx, data.Err); apmErr != nil {
-		apmErr.SetSpan(span)
-		apmErr.Send()
-	}
-
+func (c CopyFromTracer) TraceCopyFromEnd(ctx context.Context, _ *pgx.Conn, data pgx.TraceCopyFromEndData) {
+	endSpan(ctx, data)
 	return
 }

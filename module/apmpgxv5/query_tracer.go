@@ -29,60 +29,19 @@ type QueryTracer struct{}
 
 var _ pgx.QueryTracer = (*QueryTracer)(nil)
 
-const (
-	querySpanType = "db.postgresql.queryQueue"
-)
-
-type values struct {
-	start     time.Time
-	statement string
-}
-
-func (q QueryTracer) TraceQueryStart(ctx context.Context, _ *pgx.Conn, data pgx.TraceQueryStartData) context.Context {
-	span, apmCtx := apm.StartSpanOptions(ctx, data.SQL, querySpanType, apm.SpanOptions{
+func (q QueryTracer) TraceQueryStart(ctx context.Context, conn *pgx.Conn, data pgx.TraceQueryStartData) context.Context {
+	span, spanCtx, ok := startSpan(ctx, data.SQL, querySpanType, conn.Config(), apm.SpanOptions{
+		Start:    time.Now(),
 		ExitSpan: false,
 	})
+	if !ok {
+		return nil
+	}
 
-	newCtx := context.WithValue(apmCtx, "data", values{
-		start:     time.Now(),
-		statement: data.SQL,
-	})
-
-	return apm.ContextWithSpan(newCtx, span)
+	return apm.ContextWithSpan(spanCtx, span)
 }
 
-func (q QueryTracer) TraceQueryEnd(ctx context.Context, conn *pgx.Conn, data pgx.TraceQueryEndData) {
-	v, ok := ctx.Value("data").(values)
-	if !ok {
-		return
-	}
-
-	span := apm.SpanFromContext(ctx)
-	defer span.End()
-
-	span.Duration = time.Now().Sub(v.start)
-
-	if span.Dropped() {
-		return
-	}
-
-	// todo: https://go.dev/play/p/45WtOgYBc7p
-	span.Context.SetDatabase(apm.DatabaseSpanContext{
-		Instance:  conn.Config().Database,
-		Statement: v.statement,
-		Type:      "sql",
-		User:      conn.Config().User,
-	})
-	span.Context.SetDestinationAddress(conn.Config().Host, int(conn.Config().Port))
-	span.Context.SetServiceTarget(apm.ServiceTargetSpanContext{
-		Name: "postgresql",
-		Type: "db",
-	})
-
-	if apmErr := apm.CaptureError(ctx, data.Err); apmErr != nil {
-		apmErr.SetSpan(span)
-		apmErr.Send()
-	}
-
+func (q QueryTracer) TraceQueryEnd(ctx context.Context, _ *pgx.Conn, data pgx.TraceQueryEndData) {
+	endSpan(ctx, data)
 	return
 }
