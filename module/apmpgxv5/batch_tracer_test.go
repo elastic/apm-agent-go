@@ -3,10 +3,10 @@ package apmpgxv5_test
 import (
 	"context"
 	"fmt"
-	"github.com/gvencadze/apm-agent-go/module/apmpgxv5"
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.elastic.co/apm/module/apmpgxv5/v2"
 	"go.elastic.co/apm/v2/apmtest"
 	"go.elastic.co/apm/v2/model"
 	_ "go.elastic.co/apm/v2/model"
@@ -79,7 +79,7 @@ func TestBatchTrace(t *testing.T) {
 					assert.Equal(t, "success", spans[i].Outcome)
 					assert.Equal(t, "db", spans[i].Type)
 					assert.Equal(t, "postgresql", spans[i].Subtype)
-					assert.Equal(t, "batch", spans[i].Action)
+					assert.Equal(t, "query", spans[i].Action)
 					assert.Equal(t, expectedStmt, spans[i].Name)
 
 					assert.Equal(t, &model.SpanContext{

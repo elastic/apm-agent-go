@@ -1,4 +1,4 @@
-module go.elastic.co/apm/module/apmpgx/v2
+module go.elastic.co/apm/module/apmpgxv5/v2
 
 go 1.15
 

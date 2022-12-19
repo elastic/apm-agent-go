@@ -3,10 +3,10 @@ package apmpgxv5_test
 import (
 	"context"
 	"fmt"
-	"github.com/gvencadze/apm-agent-go/module/apmpgxv5"
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.elastic.co/apm/module/apmpgxv5/v2"
 	"go.elastic.co/apm/v2/apmtest"
 	"go.elastic.co/apm/v2/model"
 	"os"
