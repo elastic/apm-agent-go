@@ -16,7 +16,8 @@ import (
 func Test_QueryTrace(t *testing.T) {
 	host := os.Getenv("PGHOST")
 	if host == "" {
-		t.Skipf("PGHOST not specified")
+		host = "localhost"
+		//t.Skipf("PGHOST not specified")
 	}
 
 	cfg, err := pgx.ParseConfig(fmt.Sprintf("postgres://postgres:hunter2@%s:5432/test_db", host))
@@ -72,6 +73,16 @@ func Test_QueryTrace(t *testing.T) {
 					Destination: &model.DestinationSpanContext{
 						Address: cfg.Host,
 						Port:    int(cfg.Port),
+						Service: &model.DestinationServiceSpanContext{
+							Type:     "db",
+							Resource: "postgresql",
+						},
+					},
+					Service: &model.ServiceSpanContext{
+						Target: &model.ServiceTargetSpanContext{
+							Type: "db",
+							Name: "postgresql",
+						},
 					},
 					Database: &model.DatabaseSpanContext{
 						Instance:  cfg.Database,

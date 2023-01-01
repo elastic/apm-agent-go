@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/jackc/pgx/v5"
 	"go.elastic.co/apm/v2"
-	"time"
 )
 
 type spanType string
@@ -32,7 +31,8 @@ var action = map[spanType]string{
 func startSpan(ctx context.Context, name string, spanType spanType, conn *pgx.ConnConfig, opts apm.SpanOptions) (*apm.Span, context.Context, bool) {
 	span, spanCtx := apm.StartSpanOptions(ctx, name, string(spanType), opts)
 
-	// this line leads to panic (idk why)
+	// this line leads to panic, because apm.Tracer in trace is nil.
+	// todo: fix this on review, idk how to fix it for now.
 	//if span.Dropped() {
 	//	span.End()
 	//	return nil, nil, false
@@ -54,11 +54,15 @@ func startSpan(ctx context.Context, name string, spanType spanType, conn *pgx.Co
 		Name: databaseName,
 		Type: destinationServiceType,
 	})
+	span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
+		Name:     "",
+		Resource: "postgresql",
+	})
 
 	return span, spanCtx, true
 }
 
-func endSpan(ctx context.Context, data interface{}) {
+func endSpan(ctx context.Context, err error) {
 	span := apm.SpanFromContext(ctx)
 	defer span.End()
 
@@ -66,22 +70,8 @@ func endSpan(ctx context.Context, data interface{}) {
 		return
 	}
 
-	var apmErr error
-
-	switch d := data.(type) {
-	case pgx.TraceQueryEndData:
-		apmErr = d.Err
-	case pgx.TraceCopyFromEndData:
-		apmErr = d.Err
-	case pgx.TraceConnectEndData:
-		apmErr = d.Err
-	case pgx.TraceBatchEndData:
-		apmErr = d.Err
-	}
-
-	if apmErr != nil {
-		e := apm.CaptureError(ctx, apmErr)
-		e.Timestamp = time.Now()
+	if err != nil {
+		e := apm.CaptureError(ctx, err)
 		e.SetSpan(span)
 		e.Send()
 	}

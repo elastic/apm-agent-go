@@ -21,7 +21,6 @@ import (
 	"context"
 	"github.com/jackc/pgx/v5"
 	"go.elastic.co/apm/v2"
-	"time"
 )
 
 // QueryTracer traces Query, QueryRow, and Exec
@@ -31,8 +30,7 @@ var _ pgx.QueryTracer = (*QueryTracer)(nil)
 
 func (q QueryTracer) TraceQueryStart(ctx context.Context, conn *pgx.Conn, data pgx.TraceQueryStartData) context.Context {
 	span, spanCtx, ok := startSpan(ctx, data.SQL, querySpanType, conn.Config(), apm.SpanOptions{
-		Start:    time.Now(),
-		ExitSpan: false,
+		ExitSpan: true,
 	})
 	if !ok {
 		return nil
@@ -42,6 +40,5 @@ func (q QueryTracer) TraceQueryStart(ctx context.Context, conn *pgx.Conn, data p
 }
 
 func (q QueryTracer) TraceQueryEnd(ctx context.Context, _ *pgx.Conn, data pgx.TraceQueryEndData) {
-	endSpan(ctx, data)
-	return
+	endSpan(ctx, data.Err)
 }

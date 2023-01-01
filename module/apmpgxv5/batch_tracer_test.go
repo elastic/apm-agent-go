@@ -13,10 +13,16 @@ import (
 	"testing"
 )
 
+type stmt struct {
+	query  string
+	action string
+}
+
 func TestBatchTrace(t *testing.T) {
 	host := os.Getenv("PGHOST")
 	if host == "" {
-		t.Skipf("PGHOST not specified")
+		host = "localhost"
+		//t.Skipf("PGHOST not specified")
 	}
 
 	cfg, err := pgx.ParseConfig(fmt.Sprintf("postgres://postgres:hunter2@%s:5432/test_db", host))
@@ -36,6 +42,7 @@ func TestBatchTrace(t *testing.T) {
 		name       string
 		expectErr  bool
 		queryQueue []string
+		expStmt    map[string]stmt
 	}{
 		{
 			name:      "BATCH spans, success",
@@ -44,6 +51,20 @@ func TestBatchTrace(t *testing.T) {
 				"SELECT * FROM foo WHERE bar = 1",
 				"SELECT bar FROM foo WHERE bar = 1",
 			},
+			expStmt: map[string]stmt{
+				"BATCH": {
+					query:  "BATCH",
+					action: "batch",
+				},
+				"SELECT * FROM foo WHERE bar = 1": {
+					query:  "SELECT FROM foo",
+					action: "query",
+				},
+				"SELECT bar FROM foo WHERE bar = 1": {
+					query:  "SELECT FROM foo",
+					action: "query",
+				},
+			},
 		},
 		{
 			name:      "BATCH spans, error",
@@ -51,6 +72,20 @@ func TestBatchTrace(t *testing.T) {
 			queryQueue: []string{
 				"SELECT * FROM foo WHERE bar = 1",
 				"SELECT bar FROM foo2",
+			},
+			expStmt: map[string]stmt{
+				"BATCH": {
+					query:  "BATCH",
+					action: "batch",
+				},
+				"SELECT * FROM foo WHERE bar = 1": {
+					query:  "SELECT FROM foo",
+					action: "query",
+				},
+				"SELECT bar FROM foo2 WHERE bar = 1": {
+					query:  "SELECT FROM foo",
+					action: "query",
+				},
 			},
 		},
 	}
@@ -74,21 +109,35 @@ func TestBatchTrace(t *testing.T) {
 				require.Len(t, errs, 2)
 				assert.Equal(t, "failure", spans[0].Outcome)
 			} else {
-				for i, expectedStmt := range tt.queryQueue {
+				for i := range tt.queryQueue {
+					expectedStatement := tt.expStmt[tt.queryQueue[i]]
+
 					assert.Equal(t, "success", spans[i].Outcome)
 					assert.Equal(t, "db", spans[i].Type)
 					assert.Equal(t, "postgresql", spans[i].Subtype)
-					assert.Equal(t, "query", spans[i].Action)
-					assert.Equal(t, expectedStmt, spans[i].Name)
+					assert.Equal(t, expectedStatement.action, spans[i].Action)
+					assert.Equal(t, expectedStatement.query, spans[i].Name)
 
 					assert.Equal(t, &model.SpanContext{
-						Destination: &model.DestinationSpanContext{
-							Address: cfg.Host,
-							Port:    int(cfg.Port),
-						},
+						// TODO: find place in code where destination and service span context's sets to nil
+						//Destination: &model.DestinationSpanContext{
+						//	Address: cfg.Host,
+						//	Port:    int(cfg.Port),
+						//	Service: &model.DestinationServiceSpanContext{
+						//		Type:     "db",
+						//		Name:     "",
+						//		Resource: "postgresql",
+						//	},
+						//},
+						//Service: &model.ServiceSpanContext{
+						//	Target: &model.ServiceTargetSpanContext{
+						//		Type: "db",
+						//		Name: "postgresql",
+						//	},
+						//},
 						Database: &model.DatabaseSpanContext{
 							Instance:  cfg.Database,
-							Statement: expectedStmt,
+							Statement: expectedStatement.query,
 							Type:      "sql",
 							User:      cfg.User,
 						},

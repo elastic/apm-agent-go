@@ -20,8 +20,8 @@ package apmpgxv5
 import (
 	"context"
 	"github.com/jackc/pgx/v5"
+	"go.elastic.co/apm/module/apmsql/v2"
 	"go.elastic.co/apm/v2"
-	"time"
 )
 
 // ConnectTracer traces Connect and ConnectConfig
@@ -30,10 +30,10 @@ type ConnectTracer struct{}
 var _ pgx.ConnectTracer = (*ConnectTracer)(nil)
 
 func (c ConnectTracer) TraceConnectStart(ctx context.Context, conn pgx.TraceConnectStartData) context.Context {
-	span, spanCtx, ok := startSpan(ctx, "CONNECT", connectSpanType, conn.ConnConfig, apm.SpanOptions{
-		Start:    time.Now(),
-		ExitSpan: false,
-	})
+	span, spanCtx, ok := startSpan(ctx, apmsql.QuerySignature("CONNECT"), connectSpanType, conn.ConnConfig,
+		apm.SpanOptions{
+			ExitSpan: false,
+		})
 	if !ok {
 		return nil
 	}
@@ -42,6 +42,5 @@ func (c ConnectTracer) TraceConnectStart(ctx context.Context, conn pgx.TraceConn
 }
 
 func (c ConnectTracer) TraceConnectEnd(ctx context.Context, data pgx.TraceConnectEndData) {
-	endSpan(ctx, data)
-	return
+	endSpan(ctx, data.Err)
 }

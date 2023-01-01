@@ -20,8 +20,8 @@ package apmpgxv5
 import (
 	"context"
 	"github.com/jackc/pgx/v5"
+	"go.elastic.co/apm/module/apmsql/v2"
 	"go.elastic.co/apm/v2"
-	"time"
 )
 
 // BatchTracer traces SendBatch
@@ -30,10 +30,10 @@ type BatchTracer struct{}
 var _ pgx.BatchTracer = (*BatchTracer)(nil)
 
 func (b BatchTracer) TraceBatchStart(ctx context.Context, conn *pgx.Conn, _ pgx.TraceBatchStartData) context.Context {
-	span, spanCtx, ok := startSpan(ctx, "BATCH", batchSpanType, conn.Config(), apm.SpanOptions{
-		Start:    time.Now(),
-		ExitSpan: false,
-	})
+	span, spanCtx, ok := startSpan(ctx, apmsql.QuerySignature("BATCH"), batchSpanType, conn.Config(),
+		apm.SpanOptions{
+			ExitSpan: true,
+		})
 	if !ok {
 		return nil
 	}
@@ -42,20 +42,16 @@ func (b BatchTracer) TraceBatchStart(ctx context.Context, conn *pgx.Conn, _ pgx.
 }
 
 func (b BatchTracer) TraceBatchQuery(ctx context.Context, conn *pgx.Conn, data pgx.TraceBatchQueryData) {
-	span, _, ok := startSpan(ctx, data.SQL, querySpanType, conn.Config(), apm.SpanOptions{
-		Start:    time.Now(),
+	span, _, ok := startSpan(ctx, apmsql.QuerySignature(data.SQL), querySpanType, conn.Config(), apm.SpanOptions{
 		ExitSpan: false,
 	})
-	defer span.End()
-
 	if !ok {
 		return
 	}
 
-	return
+	defer span.End()
 }
 
 func (b BatchTracer) TraceBatchEnd(ctx context.Context, _ *pgx.Conn, data pgx.TraceBatchEndData) {
-	endSpan(ctx, data)
-	return
+	endSpan(ctx, data.Err)
 }
