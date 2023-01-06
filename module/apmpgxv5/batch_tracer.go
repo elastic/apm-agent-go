@@ -31,9 +31,7 @@ var _ pgx.BatchTracer = (*BatchTracer)(nil)
 
 func (b BatchTracer) TraceBatchStart(ctx context.Context, conn *pgx.Conn, _ pgx.TraceBatchStartData) context.Context {
 	span, spanCtx, ok := startSpan(ctx, apmsql.QuerySignature("BATCH"), batchSpanType, conn.Config(),
-		apm.SpanOptions{
-			ExitSpan: true,
-		})
+		apm.SpanOptions{})
 	if !ok {
 		return nil
 	}
@@ -43,7 +41,7 @@ func (b BatchTracer) TraceBatchStart(ctx context.Context, conn *pgx.Conn, _ pgx.
 
 func (b BatchTracer) TraceBatchQuery(ctx context.Context, conn *pgx.Conn, data pgx.TraceBatchQueryData) {
 	span, _, ok := startSpan(ctx, apmsql.QuerySignature(data.SQL), querySpanType, conn.Config(), apm.SpanOptions{
-		ExitSpan: false,
+		ExitSpan: true,
 	})
 	if !ok {
 		return

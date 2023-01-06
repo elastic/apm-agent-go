@@ -21,8 +21,7 @@ type stmt struct {
 func TestBatchTrace(t *testing.T) {
 	host := os.Getenv("PGHOST")
 	if host == "" {
-		host = "localhost"
-		//t.Skipf("PGHOST not specified")
+		t.Skipf("PGHOST not specified")
 	}
 
 	cfg, err := pgx.ParseConfig(fmt.Sprintf("postgres://postgres:hunter2@%s:5432/test_db", host))
@@ -92,7 +91,7 @@ func TestBatchTrace(t *testing.T) {
 
 	for _, tt := range testcases {
 		t.Run(tt.name, func(t *testing.T) {
-			_, spans, errs := apmtest.WithTransaction(func(ctx context.Context) {
+			_, spans, errs := apmtest.WithUncompressedTransaction(func(ctx context.Context) {
 				batch := &pgx.Batch{}
 
 				for _, query := range tt.queryQueue {
@@ -119,22 +118,21 @@ func TestBatchTrace(t *testing.T) {
 					assert.Equal(t, expectedStatement.query, spans[i].Name)
 
 					assert.Equal(t, &model.SpanContext{
-						// TODO: find place in code where destination and service span context's sets to nil
-						//Destination: &model.DestinationSpanContext{
-						//	Address: cfg.Host,
-						//	Port:    int(cfg.Port),
-						//	Service: &model.DestinationServiceSpanContext{
-						//		Type:     "db",
-						//		Name:     "",
-						//		Resource: "postgresql",
-						//	},
-						//},
-						//Service: &model.ServiceSpanContext{
-						//	Target: &model.ServiceTargetSpanContext{
-						//		Type: "db",
-						//		Name: "postgresql",
-						//	},
-						//},
+						Destination: &model.DestinationSpanContext{
+							Address: cfg.Host,
+							Port:    int(cfg.Port),
+							Service: &model.DestinationServiceSpanContext{
+								Type:     "db",
+								Name:     "",
+								Resource: "postgresql",
+							},
+						},
+						Service: &model.ServiceSpanContext{
+							Target: &model.ServiceTargetSpanContext{
+								Type: "db",
+								Name: "postgresql",
+							},
+						},
 						Database: &model.DatabaseSpanContext{
 							Instance:  cfg.Database,
 							Statement: expectedStatement.query,
