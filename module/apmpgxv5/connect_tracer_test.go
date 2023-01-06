@@ -15,8 +15,7 @@ import (
 func Test_Connect(t *testing.T) {
 	host := os.Getenv("PGHOST")
 	if host == "" {
-		host = "localhost"
-		//t.Skipf("PGHOST not specified")
+		t.Skipf("PGHOST not specified")
 	}
 
 	testcases := []struct {
@@ -43,7 +42,7 @@ func Test_Connect(t *testing.T) {
 
 			apmpgxv5.Instrument(cfg)
 
-			_, spans, errs := apmtest.WithTransaction(func(ctx context.Context) {
+			_, spans, errs := apmtest.WithUncompressedTransaction(func(ctx context.Context) {
 				_, _ = pgx.ConnectConfig(ctx, cfg)
 			})
 

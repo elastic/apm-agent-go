@@ -63,7 +63,7 @@ func Test_CopyFromTrace(t *testing.T) {
 
 	for _, tt := range testcases {
 		t.Run(tt.name, func(t *testing.T) {
-			_, spans, errs := apmtest.WithTransaction(func(ctx context.Context) {
+			_, spans, errs := apmtest.WithUncompressedTransaction(func(ctx context.Context) {
 				_, _ = conn.CopyFrom(ctx,
 					tt.tableName,
 					tt.columnNames,
