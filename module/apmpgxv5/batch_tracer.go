@@ -33,7 +33,7 @@ func (b BatchTracer) TraceBatchStart(ctx context.Context, conn *pgx.Conn, _ pgx.
 	span, spanCtx, ok := startSpan(ctx, apmsql.QuerySignature("BATCH"), batchSpanType, conn.Config(),
 		apm.SpanOptions{})
 	if !ok {
-		return nil
+		return ctx
 	}
 
 	return apm.ContextWithSpan(spanCtx, span)

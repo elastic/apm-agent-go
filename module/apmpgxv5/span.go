@@ -31,12 +31,10 @@ var action = map[spanType]string{
 func startSpan(ctx context.Context, name string, spanType spanType, conn *pgx.ConnConfig, opts apm.SpanOptions) (*apm.Span, context.Context, bool) {
 	span, spanCtx := apm.StartSpanOptions(ctx, name, string(spanType), opts)
 
-	// this line leads to panic, because apm.Tracer in trace is nil.
-	// todo: fix this on review, idk how to fix it for now.
-	//if span.Dropped() {
-	//	span.End()
-	//	return nil, nil, false
-	//}
+	if span.Dropped() {
+		span.End()
+		return nil, ctx, false
+	}
 
 	if conn != nil {
 		span.Context.SetDatabase(apm.DatabaseSpanContext{
@@ -64,6 +62,10 @@ func startSpan(ctx context.Context, name string, spanType spanType, conn *pgx.Co
 
 func endSpan(ctx context.Context, err error) {
 	span := apm.SpanFromContext(ctx)
+	if span == nil {
+		return
+	}
+
 	defer span.End()
 
 	if span.Dropped() {
