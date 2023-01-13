@@ -37,7 +37,7 @@ COPY module/apmmongo/go.mod module/apmmongo/go.sum /go/src/go.elastic.co/apm/mod
 COPY module/apmnegroni/go.mod module/apmnegroni/go.sum /go/src/go.elastic.co/apm/module/apmnegroni/
 COPY module/apmot/go.mod module/apmot/go.sum /go/src/go.elastic.co/apm/module/apmot/
 COPY module/apmpgx/go.mod module/apmpgx/go.sum /go/src/go.elastic.co/apm/module/apmpgx/
-COPY module/apmpgxv5/go.mod module/apmpgx/go.sum /go/src/go.elastic.co/apm/module/apmpgxv5/
+COPY module/apmpgxv5/go.mod module/apmpgxv5/go.sum /go/src/go.elastic.co/apm/module/apmpgxv5/
 COPY module/apmprometheus/go.mod module/apmprometheus/go.sum /go/src/go.elastic.co/apm/module/apmprometheus/
 COPY module/apmredigo/go.mod module/apmredigo/go.sum /go/src/go.elastic.co/apm/module/apmredigo/
 COPY module/apmrestful/go.mod module/apmrestful/go.sum /go/src/go.elastic.co/apm/module/apmrestful/

@@ -15,15 +15,17 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmpgxv5
+package apmpgxv5 // import "go.elastic.co/apm/module/apmpgxv5/v2"
 
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	"github.com/jackc/pgx/v5"
+
 	"go.elastic.co/apm/module/apmsql/v2"
 	"go.elastic.co/apm/v2"
-	"strings"
 )
 
 // CopyFromTracer traces CopyFrom
