@@ -972,7 +972,7 @@ func main() {
 ----
 
 [[builtin-modules-apmpgx]]
-== module/apmpgx
+==== module/apmpgx
 Package apmpgx provides a means of instrumenting the
 https://github.com/jackc/pgx[Pgx] for v4.17+,
 so that SQL queries are reported as spans within the current transaction.
