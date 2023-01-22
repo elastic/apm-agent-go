@@ -15,5 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
+//go:build go1.18
+// +build go1.18
+
 // Package apmpgxv5 provides helpers for tracing github.com/jackc/pgx/v5. Minimal required version is v5
 package apmpgxv5 // import "go.elastic.co/apm/module/apmpgxv5/v2"
