@@ -16,7 +16,6 @@
 // under the License.
 
 //go:build go1.18
-// +build go1.18
 
 package apmpgxv5 // import "go.elastic.co/apm/module/apmpgxv5/v2"
 
