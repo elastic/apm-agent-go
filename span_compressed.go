@@ -18,7 +18,6 @@
 package apm // import "go.elastic.co/apm/v2"
 
 import (
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -249,12 +248,13 @@ func (s *SpanData) isExactMatch(span *Span) bool {
 func (s *SpanData) isSameKind(span *Span) bool {
 	sameType := s.Type == span.Type
 	sameSubType := s.Subtype == span.Subtype
-	dstService := s.Context.destination.Service
-	otherDstService := span.Context.destination.Service
-	sameService := dstService != nil && otherDstService != nil &&
-		dstService.Resource == otherDstService.Resource
+	dstServiceTarget := s.Context.service.Target
+	otherDstServiceTarget := span.Context.service.Target
+	sameServiceTarget := dstServiceTarget != nil && otherDstServiceTarget != nil &&
+		dstServiceTarget.Type == otherDstServiceTarget.Type &&
+		dstServiceTarget.Name == otherDstServiceTarget.Name
 
-	return sameType && sameSubType && sameService
+	return sameType && sameSubType && sameServiceTarget
 }
 
 // setCompressedSpanName changes the span name to "Calls to <destination service>"
@@ -263,13 +263,21 @@ func (s *SpanData) setCompressedSpanName() {
 	if s.composite.compressionStrategy != compressedStrategySameKind {
 		return
 	}
-	service := s.Context.destinationService.Resource
+	s.Name = s.getCompositeSpanName()
+}
 
-	var builder strings.Builder
-	builder.Grow(len(compressedSpanSameKindName) + len(service))
-	builder.WriteString(compressedSpanSameKindName)
-	builder.WriteString(service)
-	s.Name = builder.String()
+func (s *SpanData) getCompositeSpanName() string {
+	if s.Context.serviceTarget.Type == "" {
+		if s.Context.serviceTarget.Name == "" {
+			return compressedSpanSameKindName + "unknown"
+		} else {
+			return compressedSpanSameKindName + s.Context.serviceTarget.Name
+		}
+	} else if s.Context.serviceTarget.Name == "" {
+		return compressedSpanSameKindName + s.Context.serviceTarget.Type
+	} else {
+		return compressedSpanSameKindName + s.Context.serviceTarget.Type + "/" + s.Context.serviceTarget.Name
+	}
 }
 
 type compressedSpan struct {

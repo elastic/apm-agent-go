@@ -4,6 +4,7 @@ ENV GO111MODULE=on
 
 COPY go.mod go.sum /go/src/go.elastic.co/apm/
 COPY internal/apmgodog/go.mod internal/apmgodog/go.sum /go/src/go.elastic.co/apm/internal/apmgodog/
+COPY internal/apmschema/go.mod internal/apmschema/go.sum /go/src/go.elastic.co/apm/internal/apmschema/
 COPY internal/tracecontexttest/go.mod internal/tracecontexttest/go.sum /go/src/go.elastic.co/apm/internal/tracecontexttest/
 COPY module/apmawssdkgo/go.mod module/apmawssdkgo/go.sum /go/src/go.elastic.co/apm/module/apmawssdkgo/
 COPY module/apmazure/go.mod module/apmazure/go.sum /go/src/go.elastic.co/apm/module/apmazure/
@@ -36,6 +37,7 @@ COPY module/apmmongo/go.mod module/apmmongo/go.sum /go/src/go.elastic.co/apm/mod
 COPY module/apmnegroni/go.mod module/apmnegroni/go.sum /go/src/go.elastic.co/apm/module/apmnegroni/
 COPY module/apmot/go.mod module/apmot/go.sum /go/src/go.elastic.co/apm/module/apmot/
 COPY module/apmpgx/go.mod module/apmpgx/go.sum /go/src/go.elastic.co/apm/module/apmpgx/
+COPY module/apmpgxv5/go.mod module/apmpgxv5/go.sum /go/src/go.elastic.co/apm/module/apmpgxv5/
 COPY module/apmprometheus/go.mod module/apmprometheus/go.sum /go/src/go.elastic.co/apm/module/apmprometheus/
 COPY module/apmredigo/go.mod module/apmredigo/go.sum /go/src/go.elastic.co/apm/module/apmredigo/
 COPY module/apmrestful/go.mod module/apmrestful/go.sum /go/src/go.elastic.co/apm/module/apmrestful/
@@ -47,6 +49,7 @@ COPY scripts/genmod/go.mod scripts/genmod/go.sum /go/src/go.elastic.co/apm/scrip
 
 RUN cd /go/src/go.elastic.co/apm && go mod download
 RUN cd /go/src/go.elastic.co/apm/internal/apmgodog && go mod download
+RUN cd /go/src/go.elastic.co/apm/internal/apmschema && go mod download
 RUN cd /go/src/go.elastic.co/apm/internal/tracecontexttest && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmawssdkgo && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmazure && go mod download
@@ -79,6 +82,7 @@ RUN cd /go/src/go.elastic.co/apm/module/apmmongo && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmnegroni && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmot && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmpgx && go mod download
+RUN cd /go/src/go.elastic.co/apm/module/apmpgxv5 && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmprometheus && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmredigo && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmrestful && go mod download
