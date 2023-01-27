@@ -26,9 +26,7 @@ jobs:
     timeout-minutes: 30
     strategy:
       matrix:
-        # wait for https://github.com/actions/setup-go/issues/232
-        # to support stable/main
-        go-version: [ "1.15", "1.16", "1.17", "1.18", "1.19" ]
+        go-version: [ "1.15", "1.16", "1.17", "oldstable", "stable" ]
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v3
