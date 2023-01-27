@@ -86,6 +86,43 @@ pipeline {
         }
       }
     }
+    stage('OSX') {
+      agent { label 'macos11 && x86_64' }
+      options { skipDefaultCheckout() }
+      environment {
+        GO_VERSION = "${params.GO_VERSION}"
+        PATH = "${env.PATH}:${env.WORKSPACE}/bin"
+        // NOTE: as long as the MacOS workers use a different path then GOPATH and HOME need to be reset
+        GOPATH = "${env.WORKSPACE}"
+        HOME = "${env.WORKSPACE}"
+      }
+      when {
+        beforeAgent true
+        expression { return env.ONLY_DOCS == "false" }
+      }
+      steps {
+        withGithubNotify(context: 'Build-Test - OSX') {
+          retry(3) {
+            deleteDir()
+            unstash 'source'
+          }
+          retry(3) {
+            dir("${BASE_DIR}"){
+              sh script: './scripts/jenkins/build.sh', label: 'Build'
+            }
+          }
+          dir("${BASE_DIR}"){
+            sh script: './scripts/jenkins/test.sh', label: 'Test'
+          }
+        }
+      }
+      post {
+        always {
+          junit(allowEmptyResults: true, keepLongStdio: true, testResults: "${BASE_DIR}/build/junit-*.xml")
+          deleteDir()
+        }
+      }
+    }
     stage('Release') {
       options { skipDefaultCheckout() }
       when {
