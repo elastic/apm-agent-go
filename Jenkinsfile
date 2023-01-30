@@ -114,52 +114,10 @@ pipeline {
         }
       }
     }
-    stage('Release') {
-      options { skipDefaultCheckout() }
-      when {
-        beforeAgent true
-        tag pattern: 'v\\d+\\.\\d+\\.\\d+', comparator: 'REGEXP'
-      }
-      stages {
-        stage('Opbeans') {
-          environment {
-            REPO_NAME = "${OPBEANS_REPO}"
-            GO_VERSION = "${params.GO_VERSION}"
-          }
-          steps {
-            deleteDir()
-            dir("${OPBEANS_REPO}"){
-              git(credentialsId: 'f6c7695a-671e-4f4f-a331-acdce44ff9ba',
-                  url: "git@github.com:elastic/${OPBEANS_REPO}.git",
-                  branch: 'main')
-              sh script: ".ci/bump-version.sh ${env.BRANCH_NAME}", label: 'Bump version'
-              // The opbeans-go pipeline will trigger a release for the main branch
-              gitPush()
-              // The opbeans-go pipeline will trigger a release for the release tag
-              gitCreateTag(tag: "${env.BRANCH_NAME}")
-            }
-          }
-        }
-        stage('Notify') {
-          steps {
-            notifyStatus(slackStatus: 'good', subject: "[${env.REPO}] Release *${env.BRANCH_NAME}* published", body: "Great news, the release has finished successfully. (<${env.RUN_DISPLAY_URL}|Open>).")
-          }
-        }
-      }
-    }
   }
   post {
     cleanup {
       notifyBuildResult(goBenchmarkComment: true)
     }
   }
-}
-
-def notifyStatus(def args = [:]) {
-  releaseNotification(slackChannel: "${env.SLACK_CHANNEL}",
-                      slackColor: args.slackStatus,
-                      slackCredentialsId: 'jenkins-slack-integration-token',
-                      to: "${env.NOTIFY_TO}",
-                      subject: args.subject,
-                      body: args.body)
 }
