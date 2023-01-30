@@ -86,34 +86,6 @@ pipeline {
         }
       }
     }
-    stage('Publish snapshot') {
-      options { skipDefaultCheckout() }
-      environment {
-        BUCKET_NAME = 'oblt-artifacts'
-        DOCKER_REGISTRY = 'docker.elastic.co'
-        DOCKER_REGISTRY_SECRET = 'secret/observability-team/ci/docker-registry/prod'
-        GCS_ACCOUNT_SECRET = 'secret/observability-team/ci/snapshoty'
-      }
-      when {
-        beforeAgent true
-        branch 'main'
-      }
-      steps {
-        withGithubNotify(context: 'Publish snapshot tarball') {
-          deleteDir()
-          unstash 'source'
-          dir(env.BASE_DIR) {
-            sh(label: 'create snapshot tarball', script: "./scripts/jenkins/package.sh")
-            snapshoty(
-              bucket: env.BUCKET_NAME,
-              gcsAccountSecret: env.GCS_ACCOUNT_SECRET,
-              dockerRegistry: env.DOCKER_REGISTRY,
-              dockerSecret: env.DOCKER_REGISTRY_SECRET
-            )
-          }
-        }
-      }
-    }
     stage('Release') {
       options { skipDefaultCheckout() }
       when {
