@@ -33,8 +33,6 @@ pipeline {
   parameters {
     string(name: 'GO_VERSION', defaultValue: "1.15.10", description: "Go version to use.")
     booleanParam(name: 'Run_As_Main_Branch', defaultValue: false, description: 'Allow to run any steps on a PR, some steps normally only run on main branch.')
-    booleanParam(name: 'test_ci', defaultValue: true, description: 'Enable test')
-    booleanParam(name: 'docker_test_ci', defaultValue: true, description: 'Enable run docker tests')
     booleanParam(name: 'bench_ci', defaultValue: true, description: 'Enable benchmarks')
   }
   stages {
@@ -55,76 +53,6 @@ pipeline {
             deleteDir()
             gitCheckout(basedir: "${BASE_DIR}", githubNotifyFirstTimeContributor: true, reference: '/var/lib/jenkins/.git-references/apm-agent-go.git')
             stash allowEmpty: true, name: 'source', useDefaultExcludes: false
-            script {
-              dir("${BASE_DIR}"){
-                // Skip all the stages except docs for PR's with asciidoc and md changes only
-                env.ONLY_DOCS = isGitRegionMatch(patterns: [ '.*\\.(asciidoc|md)' ], shouldMatchAll: true)
-              }
-            }
-          }
-        }
-        /**
-        Execute unit tests.
-        */
-        stage('Tests') {
-          options { skipDefaultCheckout() }
-          when {
-            beforeAgent true
-            allOf {
-              expression { return env.ONLY_DOCS == "false" }
-              expression { return params.test_ci }
-            }
-          }
-          steps {
-            withGithubNotify(context: 'Tests', tab: 'tests') {
-              deleteDir()
-              unstash 'source'
-              dir("${BASE_DIR}"){
-                script {
-                  def go = readYaml(file: '.jenkins.yml')
-                  def parallelTasks = [:]
-                  go['GO_VERSION'].each{ version ->
-                    parallelTasks["Go-${version}"] = generateStep(version)
-                  }
-                  // For the cutting edge
-                  def edge = readYaml(file: '.jenkins-edge.yml')
-                  edge['GO_VERSION'].each{ version ->
-                    parallelTasks["Go-${version}"] = generateStepAndCatchError(version)
-                  }
-                  parallel(parallelTasks)
-                }
-              }
-            }
-          }
-        }
-        stage('Coverage') {
-          options { skipDefaultCheckout() }
-          when {
-            beforeAgent true
-            allOf {
-              expression { return env.ONLY_DOCS == "false" }
-              expression { return params.docker_test_ci }
-            }
-          }
-          steps {
-            withGithubNotify(context: 'Coverage') {
-              deleteDir()
-              unstash 'source'
-              dir("${BASE_DIR}"){
-                sh script: './scripts/jenkins/docker-test.sh', label: 'Docker tests'
-              }
-            }
-          }
-          post {
-            always {
-              coverageReport("${BASE_DIR}/build/coverage")
-              codecov(repo: env.REPO, basedir: "${BASE_DIR}",
-                flags: "-f build/coverage/coverage.cov -X search",
-                secret: "${CODECOV_SECRET}")
-              junit(allowEmptyResults: true,
-                keepLongStdio: true,
-                testResults: "${BASE_DIR}/build/junit-*.xml")
-            }
           }
         }
         stage('Benchmark') {
@@ -153,70 +81,6 @@ pipeline {
                   generateGoBenchmarkDiff(file: 'bench.out', filter: 'exclude')
                 }
               }
-            }
-          }
-        }
-      }
-    }
-    stage('More OS') {
-      when {
-        beforeAgent true
-        expression { return env.ONLY_DOCS == "false" }
-      }
-      parallel {
-        stage('Windows') {
-          agent { label 'windows-2019-immutable' }
-          options { skipDefaultCheckout() }
-          environment {
-            GO_VERSION = "${params.GO_VERSION}"
-          }
-          steps {
-            withGithubNotify(context: 'Build-Test - Windows') {
-              cleanDir("${WORKSPACE}/${BASE_DIR}")
-              unstash 'source'
-              withGoEnv(version: "${env.GO_VERSION}"){
-                dir("${BASE_DIR}"){
-                  bat script: 'scripts/jenkins/windows/build-test.bat', label: 'Build and test'
-                }
-              }
-            }
-          }
-          post {
-            always {
-              junit(allowEmptyResults: true, keepLongStdio: true, testResults: "${BASE_DIR}/build/junit-*.xml")
-            }
-          }
-        }
-        stage('OSX') {
-          agent { label 'macos11 && x86_64' }
-          options { skipDefaultCheckout() }
-          environment {
-            GO_VERSION = "${params.GO_VERSION}"
-            PATH = "${env.PATH}:${env.WORKSPACE}/bin"
-            // NOTE: as long as the MacOS workers use a different path then GOPATH and HOME need to be reset
-            GOPATH = "${env.WORKSPACE}"
-            HOME = "${env.WORKSPACE}"
-          }
-          steps {
-            withGithubNotify(context: 'Build-Test - OSX') {
-              retry(3) {
-                deleteDir()
-                unstash 'source'
-              }
-              retry(3) {
-                dir("${BASE_DIR}"){
-                  sh script: './scripts/jenkins/build.sh', label: 'Build'
-                }
-              }
-              dir("${BASE_DIR}"){
-                sh script: './scripts/jenkins/test.sh', label: 'Test'
-              }
-            }
-          }
-          post {
-            always {
-              junit(allowEmptyResults: true, keepLongStdio: true, testResults: "${BASE_DIR}/build/junit-*.xml")
-              deleteDir()
             }
           }
         }
@@ -261,52 +125,6 @@ pipeline {
       notifyBuildResult(goBenchmarkComment: true)
     }
   }
-}
-
-def generateStep(version){
-  return {
-    runStep(version)
-  }
-}
-
-def runStep(version) {
-  node('linux && immutable'){
-    try {
-      echo "${version}"
-      withEnv(["GO_VERSION=${version}"]) {
-        // Another retry in case there are any environmental issues
-        // See https://issuetracker.google.com/issues/146072599 for more context
-        retry(3) {
-          deleteDir()
-          unstash 'source'
-        }
-        retry(3) {
-          dir("${BASE_DIR}"){
-            sh script: './scripts/jenkins/build.sh', label: 'Build'
-          }
-        }
-        dir("${BASE_DIR}"){
-          sh script: './scripts/jenkins/test.sh', label: 'Test'
-        }
-      }
-    } finally {
-      junit(allowEmptyResults: true,
-        keepLongStdio: true,
-        testResults: "${BASE_DIR}/build/junit-*.xml")
-    }
-  }
-}
-
-def generateStepAndCatchError(version){
-  return {
-    catchError(buildResult: 'SUCCESS', message: 'Cutting Edge Tests', stageResult: 'UNSTABLE') {
-      runStep(version)
-    }
-  }
-}
-
-def cleanDir(path){
-  powershell label: "Clean ${path}", script: "Remove-Item -Recurse -Force ${path}"
 }
 
 def notifyStatus(def args = [:]) {
