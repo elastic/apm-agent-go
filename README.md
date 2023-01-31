@@ -1,4 +1,4 @@
-[![Build Status](https://apm-ci.elastic.co/buildStatus/icon?job=apm-agent-go/apm-agent-go-mbp/main)](https://apm-ci.elastic.co/job/apm-agent-go/job/apm-agent-go-mbp/job/main/)
+[![Build Status](https://github.com/elastic/apm-agent-go/actions/workflows/ci.yml/badge.svg)](https://github.com/elastic/apm-agent-go/actions/workflows/ci.yml)
 [![PkgGoDev](https://pkg.go.dev/badge/go.elastic.co/apm/v2)](https://pkg.go.dev/go.elastic.co/apm/v2)
 [![Go Report Card](https://goreportcard.com/badge/go.elastic.co/apm/v2)](https://goreportcard.com/report/go.elastic.co/apm/v2)
 [![codecov.io](https://codecov.io/github/elastic/apm-agent-go/coverage.svg?branch=main)](https://codecov.io/github/elastic/apm-agent-go?branch=main)
