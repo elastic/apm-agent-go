@@ -26,4 +26,4 @@ jobs:
         printBuildLogs: true
         buildEnvVars: |
           commit=${{ github.sha }}
-          command=./scripts/jenkins/bench.sh
+          command=./scripts/ci/bench.sh
