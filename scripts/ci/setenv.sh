@@ -8,5 +8,4 @@ eval "$(curl -sL https://raw.githubusercontent.com/travis-ci/gimme/master/gimme 
 # Install tools used only in CI using a local go.mod file.
 GO_INSTALL_FLAGS="-modfile=$PWD/scripts/ci/scripts/ci.go.mod"
 
-go install $GO_INSTALL_FLAGS -v github.com/jstemmer/go-junit-report
 go install $GO_INSTALL_FLAGS -v github.com/t-yuki/gocover-cobertura
