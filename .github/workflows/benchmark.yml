@@ -1,0 +1,29 @@
+name: benchmark
+
+on:
+  push:
+    branches: [ "main" ]
+  create:
+    tags: [ "v*" ]
+
+permissions:
+  contents: read
+
+jobs:
+
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Run benchmark
+      uses: elastic/apm-pipeline-library/.github/actions/buildkite@current
+      with:
+        vaultUrl: ${{ secrets.VAULT_ADDR }}
+        vaultRoleId: ${{ secrets.VAULT_ROLE_ID }}
+        vaultSecretId: ${{ secrets.VAULT_SECRET_ID }}
+        pipeline: apm-agent-go-benchmark
+        waitFor: true
+        printBuildLogs: true
+        buildEnvVars: |
+          commit=${{ github.sha }}
+          command=./scripts/jenkins/bench.sh
