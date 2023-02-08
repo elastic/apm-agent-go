@@ -1,0 +1,56 @@
+name: benchmarks
+
+inputs:
+  vaultUrl:
+    description: 'Vault URL'
+    required: true
+  vaultRoleId:
+    description: 'Vault role ID'
+    required: true
+  vaultSecretId:
+    description: 'Vault secret ID'
+    required: true
+  githubToken:
+    description: 'GitHub token'
+    required: true
+  sha:
+    description: 'The Git Sha commit'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+
+  - uses: actions/setup-go@v3
+    with:
+      go-version-file: go.mod
+      cache: true
+      cache-dependency-path: '**/go.sum'
+
+  - name: Run benchmarks script
+    id: benchmarks
+    run: ./scripts/ci/bench.sh
+    shell: bash
+
+  ## This could be refactored and moved to the shared library
+  - name: Create GitHub check
+    if: always()
+    env:
+      REPO: 'apm-agent-go'
+      GH_TOKEN: ${{ inputs.githubToken }}
+      RUN_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}"
+      STATE: "${{ steps.benchmarks.conclusion == 'success' && 'success' || 'failure' }}"
+    run: |
+      gh api repos/elastic/${{ env.REPO }}/statuses/${{ inputs.sha }} \
+      -X POST \
+      --input - <<< "{\"state\":\"${{ env.STATE }}\",\"context\": \"benchmarks\", \"target_url\": \"${{ env.RUN_URL }}\", \"description\":\"The benchmarks ran\"}"
+    shell: bash
+
+  - name: Report results
+    if: always()
+    uses: elastic/apm-pipeline-library/.github/actions/notify-build-status@current
+    with:
+      vaultUrl: ${{ inputs.vaultUrl }}
+      vaultRoleId: ${{ inputs.vaultRoleId }}
+      vaultSecretId: ${{ inputs.vaultSecretId }}
+      slackChannel: '#on-week-oblt-productivity'
