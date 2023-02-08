@@ -1,29 +1,31 @@
-name: benchmark
+---
+name: benchmarks
 
 on:
   push:
     branches: [ "main" ]
   create:
     tags: [ "v*" ]
+  pull_request:
 
 permissions:
   contents: read
 
 jobs:
-
-  release:
+  benchmarks:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Run benchmark
-      uses: elastic/apm-pipeline-library/.github/actions/buildkite@current
-      with:
-        vaultUrl: ${{ secrets.VAULT_ADDR }}
-        vaultRoleId: ${{ secrets.VAULT_ROLE_ID }}
-        vaultSecretId: ${{ secrets.VAULT_SECRET_ID }}
-        pipeline: apm-agent-go-benchmark
-        waitFor: true
-        printBuildLogs: true
-        buildEnvVars: |
-          commit=${{ github.sha }}
-          command=./scripts/ci/bench.sh
+      - uses: elastic/apm-pipeline-library/.github/actions/github-token@current
+        with:
+          url: ${{ secrets.VAULT_ADDR }}
+          roleId: ${{ secrets.VAULT_ROLE_ID }}
+          secretId: ${{ secrets.VAULT_SECRET_ID }}
+
+      - env:
+          GH_TOKEN: ${{ env.GITHUB_TOKEN }}
+          PROJECT: observability-robots-playground
+        run: |-
+          gh api -H 'Accept: application/vnd.github.everest-preview+json' \
+            repos/elastic/${{ env.PROJECT }}/dispatches \
+            -X POST \
+            --input - <<< "{\"event_type\":\"benchmarks\",\"client_payload\":{ \"ref\": \"${{ github.event.pull_request.head.sha }}\", \"repository\": \"${{ github.repository }}\"}}"
