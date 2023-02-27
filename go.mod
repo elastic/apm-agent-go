@@ -11,7 +11,7 @@ require (
 	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/stretchr/testify v1.6.1
 	go.elastic.co/fastjson v1.1.0
-	golang.org/x/sys v0.0.0-20220209214540-3681064d5158
+	golang.org/x/sys v0.1.0
 	golang.org/x/tools v0.1.9
 	howett.net/plist v1.0.0 // indirect
 )
