@@ -469,6 +469,10 @@ func (b *exceptionDataBuilder) init(e *exceptionData, err error) bool {
 		if cause := err.Unwrap(); cause != nil {
 			e.ErrorDetails.Cause = append(e.ErrorDetails.Cause, cause)
 		}
+	case interface{ Unwrap() []error }:
+		if causes := err.Unwrap(); causes != nil {
+			e.ErrorDetails.Cause = append(e.ErrorDetails.Cause, causes...)
+		}
 	case interface{ Cause() error }:
 		if cause := err.Cause(); cause != nil {
 			e.ErrorDetails.Cause = append(e.ErrorDetails.Cause, cause)
