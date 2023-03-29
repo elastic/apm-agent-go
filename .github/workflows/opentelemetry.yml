@@ -5,7 +5,7 @@ on:
   workflow_run:
     workflows:
       - ci
-      - update-specs
+      - updatecli
     types: [completed]
 
 jobs:
