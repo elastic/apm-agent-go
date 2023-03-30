@@ -48,7 +48,7 @@ type modelWriter struct {
 // writeTransaction encodes tx as JSON to the buffer, and then resets tx.
 func (w *modelWriter) writeTransaction(tx *Transaction, td *TransactionData) {
 	var modelTx model.Transaction
-	w.buildModelTransaction(&modelTx, tx, td)
+	BuildModelTransaction(&modelTx, tx, td)
 	w.json.RawString(`{"transaction":`)
 	modelTx.MarshalFastJSON(&w.json)
 	w.json.RawByte('}')
@@ -101,39 +101,6 @@ func (w *modelWriter) writeMetrics(m *Metrics) {
 		w.json.Reset()
 	}
 	m.reset()
-}
-
-func (w *modelWriter) buildModelTransaction(out *model.Transaction, tx *Transaction, td *TransactionData) {
-	out.ID = model.SpanID(tx.traceContext.Span)
-	out.TraceID = model.TraceID(tx.traceContext.Trace)
-	sampled := tx.traceContext.Options.Recorded()
-	if !sampled {
-		out.Sampled = &notSampled
-	}
-	if tx.traceContext.State.haveSampleRate {
-		out.SampleRate = &tx.traceContext.State.sampleRate
-	}
-
-	out.ParentID = model.SpanID(tx.parentID)
-	out.Name = truncateString(td.Name)
-	out.Type = truncateString(td.Type)
-	out.Result = truncateString(td.Result)
-	out.Outcome = normalizeOutcome(td.Outcome)
-	out.Timestamp = model.Time(td.timestamp.UTC())
-	out.Duration = td.Duration.Seconds() * 1000
-	out.SpanCount.Started = td.spansCreated
-	out.SpanCount.Dropped = td.spansDropped
-	out.OTel = td.Context.otel
-	for _, sl := range td.links {
-		out.Links = append(out.Links, model.SpanLink{TraceID: model.TraceID(sl.Trace), SpanID: model.SpanID(sl.Span)})
-	}
-	if dss := buildDroppedSpansStats(td.droppedSpansStats); len(dss) > 0 {
-		out.DroppedSpansStats = dss
-	}
-
-	if sampled {
-		out.Context = td.Context.build()
-	}
 }
 
 func (w *modelWriter) buildModelSpan(out *model.Span, span *Span, sd *SpanData) {
@@ -256,6 +223,40 @@ func (w *modelWriter) buildModelError(out *model.Error, e *ErrorData) {
 		}
 	}
 	out.Culprit = truncateString(out.Culprit)
+}
+
+// BuildModelTransaction converts apm transaction to model transaction
+func BuildModelTransaction(out *model.Transaction, tx *Transaction, td *TransactionData) {
+	out.ID = model.SpanID(tx.traceContext.Span)
+	out.TraceID = model.TraceID(tx.traceContext.Trace)
+	sampled := tx.traceContext.Options.Recorded()
+	if !sampled {
+		out.Sampled = &notSampled
+	}
+	if tx.traceContext.State.haveSampleRate {
+		out.SampleRate = &tx.traceContext.State.sampleRate
+	}
+
+	out.ParentID = model.SpanID(tx.parentID)
+	out.Name = truncateString(td.Name)
+	out.Type = truncateString(td.Type)
+	out.Result = truncateString(td.Result)
+	out.Outcome = normalizeOutcome(td.Outcome)
+	out.Timestamp = model.Time(td.timestamp.UTC())
+	out.Duration = td.Duration.Seconds() * 1000
+	out.SpanCount.Started = td.spansCreated
+	out.SpanCount.Dropped = td.spansDropped
+	out.OTel = td.Context.otel
+	for _, sl := range td.links {
+		out.Links = append(out.Links, model.SpanLink{TraceID: model.TraceID(sl.Trace), SpanID: model.SpanID(sl.Span)})
+	}
+	if dss := buildDroppedSpansStats(td.droppedSpansStats); len(dss) > 0 {
+		out.DroppedSpansStats = dss
+	}
+
+	if sampled {
+		out.Context = td.Context.build()
+	}
 }
 
 func stacktraceCulprit(frames []model.StacktraceFrame) string {
