@@ -28,8 +28,9 @@ import (
 )
 
 // NewGatherer creates a new gatherer/exporter to bridge between agent metrics and OpenTelemetry
-func NewGatherer() (Gatherer, error) {
-	reader := metric.NewManualReader()
+func NewGatherer(opts ...Option) (Gatherer, error) {
+	cfg := newConfig(opts...)
+	reader := metric.NewManualReader(cfg.manualReaderOptions()...)
 
 	return Gatherer{reader}, nil
 }
