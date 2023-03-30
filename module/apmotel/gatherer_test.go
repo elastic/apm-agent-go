@@ -49,9 +49,6 @@ func TestGatherer(t *testing.T) {
 			},
 			expectedMetrics: []model.Metrics{
 				{
-					Samples: map[string]model.Metric{},
-				},
-				{
 					Samples: map[string]model.Metric{
 						"foo": {
 							Value: 5,
@@ -76,13 +73,6 @@ func TestGatherer(t *testing.T) {
 
 			metrics := gatherMetrics(gatherer)
 
-			// Remove all internal metrics
-			for k := range metrics[0].Samples {
-				if strings.HasPrefix(k, "golang.") {
-					delete(metrics[0].Samples, k)
-				}
-			}
-
 			assert.Equal(t, tt.expectedMetrics, metrics)
 		})
 	}
@@ -96,6 +86,20 @@ func gatherMetrics(g apm.MetricsGatherer) []model.Metrics {
 	metrics := tracer.Payloads().Metrics
 	for i := range metrics {
 		metrics[i].Timestamp = model.Time{}
+	}
+
+	// Remove internal metrics
+	for i, m := range metrics {
+		for k := range m.Samples {
+			if strings.HasPrefix(k, "golang.") {
+				delete(m.Samples, k)
+			}
+		}
+
+		if len(m.Samples) == 0 {
+			metrics[i] = metrics[len(metrics)-1]
+			metrics = metrics[:len(metrics)-1]
+		}
 	}
 	return metrics
 }
