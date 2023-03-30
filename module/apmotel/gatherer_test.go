@@ -80,6 +80,46 @@ func TestGatherer(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "with a float64 gauge",
+			recordMetrics: func(ctx context.Context, meter metric.Meter) {
+				counter, err := meter.Float64UpDownCounter("foo")
+				assert.NoError(t, err)
+				counter.Add(ctx, 5, attribute.Key("A").String("B"))
+			},
+			expectedMetrics: []model.Metrics{
+				{
+					Samples: map[string]model.Metric{
+						"foo": {
+							Value: 5,
+						},
+					},
+					Labels: model.StringMap{
+						model.StringMapItem{Key: "A", Value: "B"},
+					},
+				},
+			},
+		},
+		{
+			name: "with an int64 gauge",
+			recordMetrics: func(ctx context.Context, meter metric.Meter) {
+				counter, err := meter.Float64UpDownCounter("foo")
+				assert.NoError(t, err)
+				counter.Add(ctx, 5, attribute.Key("A").String("B"))
+			},
+			expectedMetrics: []model.Metrics{
+				{
+					Samples: map[string]model.Metric{
+						"foo": {
+							Value: 5,
+						},
+					},
+					Labels: model.StringMap{
+						model.StringMapItem{Key: "A", Value: "B"},
+					},
+				},
+			},
+		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()

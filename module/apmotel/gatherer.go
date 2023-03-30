@@ -67,9 +67,13 @@ func (e Gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 					out.Add(sm.Name, makeLabels(dp.Attributes), dp.Value)
 				}
 			case metricdata.Gauge[int64]:
-				// Gauge
+				for _, dp := range m.DataPoints {
+					out.Add(sm.Name, makeLabels(dp.Attributes), float64(dp.Value))
+				}
 			case metricdata.Gauge[float64]:
-				// Gauge
+				for _, dp := range m.DataPoints {
+					out.Add(sm.Name, makeLabels(dp.Attributes), dp.Value)
+				}
 			}
 		}
 	}
