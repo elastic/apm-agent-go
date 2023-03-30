@@ -19,6 +19,7 @@ package apmotel // import "go.elastic.co/apm/module/apmotel"
 
 import (
 	"context"
+	"fmt"
 
 	"go.elastic.co/apm"
 	"go.opentelemetry.io/otel/attribute"
@@ -74,6 +75,8 @@ func (e Gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 				for _, dp := range m.DataPoints {
 					out.Add(sm.Name, makeLabels(dp.Attributes), dp.Value)
 				}
+			default:
+				return fmt.Errorf("unknown metric type %q", m)
 			}
 		}
 	}
