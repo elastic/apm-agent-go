@@ -27,7 +27,7 @@ https://github.com/elastic/apm-agent-go/compare/v2.3.0...main[View commits]
 === Go Agent version 2.x
 
 [[release-notes-2.3.0]]
-==== 2.3.0 - 2022/03/30
+==== 2.3.0 - 2023/03/30
 
 - Ensure minimum retry interval of 5 seconds for fetching central configuration {pull}1337[#1337]
 - Update span compression logic to handle `service.target.*` fields {pull}1339[#1339]
