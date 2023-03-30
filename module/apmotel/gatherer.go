@@ -78,6 +78,12 @@ func (e Gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 }
 
 func makeLabels(attrs attribute.Set) []apm.MetricLabel {
-	labels := make([]apm.MetricLabel, 0)
+	labels := make([]apm.MetricLabel, attrs.Len())
+	iter := attrs.Iter()
+	for iter.Next() {
+		i, kv := iter.IndexedAttribute()
+		labels[i] = apm.MetricLabel{Name: string(kv.Key), Value: kv.Value.Emit()}
+	}
+
 	return labels
 }

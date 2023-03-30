@@ -24,6 +24,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 
@@ -44,14 +45,20 @@ func TestGatherer(t *testing.T) {
 			recordMetrics: func(ctx context.Context, meter metric.Meter) {
 				counter, err := meter.Float64Counter("foo")
 				assert.NoError(t, err)
-				counter.Add(ctx, 5)
+				counter.Add(ctx, 5, attribute.Key("A").String("B"))
 			},
 			expectedMetrics: []model.Metrics{
+				{
+					Samples: map[string]model.Metric{},
+				},
 				{
 					Samples: map[string]model.Metric{
 						"foo": {
 							Value: 5,
 						},
+					},
+					Labels: model.StringMap{
+						model.StringMapItem{Key: "A", Value: "B"},
 					},
 				},
 			},
