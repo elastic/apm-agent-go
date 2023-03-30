@@ -120,6 +120,101 @@ func TestGatherer(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "with a float64 histogram",
+			recordMetrics: func(ctx context.Context, meter metric.Meter) {
+				counter, err := meter.Float64Histogram("histogram_foo")
+				assert.NoError(t, err)
+				counter.Record(ctx, 3.4,
+					attribute.Key("code").String("200"),
+					attribute.Key("method").String("GET"),
+				)
+				counter.Record(ctx, 3.4,
+					attribute.Key("code").String("200"),
+					attribute.Key("method").String("GET"),
+				)
+				counter.Record(ctx, 3.4,
+					attribute.Key("code").String("200"),
+					attribute.Key("method").String("GET"),
+				)
+
+				counter.Record(ctx, 5.5,
+					attribute.Key("code").String("302"),
+					attribute.Key("method").String("GET"),
+				)
+				counter.Record(ctx, 5.5,
+					attribute.Key("code").String("302"),
+					attribute.Key("method").String("GET"),
+				)
+				counter.Record(ctx, 5.5,
+					attribute.Key("code").String("302"),
+					attribute.Key("method").String("GET"),
+				)
+
+				counter.Record(ctx, 11.2,
+					attribute.Key("code").String("302"),
+					attribute.Key("method").String("GET"),
+				)
+				counter.Record(ctx, 11.2,
+					attribute.Key("code").String("302"),
+					attribute.Key("method").String("GET"),
+				)
+				counter.Record(ctx, 11.2,
+					attribute.Key("code").String("302"),
+					attribute.Key("method").String("GET"),
+				)
+			},
+			expectedMetrics: []model.Metrics{
+				{
+					Samples: map[string]model.Metric{
+						"histogram_foo": {
+							Type:   "histogram",
+							Values: []float64{10, 25},
+							Counts: []uint64{3, 3},
+						},
+					},
+					Labels: model.StringMap{
+						{Key: "code", Value: "302"},
+						{Key: "method", Value: "GET"},
+					},
+				},
+				{
+					Samples: map[string]model.Metric{
+						"histogram_foo": {
+							Type:   "histogram",
+							Values: []float64{5},
+							Counts: []uint64{3},
+						},
+					},
+					Labels: model.StringMap{
+						{Key: "code", Value: "200"},
+						{Key: "method", Value: "GET"},
+					},
+				},
+			},
+		},
+		{
+			name: "with an int64 histogram",
+			recordMetrics: func(ctx context.Context, meter metric.Meter) {
+				counter, err := meter.Int64Histogram("foo")
+				assert.NoError(t, err)
+				counter.Record(ctx, 5, attribute.Key("A").String("B"))
+			},
+			expectedMetrics: []model.Metrics{
+				{
+					Samples: map[string]model.Metric{
+						"foo": {
+							Type:   "histogram",
+							Values: []float64{5},
+							Counts: []uint64{1},
+						},
+					},
+					Labels: model.StringMap{
+						model.StringMapItem{Key: "A", Value: "B"},
+					},
+				},
+			},
+		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()

@@ -56,9 +56,9 @@ func (e Gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 		for _, sm := range scopeMetrics.Metrics {
 			switch m := sm.Data.(type) {
 			case metricdata.Histogram[int64]:
-				// Histogram
+				addHistogramMetric(out, sm, m)
 			case metricdata.Histogram[float64]:
-				// Histogram
+				addHistogramMetric(out, sm, m)
 			case metricdata.Sum[int64]:
 				for _, dp := range m.DataPoints {
 					out.Add(sm.Name, makeLabels(dp.Attributes), float64(dp.Value))
@@ -82,6 +82,24 @@ func (e Gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 	}
 
 	return nil
+}
+
+func addHistogramMetric[N int64 | float64](out *apm.Metrics, sm metricdata.Metrics, m metricdata.Histogram[N]) {
+	for _, dp := range m.DataPoints {
+		values := make([]float64, 0, len(dp.Bounds))
+		counts := make([]uint64, 0, len(dp.BucketCounts))
+
+		for i, v := range dp.Bounds {
+			count := dp.BucketCounts[i]
+
+			if count > 0 {
+				counts = append(counts, count)
+				values = append(values, v)
+			}
+		}
+
+		out.AddHistogram(sm.Name, makeLabels(dp.Attributes), values, counts)
+	}
 }
 
 func makeLabels(attrs attribute.Set) []apm.MetricLabel {
