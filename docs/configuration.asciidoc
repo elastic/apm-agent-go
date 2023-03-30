@@ -673,7 +673,7 @@ If this config value is set to `"none"`, then no cloud metadata will be collecte
 [options="header"]
 |============
 | Environment                            | Default
-| `ELASTIC_APM_SPAN_COMPRESSION_ENABLED` | `false`
+| `ELASTIC_APM_SPAN_COMPRESSION_ENABLED` | `true`
 |============
 
 When enabled, the agent will attempt to compress _short_ exit spans that share the
@@ -723,7 +723,7 @@ exact match for compression.
 [options="header"]
 |============
 | Environment                                            | Default
-| `ELASTIC_APM_SPAN_COMPRESSION_SAME_KIND_MAX_DURATION`  | `5ms`
+| `ELASTIC_APM_SPAN_COMPRESSION_SAME_KIND_MAX_DURATION`  | `0ms`
 |============
 
 The maximum duration to consider for compressing sibling exit spans that are of
