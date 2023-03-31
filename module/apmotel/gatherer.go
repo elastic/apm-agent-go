@@ -21,10 +21,11 @@ import (
 	"context"
 	"fmt"
 
-	"go.elastic.co/apm"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
+
+	"go.elastic.co/apm"
 )
 
 // NewGatherer creates a new gatherer/exporter to bridge between agent metrics and OpenTelemetry
