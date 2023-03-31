@@ -21,10 +21,22 @@ endif::[]
 [[unreleased]]
 === Unreleased
 
-https://github.com/elastic/apm-agent-go/compare/v2.2.0...main[View commits]
+https://github.com/elastic/apm-agent-go/compare/v2.3.0...main[View commits]
 
 [[release-notes-2.x]]
 === Go Agent version 2.x
+
+[[release-notes-2.3.0]]
+==== 2.3.0 - 2023/03/30
+
+- Ensure minimum retry interval of 5 seconds for fetching central configuration {pull}1337[#1337]
+- Update span compression logic to handle `service.target.*` fields {pull}1339[#1339]
+- module/apmchiv5: Add panic propogation option {pull}1359[#1359]
+- module/apmgormv2: Add sqlserver support {pull}1356[#1356]
+- module/apmsql: Add sqlserver support {pull}1356[#1356]
+- Update compressed spans to use `service.target.*` fields to derive its name {pull}1336[#1336]
+- module/apmpgxv5: new instrumentation module for jackc/pgx v5 with enhanced support e.g. detailed `BATCH` and `CONNECT` traces {pull}1364[#1364]
+- Add support for `Unwrap []error` {pull}1400[#1400]
 
 [[release-notes-2.2.0]]
 ==== 2.2.0 - 2022/10/31
