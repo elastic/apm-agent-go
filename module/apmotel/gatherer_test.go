@@ -172,7 +172,7 @@ func TestGatherer(t *testing.T) {
 					Samples: map[string]model.Metric{
 						"histogram_foo": {
 							Type:   "histogram",
-							Values: []float64{7.5, 17.5},
+							Values: []float64{4.828425, 9.65685},
 							Counts: []uint64{3, 3},
 						},
 					},
@@ -185,7 +185,7 @@ func TestGatherer(t *testing.T) {
 					Samples: map[string]model.Metric{
 						"histogram_foo": {
 							Type:   "histogram",
-							Values: []float64{2.5},
+							Values: []float64{3.414215},
 							Counts: []uint64{3},
 						},
 					},
@@ -208,7 +208,7 @@ func TestGatherer(t *testing.T) {
 					Samples: map[string]model.Metric{
 						"foo": {
 							Type:   "histogram",
-							Values: []float64{2.5},
+							Values: []float64{4.828425},
 							Counts: []uint64{1},
 						},
 					},

@@ -71,7 +71,7 @@ func TestConfigManualReaderOptions(t *testing.T) {
 		{
 			name:            "Default",
 			config:          config{},
-			wantOptionCount: 0,
+			wantOptionCount: 1,
 		},
 
 		{

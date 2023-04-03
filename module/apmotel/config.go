@@ -20,7 +20,21 @@
 
 package apmotel // import "go.elastic.co/apm/module/apmotel"
 
-import "go.opentelemetry.io/otel/sdk/metric"
+import (
+	"log"
+
+	"go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/aggregation"
+)
+
+var customHistogramBoundaries = []float64{
+	0.00390625, 0.00552427, 0.0078125, 0.0110485, 0.015625, 0.0220971, 0.03125,
+	0.0441942, 0.0625, 0.0883883, 0.125, 0.176777, 0.25, 0.353553, 0.5, 0.707107,
+	1, 1.41421, 2, 2.82843, 4, 5.65685, 8, 11.3137, 16, 22.6274, 32, 45.2548, 64,
+	90.5097, 128, 181.019, 256, 362.039, 512, 724.077, 1024, 1448.15, 2048,
+	2896.31, 4096, 5792.62, 8192, 11585.2, 16384, 23170.5, 32768, 46341.0, 65536,
+	92681.9, 131072,
+}
 
 type config struct {
 	aggregation metric.AggregationSelector
@@ -29,7 +43,9 @@ type config struct {
 type Option func(config) config
 
 func newConfig(opts ...Option) config {
-	cfg := config{}
+	cfg := config{
+		aggregation: customAggregationSelector,
+	}
 	for _, opt := range opts {
 		opt(cfg)
 	}
@@ -39,9 +55,7 @@ func newConfig(opts ...Option) config {
 
 func (cfg config) manualReaderOptions() []metric.ManualReaderOption {
 	opts := []metric.ManualReaderOption{}
-	if cfg.aggregation != nil {
-		opts = append(opts, metric.WithAggregationSelector(cfg.aggregation))
-	}
+	opts = append(opts, metric.WithAggregationSelector(cfg.aggregation))
 	return opts
 }
 
@@ -53,4 +67,21 @@ func WithAggregationSelector(agg metric.AggregationSelector) Option {
 		cfg.aggregation = agg
 		return cfg
 	}
+}
+
+func customAggregationSelector(ik metric.InstrumentKind) aggregation.Aggregation {
+	switch ik {
+	case metric.InstrumentKindCounter, metric.InstrumentKindUpDownCounter, metric.InstrumentKindObservableCounter, metric.InstrumentKindObservableUpDownCounter:
+		return aggregation.Sum{}
+	case metric.InstrumentKindObservableGauge:
+		return aggregation.LastValue{}
+	case metric.InstrumentKindHistogram:
+		return aggregation.ExplicitBucketHistogram{
+			Boundaries: customHistogramBoundaries,
+			NoMinMax:   false,
+		}
+	}
+
+	log.Panicf("unknown instrument kind %q", ik)
+	return nil
 }
