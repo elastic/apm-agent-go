@@ -45,7 +45,7 @@ type Gatherer struct {
 var _ metric.Reader = Gatherer{}
 var _ apm.MetricsGatherer = Gatherer{}
 
-// GatherMEtrics gathers metrics into out.
+// GatherMetrics gathers metrics into out.
 func (e Gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 	metrics := metricdata.ResourceMetrics{}
 	err := e.Reader.Collect(ctx, &metrics)
