@@ -9,12 +9,10 @@ pipeline {
     BASE_DIR = "src/go.elastic.co/apm"
     NOTIFY_TO = credentials('notify-to')
     JOB_GCS_BUCKET = credentials('gcs-bucket')
-    CODECOV_SECRET = 'secret/apm-team/ci/apm-agent-go-codecov'
     GO111MODULE = 'on'
     GOPATH = "${env.WORKSPACE}"
     GOPROXY = 'https://proxy.golang.org'
     HOME = "${env.WORKSPACE}"
-    OPBEANS_REPO = 'opbeans-go'
     SLACK_CHANNEL = '#apm-agent-go'
   }
   options {
@@ -28,7 +26,7 @@ pipeline {
     quietPeriod(10)
   }
   triggers {
-    issueCommentTrigger("(${obltGitHubComments()}|^run benchmark tests)")
+    issueCommentTrigger("^run benchmark tests")
   }
   parameters {
     string(name: 'GO_VERSION', defaultValue: "1.15.10", description: "Go version to use.")
@@ -41,6 +39,18 @@ pipeline {
       environment {
         GO_VERSION = "${params.GO_VERSION}"
         PATH = "${env.PATH}:${env.WORKSPACE}/bin"
+      }
+      when {
+        beforeAgent true
+        allOf {
+          anyOf {
+            branch 'main'
+            tag pattern: 'v\\d+\\.\\d+\\.\\d+.*', comparator: 'REGEXP'
+            expression { return params.Run_As_Main_Branch }
+            expression { return env.GITHUB_COMMENT?.contains('benchmark tests') }
+          }
+          expression { return params.bench_ci }
+        }
       }
       stages {
         /**
@@ -58,18 +68,6 @@ pipeline {
         stage('Benchmark') {
           agent { label 'microbenchmarks-pool' }
           options { skipDefaultCheckout() }
-          when {
-            beforeAgent true
-            allOf {
-              anyOf {
-                branch 'main'
-                tag pattern: 'v\\d+\\.\\d+\\.\\d+.*', comparator: 'REGEXP'
-                expression { return params.Run_As_Main_Branch }
-                expression { return env.GITHUB_COMMENT?.contains('benchmark tests') }
-              }
-              expression { return params.bench_ci }
-            }
-          }
           steps {
             withGithubNotify(context: 'Benchmark', tab: 'tests') {
               deleteDir()
@@ -85,11 +83,6 @@ pipeline {
           }
         }
       }
-    }
-  }
-  post {
-    cleanup {
-      notifyBuildResult(goBenchmarkComment: true)
     }
   }
 }
