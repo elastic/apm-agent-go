@@ -172,7 +172,7 @@ func TestGatherer(t *testing.T) {
 					Samples: map[string]model.Metric{
 						"histogram_foo": {
 							Type:   "histogram",
-							Values: []float64{10, 25},
+							Values: []float64{7.5, 17.5},
 							Counts: []uint64{3, 3},
 						},
 					},
@@ -185,7 +185,7 @@ func TestGatherer(t *testing.T) {
 					Samples: map[string]model.Metric{
 						"histogram_foo": {
 							Type:   "histogram",
-							Values: []float64{5},
+							Values: []float64{2.5},
 							Counts: []uint64{3},
 						},
 					},
@@ -208,7 +208,7 @@ func TestGatherer(t *testing.T) {
 					Samples: map[string]model.Metric{
 						"foo": {
 							Type:   "histogram",
-							Values: []float64{5},
+							Values: []float64{2.5},
 							Counts: []uint64{1},
 						},
 					},
@@ -232,6 +232,62 @@ func TestGatherer(t *testing.T) {
 			metrics := gatherMetrics(gatherer)
 
 			assert.ElementsMatch(t, tt.expectedMetrics, metrics)
+		})
+	}
+}
+
+func TestComputeCountAndBounds(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+
+		index  int
+		bounds []float64
+		counts []uint64
+
+		expectedBound float64
+		expectedCount uint64
+	}{
+		{
+			name:   "with a zero count",
+			index:  0,
+			bounds: []float64{5},
+			counts: []uint64{0, 0},
+
+			expectedBound: 0,
+			expectedCount: 0,
+		},
+		{
+			name:   "with the -infinity bucket (zero index)",
+			index:  0,
+			bounds: []float64{6},
+			counts: []uint64{1, 0},
+
+			expectedBound: 3,
+			expectedCount: 1,
+		},
+		{
+			name:   "with the +infinity bucket (last index)",
+			index:  2,
+			bounds: []float64{6, 8},
+			counts: []uint64{1, 2, 1},
+
+			expectedBound: 8,
+			expectedCount: 1,
+		},
+		{
+			name:   "with midpoint boundaries",
+			index:  1,
+			bounds: []float64{6, 8},
+			counts: []uint64{1, 2, 1},
+
+			expectedBound: 7,
+			expectedCount: 2,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			bound, count := computeCountAndBounds(tt.index, tt.bounds, tt.counts)
+			assert.Equal(t, tt.expectedBound, bound)
+			assert.Equal(t, tt.expectedCount, count)
 		})
 	}
 }

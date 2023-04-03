@@ -91,20 +91,53 @@ func (e Gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 
 func addHistogramMetric[N int64 | float64](out *apm.Metrics, sm metricdata.Metrics, m metricdata.Histogram[N]) {
 	for _, dp := range m.DataPoints {
-		values := make([]float64, 0, len(dp.Bounds))
-		counts := make([]uint64, 0, len(dp.BucketCounts))
-
-		for i, v := range dp.Bounds {
-			count := dp.BucketCounts[i]
-
-			if count > 0 {
-				counts = append(counts, count)
-				values = append(values, v)
-			}
+		if len(dp.BucketCounts) != len(dp.Bounds)+1 || len(dp.Bounds) == 0 {
+			continue
 		}
 
-		out.AddHistogram(sm.Name, makeLabels(dp.Attributes), values, counts)
+		bounds := make([]float64, 0, len(dp.Bounds))
+		counts := make([]uint64, 0, len(dp.BucketCounts))
+
+		for i, _ := range dp.BucketCounts {
+			bound, count := computeCountAndBounds(i, dp.Bounds, dp.BucketCounts)
+			if count == 0 {
+				continue
+			}
+
+			counts = append(counts, count)
+			bounds = append(bounds, bound)
+		}
+
+		out.AddHistogram(sm.Name, makeLabels(dp.Attributes), bounds, counts)
 	}
+}
+
+func computeCountAndBounds(i int, bounds []float64, counts []uint64) (float64, uint64) {
+	count := counts[i]
+	if count == 0 {
+		return 0, 0
+	}
+
+	var bound float64
+	switch i {
+	// (-infinity, explicit_bounds[i]]
+	case 0:
+		bound = bounds[i]
+		if bound > 0 {
+			bound /= 2
+		}
+
+	// (explicit_bounds[i], +infinity)
+	case len(counts) - 1:
+		bound = bounds[i-1]
+
+	// [explicit_bounds[i-1], explicit_bounds[i])
+	default:
+		// Use the midpoint between the boundaries.
+		bound = bounds[i-1] + (bounds[i]-bounds[i-1])/2.0
+	}
+
+	return bound, count
 }
 
 func makeLabels(attrs attribute.Set) []apm.MetricLabel {
