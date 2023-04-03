@@ -305,7 +305,7 @@ func gatherMetrics(g apm.MetricsGatherer) []model.Metrics {
 	// Remove internal metrics
 	for i, m := range metrics {
 		for k := range m.Samples {
-			if strings.HasPrefix(k, "golang.") {
+			if strings.HasPrefix(k, "golang.") || strings.HasPrefix(k, "system.") {
 				delete(m.Samples, k)
 			}
 		}
