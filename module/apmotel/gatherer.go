@@ -15,6 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
+//go:build go1.18
+// +build go1.18
+
 package apmotel // import "go.elastic.co/apm/module/apmotel"
 
 import (

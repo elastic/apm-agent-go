@@ -15,42 +15,5 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//go:build go1.18
-// +build go1.18
-
+// Package apmotel provides helpers for exporting OpenTelemetry data to the Elastic APM Agent.
 package apmotel // import "go.elastic.co/apm/module/apmotel"
-
-import "go.opentelemetry.io/otel/sdk/metric"
-
-type config struct {
-	aggregation metric.AggregationSelector
-}
-
-type Option func(config) config
-
-func newConfig(opts ...Option) config {
-	cfg := config{}
-	for _, opt := range opts {
-		opt(cfg)
-	}
-
-	return cfg
-}
-
-func (cfg config) manualReaderOptions() []metric.ManualReaderOption {
-	opts := []metric.ManualReaderOption{}
-	if cfg.aggregation != nil {
-		opts = append(opts, metric.WithAggregationSelector(cfg.aggregation))
-	}
-	return opts
-}
-
-// WithAggregationSelector configure the Aggregation Selector the exporter will
-// use. If no AggregationSelector is provided the DefaultAggregationSelector is
-// used.
-func WithAggregationSelector(agg metric.AggregationSelector) Option {
-	return func(cfg config) config {
-		cfg.aggregation = agg
-		return cfg
-	}
-}
