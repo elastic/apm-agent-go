@@ -231,7 +231,7 @@ func TestGatherer(t *testing.T) {
 
 			metrics := gatherMetrics(gatherer)
 
-			assert.Equal(t, tt.expectedMetrics, metrics)
+			assert.ElementsMatch(t, tt.expectedMetrics, metrics)
 		})
 	}
 }
