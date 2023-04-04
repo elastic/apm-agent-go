@@ -1,4 +1,4 @@
-module go.elastic.co/apm/module/apmotel
+module go.elastic.co/apm/module/apmotel/v2
 
 require (
 	github.com/stretchr/testify v1.8.2

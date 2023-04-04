@@ -16,4 +16,4 @@
 // under the License.
 
 // Package apmotel provides helpers for exporting OpenTelemetry data to the Elastic APM Agent.
-package apmotel // import "go.elastic.co/apm/module/apmotel"
+package apmotel // import "go.elastic.co/apm/module/apmotel/v2"
