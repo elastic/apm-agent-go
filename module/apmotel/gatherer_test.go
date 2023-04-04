@@ -30,6 +30,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/aggregation"
 
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/apmtest"
@@ -234,6 +235,48 @@ func TestGatherer(t *testing.T) {
 			assert.ElementsMatch(t, tt.expectedMetrics, metrics)
 		})
 	}
+}
+
+func TestGathererWithCustomView(t *testing.T) {
+	ctx := context.Background()
+
+	gatherer, err := NewGatherer()
+	assert.NoError(t, err)
+	provider := sdkmetric.NewMeterProvider(
+		sdkmetric.WithReader(gatherer),
+		sdkmetric.WithView(sdkmetric.NewView(
+			sdkmetric.Instrument{Name: "*"},
+			sdkmetric.Stream{Aggregation: aggregation.ExplicitBucketHistogram{
+				Boundaries: []float64{0, 5, 10, 25, 50, 75, 100, 250, 500, 1000},
+			}},
+		)),
+	)
+	meter := provider.Meter("apmotel_test")
+
+	counter, err := meter.Float64Histogram("histogram_foo")
+	assert.NoError(t, err)
+	counter.Record(ctx, 3.4,
+		attribute.Key("code").String("200"),
+		attribute.Key("method").String("GET"),
+	)
+
+	metrics := gatherMetrics(gatherer)
+
+	assert.ElementsMatch(t, []model.Metrics{
+		{
+			Samples: map[string]model.Metric{
+				"histogram_foo": {
+					Type:   "histogram",
+					Values: []float64{2.5},
+					Counts: []uint64{1},
+				},
+			},
+			Labels: model.StringMap{
+				{Key: "code", Value: "200"},
+				{Key: "method", Value: "GET"},
+			},
+		},
+	}, metrics)
 }
 
 func TestComputeCountAndBounds(t *testing.T) {
