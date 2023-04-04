@@ -21,8 +21,6 @@
 package apmotel // import "go.elastic.co/apm/module/apmotel/v2"
 
 import (
-	"log"
-
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/aggregation"
 )
@@ -71,17 +69,12 @@ func WithAggregationSelector(agg metric.AggregationSelector) Option {
 
 func customAggregationSelector(ik metric.InstrumentKind) aggregation.Aggregation {
 	switch ik {
-	case metric.InstrumentKindCounter, metric.InstrumentKindUpDownCounter, metric.InstrumentKindObservableCounter, metric.InstrumentKindObservableUpDownCounter:
-		return aggregation.Sum{}
-	case metric.InstrumentKindObservableGauge:
-		return aggregation.LastValue{}
 	case metric.InstrumentKindHistogram:
 		return aggregation.ExplicitBucketHistogram{
 			Boundaries: customHistogramBoundaries,
 			NoMinMax:   false,
 		}
+	default:
+		return metric.DefaultAggregationSelector(ik)
 	}
-
-	log.Panicf("unknown instrument kind %q", ik)
-	return nil
 }
