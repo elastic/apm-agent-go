@@ -28,7 +28,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 
-	"go.elastic.co/apm"
+	"go.elastic.co/apm/v2"
 )
 
 // NewGatherer creates a new gatherer/exporter to bridge between agent metrics and OpenTelemetry
