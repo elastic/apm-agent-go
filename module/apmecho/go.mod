@@ -11,7 +11,7 @@ require (
 	github.com/valyala/fasttemplate v0.0.0-20170224212429-dcecefd839c4 // indirect
 	go.elastic.co/apm/module/apmhttp/v2 v2.3.0
 	go.elastic.co/apm/v2 v2.3.0
-	golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413 // indirect
+	golang.org/x/crypto v0.1.0 // indirect
 )
 
 replace go.elastic.co/apm/v2 => ../..
