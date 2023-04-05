@@ -9,7 +9,7 @@ require (
 	go.elastic.co/apm/module/apmgrpc/v2 v2.3.0
 	go.elastic.co/apm/module/apmhttp/v2 v2.3.0
 	go.elastic.co/apm/v2 v2.3.0
-	golang.org/x/net v0.0.0-20211015210444-4f30a5c0130f
+	golang.org/x/net v0.7.0
 	google.golang.org/grpc v1.17.0
 )
 
