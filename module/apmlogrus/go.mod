@@ -5,7 +5,7 @@ require (
 	github.com/sirupsen/logrus v1.2.0
 	github.com/stretchr/testify v1.6.1
 	go.elastic.co/apm/v2 v2.3.0
-	golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413 // indirect
+	golang.org/x/crypto v0.1.0 // indirect
 )
 
 replace go.elastic.co/apm/v2 => ../..
