@@ -8,7 +8,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.10.0
 	github.com/stretchr/testify v1.7.0
 	go.elastic.co/apm/v2 v2.3.0
-	golang.org/x/sys v0.0.0-20220224120231-95c6836cb0e7 // indirect
+	golang.org/x/sys v0.1.0 // indirect
 )
 
 replace go.elastic.co/apm/v2 => ../..
