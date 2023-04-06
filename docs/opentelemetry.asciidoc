@@ -3,10 +3,66 @@
 
 The Elastic APM Go Agent provides wrappers to interact with the https://opentelemetry.io/[OpenTelemetry API].
 
-Metrics created through the OpenTelemetry API will be translated to Elastic APM metrics.
+Traces and metrics created through the OpenTelemetry API will be translated to their Elastic APM equivalent.
 
 [float]
-[[opentelemetry-init]]
+=== Initializing the tracing bridge
+
+The OpenTelemetry Tracing bridge is implemented as a Tracer Provider. Once
+setup, any span created through that provider will be set on the Elastic
+agent.  
+And the provider will try to find any existing transaction within the context.
+
+To setup this tracer provider, you first need to import the `apmotel` package.
+
+[source,go]
+----
+import (
+	"go.elastic.co/apm/module/apmotel"
+)
+----
+
+The apmotel package exposes a `NewTracerProvider` method, which returns an
+implementation of an OpenTelemetry Tracer Provider.
+
+
+[source,go]
+----
+provider, err := apmotel.NewTracerProvider()
+----
+
+By default, the tracer provider will find the default apm tracer. But you can
+specify a custom one with the `apmotel.WithAPMTracer` argument option.
+
+Once you have obtained this provider, you can configure it as your
+OpenTelemetry SDK implementation, and use the APIs normally.
+
+[source,go]
+----
+import (
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/module/apmotel"
+
+	"go.opentelemetry.io/otel"
+)
+
+func main() {	
+	provider, err := NewTracerProvider()
+	if err != nil {
+		log.Fatal(err)
+	}
+	otel.SetTracerProvider(provider)
+
+	tracer := otel.GetTracerProvider().Tracer("example")
+	// Start a new span to track some work, which will be sent to the Elastic APM tracer
+	ctx, span := tracer.Start(context.Background(), "my_work")
+	// Do something
+	span.End()
+}
+----
+
+[float]
+[[opentelemetry-metrics-init]]
 === Initializing the metrics exporter
 
 The OpenTelemetry Metrics bridge is implemented as a manual reader exporter.
