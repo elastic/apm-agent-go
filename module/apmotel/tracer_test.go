@@ -63,3 +63,17 @@ func TestTracerStartChildSpan(t *testing.T) {
 	assert.Equal(t, ps.(*span).tx, cs.(*span).tx)
 	assert.NotNil(t, cs.(*span).span)
 }
+
+func TestTracerStartChildSpanWithNewRoot(t *testing.T) {
+	tp, err := NewTracerProvider()
+	assert.NoError(t, err)
+	tracer := newTracer(tp.(*tracerProvider))
+
+	ctx := context.Background()
+	ctx, ps := tracer.Start(ctx, "parentSpan")
+	ctx, cs := tracer.Start(ctx, "childSpan", trace.WithNewRoot())
+
+	assert.Nil(t, cs.(*span).span)
+	assert.NotNil(t, cs.(*span).tx)
+	assert.NotEqual(t, ps.(*span).tx, cs.(*span).tx)
+}

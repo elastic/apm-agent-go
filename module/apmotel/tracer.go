@@ -46,7 +46,7 @@ func (t *tracer) Start(ctx context.Context, spanName string, opts ...trace.SpanS
 		startTime = time.Now()
 	}
 
-	if p := trace.SpanFromContext(ctx); p != nil {
+	if p := trace.SpanFromContext(ctx); !config.NewRoot() && p != nil {
 		if apmSpan, ok := p.(*span); ok {
 			// This is a child span. Create a span, not a transaction
 			opts := apm.SpanOptions{
