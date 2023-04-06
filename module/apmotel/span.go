@@ -22,6 +22,8 @@ package apmotel // import "go.elastic.co/apm/module/apmotel/v2"
 
 import (
 	"fmt"
+	"net/http"
+	"net/url"
 	"reflect"
 	"runtime"
 	"sync"
@@ -32,6 +34,7 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	"go.opentelemetry.io/otel/trace"
 
+	"go.elastic.co/apm/module/apmhttp"
 	"go.elastic.co/apm/v2"
 )
 
@@ -74,10 +77,12 @@ func (s *span) End(options ...trace.SpanEndOption) {
 	}
 
 	if s.span != nil {
+		s.setSpanAttributes()
 		s.span.End()
 		return
 	}
 
+	s.setTransactionAttributes()
 	s.tx.End()
 }
 
@@ -153,6 +158,152 @@ func (s *span) SetAttributes(kv ...attribute.KeyValue) {
 
 func (s *span) TracerProvider() trace.TracerProvider {
 	return s.provider
+}
+
+func (s *span) setSpanAttributes() {
+	var (
+		dbContext       apm.DatabaseSpanContext
+		httpURL         string
+		httpMethod      string
+		httpHost        string
+		haveDBContext   bool
+		haveHTTPContext bool
+		haveHTTPHostTag bool
+	)
+
+	for _, v := range s.attributes {
+		switch v.Key {
+		case "component":
+			s.span.Subtype = v.Value.Emit()
+		case "db.instance":
+			dbContext.Instance = v.Value.Emit()
+			haveDBContext = true
+		case "db.statement":
+			dbContext.Statement = v.Value.Emit()
+			haveDBContext = true
+		case "db.type":
+			dbContext.Type = v.Value.Emit()
+			haveDBContext = true
+		case "db.user":
+			dbContext.User = v.Value.Emit()
+			haveDBContext = true
+		case "http.url":
+			haveHTTPContext = true
+			httpURL = v.Value.Emit()
+		case "http.method":
+			haveHTTPContext = true
+			httpMethod = v.Value.Emit()
+		case "http.host":
+			haveHTTPContext = true
+			haveHTTPHostTag = true
+			httpHost = v.Value.Emit()
+
+		// Elastic APM-specific tags:
+		case "type":
+			s.span.Type = v.Value.Emit()
+
+		default:
+			s.span.Context.SetLabel(string(v.Key), v.Value.Emit())
+		}
+	}
+	switch {
+	case haveHTTPContext:
+		if s.span.Type == "" {
+			s.span.Type = "external"
+			s.span.Subtype = "http"
+		}
+		url, err := url.Parse(httpURL)
+		if err == nil {
+			// handles the case where the url.Host hasn't been set.
+			// Tries obtaining the host value from the "http.host" tag.
+			// If not found, or if the url.Host has a value, it won't
+			// mutate the existing host.
+			if url.Host == "" && haveHTTPHostTag {
+				url.Host = httpHost
+			}
+			s.span.Context.SetHTTPRequest(&http.Request{
+				ProtoMinor: 1,
+				ProtoMajor: 1,
+				Method:     httpMethod,
+				URL:        url,
+			})
+		}
+	case haveDBContext:
+		if s.span.Type == "" {
+			s.span.Type = "db"
+			s.span.Subtype = dbContext.Type
+		}
+		s.span.Context.SetDatabase(dbContext)
+	}
+}
+
+func (s *span) setTransactionAttributes() {
+	var (
+		component      string
+		httpMethod     string
+		httpStatusCode = -1
+		httpURL        string
+		isError        bool
+	)
+	for _, v := range s.attributes {
+		switch v.Key {
+		case "component":
+			component = v.Value.Emit()
+		case "http.method":
+			httpMethod = v.Value.Emit()
+		case "http.status_code":
+			if code := v.Value.AsInt64(); code > 0 {
+				httpStatusCode = int(code)
+			}
+		case "http.url":
+			httpURL = v.Value.Emit()
+		case "error":
+			isError = v.Value.AsBool()
+
+		// Elastic APM-specific tags:
+		case "type":
+			s.tx.Type = v.Value.Emit()
+		case "result":
+			s.tx.Result = v.Value.Emit()
+		case "user.id":
+			s.tx.Context.SetUserID(v.Value.Emit())
+		case "user.email":
+			s.tx.Context.SetUserEmail(v.Value.Emit())
+		case "user.username":
+			s.tx.Context.SetUsername(v.Value.Emit())
+
+		default:
+			s.tx.Context.SetLabel(string(v.Key), v.Value.Emit())
+		}
+	}
+	if s.tx.Type == "" {
+		if httpURL != "" {
+			s.tx.Type = "request"
+		} else if component != "" {
+			s.tx.Type = component
+		} else {
+			s.tx.Type = "custom"
+		}
+	}
+	if s.tx.Result == "" {
+		if httpStatusCode != -1 {
+			s.tx.Result = apmhttp.StatusCodeResult(httpStatusCode)
+			s.tx.Context.SetHTTPStatusCode(httpStatusCode)
+		} else if isError {
+			s.tx.Result = "error"
+		}
+	}
+	if httpURL != "" {
+		uri, err := url.ParseRequestURI(httpURL)
+		if err == nil {
+			var req http.Request
+			req.ProtoMajor = 1 // Assume HTTP/1.1
+			req.ProtoMinor = 1
+			req.Method = httpMethod
+			req.URL = uri
+			s.tx.Context.SetHTTPRequest(&req)
+		}
+	}
 }
 
 func typeStr(i interface{}) string {
