@@ -31,3 +31,12 @@ func TestNewTracerProvider(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, tp)
 }
+
+func TestTracerProviderTracer(t *testing.T) {
+	tp, err := NewTracerProvider()
+	assert.NoError(t, err)
+
+	tr := tp.Tracer("test")
+	assert.NotNil(t, tr)
+	assert.Equal(t, tr, tp.Tracer("test"))
+}

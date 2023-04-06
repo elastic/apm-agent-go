@@ -40,6 +40,7 @@ func NewTracerProvider(opts ...TracerProviderOption) (trace.TracerProvider, erro
 	cfg := newTracerProviderConfig(opts...)
 	tp := &tracerProvider{
 		apmTracer: cfg.apmTracer,
+		tracers:   map[string]*tracer{},
 	}
 
 	return tp, nil
