@@ -53,28 +53,40 @@ func (t *tracer) Start(ctx context.Context, spanName string, opts ...trace.SpanS
 		psc = trace.SpanContextFromContext(ctx)
 	}
 
-	if p := trace.SpanFromContext(ctx); !config.NewRoot() && p != nil {
-		if apmSpan, ok := p.(*span); ok {
-			// This is a child span. Create a span, not a transaction
-			spanOpts := apm.SpanOptions{
-				Parent: apmSpan.span.TraceContext(),
-				Start:  config.Timestamp(),
+	if !config.NewRoot() {
+		p := trace.SpanFromContext(ctx)
+		if _, ok := p.(*span); !ok {
+			// Try to find a transaction from the agent context
+			if _, ok := p.(*span); !ok {
+				if tx := apm.TransactionFromContext(ctx); tx != nil {
+					p = &span{tx: tx}
+				}
 			}
+		}
 
-			apmTx := apmSpan.tx
-			apmSpan := apmTx.StartSpanOptions(spanName, "", spanOpts)
+		if p != nil {
+			if apmSpan, ok := p.(*span); ok {
+				// This is a child span. Create a span, not a transaction
+				spanOpts := apm.SpanOptions{
+					Parent: apmSpan.span.TraceContext(),
+					Start:  config.Timestamp(),
+				}
 
-			s := &span{
-				provider: t.provider,
+				apmTx := apmSpan.tx
+				apmSpan := apmTx.StartSpanOptions(spanName, "", spanOpts)
 
-				attributes:  config.Attributes(),
-				startTime:   startTime,
-				spanContext: psc,
+				s := &span{
+					provider: t.provider,
 
-				tx:   apmTx,
-				span: apmSpan,
+					attributes:  config.Attributes(),
+					startTime:   startTime,
+					spanContext: psc,
+
+					tx:   apmTx,
+					span: apmSpan,
+				}
+				return trace.ContextWithSpan(ctx, s), s
 			}
-			return trace.ContextWithSpan(ctx, s), s
 		}
 	}
 

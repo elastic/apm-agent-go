@@ -25,6 +25,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/transport/transporttest"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -51,6 +53,24 @@ func TestTracerStartTransaction(t *testing.T) {
 	assert.Nil(t, s.(*span).span)
 }
 
+func TestTracerStartTransactionWithParentContext(t *testing.T) {
+	tp, err := NewTracerProvider()
+	assert.NoError(t, err)
+	tracer := newTracer(tp.(*tracerProvider))
+
+	ctx := context.Background()
+	psc := trace.NewSpanContext(trace.SpanContextConfig{
+		TraceID: [16]byte{1},
+		SpanID:  [8]byte{42},
+	})
+	ctx = trace.ContextWithSpanContext(context.Background(), psc)
+
+	ctx, s := tracer.Start(ctx, "name")
+
+	assert.NotNil(t, s.(*span).tx)
+	assert.Nil(t, s.(*span).span)
+}
+
 func TestTracerStartChildSpan(t *testing.T) {
 	tp, err := NewTracerProvider()
 	assert.NoError(t, err)
@@ -61,6 +81,21 @@ func TestTracerStartChildSpan(t *testing.T) {
 	ctx, cs := tracer.Start(ctx, "childSpan")
 
 	assert.Equal(t, ps.(*span).tx, cs.(*span).tx)
+	assert.NotNil(t, cs.(*span).span)
+}
+
+func TestTracerStartChildSpanFromTransactionInContext(t *testing.T) {
+	apmTracer, _ := transporttest.NewRecorderTracer()
+	tp, err := NewTracerProvider(WithAPMTracer(apmTracer))
+	assert.NoError(t, err)
+	tracer := newTracer(tp.(*tracerProvider))
+
+	ctx := context.Background()
+	tx := apmTracer.StartTransaction("parent", "")
+	ctx = apm.ContextWithTransaction(context.Background(), tx)
+	ctx, cs := tracer.Start(ctx, "childSpan")
+
+	assert.Equal(t, tx, cs.(*span).tx)
 	assert.NotNil(t, cs.(*span).span)
 }
 
