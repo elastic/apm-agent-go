@@ -23,8 +23,9 @@ import (
 	"log"
 	"time"
 
-	"go.elastic.co/apm/v2/transport/transporttest"
 	"go.opentelemetry.io/otel"
+
+	"go.elastic.co/apm/v2/transport/transporttest"
 )
 
 func Example() {
