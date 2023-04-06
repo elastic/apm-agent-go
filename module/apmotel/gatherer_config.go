@@ -34,24 +34,24 @@ var customHistogramBoundaries = []float64{
 	92681.9, 131072,
 }
 
-type config struct {
+type gathererConfig struct {
 	aggregation metric.AggregationSelector
 }
 
-type Option func(config) config
+type GathererOption func(gathererConfig) gathererConfig
 
-func newConfig(opts ...Option) config {
-	cfg := config{
+func newGathererConfig(opts ...GathererOption) gathererConfig {
+	cfg := gathererConfig{
 		aggregation: customAggregationSelector,
 	}
 	for _, opt := range opts {
-		opt(cfg)
+		cfg = opt(cfg)
 	}
 
 	return cfg
 }
 
-func (cfg config) manualReaderOptions() []metric.ManualReaderOption {
+func (cfg gathererConfig) manualReaderOptions() []metric.ManualReaderOption {
 	opts := []metric.ManualReaderOption{}
 	opts = append(opts, metric.WithAggregationSelector(cfg.aggregation))
 	return opts
@@ -60,8 +60,8 @@ func (cfg config) manualReaderOptions() []metric.ManualReaderOption {
 // WithAggregationSelector configure the Aggregation Selector the exporter will
 // use. If no AggregationSelector is provided the DefaultAggregationSelector is
 // used.
-func WithAggregationSelector(agg metric.AggregationSelector) Option {
-	return func(cfg config) config {
+func WithAggregationSelector(agg metric.AggregationSelector) GathererOption {
+	return func(cfg gathererConfig) gathererConfig {
 		cfg.aggregation = agg
 		return cfg
 	}
