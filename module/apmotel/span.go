@@ -96,7 +96,7 @@ func (s *span) AddEvent(name string, opts ...trace.EventOption) {
 }
 
 func (s *span) IsRecording() bool {
-	return true
+	return s.provider.apmTracer.Recording()
 }
 
 func (s *span) RecordError(err error, opts ...trace.EventOption) {
