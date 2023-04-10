@@ -626,10 +626,11 @@ This environment variable will be ignored if a logger is configured programatica
 | `ELASTIC_APM_CENTRAL_CONFIG` | `true`
 |============
 
-Activate APM Agent Configuration via Kibana. By default the agent will poll the server
+Activate APM Agent central configuration via Kibana. By default the agent will poll the server
 for agent configuration changes. This can be disabled by changing the setting to `false`.
+See {kibana-ref}/agent-configuration.html[APM Agent central configuration] for more information.
 
-NOTE: This feature requires APM Server v7.3 or later and that the APM Server is configured with `kibana.enabled: true`.
+NOTE: This feature requires APM Server v7.3 or later.
 
 [float]
 [[config-use-elastic-traceparent-header]]
