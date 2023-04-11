@@ -18,7 +18,7 @@ To setup this tracer provider, you first need to import the `apmotel` package.
 [source,go]
 ----
 import (
-	"go.elastic.co/apm/module/apmotel"
+	"go.elastic.co/apm/module/apmotel/v2"
 )
 ----
 
