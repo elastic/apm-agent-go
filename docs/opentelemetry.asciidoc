@@ -47,7 +47,7 @@ import (
 )
 
 func main() {	
-	provider, err := NewTracerProvider()
+	provider, err := apmotel.NewTracerProvider()
 	if err != nil {
 		log.Fatal(err)
 	}
