@@ -23,11 +23,14 @@ package apmotel
 import (
 	"context"
 	"errors"
+	"net/url"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/model"
+	"go.elastic.co/apm/v2/transport/transporttest"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -37,12 +40,86 @@ func TestSpanEnd(t *testing.T) {
 	for _, tt := range []struct {
 		name    string
 		getSpan func(context.Context, trace.Tracer) trace.Span
+
+		expectedSpans        []model.Span
+		expectedTransactions []model.Transaction
 	}{
 		{
 			name: "with a root span",
 			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
 				ctx, s := tracer.Start(ctx, "name")
 				return s
+			},
+			expectedTransactions: []model.Transaction{
+				{
+					Name:    "name",
+					Type:    "custom",
+					Outcome: "success",
+				},
+			},
+		},
+		{
+			name: "a root span with component attribute",
+			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
+				ctx, s := tracer.Start(ctx, "name", trace.WithAttributes(attribute.String("component", "my_monolith")))
+				return s
+			},
+			expectedTransactions: []model.Transaction{
+				{
+					Name:    "name",
+					Type:    "my_monolith",
+					Outcome: "success",
+				},
+			},
+		},
+		{
+			name: "a root span with http attributes",
+			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
+				ctx, s := tracer.Start(ctx, "name", trace.WithAttributes(
+					attribute.String("http.method", "GET"),
+					attribute.String("http.status_code", "404"),
+					attribute.String("http.url", "/"),
+				))
+				return s
+			},
+			expectedTransactions: []model.Transaction{
+				{
+					Name:    "name",
+					Type:    "request",
+					Outcome: "success",
+					Context: &model.Context{
+						Request: &model.Request{
+							URL: model.URL{
+								Protocol: "http",
+								Path:     "/",
+							},
+							Method:      "GET",
+							HTTPVersion: "1.1",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "a root span with unknown attribute",
+			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
+				ctx, s := tracer.Start(ctx, "name", trace.WithAttributes(attribute.String("hello", "world")))
+				return s
+			},
+			expectedTransactions: []model.Transaction{
+				{
+					Name:    "name",
+					Type:    "custom",
+					Outcome: "success",
+					Context: &model.Context{
+						Tags: model.IfaceMap{
+							{
+								Key:   "hello",
+								Value: "world",
+							},
+						},
+					},
+				},
 			},
 		},
 		{
@@ -52,16 +129,158 @@ func TestSpanEnd(t *testing.T) {
 				ctx, s := tracer.Start(ctx, "childSpan")
 				return s
 			},
+			expectedSpans: []model.Span{
+				{
+					Name:    "childSpan",
+					Type:    "custom",
+					Outcome: "success",
+				},
+			},
+		},
+		{
+			name: "a child span with a component attribute",
+			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
+				ctx, _ = tracer.Start(ctx, "parentSpan")
+				ctx, s := tracer.Start(ctx, "name", trace.WithAttributes(attribute.String("component", "my_service")))
+				return s
+			},
+			expectedSpans: []model.Span{
+				{
+					Name:    "name",
+					Type:    "custom",
+					Subtype: "my_service",
+					Outcome: "success",
+				},
+			},
+		},
+		{
+			name: "a child span with db attributes",
+			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
+				ctx, _ = tracer.Start(ctx, "parentSpan")
+				ctx, s := tracer.Start(ctx, "name", trace.WithAttributes(
+					attribute.String("db.instance", "instance_42"),
+					attribute.String("db.statement", "SELECT * FROM *;"),
+					attribute.String("db.type", "query"),
+					attribute.String("db.user", "root"),
+				))
+				return s
+			},
+			expectedSpans: []model.Span{
+				{
+					Name:    "name",
+					Type:    "db",
+					Subtype: "query",
+					Outcome: "success",
+					Context: &model.SpanContext{
+						Database: &model.DatabaseSpanContext{
+							Instance:  "instance_42",
+							Statement: "SELECT * FROM *;",
+							Type:      "query",
+							User:      "root",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "a child span with http attributes",
+			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
+				ctx, _ = tracer.Start(ctx, "parentSpan")
+				ctx, s := tracer.Start(ctx, "name", trace.WithAttributes(
+					attribute.String("http.url", "https://example.com"),
+					attribute.String("http.method", "GET"),
+					attribute.String("http.host", "localhost"),
+				))
+				return s
+			},
+			expectedSpans: []model.Span{
+				{
+					Name:    "name",
+					Type:    "external",
+					Subtype: "http",
+					Outcome: "success",
+					Context: &model.SpanContext{
+						Destination: &model.DestinationSpanContext{
+							Address: "example.com",
+							Port:    443,
+							Service: &model.DestinationServiceSpanContext{
+								Type:     "external",
+								Name:     "https://example.com",
+								Resource: "example.com:443",
+							},
+						},
+						HTTP: &model.HTTPSpanContext{
+							URL: &url.URL{
+								Scheme: "https",
+								Host:   "example.com",
+								Path:   "/",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "a child span with unknown attribute",
+			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
+				ctx, _ = tracer.Start(ctx, "parentSpan")
+				ctx, s := tracer.Start(ctx, "name", trace.WithAttributes(attribute.String("hello", "world")))
+				return s
+			},
+			expectedSpans: []model.Span{
+				{
+					Name:    "name",
+					Type:    "custom",
+					Outcome: "success",
+					Context: &model.SpanContext{
+						Tags: model.IfaceMap{
+							{
+								Key:   "hello",
+								Value: "world",
+							},
+						},
+					},
+				},
+			},
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			tp, err := NewTracerProvider()
+			apmTracer, recorder := transporttest.NewRecorderTracer()
+			tp, err := NewTracerProvider(WithAPMTracer(apmTracer))
 			assert.NoError(t, err)
 			tracer := newTracer(tp.(*tracerProvider))
 
 			ctx := context.Background()
 			s := tt.getSpan(ctx, tracer)
 			s.End()
+
+			apmTracer.Flush(nil)
+			payloads := recorder.Payloads()
+
+			if tt.expectedSpans != nil {
+				for i := range payloads.Spans {
+					payloads.Spans[i].ID = model.SpanID{}
+					payloads.Spans[i].TransactionID = model.SpanID{}
+					payloads.Spans[i].ParentID = model.SpanID{}
+					payloads.Spans[i].TraceID = model.TraceID{}
+					payloads.Spans[i].SampleRate = nil
+					payloads.Spans[i].Duration = 0
+					payloads.Spans[i].Timestamp = model.Time{}
+				}
+
+				assert.Equal(t, tt.expectedSpans, payloads.Spans)
+			}
+			if tt.expectedTransactions != nil {
+				for i := range payloads.Transactions {
+					payloads.Transactions[i].ID = model.SpanID{}
+					payloads.Transactions[i].TraceID = model.TraceID{}
+					payloads.Transactions[i].SampleRate = nil
+					payloads.Transactions[i].Duration = 0
+					payloads.Transactions[i].Timestamp = model.Time{}
+				}
+
+				assert.Equal(t, tt.expectedTransactions, payloads.Transactions)
+			}
 		})
 	}
 }
