@@ -28,12 +28,14 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"go.elastic.co/apm/v2"
-	"go.elastic.co/apm/v2/model"
-	"go.elastic.co/apm/v2/transport/transporttest"
+
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
+
+	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/model"
+	"go.elastic.co/apm/v2/transport/transporttest"
 )
 
 func TestSpanEnd(t *testing.T) {
