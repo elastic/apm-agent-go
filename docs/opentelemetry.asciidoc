@@ -13,6 +13,10 @@ setup, any span created through that provider will be set on the Elastic
 agent.  
 And the provider will try to find any existing transaction within the context.
 
+Note: our tracer provider bridge is an incomplete implementation of an
+OpenTelemetry SDK. It is a good solution meant to help migrate from our agent
+to OpenTelemetry, but shouldn't be considered as a long-term solution.
+
 To setup this tracer provider, you first need to import the `apmotel` package.
 
 [source,go]
