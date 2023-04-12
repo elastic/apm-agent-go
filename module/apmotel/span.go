@@ -135,6 +135,9 @@ func (s *span) SetStatus(code codes.Code, description string) {
 }
 
 func (s *span) SetName(name string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if s.span != nil {
 		s.span.Name = name
 	} else {
