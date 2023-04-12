@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"go.elastic.co/apm/v2"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -81,6 +82,51 @@ func TestSpanAddEvent(t *testing.T) {
 			Time: now,
 		},
 	}, s.(*span).events)
+}
+
+func TestSpanRecording(t *testing.T) {
+	for _, tt := range []struct {
+		name          string
+		getSpan       func(context.Context, trace.Tracer) trace.Span
+		wantRecording bool
+	}{
+		{
+			name: "with a root span",
+			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
+				ctx, s := tracer.Start(ctx, "name")
+				return s
+			},
+			wantRecording: true,
+		},
+		{
+			name: "with a non-dropped child span",
+			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
+				ctx, _ = tracer.Start(ctx, "parentSpan")
+				ctx, s := tracer.Start(ctx, "childSpan")
+				return s
+			},
+			wantRecording: true,
+		},
+		{
+			name: "with a dropped child span",
+			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
+				return &span{
+					span: &apm.Span{},
+				}
+			},
+			wantRecording: false,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			tp, err := NewTracerProvider()
+			assert.NoError(t, err)
+			tracer := newTracer(tp.(*tracerProvider))
+
+			ctx := context.Background()
+			s := tt.getSpan(ctx, tracer)
+			assert.Equal(t, tt.wantRecording, s.IsRecording())
+		})
+	}
 }
 
 func TestSpanRecordError(t *testing.T) {
