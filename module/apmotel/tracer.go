@@ -55,12 +55,10 @@ func (t *tracer) Start(ctx context.Context, spanName string, opts ...trace.SpanS
 
 	if !config.NewRoot() {
 		p := trace.SpanFromContext(ctx)
+		// Try to find a transaction from the agent context
 		if _, ok := p.(*span); !ok {
-			// Try to find a transaction from the agent context
-			if _, ok := p.(*span); !ok {
-				if tx := apm.TransactionFromContext(ctx); tx != nil {
-					p = &span{tx: tx}
-				}
+			if tx := apm.TransactionFromContext(ctx); tx != nil {
+				p = &span{tx: tx}
 			}
 		}
 
