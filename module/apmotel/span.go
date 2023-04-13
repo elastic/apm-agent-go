@@ -65,6 +65,9 @@ type span struct {
 }
 
 func (s *span) End(options ...trace.SpanEndOption) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	config := trace.NewSpanEndConfig(options...)
 
 	if !config.Timestamp().IsZero() {
