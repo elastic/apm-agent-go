@@ -245,6 +245,22 @@ func TestSpanEnd(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "with a grand child span",
+			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
+				ctx, _ = tracer.Start(ctx, "parentSpan")
+				ctx, _ = tracer.Start(ctx, "childSpan")
+				ctx, s := tracer.Start(ctx, "grandChildSpan")
+				return s
+			},
+			expectedSpans: []model.Span{
+				{
+					Name:    "grandChildSpan",
+					Type:    "custom",
+					Outcome: "success",
+				},
+			},
+		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			apmTracer, recorder := transporttest.NewRecorderTracer()
