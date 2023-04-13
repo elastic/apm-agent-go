@@ -312,12 +312,21 @@ func TestSpanRecording(t *testing.T) {
 		wantRecording bool
 	}{
 		{
-			name: "with a root span",
+			name: "with a sampled root span",
 			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
 				ctx, s := tracer.Start(ctx, "name")
 				return s
 			},
 			wantRecording: true,
+		},
+		{
+			name: "with a non-sampled root span",
+			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
+				return &span{
+					tx: &apm.Transaction{},
+				}
+			},
+			wantRecording: false,
 		},
 		{
 			name: "with a non-dropped child span",

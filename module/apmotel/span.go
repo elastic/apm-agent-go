@@ -100,7 +100,7 @@ func (s *span) IsRecording() bool {
 		return !s.span.Dropped()
 	}
 
-	return true
+	return s.tx.Sampled()
 }
 
 func (s *span) RecordError(err error, opts ...trace.EventOption) {
