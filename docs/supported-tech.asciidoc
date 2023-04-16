@@ -201,13 +201,13 @@ See <<builtin-modules-apmredigo, module/apmredigo>> for more information
 about Redigo instrumentation.
 
 [float]
-==== Redis (go-redis/redis)
+==== Redis (redis/go-redis)
 
-We support https://github.com/go-redis/redis[go-redis],
-https://github.com/go-redis/redis/tree/v6.15.3[v6.15.3].
+We support https://github.com/redis/go-redis[go-redis],
+https://github.com/redis/go-redis/v9/tree/v9.0.3[v9.0.3] and also v6, v8.
 We provide helper functions for reporting Redis commands as spans.
 
-See <<builtin-modules-apmgoredis, module/apmgoredis>> for more information
+See <<builtin-modules-apmgoredisv9, module/apmgoredisv9>> for more information
 about go-redis instrumentation.
 
 [float]
