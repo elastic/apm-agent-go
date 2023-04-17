@@ -357,7 +357,7 @@ func TestSpanEnd(t *testing.T) {
 						},
 					},
 					OTel: &model.OTel{
-						SpanKind: "client",
+						SpanKind: "unspecified",
 						Attributes: map[string]interface{}{
 							"http.host":   "localhost",
 							"http.method": "GET",

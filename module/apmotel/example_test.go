@@ -65,7 +65,7 @@ func Example() {
 	}
 
 	// Output:
-	// transaction: parent/custom
+	// transaction: parent/unknown
 	// span: span_0/custom
 	// span: span_1/custom
 	// span: span_2/custom

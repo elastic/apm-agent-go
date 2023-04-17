@@ -258,11 +258,6 @@ func (s *span) setSpanAttributes() {
 
 	switch {
 	case haveHTTPContext:
-		if s.spanKind == trace.SpanKindUnspecified {
-			s.span.Type = "external"
-			s.span.Subtype = "http"
-			s.spanKind = trace.SpanKindClient
-		}
 		url, err := url.Parse(httpURL)
 		if err == nil {
 			// handles the case where the url.Host hasn't been set.
