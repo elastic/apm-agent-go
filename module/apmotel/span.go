@@ -59,6 +59,7 @@ type span struct {
 	events      []event
 	spanContext trace.SpanContext
 	status      status
+	spanKind    trace.SpanKind
 
 	tx   *apm.Transaction
 	span *apm.Span
@@ -181,7 +182,10 @@ func (s *span) setSpanAttributes() {
 		haveHTTPHostTag bool
 	)
 
+	agentAttrs := make(map[string]interface{})
 	for _, v := range s.attributes {
+		agentAttrs[string(v.Key)] = v.Value.AsInterface()
+
 		switch v.Key {
 		case "component":
 			s.span.Subtype = v.Value.Emit()
@@ -207,20 +211,15 @@ func (s *span) setSpanAttributes() {
 			haveHTTPContext = true
 			haveHTTPHostTag = true
 			httpHost = v.Value.Emit()
-
-		// Elastic APM-specific tags:
-		case "type":
-			s.span.Type = v.Value.Emit()
-
-		default:
-			s.span.Context.SetLabel(string(v.Key), v.Value.Emit())
 		}
 	}
+
 	switch {
 	case haveHTTPContext:
-		if s.span.Type == "" {
+		if s.spanKind == trace.SpanKindUnspecified {
 			s.span.Type = "external"
 			s.span.Subtype = "http"
+			s.spanKind = trace.SpanKindClient
 		}
 		url, err := url.Parse(httpURL)
 		if err == nil {
@@ -239,12 +238,16 @@ func (s *span) setSpanAttributes() {
 			})
 		}
 	case haveDBContext:
-		if s.span.Type == "" {
+		if s.spanKind == trace.SpanKindUnspecified {
 			s.span.Type = "db"
 			s.span.Subtype = dbContext.Type
+			s.spanKind = trace.SpanKindClient
 		}
 		s.span.Context.SetDatabase(dbContext)
 	}
+
+	s.span.Context.SetOTelAttributes(agentAttrs)
+	s.span.Context.SetOTelSpanKind(s.spanKind.String())
 }
 
 func (s *span) setTransactionAttributes() {
@@ -255,7 +258,11 @@ func (s *span) setTransactionAttributes() {
 		httpURL        string
 		isError        bool
 	)
+
+	agentAttrs := make(map[string]interface{})
 	for _, v := range s.attributes {
+		agentAttrs[string(v.Key)] = v.Value.AsInterface()
+
 		switch v.Key {
 		case "component":
 			component = v.Value.Emit()
@@ -269,10 +276,6 @@ func (s *span) setTransactionAttributes() {
 			httpURL = v.Value.Emit()
 		case "error":
 			isError = v.Value.AsBool()
-
-		// Elastic APM-specific tags:
-		case "type":
-			s.tx.Type = v.Value.Emit()
 		case "result":
 			s.tx.Result = v.Value.Emit()
 		case "user.id":
@@ -281,14 +284,13 @@ func (s *span) setTransactionAttributes() {
 			s.tx.Context.SetUserEmail(v.Value.Emit())
 		case "user.username":
 			s.tx.Context.SetUsername(v.Value.Emit())
-
-		default:
-			s.tx.Context.SetLabel(string(v.Key), v.Value.Emit())
 		}
 	}
-	if s.tx.Type == "" {
+
+	if s.spanKind == trace.SpanKindUnspecified {
 		if httpURL != "" {
 			s.tx.Type = "request"
+			s.spanKind = trace.SpanKindClient
 		} else if component != "" {
 			s.tx.Type = component
 		} else {
@@ -314,6 +316,9 @@ func (s *span) setTransactionAttributes() {
 			s.tx.Context.SetHTTPRequest(&req)
 		}
 	}
+
+	s.tx.Context.SetOTelAttributes(agentAttrs)
+	s.tx.Context.SetOTelSpanKind(s.spanKind.String())
 }
 
 func typeStr(i interface{}) string {

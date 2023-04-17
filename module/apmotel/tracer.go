@@ -49,6 +49,7 @@ func (t *tracer) Start(ctx context.Context, spanName string, opts ...trace.SpanS
 	s := &span{
 		provider:   t.provider,
 		attributes: config.Attributes(),
+		spanKind:   config.SpanKind(),
 		startTime:  startTime,
 	}
 
