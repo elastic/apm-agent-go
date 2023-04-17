@@ -252,11 +252,13 @@ func (s *span) setSpanAttributes() {
 
 func (s *span) setTransactionAttributes() {
 	var (
-		component      string
+		isHTTP      bool
+		isRPC       bool
+		isMessaging = true
+
 		httpMethod     string
 		httpStatusCode = -1
 		httpURL        string
-		isError        bool
 	)
 
 	agentAttrs := make(map[string]interface{})
@@ -265,7 +267,8 @@ func (s *span) setTransactionAttributes() {
 
 		switch v.Key {
 		case "component":
-			component = v.Value.Emit()
+			s.tx.Type = v.Value.Emit()
+
 		case "http.method":
 			httpMethod = v.Value.Emit()
 		case "http.status_code":
@@ -274,10 +277,19 @@ func (s *span) setTransactionAttributes() {
 			}
 		case "http.url":
 			httpURL = v.Value.Emit()
-		case "error":
-			isError = v.Value.AsBool()
+			isHTTP = true
+		case "http.scheme":
+			isHTTP = true
+
+		case "rpc.system":
+			isRPC = true
+
+		case "messaging.system":
+			isMessaging = true
+
 		case "result":
 			s.tx.Result = v.Value.Emit()
+
 		case "user.id":
 			s.tx.Context.SetUserID(v.Value.Emit())
 		case "user.email":
@@ -287,27 +299,23 @@ func (s *span) setTransactionAttributes() {
 		}
 	}
 
-	if s.spanKind == trace.SpanKindUnspecified {
-		if httpURL != "" {
+	if s.tx.Type == "" {
+		if s.spanKind == trace.SpanKindServer && (isHTTP || isRPC) {
 			s.tx.Type = "request"
-			s.spanKind = trace.SpanKindClient
-		} else if component != "" {
-			s.tx.Type = component
+		} else if s.spanKind == trace.SpanKindConsumer && isMessaging {
+			s.tx.Type = "messaging"
 		} else {
-			s.tx.Type = "custom"
+			s.tx.Type = "unknown"
 		}
 	}
-	if s.tx.Result == "" {
-		if httpStatusCode != -1 {
-			s.tx.Result = apmhttp.StatusCodeResult(httpStatusCode)
-			s.tx.Context.SetHTTPStatusCode(httpStatusCode)
-		} else if isError {
-			s.tx.Result = "error"
-		}
+
+	if s.tx.Result == "" && httpStatusCode != -1 {
+		s.tx.Result = apmhttp.StatusCodeResult(httpStatusCode)
+		s.tx.Context.SetHTTPStatusCode(httpStatusCode)
 	}
-	if httpURL != "" {
-		uri, err := url.ParseRequestURI(httpURL)
-		if err == nil {
+
+	if isHTTP {
+		if uri, err := url.ParseRequestURI(httpURL); err == nil {
 			var req http.Request
 			req.ProtoMajor = 1 // Assume HTTP/1.1
 			req.ProtoMinor = 1

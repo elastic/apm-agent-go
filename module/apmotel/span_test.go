@@ -55,7 +55,7 @@ func TestSpanEnd(t *testing.T) {
 			expectedTransactions: []model.Transaction{
 				{
 					Name:    "name",
-					Type:    "custom",
+					Type:    "unknown",
 					Outcome: "success",
 					OTel: &model.OTel{
 						SpanKind:   "unspecified",
@@ -73,7 +73,7 @@ func TestSpanEnd(t *testing.T) {
 			expectedTransactions: []model.Transaction{
 				{
 					Name:    "name",
-					Type:    "custom",
+					Type:    "unknown",
 					Outcome: "success",
 					OTel: &model.OTel{
 						SpanKind:   "producer",
@@ -105,11 +105,14 @@ func TestSpanEnd(t *testing.T) {
 		{
 			name: "a root span with http attributes",
 			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
-				ctx, s := tracer.Start(ctx, "name", trace.WithAttributes(
-					attribute.String("http.method", "GET"),
-					attribute.Int("http.status_code", 404),
-					attribute.String("http.url", "/"),
-				))
+				ctx, s := tracer.Start(ctx, "name",
+					trace.WithAttributes(
+						attribute.String("http.method", "GET"),
+						attribute.Int("http.status_code", 404),
+						attribute.String("http.url", "/"),
+					),
+					trace.WithSpanKind(trace.SpanKindServer),
+				)
 				return s
 			},
 			expectedTransactions: []model.Transaction{
@@ -132,7 +135,7 @@ func TestSpanEnd(t *testing.T) {
 						},
 					},
 					OTel: &model.OTel{
-						SpanKind: "client",
+						SpanKind: "server",
 						Attributes: map[string]interface{}{
 							"http.method":      "GET",
 							"http.status_code": float64(404),
@@ -151,7 +154,7 @@ func TestSpanEnd(t *testing.T) {
 			expectedTransactions: []model.Transaction{
 				{
 					Name:    "name",
-					Type:    "custom",
+					Type:    "unknown",
 					Outcome: "success",
 					OTel: &model.OTel{
 						SpanKind: "unspecified",
