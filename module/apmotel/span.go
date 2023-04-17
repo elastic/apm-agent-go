@@ -173,13 +173,20 @@ func (s *span) TracerProvider() trace.TracerProvider {
 
 func (s *span) setSpanAttributes() {
 	var (
-		dbContext       apm.DatabaseSpanContext
-		httpURL         string
-		httpMethod      string
-		httpHost        string
+		dbContext  apm.DatabaseSpanContext
+		httpURL    string
+		httpMethod string
+		httpHost   string
+
+		netPeerPort string
+		netPeerName string
+
 		haveDBContext   bool
 		haveHTTPContext bool
 		haveHTTPHostTag bool
+
+		serviceTargetName string
+		serviceTargetType string
 	)
 
 	agentAttrs := make(map[string]interface{})
@@ -189,21 +196,52 @@ func (s *span) setSpanAttributes() {
 		switch v.Key {
 		case "component":
 			s.span.Subtype = v.Value.Emit()
+
+		case "db.system":
+			s.span.Type = "db"
+			s.span.Subtype = v.Value.Emit()
+			dbContext.Type = v.Value.Emit()
+			serviceTargetType = v.Value.Emit()
+			haveDBContext = true
 		case "db.instance":
 			dbContext.Instance = v.Value.Emit()
 			haveDBContext = true
 		case "db.statement":
 			dbContext.Statement = v.Value.Emit()
 			haveDBContext = true
-		case "db.type":
-			dbContext.Type = v.Value.Emit()
-			haveDBContext = true
 		case "db.user":
 			dbContext.User = v.Value.Emit()
 			haveDBContext = true
+		case "db.name":
+			serviceTargetName = v.Value.Emit()
+
+		case "messaging.system":
+			s.span.Type = "messaging"
+			s.span.Subtype = v.Value.Emit()
+			serviceTargetType = v.Value.Emit()
+		case "messaging.destination":
+			serviceTargetName = v.Value.Emit()
+
+		case "rpc.system":
+			s.span.Type = "external"
+			s.span.Subtype = v.Value.Emit()
+			serviceTargetType = v.Value.Emit()
+		case "rpc.service":
+			serviceTargetName = v.Value.Emit()
+		case "net.peer.port":
+			netPeerPort = v.Value.Emit()
+		case "net.peer.name":
+			netPeerName = v.Value.Emit()
+
 		case "http.url":
+			s.span.Type = "external"
+			s.span.Subtype = "http"
+			serviceTargetName = v.Value.Emit()
 			haveHTTPContext = true
 			httpURL = v.Value.Emit()
+		case "http.scheme":
+			s.span.Type = "external"
+			s.span.Subtype = "http"
 		case "http.method":
 			haveHTTPContext = true
 			httpMethod = v.Value.Emit()
@@ -212,6 +250,10 @@ func (s *span) setSpanAttributes() {
 			haveHTTPHostTag = true
 			httpHost = v.Value.Emit()
 		}
+	}
+
+	if netPeerPort != "" && netPeerName != "" {
+		serviceTargetName = fmt.Sprintf("%s:%s", netPeerName, netPeerPort)
 	}
 
 	switch {
@@ -238,12 +280,14 @@ func (s *span) setSpanAttributes() {
 			})
 		}
 	case haveDBContext:
-		if s.spanKind == trace.SpanKindUnspecified {
-			s.span.Type = "db"
-			s.span.Subtype = dbContext.Type
-			s.spanKind = trace.SpanKindClient
-		}
 		s.span.Context.SetDatabase(dbContext)
+	}
+
+	if serviceTargetType != "" || serviceTargetName != "" {
+		s.span.Context.SetServiceTarget(apm.ServiceTargetSpanContext{
+			Type: serviceTargetType,
+			Name: serviceTargetName,
+		})
 	}
 
 	s.span.Context.SetOTelAttributes(agentAttrs)

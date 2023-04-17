@@ -230,10 +230,11 @@ func TestSpanEnd(t *testing.T) {
 			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
 				ctx, _ = tracer.Start(ctx, "parentSpan")
 				ctx, s := tracer.Start(ctx, "name", trace.WithAttributes(
+					attribute.String("db.system", "postgres"),
 					attribute.String("db.instance", "instance_42"),
 					attribute.String("db.statement", "SELECT * FROM *;"),
-					attribute.String("db.type", "query"),
 					attribute.String("db.user", "root"),
+					attribute.String("db.name", "database"),
 				))
 				return s
 			},
@@ -241,23 +242,80 @@ func TestSpanEnd(t *testing.T) {
 				{
 					Name:    "name",
 					Type:    "db",
-					Subtype: "query",
+					Subtype: "postgres",
 					Outcome: "success",
 					Context: &model.SpanContext{
 						Database: &model.DatabaseSpanContext{
 							Instance:  "instance_42",
 							Statement: "SELECT * FROM *;",
-							Type:      "query",
+							Type:      "postgres",
 							User:      "root",
 						},
 					},
 					OTel: &model.OTel{
-						SpanKind: "client",
+						SpanKind: "unspecified",
 						Attributes: map[string]interface{}{
+							"db.system":    "postgres",
 							"db.instance":  "instance_42",
 							"db.statement": "SELECT * FROM *;",
-							"db.type":      "query",
 							"db.user":      "root",
+							"db.name":      "database",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "a child span with messaging attributes",
+			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
+				ctx, _ = tracer.Start(ctx, "parentSpan")
+				ctx, s := tracer.Start(ctx, "name", trace.WithAttributes(
+					attribute.String("messaging.system", "kafka"),
+					attribute.String("messaging.destination", "example.com"),
+				))
+				return s
+			},
+			expectedSpans: []model.Span{
+				{
+					Name:    "name",
+					Type:    "messaging",
+					Subtype: "kafka",
+					Outcome: "success",
+					OTel: &model.OTel{
+						SpanKind: "unspecified",
+						Attributes: map[string]interface{}{
+							"messaging.system":      "kafka",
+							"messaging.destination": "example.com",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "a child span with rpc attributes",
+			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
+				ctx, _ = tracer.Start(ctx, "parentSpan")
+				ctx, s := tracer.Start(ctx, "name", trace.WithAttributes(
+					attribute.String("rpc.system", "net/http"),
+					attribute.String("rpc.service", "test"),
+					attribute.Int("net.peer.port", 8080),
+					attribute.String("net.peer.name", "example.com"),
+				))
+				return s
+			},
+			expectedSpans: []model.Span{
+				{
+					Name:    "name",
+					Type:    "external",
+					Subtype: "net/http",
+					Outcome: "success",
+					OTel: &model.OTel{
+						SpanKind: "unspecified",
+						Attributes: map[string]interface{}{
+							"rpc.system":    "net/http",
+							"rpc.service":   "test",
+							"net.peer.port": float64(8080),
+							"net.peer.name": "example.com",
 						},
 					},
 				},
