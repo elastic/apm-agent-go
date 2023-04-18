@@ -57,8 +57,8 @@ var (
 		Response        string `json:"response,omitempty"`
 	}
 
-	jsonw fastjson.Writer
-
+	jsonw                 fastjson.Writer
+	metadataBytes         int
 	ignoreTxnRegistration bool
 )
 
@@ -112,7 +112,7 @@ func (f *Function) Invoke(req *messages.InvokeRequest, response *messages.Invoke
 	lambdaContext.Request = formatPayload(req.Payload)
 	lambdaContext.Response = ""
 
-	if err := registerTxn(tx, req.RequestId); err != nil {
+	if err := registerTxn(f.tracer, tx, req.RequestId); err != nil {
 		log.Printf("failed to register txn: %v", err)
 	}
 	err := f.client.Call("Function.Invoke", req, response)
@@ -134,12 +134,19 @@ func (f *Function) Invoke(req *messages.InvokeRequest, response *messages.Invoke
 	return nil
 }
 
-func registerTxn(tx *apm.Transaction, requestID string) error {
+func registerTxn(tracer *apm.Tracer, tx *apm.Transaction, requestID string) error {
 	if ignoreTxnRegistration {
 		return nil
 	}
 
-	defer jsonw.Reset()
+	if metadataBytes == 0 {
+		jsonw.Reset()
+		mb := tracer.JSONRequestMetadata()
+		jsonw.RawBytes(tracer.JSONRequestMetadata())
+		metadataBytes = len(mb)
+	}
+	defer jsonw.Rewind(metadataBytes)
+
 	if err := createPartialTransactionJSON(tx, &jsonw); err != nil {
 		return fmt.Errorf("failed to create txn registration body: %v", err)
 	}
@@ -152,7 +159,7 @@ func registerTxn(tx *apm.Transaction, requestID string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create txn registration request: %v", err)
 	}
-	req.Header.Set("Content-Type", "application/vnd.elastic.apm.transaction+json")
+	req.Header.Set("Content-Type", "application/vnd.elastic.apm.transaction+ndjson")
 	req.Header.Set("x-elastic-aws-request-id", requestID)
 
 	resp, err := http.DefaultClient.Do(req)

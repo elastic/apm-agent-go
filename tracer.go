@@ -1241,7 +1241,7 @@ func (t *Tracer) loop() {
 			}
 			sendStreamRequest <- gracePeriod
 			if metadata == nil {
-				metadata = t.jsonRequestMetadata()
+				metadata = t.JSONRequestMetadata()
 			}
 			zlibWriter.Reset(&requestBuf)
 			zlibWriter.Write(metadata)
@@ -1317,10 +1317,10 @@ func (t *Tracer) loop() {
 	}
 }
 
-// jsonRequestMetadata returns a JSON-encoded metadata object that features
+// JSONRequestMetadata returns a JSON-encoded metadata object that features
 // at the head of every request body. This is called exactly once, when the
 // first request is made.
-func (t *Tracer) jsonRequestMetadata() []byte {
+func (t *Tracer) JSONRequestMetadata() []byte {
 	var json fastjson.Writer
 	json.RawString(`{"metadata":`)
 	t.encodeRequestMetadata(&json)
