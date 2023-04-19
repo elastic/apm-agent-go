@@ -293,7 +293,7 @@ func (s *span) setTransactionAttributes() {
 	var (
 		isHTTP      bool
 		isRPC       bool
-		isMessaging = true
+		isMessaging bool
 
 		httpMethod     string
 		httpStatusCode = -1
