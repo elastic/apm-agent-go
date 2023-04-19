@@ -171,6 +171,8 @@ func (s *span) TracerProvider() trace.TracerProvider {
 	return s.provider
 }
 
+// setSpanAttributes matches some span attributes with our custom ones.
+// See https://github.com/elastic/apm/blob/main/specs/agents/tracing-api-otel.md#span-type-sub-type-and-service-target
 func (s *span) setSpanAttributes() {
 	var (
 		dbContext  apm.DatabaseSpanContext
@@ -289,6 +291,8 @@ func (s *span) setSpanAttributes() {
 	s.span.Context.SetOTelSpanKind(s.spanKind.String())
 }
 
+// setTransactionAttributes matches some of the transaction attributes with our custom ones
+// See https://github.com/elastic/apm/blob/main/specs/agents/tracing-api-otel.md#transaction-type
 func (s *span) setTransactionAttributes() {
 	var (
 		isHTTP      bool
