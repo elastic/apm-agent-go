@@ -270,10 +270,8 @@ func (s *span) setSpanAttributes() {
 				url.Host = httpHost
 			}
 			s.span.Context.SetHTTPRequest(&http.Request{
-				ProtoMinor: 1,
-				ProtoMajor: 1,
-				Method:     httpMethod,
-				URL:        url,
+				Method: httpMethod,
+				URL:    url,
 			})
 		}
 	case haveDBContext:
