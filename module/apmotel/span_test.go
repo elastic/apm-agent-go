@@ -56,7 +56,7 @@ func TestSpanEnd(t *testing.T) {
 				{
 					Name:    "name",
 					Type:    "unknown",
-					Outcome: "success",
+					Outcome: "unknown",
 					OTel: &model.OTel{
 						SpanKind:   "unspecified",
 						Attributes: map[string]interface{}{},
@@ -74,9 +74,47 @@ func TestSpanEnd(t *testing.T) {
 				{
 					Name:    "name",
 					Type:    "unknown",
-					Outcome: "success",
+					Outcome: "unknown",
 					OTel: &model.OTel{
 						SpanKind:   "producer",
+						Attributes: map[string]interface{}{},
+					},
+				},
+			},
+		},
+		{
+			name: "a root span with a success status",
+			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
+				ctx, s := tracer.Start(ctx, "name")
+				s.SetStatus(codes.Ok, "success")
+				return s
+			},
+			expectedTransactions: []model.Transaction{
+				{
+					Name:    "name",
+					Type:    "unknown",
+					Outcome: "success",
+					OTel: &model.OTel{
+						SpanKind:   "unspecified",
+						Attributes: map[string]interface{}{},
+					},
+				},
+			},
+		},
+		{
+			name: "a root span with an error status",
+			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
+				ctx, s := tracer.Start(ctx, "name")
+				s.SetStatus(codes.Error, "error")
+				return s
+			},
+			expectedTransactions: []model.Transaction{
+				{
+					Name:    "name",
+					Type:    "unknown",
+					Outcome: "failure",
+					OTel: &model.OTel{
+						SpanKind:   "unspecified",
 						Attributes: map[string]interface{}{},
 					},
 				},
@@ -92,7 +130,7 @@ func TestSpanEnd(t *testing.T) {
 				{
 					Name:    "name",
 					Type:    "my_monolith",
-					Outcome: "success",
+					Outcome: "unknown",
 					OTel: &model.OTel{
 						SpanKind: "unspecified",
 						Attributes: map[string]interface{}{
@@ -119,7 +157,7 @@ func TestSpanEnd(t *testing.T) {
 				{
 					Name:    "name",
 					Type:    "request",
-					Outcome: "success",
+					Outcome: "unknown",
 					Result:  "HTTP 4xx",
 					Context: &model.Context{
 						Request: &model.Request{
@@ -155,7 +193,7 @@ func TestSpanEnd(t *testing.T) {
 				{
 					Name:    "name",
 					Type:    "unknown",
-					Outcome: "success",
+					Outcome: "unknown",
 					OTel: &model.OTel{
 						SpanKind: "unspecified",
 						Attributes: map[string]interface{}{
@@ -176,7 +214,7 @@ func TestSpanEnd(t *testing.T) {
 				{
 					Name:    "childSpan",
 					Type:    "custom",
-					Outcome: "success",
+					Outcome: "unknown",
 					OTel: &model.OTel{
 						SpanKind:   "unspecified",
 						Attributes: map[string]interface{}{},
@@ -195,9 +233,49 @@ func TestSpanEnd(t *testing.T) {
 				{
 					Name:    "name",
 					Type:    "custom",
-					Outcome: "success",
+					Outcome: "unknown",
 					OTel: &model.OTel{
 						SpanKind:   "server",
+						Attributes: map[string]interface{}{},
+					},
+				},
+			},
+		},
+		{
+			name: "a child span with a success status",
+			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
+				ctx, _ = tracer.Start(ctx, "parentSpan")
+				ctx, s := tracer.Start(ctx, "name")
+				s.SetStatus(codes.Ok, "success")
+				return s
+			},
+			expectedSpans: []model.Span{
+				{
+					Name:    "name",
+					Type:    "custom",
+					Outcome: "success",
+					OTel: &model.OTel{
+						SpanKind:   "unspecified",
+						Attributes: map[string]interface{}{},
+					},
+				},
+			},
+		},
+		{
+			name: "a child span with an error status",
+			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
+				ctx, _ = tracer.Start(ctx, "parentSpan")
+				ctx, s := tracer.Start(ctx, "name")
+				s.SetStatus(codes.Error, "error")
+				return s
+			},
+			expectedSpans: []model.Span{
+				{
+					Name:    "name",
+					Type:    "custom",
+					Outcome: "failure",
+					OTel: &model.OTel{
+						SpanKind:   "unspecified",
 						Attributes: map[string]interface{}{},
 					},
 				},
@@ -215,7 +293,7 @@ func TestSpanEnd(t *testing.T) {
 					Name:    "name",
 					Type:    "custom",
 					Subtype: "my_service",
-					Outcome: "success",
+					Outcome: "unknown",
 					OTel: &model.OTel{
 						SpanKind: "unspecified",
 						Attributes: map[string]interface{}{
@@ -243,7 +321,7 @@ func TestSpanEnd(t *testing.T) {
 					Name:    "name",
 					Type:    "db",
 					Subtype: "postgres",
-					Outcome: "success",
+					Outcome: "unknown",
 					Context: &model.SpanContext{
 						Database: &model.DatabaseSpanContext{
 							Instance:  "instance_42",
@@ -280,7 +358,7 @@ func TestSpanEnd(t *testing.T) {
 					Name:    "name",
 					Type:    "messaging",
 					Subtype: "kafka",
-					Outcome: "success",
+					Outcome: "unknown",
 					OTel: &model.OTel{
 						SpanKind: "unspecified",
 						Attributes: map[string]interface{}{
@@ -308,7 +386,7 @@ func TestSpanEnd(t *testing.T) {
 					Name:    "name",
 					Type:    "external",
 					Subtype: "net/http",
-					Outcome: "success",
+					Outcome: "unknown",
 					OTel: &model.OTel{
 						SpanKind: "unspecified",
 						Attributes: map[string]interface{}{
@@ -337,7 +415,7 @@ func TestSpanEnd(t *testing.T) {
 					Name:    "name",
 					Type:    "external",
 					Subtype: "http",
-					Outcome: "success",
+					Outcome: "unknown",
 					Context: &model.SpanContext{
 						Destination: &model.DestinationSpanContext{
 							Address: "example.com",
@@ -378,7 +456,7 @@ func TestSpanEnd(t *testing.T) {
 				{
 					Name:    "name",
 					Type:    "custom",
-					Outcome: "success",
+					Outcome: "unknown",
 					OTel: &model.OTel{
 						SpanKind: "unspecified",
 						Attributes: map[string]interface{}{
@@ -400,7 +478,7 @@ func TestSpanEnd(t *testing.T) {
 				{
 					Name:    "grandChildSpan",
 					Type:    "custom",
-					Outcome: "success",
+					Outcome: "unknown",
 					OTel: &model.OTel{
 						SpanKind:   "unspecified",
 						Attributes: map[string]interface{}{},

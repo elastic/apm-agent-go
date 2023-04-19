@@ -80,13 +80,25 @@ func (s *span) End(options ...trace.SpanEndOption) {
 		}
 	}
 
+	var outcome string
+	switch s.status.Code {
+	case codes.Ok:
+		outcome = "success"
+	case codes.Error:
+		outcome = "failure"
+	case codes.Unset:
+		outcome = "unknown"
+	}
+
 	if s.span != nil {
 		s.setSpanAttributes()
+		s.span.Outcome = outcome
 		s.span.End()
 		return
 	}
 
 	s.setTransactionAttributes()
+	s.tx.Outcome = outcome
 	s.tx.End()
 }
 
