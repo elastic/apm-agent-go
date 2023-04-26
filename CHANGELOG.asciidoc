@@ -21,10 +21,16 @@ endif::[]
 [[unreleased]]
 === Unreleased
 
-https://github.com/elastic/apm-agent-go/compare/v2.3.0...main[View commits]
+https://github.com/elastic/apm-agent-go/compare/v2.4.0...main[View commits]
 
 [[release-notes-2.x]]
 === Go Agent version 2.x
+
+[[release-notes-2.4.0]]
+==== 2.4.0 - 2023/04/26
+
+- Add bridge to support OpenTelemetry metrics {pull}1407[#1407]
+- Add custom SDK support OpenTelemetry traces {pull}1410[#1410]
 
 [[release-notes-2.3.0]]
 ==== 2.3.0 - 2023/03/30
