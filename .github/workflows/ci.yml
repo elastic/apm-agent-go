@@ -47,6 +47,19 @@ jobs:
       - name: Unit tests
         run: make test
 
+  check-update-modules:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version: stable
+          cache: true
+          cache-dependency-path: '**/go.sum'
+      - name: Check Update Modules Command
+        run: make update-modules
+
   coverage:
     runs-on: ubuntu-latest
     timeout-minutes: 20
