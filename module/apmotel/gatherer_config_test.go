@@ -28,30 +28,30 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric/aggregation"
 )
 
-func TestNewConfig(t *testing.T) {
+func TestNewGathererConfig(t *testing.T) {
 	aggregationSelector := func(metric.InstrumentKind) aggregation.Aggregation { return nil }
 
 	testCases := []struct {
 		name       string
-		options    []Option
-		wantConfig config
+		options    []GathererOption
+		wantConfig gathererConfig
 	}{
 		{
 			name:       "Default",
 			options:    nil,
-			wantConfig: config{},
+			wantConfig: gathererConfig{},
 		},
 		{
 			name: "WithAggregationSelector",
-			options: []Option{
+			options: []GathererOption{
 				WithAggregationSelector(aggregationSelector),
 			},
-			wantConfig: config{},
+			wantConfig: gathererConfig{},
 		},
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := newConfig(tt.options...)
+			cfg := newGathererConfig(tt.options...)
 			// tested by TestConfigManualReaderOptions
 			cfg.aggregation = nil
 
@@ -65,18 +65,18 @@ func TestConfigManualReaderOptions(t *testing.T) {
 
 	testCases := []struct {
 		name            string
-		config          config
+		config          gathererConfig
 		wantOptionCount int
 	}{
 		{
 			name:            "Default",
-			config:          config{},
+			config:          gathererConfig{},
 			wantOptionCount: 1,
 		},
 
 		{
 			name:            "WithAggregationSelector",
-			config:          config{aggregation: aggregationSelector},
+			config:          gathererConfig{aggregation: aggregationSelector},
 			wantOptionCount: 1,
 		},
 	}
