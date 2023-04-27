@@ -576,6 +576,9 @@ func (t *HTTPTransport) configRequest(req *http.Request) configResponse {
 		return response
 	}
 	response.err = newHTTPError(resp)
+	if response.maxAge < 5*time.Second {
+		response.maxAge = 5 * time.Second
+	}
 	return response
 }
 

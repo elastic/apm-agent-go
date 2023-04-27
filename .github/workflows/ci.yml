@@ -1,0 +1,103 @@
+name: ci
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - '**.asciidoc'
+  pull_request:
+    paths-ignore:
+      - '**.md'
+      - '**.asciidoc'
+
+# limit the access of the generated GITHUB_TOKEN
+permissions:
+  contents: read
+
+jobs:
+  precheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version: stable
+          cache: true
+          cache-dependency-path: '**/go.sum'
+      - name: Precheck
+        run: make precheck
+
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        go-version: [ "1.15", "1.16", "1.17", "1.18", "1.19", "oldstable", "stable" ]
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ${{ matrix.go-version }}
+          cache: true
+          cache-dependency-path: '**/go.sum'
+      - name: Unit tests
+        run: make test
+
+  check-update-modules:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version: stable
+          cache: true
+          cache-dependency-path: '**/go.sum'
+      - name: Check Update Modules Command
+        run: make update-modules
+
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version: stable
+          cache: true
+          cache-dependency-path: '**/go.sum'
+      - name: Integration tests
+        run: |
+          ./scripts/docker-compose-testing run -T --rm trace-context-harness
+          ./scripts/docker-compose-testing up -d --build
+          ./scripts/docker-compose-testing run -T --rm go-agent-tests make coverage GOFLAGS=-v
+
+  test-windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: '**/go.sum'
+      - name: Unit tests
+        run: go test -v ./...
+
+  test-macos:
+    runs-on: macos-12
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version: '1.19'
+          cache: true
+          cache-dependency-path: '**/go.sum'
+      - name: Unit tests
+        run: make test
