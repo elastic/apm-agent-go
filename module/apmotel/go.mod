@@ -2,8 +2,8 @@ module go.elastic.co/apm/module/apmotel/v2
 
 require (
 	github.com/stretchr/testify v1.8.2
-	go.elastic.co/apm/module/apmhttp/v2 v2.3.0
-	go.elastic.co/apm/v2 v2.3.0
+	go.elastic.co/apm/module/apmhttp/v2 v2.4.0
+	go.elastic.co/apm/v2 v2.4.0
 	go.opentelemetry.io/otel v1.15.0-rc.2
 	go.opentelemetry.io/otel/metric v1.15.0-rc.2
 	go.opentelemetry.io/otel/sdk/metric v0.38.0-rc.2

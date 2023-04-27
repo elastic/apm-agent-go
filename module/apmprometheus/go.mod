@@ -5,7 +5,7 @@ require (
 	github.com/prometheus/client_golang v1.11.1
 	github.com/prometheus/client_model v0.2.0
 	github.com/stretchr/testify v1.6.1
-	go.elastic.co/apm/v2 v2.3.0
+	go.elastic.co/apm/v2 v2.4.0
 )
 
 replace go.elastic.co/apm/v2 => ../..
