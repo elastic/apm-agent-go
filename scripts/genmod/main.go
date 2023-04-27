@@ -33,6 +33,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"golang.org/x/mod/semver"
 
 	"go.elastic.co/apm/v2"
 )
@@ -138,7 +139,7 @@ func updateModule(dir string, gomod *GoMod, modules map[string]*GoMod) error {
 			"-require", require.Path + "@" + *versionFlag,
 			"-replace", require.Path + "=" + relDir,
 		}
-		if *goVersionFlag != "" {
+		if *goVersionFlag != "" && semver.Compare("v"+*goVersionFlag, "v"+gomod.Go) == 1 {
 			args = append(args, "-go", *goVersionFlag)
 		}
 		cmd := exec.Command("go", args...)
