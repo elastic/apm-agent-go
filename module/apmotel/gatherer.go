@@ -60,9 +60,7 @@ func (e Gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 
 		for _, sm := range scopeMetrics.Metrics {
 			switch m := sm.Data.(type) {
-			case metricdata.Histogram[int64]:
-				addHistogramMetric(out, sm, m)
-			case metricdata.Histogram[float64]:
+			case metricdata.Histogram:
 				addHistogramMetric(out, sm, m)
 			case metricdata.Sum[int64]:
 				for _, dp := range m.DataPoints {
@@ -89,7 +87,7 @@ func (e Gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 	return nil
 }
 
-func addHistogramMetric[N int64 | float64](out *apm.Metrics, sm metricdata.Metrics, m metricdata.Histogram[N]) {
+func addHistogramMetric(out *apm.Metrics, sm metricdata.Metrics, m metricdata.Histogram) {
 	for _, dp := range m.DataPoints {
 		if len(dp.BucketCounts) != len(dp.Bounds)+1 || len(dp.Bounds) == 0 {
 			continue

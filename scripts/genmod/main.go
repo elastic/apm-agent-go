@@ -143,8 +143,6 @@ func updateModule(dir string, gomod *GoMod, modules map[string]*GoMod) error {
 			args = append(args, "-go", *goVersionFlag)
 		}
 		cmd := exec.Command("go", args...)
-		cmd.Env = append(os.Environ(), "GO111MODULE=on")
-		cmd.Env = append(cmd.Env, "GOPROXY=http://proxy.invalid", "GOSUMDB=sum.golang.org https://sum.golang.org")
 		cmd.Stderr = os.Stderr
 		cmd.Dir = dir
 		if err := cmd.Run(); err != nil {
@@ -227,8 +225,6 @@ func checkModuleComplete(dir string, gomod *GoMod, modules map[string]*GoMod) er
 	// Check we can build the module's tests and its transitive dependencies
 	// without updating go.mod.
 	cmd = exec.Command("go", "test", "-c", "-mod=readonly", "-o", os.DevNull)
-	cmd.Env = append(os.Environ(), "GO111MODULE=on")
-	cmd.Env = append(cmd.Env, "GOPROXY=http://proxy.invalid", "GOSUMDB=sum.golang.org https://sum.golang.org")
 	cmd.Stderr = os.Stderr
 	cmd.Dir = gomod.dir
 	if err := cmd.Run(); err != nil {
@@ -291,8 +287,6 @@ func main() {}
 	if minorVersion > 16 {
 		cmd.Args = append(cmd.Args, "-go=1.16")
 	}
-	cmd.Env = append(os.Environ(), "GO111MODULE=on")
-	cmd.Env = append(cmd.Env, "GOPROXY=http://proxy.invalid", "GOSUMDB=sum.golang.org https://sum.golang.org")
 	cmd.Stderr = os.Stderr
 	cmd.Dir = tmpdir
 	if err := cmd.Run(); err != nil {
