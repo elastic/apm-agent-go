@@ -8,8 +8,8 @@ require (
 	github.com/Azure/azure-storage-file-go v0.8.0
 	github.com/Azure/azure-storage-queue-go v0.0.0-20191125232315-636801874cdd
 	github.com/stretchr/testify v1.7.0
-	go.elastic.co/apm/module/apmhttp/v2 v2.4.0
-	go.elastic.co/apm/v2 v2.4.0
+	go.elastic.co/apm/module/apmhttp/v2 v2.4.1
+	go.elastic.co/apm/v2 v2.4.1
 	golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897 // indirect
 )
 
