@@ -69,6 +69,8 @@ func main() {
 [[opentelemetry-metrics-init]]
 === Initializing the metrics exporter
 
+preview::["The Metrics Exporter is in technical preview until OpenTelemetry marks them as GA."]
+
 The OpenTelemetry Metrics bridge is implemented as a manual reader exporter.
 The Elastic APM Agent will regularly ask OpenTelemetry for its latest metrics,
 and emit them as its own.
