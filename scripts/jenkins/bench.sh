@@ -5,7 +5,7 @@ set -exo pipefail
 # that's normally happening when running in the CI
 # owned by Elastic.
 if [ -z "$HOME" ] ; then
-	HOME=$(pwd)
+	HOME=$(realpath ~)
 	export HOME
 fi
 
