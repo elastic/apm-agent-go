@@ -37,7 +37,6 @@ jobs:
             repo=apm-agent-go
             sha=feature/microbenchmark
             GO_VERSION=${{ env.GO_VERSION }}
-            HOME=/var/lib/buildkite-agent
 
       - if: ${{ failure() }}
         uses: elastic/apm-pipeline-library/.github/actions/slack-message@current

@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -euxo pipefail
 
+# If HOME is not set then use the current directory
+# that's normally happening when running in the CI
+# owned by Elastic.
+if [ -z "$HOME" ] ; then
+	HOME=$(pwd)
+	export HOME
+fi
+
 source ./scripts/jenkins/setenv.sh
 
 export GOFLAGS='-run=NONE -benchmem -bench=.'
