@@ -1,5 +1,0 @@
----
-- job:
-    name: apm-agent-go
-    description: apm-agent-go
-    project-type: folder

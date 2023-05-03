@@ -1,0 +1,50 @@
+name: microbenchmark
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+    paths-ignore:
+      - '**.md'
+      - '**.asciidoc'
+
+# limit the access of the generated GITHUB_TOKEN
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: 1.15.10
+
+jobs:
+  microbenchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - id: buildkite
+        name: Run Release
+        uses: elastic/apm-pipeline-library/.github/actions/buildkite@current
+        with:
+          vaultUrl: ${{ secrets.VAULT_ADDR }}
+          vaultRoleId: ${{ secrets.VAULT_ROLE_ID }}
+          vaultSecretId: ${{ secrets.VAULT_SECRET_ID }}
+          pipeline: apm-agent-microbenchmark
+          waitFor: true
+          printBuildLogs: true
+          buildEnvVars: |
+            script=scripts/jenkins/bench.sh
+            repo=apm-agent-go
+            sha=feature/microbenchmark
+            dry_run=${{ inputs.dry_run || 'false' }}
+
+      - if: ${{ failure() }}
+        uses: elastic/apm-pipeline-library/.github/actions/slack-message@current
+        with:
+          url: ${{ secrets.VAULT_ADDR }}
+          roleId: ${{ secrets.VAULT_ROLE_ID }}
+          secretId: ${{ secrets.VAULT_SECRET_ID }}
+          channel: "#on-week-oblt-productivity"
+          message: |
+            :ghost: [${{ github.repository }}] microbenchmark *${{ github.ref_name }}* didn't get triggered in Buildkite.
+            Build: (<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|here>)
