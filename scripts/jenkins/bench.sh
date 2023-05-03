@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euxo pipefail
+set -exo pipefail
 
 # If HOME is not set then use the current directory
 # that's normally happening when running in the CI
@@ -9,6 +9,7 @@ if [ -z "$HOME" ] ; then
 	export HOME
 fi
 
+set -u
 source ./scripts/jenkins/setenv.sh
 
 export GOFLAGS='-run=NONE -benchmem -bench=.'
