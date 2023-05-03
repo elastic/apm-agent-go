@@ -36,7 +36,7 @@ jobs:
             script=scripts/jenkins/bench.sh
             repo=apm-agent-go
             sha=feature/microbenchmark
-            dry_run=${{ inputs.dry_run || 'false' }}
+            GO_VERSION=${{ env.GO_VERSION }}
 
       - if: ${{ failure() }}
         uses: elastic/apm-pipeline-library/.github/actions/slack-message@current
