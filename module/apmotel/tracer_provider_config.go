@@ -21,11 +21,16 @@
 package apmotel // import "go.elastic.co/apm/module/apmotel/v2"
 
 import (
+	"go.opentelemetry.io/otel/sdk/resource"
+
 	"go.elastic.co/apm/v2"
 )
 
 type tracerProviderConfig struct {
 	apmTracer *apm.Tracer
+
+	// resource contains attributes representing an entity that produces telemetry.
+	resource *resource.Resource
 }
 
 type TracerProviderOption func(tracerProviderConfig) tracerProviderConfig
@@ -40,6 +45,10 @@ func newTracerProviderConfig(opts ...TracerProviderOption) tracerProviderConfig 
 		cfg.apmTracer = apm.DefaultTracer()
 	}
 
+	if cfg.resource == nil {
+		cfg.resource = resource.Default()
+	}
+
 	return cfg
 }
 
@@ -47,6 +56,18 @@ func newTracerProviderConfig(opts ...TracerProviderOption) tracerProviderConfig 
 func WithAPMTracer(t *apm.Tracer) TracerProviderOption {
 	return func(cfg tracerProviderConfig) tracerProviderConfig {
 		cfg.apmTracer = t
+		return cfg
+	}
+}
+
+// WithResource configures the provided resource, which will be referenced by
+// all tracers this provider creates.
+//
+// If this option is not used, the TracerProvider will use the
+// resource.Default() Resource by default.
+func WithResource(r *resource.Resource) TracerProviderOption {
+	return func(cfg tracerProviderConfig) tracerProviderConfig {
+		cfg.resource, _ = resource.Merge(resource.Environment(), r)
 		return cfg
 	}
 }
