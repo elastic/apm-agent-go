@@ -20,7 +20,8 @@ env:
 jobs:
   microbenchmark:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # wait up to 1 hour
+    timeout-minutes: 60
     steps:
       - id: buildkite
         name: Run buildkite pipeline
@@ -37,7 +38,8 @@ jobs:
             repo=apm-agent-go
             sha=feature/microbenchmark
             GO_VERSION=${{ env.GO_VERSION }}
-            GO111MODULE='on'
+            GO111MODULE=on
+            BUILD_TIMEOUT=40
 
       - if: ${{ failure() }}
         uses: elastic/apm-pipeline-library/.github/actions/slack-message@current
