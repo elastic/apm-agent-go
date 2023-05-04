@@ -9,6 +9,8 @@ on:
     paths-ignore:
       - '**.md'
       - '**.asciidoc'
+    tags:
+      - "v*.*.*"
 
 # limit the access of the generated GITHUB_TOKEN
 permissions:
