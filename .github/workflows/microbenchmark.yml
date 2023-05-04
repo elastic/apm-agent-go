@@ -38,7 +38,7 @@ jobs:
           buildEnvVars: |
             script=scripts/jenkins/bench.sh
             repo=apm-agent-go
-            sha=feature/microbenchmark
+            sha=${{ github.sha }}
             GO_VERSION=${{ env.GO_VERSION }}
 
       - if: ${{ failure() }}
@@ -49,5 +49,5 @@ jobs:
           secretId: ${{ secrets.VAULT_SECRET_ID }}
           channel: "#on-week-oblt-productivity"
           message: |
-            :ghost: [${{ github.repository }}] microbenchmark *${{ github.ref_name }}* didn't get triggered in Buildkite.
+            :ghost: [${{ github.repository }}] microbenchmark *${{ github.ref_name }}* failed to run in Buildkite.
             Build: (<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|here>)
