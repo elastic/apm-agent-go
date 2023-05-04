@@ -39,7 +39,7 @@ jobs:
             sha=feature/microbenchmark
             GO_VERSION=${{ env.GO_VERSION }}
             GO111MODULE=on
-            BUILD_TIMEOUT=40
+            GOFLAGS=-pkgmodrw
 
       - if: ${{ failure() }}
         uses: elastic/apm-pipeline-library/.github/actions/slack-message@current
