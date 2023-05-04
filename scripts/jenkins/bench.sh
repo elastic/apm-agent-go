@@ -33,7 +33,9 @@ mkdir -p build
 
 make test | tee ${OUT_FILE}
 
-## Send data
-set +x
-set +u
-gobench -index "benchmark-go" -es "${APM_AGENT_GO_CLOUD_SECRET}" < ${OUT_FILE}
+## Send data if running in the CI
+if [ "$CI" == "true" ] ; then
+	set +x
+	set +u
+	go run -modfile=scripts/jenkins/jenkins.go.mod github.com/elastic/gobench -index "benchmark-go" -es "${APM_AGENT_GO_CLOUD_SECRET}" < ${OUT_FILE}
+fi
