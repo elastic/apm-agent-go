@@ -32,3 +32,7 @@ export OUT_FILE="build/bench.out"
 mkdir -p build
 
 make test | tee ${OUT_FILE}
+
+## Send data
+set +x
+gobench -index "benchmark-go" -es "${APM_AGENT_GO_CLOUD_SECRET}" < ${OUT_FILE}
