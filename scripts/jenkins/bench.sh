@@ -17,7 +17,7 @@ if [ "$CI" == "true" ] ; then
 	clean_up () {
 	  ARG=$?
 	  # see https://github.com/golang/go/issues/31481#issuecomment-485008558
-	  chmod u+w -R $HOME
+	  chmod u+w -R $HOME/go/pkg
 	  exit $ARG
 	}
 	trap clean_up EXIT
@@ -32,4 +32,3 @@ export OUT_FILE="build/bench.out"
 mkdir -p build
 
 make test | tee ${OUT_FILE}
-go-junit-report < ${OUT_FILE} > build/junit-apm-agent-go-bench.xml
