@@ -35,4 +35,5 @@ make test | tee ${OUT_FILE}
 
 ## Send data
 set +x
+set +u
 gobench -index "benchmark-go" -es "${APM_AGENT_GO_CLOUD_SECRET}" < ${OUT_FILE}
