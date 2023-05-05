@@ -31,6 +31,7 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/trace"
 
 	"go.elastic.co/apm/v2"
@@ -40,8 +41,9 @@ import (
 
 func TestSpanEnd(t *testing.T) {
 	for _, tt := range []struct {
-		name    string
-		getSpan func(context.Context, trace.Tracer) trace.Span
+		name     string
+		getSpan  func(context.Context, trace.Tracer) trace.Span
+		resource *resource.Resource
 
 		expectedSpans        []model.Span
 		expectedTransactions []model.Transaction
@@ -60,6 +62,30 @@ func TestSpanEnd(t *testing.T) {
 					OTel: &model.OTel{
 						SpanKind:   "unspecified",
 						Attributes: map[string]interface{}{},
+					},
+				},
+			},
+		},
+		{
+			name: "with a root span and the default resource",
+			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
+				ctx, s := tracer.Start(ctx, "name")
+				return s
+			},
+			resource: defaultResource(),
+			expectedTransactions: []model.Transaction{
+				{
+					Name:    "name",
+					Type:    "unknown",
+					Outcome: "unknown",
+					OTel: &model.OTel{
+						SpanKind: "unspecified",
+						Attributes: map[string]interface{}{
+							"service.name":           "unknown_service:apmotel.test",
+							"telemetry.sdk.language": "go",
+							"telemetry.sdk.name":     "apmotel",
+							"telemetry.sdk.version":  apm.AgentVersion,
+						},
 					},
 				},
 			},
@@ -218,6 +244,31 @@ func TestSpanEnd(t *testing.T) {
 					OTel: &model.OTel{
 						SpanKind:   "unspecified",
 						Attributes: map[string]interface{}{},
+					},
+				},
+			},
+		},
+		{
+			name: "with a child span and the default resource",
+			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
+				ctx, _ = tracer.Start(ctx, "parentSpan")
+				ctx, s := tracer.Start(ctx, "childSpan")
+				return s
+			},
+			resource: defaultResource(),
+			expectedSpans: []model.Span{
+				{
+					Name:    "childSpan",
+					Type:    "custom",
+					Outcome: "unknown",
+					OTel: &model.OTel{
+						SpanKind: "unspecified",
+						Attributes: map[string]interface{}{
+							"service.name":           "unknown_service:apmotel.test",
+							"telemetry.sdk.language": "go",
+							"telemetry.sdk.name":     "apmotel",
+							"telemetry.sdk.version":  apm.AgentVersion,
+						},
 					},
 				},
 			},
@@ -489,7 +540,10 @@ func TestSpanEnd(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			apmTracer, recorder := transporttest.NewRecorderTracer()
-			tp, err := NewTracerProvider(WithAPMTracer(apmTracer))
+			tp, err := NewTracerProvider(
+				WithAPMTracer(apmTracer),
+				WithResource(tt.resource),
+			)
 			assert.NoError(t, err)
 			tracer := newTracer(tp.(*tracerProvider))
 
