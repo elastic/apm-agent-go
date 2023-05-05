@@ -1,5 +1,0 @@
----
-- job:
-    name: apm-agent-go/apm-agent-go-mbp
-    display-name: APM Agent Go
-    description: APM Agent Go

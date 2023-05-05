@@ -10,3 +10,4 @@ GO_INSTALL_FLAGS="-modfile=$PWD/scripts/jenkins/jenkins.go.mod"
 
 go install $GO_INSTALL_FLAGS -v github.com/jstemmer/go-junit-report
 go install $GO_INSTALL_FLAGS -v github.com/t-yuki/gocover-cobertura
+go install $GO_INSTALL_FLAGS -v github.com/elastic/gobench
