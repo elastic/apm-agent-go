@@ -90,6 +90,10 @@ func (s *span) End(options ...trace.SpanEndOption) {
 		outcome = "unknown"
 	}
 
+	for iter := s.provider.resource.Iter(); iter.Next(); {
+		s.attributes = append(s.attributes, iter.Attribute())
+	}
+
 	if s.span != nil {
 		s.setSpanAttributes()
 		s.span.Outcome = outcome
