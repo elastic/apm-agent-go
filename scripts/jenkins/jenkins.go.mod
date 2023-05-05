@@ -1,4 +1,4 @@
-module go.elastic.co/apm/scripts/jenkins
+module go.elastic.co/apm/scripts/ci
 
 go 1.15
 

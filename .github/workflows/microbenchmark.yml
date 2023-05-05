@@ -35,7 +35,7 @@ jobs:
           waitFor: true
           printBuildLogs: true
           buildEnvVars: |
-            script=scripts/jenkins/bench.sh
+            script=scripts/ci/bench.sh
             repo=apm-agent-go
             sha=${{ github.sha }}
             GO_VERSION=${{ env.GO_VERSION }}
