@@ -25,7 +25,7 @@ fi
 
 ## Bench specific
 set -u
-source ./scripts/jenkins/setenv.sh
+source ./scripts/ci/setenv.sh
 
 export GOFLAGS='-run=NONE -benchmem -bench=.'
 export OUT_FILE="build/bench.out"
@@ -37,5 +37,5 @@ make test | tee ${OUT_FILE}
 if [ "$CI" == "true" ] ; then
 	set +x
 	set +u
-	go run -modfile=scripts/jenkins/jenkins.go.mod github.com/elastic/gobench -index "benchmark-go" -es "${APM_AGENT_GO_CLOUD_SECRET}" < ${OUT_FILE}
+	go run -modfile=scripts/ci/ci.go.mod github.com/elastic/gobench -index "benchmark-go" -es "${APM_AGENT_GO_CLOUD_SECRET}" < ${OUT_FILE}
 fi

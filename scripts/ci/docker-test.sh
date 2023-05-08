@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euxo pipefail
 
-source ./scripts/jenkins/setenv.sh
+source ./scripts/ci/setenv.sh
 
 
 export COV_FILE="build/coverage/coverage.cov"

@@ -24,7 +24,7 @@ jobs:
           cache-dependency-path: '**/go.sum'
 
       - name: Create snapshot tarball
-        run: ./scripts/jenkins/package.sh
+        run: ./scripts/ci/package.sh
 
       - name: Publish snaphosts
         uses: elastic/apm-pipeline-library/.github/actions/snapshoty-simple@current
