@@ -42,6 +42,7 @@ var (
 	checkFlag     = flag.Bool("check", false, "check the go.mod files are complete, instead of updating them")
 	versionFlag   = flag.String("version", "v"+apm.AgentVersion, "module version (e.g. \"v1.0.0\"")
 	goVersionFlag = flag.String("go", "", "go version to expect in go.mod files")
+	excludedPaths = flag.String("exclude", "tools", "paths to exclude. Separated by ,")
 )
 
 func init() {
@@ -67,10 +68,19 @@ func main() {
 		root = resolved
 	}
 
+	paths := strings.Split(*excludedPaths, ",")
+
 	modules := make(map[string]*GoMod) // by module path
 	if err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
+		}
+		for _, p := range paths {
+			dir := strings.TrimPrefix(path, root+"/")
+			if dir == p {
+				fmt.Fprintf(os.Stderr, "skipping %s\n", dir)
+				return filepath.SkipDir
+			}
 		}
 		if !info.IsDir() {
 			if info.Name() == "go.mod" {
@@ -159,13 +169,21 @@ func checkModule(dir string, gomod *GoMod, modules map[string]*GoMod) error {
 	// Verify that any required module in modules has the version
 	// specified in versionFlag, and has a replacement stanza.
 	var gomodBad bool
-	if *goVersionFlag != "" && gomod.Go != *goVersionFlag {
-		fmt.Fprintf(
-			os.Stderr,
-			" - found \"go %s\", expected \"go %s\"\n",
-			gomod.Go, *goVersionFlag,
-		)
-		gomodBad = true
+	if *goVersionFlag != "" {
+		if i := semver.Compare("v"+gomod.Go, "v"+*goVersionFlag); i == -1 {
+			fmt.Fprintf(
+				os.Stderr,
+				" - found \"go %s\", expected \"go %s\"\n",
+				gomod.Go, *goVersionFlag,
+			)
+			gomodBad = true
+		} else if i == 1 {
+			fmt.Fprintf(
+				os.Stderr,
+				" - found newer go version: \"go %s\", ignoring...\n",
+				gomod.Go,
+			)
+		}
 	}
 	for _, require := range gomod.Require {
 		requireMod, ok := modules[require.Path]
