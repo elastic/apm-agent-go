@@ -22,7 +22,7 @@ check-licenses:
 
 .PHONY: check-modules
 check-modules:
-	go run scripts/genmod/main.go -go=$(GO_LANGUAGE_VERSION) -check .
+	cd scripts/genmod && go run main.go -go=$(GO_LANGUAGE_VERSION) -check ../..
 
 .PHONY: check-vanity-import
 check-vanity-import:
@@ -54,7 +54,7 @@ clean:
 
 .PHONY: update-modules
 update-modules:
-	go run scripts/genmod/main.go -go=$(GO_LANGUAGE_VERSION) .
+	cd scripts/genmod && go run main.go -go=$(GO_LANGUAGE_VERSION) ../..
 
 .PHONY: docs
 docs:
