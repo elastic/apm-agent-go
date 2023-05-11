@@ -24,7 +24,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context/ctxhttp"
 
 	"go.elastic.co/apm/module/apmhttp/v2"
 	"go.elastic.co/apm/v2"
@@ -55,7 +54,9 @@ func benchmarkClient(b *testing.B, wrap func(*http.Client) *http.Client) {
 			client := wrap(nil)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				resp, err := ctxhttp.Get(ctx, client, server.URL+path)
+				req, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+path, nil)
+				require.NoError(b, err)
+				resp, err := client.Do(req)
 				require.NoError(b, err)
 				resp.Body.Close()
 			}
