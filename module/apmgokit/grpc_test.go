@@ -27,7 +27,6 @@ import (
 	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	netcontext "golang.org/x/net/context"
 	"google.golang.org/grpc"
 	pb "google.golang.org/grpc/examples/helloworld/helloworld"
 
@@ -156,7 +155,7 @@ type helloWorldService struct {
 	sayHello *kitgrpc.Server
 }
 
-func (s *helloWorldService) SayHello(ctx netcontext.Context, req *pb.HelloRequest) (*pb.HelloReply, error) {
+func (s *helloWorldService) SayHello(ctx context.Context, req *pb.HelloRequest) (*pb.HelloReply, error) {
 	_, rep, err := s.sayHello.ServeGRPC(ctx, req)
 	if err != nil {
 		return nil, err

@@ -18,6 +18,7 @@
 package apmgrpc_test
 
 import (
+	"context"
 	"io"
 	"net"
 	"net/url"
@@ -27,7 +28,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	pb "google.golang.org/grpc/examples/helloworld/helloworld"
 	"google.golang.org/grpc/status"

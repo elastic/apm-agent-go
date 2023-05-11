@@ -18,7 +18,6 @@
 package apmhttp_test
 
 import (
-	"crypto/tls"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -27,7 +26,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/http2"
 
 	"go.elastic.co/apm/module/apmhttp/v2"
 	"go.elastic.co/apm/v2/model"
@@ -44,22 +42,14 @@ func TestHandlerHTTP2(t *testing.T) {
 		w.Write([]byte("bar"))
 	}))
 	srv := httptest.NewUnstartedServer(apmhttp.Wrap(mux, apmhttp.WithTracer(tracer)))
-	err := http2.ConfigureServer(srv.Config, nil)
-	require.NoError(t, err)
+	srv.EnableHTTP2 = true
 	srv.TLS = srv.Config.TLSConfig
 	srv.StartTLS()
 	defer srv.Close()
 	srvAddr := srv.Listener.Addr().(*net.TCPAddr)
 
-	client := &http.Client{Transport: &http2.Transport{
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true,
-		},
-	}}
-	require.NoError(t, err)
-
 	req, _ := http.NewRequest("GET", srv.URL+"/foo", nil)
-	resp, err := client.Do(req)
+	resp, err := srv.Client().Do(req)
 	require.NoError(t, err)
 	resp.Body.Close()
 	tracer.Flush(nil)
