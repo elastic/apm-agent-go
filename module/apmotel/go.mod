@@ -25,7 +25,7 @@ require (
 	github.com/prometheus/procfs v0.7.3 // indirect
 	go.elastic.co/fastjson v1.1.0 // indirect
 	golang.org/x/sys v0.6.0 // indirect
-	golang.org/x/text v0.3.7 // indirect
+	golang.org/x/text v0.3.8 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	howett.net/plist v1.0.0 // indirect
 )
