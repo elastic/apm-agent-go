@@ -23,6 +23,7 @@ package apmotel // import "go.elastic.co/apm/module/apmotel/v2"
 import (
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/aggregation"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
 var customHistogramBoundaries = []float64{
@@ -36,13 +37,15 @@ var customHistogramBoundaries = []float64{
 
 type gathererConfig struct {
 	aggregation metric.AggregationSelector
+	temporality metric.TemporalitySelector
 }
 
 type GathererOption func(gathererConfig) gathererConfig
 
 func newGathererConfig(opts ...GathererOption) gathererConfig {
 	cfg := gathererConfig{
-		aggregation: customAggregationSelector,
+		aggregation: defaultAggregationSelector,
+		temporality: defaultTemporalitySelector,
 	}
 	for _, opt := range opts {
 		cfg = opt(cfg)
@@ -52,8 +55,13 @@ func newGathererConfig(opts ...GathererOption) gathererConfig {
 }
 
 func (cfg gathererConfig) manualReaderOptions() []metric.ManualReaderOption {
-	opts := []metric.ManualReaderOption{}
-	opts = append(opts, metric.WithAggregationSelector(cfg.aggregation))
+	var opts []metric.ManualReaderOption
+	if cfg.aggregation != nil {
+		opts = append(opts, metric.WithAggregationSelector(cfg.aggregation))
+	}
+	if cfg.temporality != nil {
+		opts = append(opts, metric.WithTemporalitySelector(cfg.temporality))
+	}
 	return opts
 }
 
@@ -67,7 +75,7 @@ func WithAggregationSelector(agg metric.AggregationSelector) GathererOption {
 	}
 }
 
-func customAggregationSelector(ik metric.InstrumentKind) aggregation.Aggregation {
+func defaultAggregationSelector(ik metric.InstrumentKind) aggregation.Aggregation {
 	switch ik {
 	case metric.InstrumentKindHistogram:
 		return aggregation.ExplicitBucketHistogram{
@@ -77,4 +85,18 @@ func customAggregationSelector(ik metric.InstrumentKind) aggregation.Aggregation
 	default:
 		return metric.DefaultAggregationSelector(ik)
 	}
+}
+
+// WithTemporalitySelector configure the Aggregation Selector the exporter will
+// use. If no AggregationSelector is provided the DefaultAggregationSelector is
+// used.
+func WithTemporalitySelector(temporality metric.TemporalitySelector) GathererOption {
+	return func(cfg gathererConfig) gathererConfig {
+		cfg.temporality = temporality
+		return cfg
+	}
+}
+
+func defaultTemporalitySelector(_ metric.InstrumentKind) metricdata.Temporality {
+	return metricdata.DeltaTemporality
 }
