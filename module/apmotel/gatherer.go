@@ -64,10 +64,16 @@ func (e Gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 				addHistogramMetric(out, sm, m)
 			case metricdata.Sum[int64]:
 				for _, dp := range m.DataPoints {
+					if m.Temporality == metricdata.DeltaTemporality && dp.Value == 0 {
+						continue
+					}
 					out.Add(sm.Name, makeLabels(dp.Attributes), float64(dp.Value))
 				}
 			case metricdata.Sum[float64]:
 				for _, dp := range m.DataPoints {
+					if m.Temporality == metricdata.DeltaTemporality && dp.Value == 0 {
+						continue
+					}
 					out.Add(sm.Name, makeLabels(dp.Attributes), dp.Value)
 				}
 			case metricdata.Gauge[int64]:

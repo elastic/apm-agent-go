@@ -23,12 +23,14 @@ package apmotel
 import (
 	"context"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"go.opentelemetry.io/otel/attribute"
-	metric "go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/aggregation"
 
@@ -345,8 +347,124 @@ func gatherMetrics(g apm.MetricsGatherer) []model.Metrics {
 		metrics[i].Timestamp = model.Time{}
 	}
 
-	// Remove internal metrics
-	for i, m := range metrics {
+	removeInternalMetrics(&metrics)
+	return metrics
+}
+
+func TestDeltaTemporalityFilterOutZero(t *testing.T) {
+	gatherer, err := NewGatherer()
+	assert.NoError(t, err)
+	provider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(gatherer))
+	meter := provider.Meter("apmotel_test")
+
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+
+	i64Histogram, err := meter.Int64Histogram("i64Histogram")
+	require.NoError(t, err)
+	i64Histogram.Record(context.Background(), 1)
+	i64Counter, err := meter.Int64Counter("i64Counter")
+	require.NoError(t, err)
+	i64Counter.Add(context.Background(), 1)
+	i64UDCounter, err := meter.Int64UpDownCounter("i64UDCounter")
+	require.NoError(t, err)
+	i64UDCounter.Add(context.Background(), 1)
+	i64ObservableCounter, err := meter.Int64ObservableCounter("i64ObservableCounter")
+	require.NoError(t, err)
+	i64ObservableUDCounter, err := meter.Int64ObservableUpDownCounter("i64ObservableUDCounter")
+	require.NoError(t, err)
+	i64ObservableGauge, err := meter.Int64ObservableGauge("i64ObservableGauge")
+	require.NoError(t, err)
+	f64Histogram, err := meter.Float64Histogram("f64Histogram")
+	require.NoError(t, err)
+	f64Histogram.Record(context.Background(), 1)
+	f64Counter, err := meter.Float64Counter("f64Counter")
+	require.NoError(t, err)
+	f64Counter.Add(context.Background(), 1)
+	f64UDCounter, err := meter.Float64UpDownCounter("f64UDCounter")
+	require.NoError(t, err)
+	f64UDCounter.Add(context.Background(), 1)
+	f64ObservableCounter, err := meter.Float64ObservableCounter("f64ObservableCounter")
+	require.NoError(t, err)
+	f64ObservableUDCounter, err := meter.Float64ObservableUpDownCounter("f64ObservableUDCounter")
+	require.NoError(t, err)
+	f64ObservableGauge, err := meter.Float64ObservableGauge("f64ObservableGauge")
+	require.NoError(t, err)
+	registration, err := meter.RegisterCallback(
+		func(_ context.Context, obs metric.Observer) error {
+			wg.Done()
+			obs.ObserveInt64(i64ObservableCounter, 1)
+			obs.ObserveInt64(i64ObservableUDCounter, 1)
+			obs.ObserveInt64(i64ObservableGauge, 1)
+			obs.ObserveFloat64(f64ObservableCounter, 1)
+			obs.ObserveFloat64(f64ObservableUDCounter, 1)
+			obs.ObserveFloat64(f64ObservableGauge, 1)
+			return nil
+		},
+		i64ObservableCounter,
+		i64ObservableUDCounter,
+		i64ObservableGauge,
+		f64ObservableCounter,
+		f64ObservableUDCounter,
+		f64ObservableGauge,
+	)
+	require.NoError(t, err)
+	defer registration.Unregister()
+
+	t.Setenv("ELASTIC_APM_METRICS_INTERVAL", "1s")
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+	tracer.RegisterMetricsGatherer(gatherer)
+	tracer.SendMetrics(nil)
+	metrics := tracer.Payloads().Metrics
+	for i := range metrics {
+		metrics[i].Timestamp = model.Time{}
+	}
+
+	removeInternalMetrics(&metrics)
+	var names []string
+	for _, m := range metrics {
+		for k := range m.Samples {
+			names = append(names, k)
+		}
+	}
+	assert.ElementsMatch(t, []string{"i64Histogram",
+		"i64Counter",
+		"i64UDCounter",
+		"i64ObservableCounter",
+		"i64ObservableUDCounter",
+		"i64ObservableGauge",
+		"f64Histogram",
+		"f64Counter",
+		"f64UDCounter",
+		"f64ObservableCounter",
+		"f64ObservableUDCounter",
+		"f64ObservableGauge",
+	}, names)
+
+	tracer.ResetPayloads()
+	wg.Wait()
+	tracer.SendMetrics(nil)
+	metrics = tracer.Payloads().Metrics
+	for i := range metrics {
+		metrics[i].Timestamp = model.Time{}
+	}
+
+	removeInternalMetrics(&metrics)
+	names = names[:0]
+	for _, m := range metrics {
+		for k := range m.Samples {
+			names = append(names, k)
+		}
+	}
+	assert.ElementsMatch(t, []string{
+		"i64UDCounter",
+		"f64UDCounter",
+	}, names)
+}
+
+func removeInternalMetrics(metrics *[]model.Metrics) {
+	for i, m := range *metrics {
 		for k := range m.Samples {
 			if strings.HasPrefix(k, "golang.") || strings.HasPrefix(k, "system.") {
 				delete(m.Samples, k)
@@ -354,9 +472,8 @@ func gatherMetrics(g apm.MetricsGatherer) []model.Metrics {
 		}
 
 		if len(m.Samples) == 0 {
-			metrics[i] = metrics[len(metrics)-1]
-			metrics = metrics[:len(metrics)-1]
+			(*metrics)[i] = (*metrics)[len(*metrics)-1]
+			*metrics = (*metrics)[:len(*metrics)-1]
 		}
 	}
-	return metrics
 }
