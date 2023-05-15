@@ -97,6 +97,12 @@ func WithTemporalitySelector(temporality metric.TemporalitySelector) GathererOpt
 	}
 }
 
-func defaultTemporalitySelector(_ metric.InstrumentKind) metricdata.Temporality {
-	return metricdata.DeltaTemporality
+func defaultTemporalitySelector(ik metric.InstrumentKind) metricdata.Temporality {
+	switch ik {
+	case metric.InstrumentKindCounter, metric.InstrumentKindObservableCounter, metric.InstrumentKindHistogram:
+		return metricdata.DeltaTemporality
+	case metric.InstrumentKindUpDownCounter, metric.InstrumentKindObservableUpDownCounter, metric.InstrumentKindObservableGauge:
+		return metricdata.CumulativeTemporality
+	}
+	panic("unknown instrument kind")
 }
