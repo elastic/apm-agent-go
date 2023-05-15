@@ -357,6 +357,7 @@ func TestDeltaTemporalityFilterOutZero(t *testing.T) {
 	provider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(gatherer))
 	meter := provider.Meter("apmotel_test")
 
+	// Make callback run 2 times and make sure in the 2nd time delta temporality zero values are filtered out
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 
@@ -417,10 +418,6 @@ func TestDeltaTemporalityFilterOutZero(t *testing.T) {
 	tracer.RegisterMetricsGatherer(gatherer)
 	tracer.SendMetrics(nil)
 	metrics := tracer.Payloads().Metrics
-	for i := range metrics {
-		metrics[i].Timestamp = model.Time{}
-	}
-
 	removeInternalMetrics(&metrics)
 	var names []string
 	for _, m := range metrics {
@@ -446,10 +443,6 @@ func TestDeltaTemporalityFilterOutZero(t *testing.T) {
 	wg.Wait()
 	tracer.SendMetrics(nil)
 	metrics = tracer.Payloads().Metrics
-	for i := range metrics {
-		metrics[i].Timestamp = model.Time{}
-	}
-
 	removeInternalMetrics(&metrics)
 	names = names[:0]
 	for _, m := range metrics {
