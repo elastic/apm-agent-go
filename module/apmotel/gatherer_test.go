@@ -51,7 +51,7 @@ func TestGatherer(t *testing.T) {
 			recordMetrics: func(ctx context.Context, meter metric.Meter) {
 				counter, err := meter.Float64Counter("foo")
 				assert.NoError(t, err)
-				counter.Add(ctx, 5, attribute.Key("A").String("B"))
+				counter.Add(ctx, 5, metric.WithAttributes(attribute.Key("A").String("B")))
 			},
 			expectedMetrics: []model.Metrics{
 				{
@@ -71,7 +71,7 @@ func TestGatherer(t *testing.T) {
 			recordMetrics: func(ctx context.Context, meter metric.Meter) {
 				counter, err := meter.Int64Counter("foo")
 				assert.NoError(t, err)
-				counter.Add(ctx, 5, attribute.Key("A").String("B"))
+				counter.Add(ctx, 5, metric.WithAttributes(attribute.Key("A").String("B")))
 			},
 			expectedMetrics: []model.Metrics{
 				{
@@ -91,7 +91,7 @@ func TestGatherer(t *testing.T) {
 			recordMetrics: func(ctx context.Context, meter metric.Meter) {
 				counter, err := meter.Float64UpDownCounter("foo")
 				assert.NoError(t, err)
-				counter.Add(ctx, 5, attribute.Key("A").String("B"))
+				counter.Add(ctx, 5, metric.WithAttributes(attribute.Key("A").String("B")))
 			},
 			expectedMetrics: []model.Metrics{
 				{
@@ -111,7 +111,7 @@ func TestGatherer(t *testing.T) {
 			recordMetrics: func(ctx context.Context, meter metric.Meter) {
 				counter, err := meter.Float64UpDownCounter("foo")
 				assert.NoError(t, err)
-				counter.Add(ctx, 5, attribute.Key("A").String("B"))
+				counter.Add(ctx, 5, metric.WithAttributes(attribute.Key("A").String("B")))
 			},
 			expectedMetrics: []model.Metrics{
 				{
@@ -131,44 +131,44 @@ func TestGatherer(t *testing.T) {
 			recordMetrics: func(ctx context.Context, meter metric.Meter) {
 				counter, err := meter.Float64Histogram("histogram_foo")
 				assert.NoError(t, err)
-				counter.Record(ctx, 3.4,
+				counter.Record(ctx, 3.4, metric.WithAttributes(
 					attribute.Key("code").String("200"),
 					attribute.Key("method").String("GET"),
-				)
-				counter.Record(ctx, 3.4,
+				))
+				counter.Record(ctx, 3.4, metric.WithAttributes(
 					attribute.Key("code").String("200"),
 					attribute.Key("method").String("GET"),
-				)
-				counter.Record(ctx, 3.4,
+				))
+				counter.Record(ctx, 3.4, metric.WithAttributes(
 					attribute.Key("code").String("200"),
 					attribute.Key("method").String("GET"),
-				)
+				))
 
-				counter.Record(ctx, 5.5,
+				counter.Record(ctx, 5.5, metric.WithAttributes(
 					attribute.Key("code").String("302"),
 					attribute.Key("method").String("GET"),
-				)
-				counter.Record(ctx, 5.5,
+				))
+				counter.Record(ctx, 5.5, metric.WithAttributes(
 					attribute.Key("code").String("302"),
 					attribute.Key("method").String("GET"),
-				)
-				counter.Record(ctx, 5.5,
+				))
+				counter.Record(ctx, 5.5, metric.WithAttributes(
 					attribute.Key("code").String("302"),
 					attribute.Key("method").String("GET"),
-				)
+				))
 
-				counter.Record(ctx, 11.2,
+				counter.Record(ctx, 11.2, metric.WithAttributes(
 					attribute.Key("code").String("302"),
 					attribute.Key("method").String("GET"),
-				)
-				counter.Record(ctx, 11.2,
+				))
+				counter.Record(ctx, 11.2, metric.WithAttributes(
 					attribute.Key("code").String("302"),
 					attribute.Key("method").String("GET"),
-				)
-				counter.Record(ctx, 11.2,
+				))
+				counter.Record(ctx, 11.2, metric.WithAttributes(
 					attribute.Key("code").String("302"),
 					attribute.Key("method").String("GET"),
-				)
+				))
 			},
 			expectedMetrics: []model.Metrics{
 				{
@@ -204,7 +204,7 @@ func TestGatherer(t *testing.T) {
 			recordMetrics: func(ctx context.Context, meter metric.Meter) {
 				counter, err := meter.Int64Histogram("foo")
 				assert.NoError(t, err)
-				counter.Record(ctx, 5, attribute.Key("A").String("B"))
+				counter.Record(ctx, 5, metric.WithAttributes(attribute.Key("A").String("B")))
 			},
 			expectedMetrics: []model.Metrics{
 				{
@@ -257,10 +257,10 @@ func TestGathererWithCustomView(t *testing.T) {
 
 	counter, err := meter.Float64Histogram("histogram_foo")
 	assert.NoError(t, err)
-	counter.Record(ctx, 3.4,
+	counter.Record(ctx, 3.4, metric.WithAttributes(
 		attribute.Key("code").String("200"),
 		attribute.Key("method").String("GET"),
-	)
+	))
 
 	metrics := gatherMetrics(gatherer)
 

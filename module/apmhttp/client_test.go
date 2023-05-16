@@ -34,7 +34,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context/ctxhttp"
 
 	"go.elastic.co/apm/module/apmhttp/v2"
 	"go.elastic.co/apm/v2"
@@ -232,7 +231,9 @@ func TestClientTransactionUnsampled(t *testing.T) {
 func TestClientError(t *testing.T) {
 	_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
 		client := apmhttp.WrapClient(http.DefaultClient)
-		resp, err := ctxhttp.Get(ctx, client, "http://testing.invalid")
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://testing.invalid", nil)
+		require.NoError(t, err)
+		resp, err := client.Do(req)
 		if !assert.Error(t, err) {
 			resp.Body.Close()
 		}
@@ -288,7 +289,9 @@ func TestClientCancelRequest(t *testing.T) {
 			Transport: apmhttp.WrapRoundTripper(transport),
 			Timeout:   time.Nanosecond,
 		}
-		_, err := ctxhttp.Get(ctx, client, "http://testing.invalid")
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://testing.invalid", nil)
+		require.NoError(t, err)
+		_, err = client.Do(req)
 		require.Error(t, err)
 	})
 
@@ -402,7 +405,11 @@ func (c *idleConnectionsCloser) CloseIdleConnections() {
 
 func mustGET(ctx context.Context, url string, o ...apmhttp.ClientOption) (statusCode int, responseBody string) {
 	client := apmhttp.WrapClient(http.DefaultClient, o...)
-	resp, err := ctxhttp.Get(ctx, client, url)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		panic(err)
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		panic(err)
 	}
