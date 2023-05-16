@@ -33,7 +33,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context/ctxhttp"
 
 	"go.elastic.co/apm/module/apmelasticsearch/v2"
 	"go.elastic.co/apm/module/apmhttp/v2"
@@ -91,7 +90,9 @@ func TestSpanDuration(t *testing.T) {
 	client := &http.Client{Transport: apmelasticsearch.WrapRoundTripper(nil)}
 	_, spans, errs := apmtest.WithTransaction(func(ctx context.Context) {
 		before := time.Now()
-		resp, err := ctxhttp.Get(ctx, client, server.URL+"/twitter/_search")
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+"/twitter/_search", nil)
+		require.NoError(t, err)
+		resp, err := client.Do(req)
 		require.NoError(t, err)
 		io.Copy(ioutil.Discard, resp.Body)
 		resp.Body.Close()
