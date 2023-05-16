@@ -453,6 +453,10 @@ func TestDeltaTemporalityFilterOutZero(t *testing.T) {
 	assert.ElementsMatch(t, []string{
 		"i64UDCounter",
 		"f64UDCounter",
+		"i64ObservableUDCounter",
+		"f64ObservableUDCounter",
+		"i64ObservableGauge",
+		"f64ObservableGauge",
 	}, names)
 }
 
