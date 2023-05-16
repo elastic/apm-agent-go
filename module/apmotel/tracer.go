@@ -87,6 +87,10 @@ func (t *tracer) Start(ctx context.Context, spanName string, opts ...trace.SpanS
 				Start:  startTime,
 			})
 			s.tx = parent.tx
+			s.spanContext = trace.NewSpanContext(trace.SpanContextConfig{
+				TraceID: trace.TraceID(s.span.TraceContext().Trace),
+				SpanID:  trace.SpanID(s.span.TraceContext().Span),
+			})
 			return trace.ContextWithSpan(ctx, s), s
 		}
 	}
@@ -99,6 +103,10 @@ func (t *tracer) Start(ctx context.Context, spanName string, opts ...trace.SpanS
 		}
 	}
 	s.tx = t.provider.apmTracer.StartTransactionOptions(spanName, "", tranOpts)
+	s.spanContext = trace.NewSpanContext(trace.SpanContextConfig{
+		TraceID: trace.TraceID(s.tx.TraceContext().Trace),
+		SpanID:  trace.SpanID(s.tx.TraceContext().Span),
+	})
 
 	return trace.ContextWithSpan(ctx, s), s
 }
