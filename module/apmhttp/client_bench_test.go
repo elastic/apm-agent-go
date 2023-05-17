@@ -51,7 +51,7 @@ func benchmarkClient(b *testing.B, wrap func(*http.Client) *http.Client) {
 			defer tracer.Close()
 			tx := tracer.StartTransaction("name", "type")
 			ctx := apm.ContextWithTransaction(context.Background(), tx)
-			client := wrap(nil)
+			client := wrap(http.DefaultClient)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				req, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+path, nil)
