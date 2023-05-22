@@ -6,9 +6,9 @@ require (
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.0
 	github.com/stretchr/testify v1.6.1
-	go.elastic.co/apm/module/apmgrpc/v2 v2.4.1
-	go.elastic.co/apm/module/apmhttp/v2 v2.4.1
-	go.elastic.co/apm/v2 v2.4.1
+	go.elastic.co/apm/module/apmgrpc/v2 v2.4.2
+	go.elastic.co/apm/module/apmhttp/v2 v2.4.2
+	go.elastic.co/apm/v2 v2.4.2
 	google.golang.org/grpc v1.17.0
 )
 

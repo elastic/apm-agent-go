@@ -21,10 +21,20 @@ endif::[]
 [[unreleased]]
 === Unreleased
 
-https://github.com/elastic/apm-agent-go/compare/v2.4.1...main[View commits]
+https://github.com/elastic/apm-agent-go/compare/v2.4.2...main[View commits]
 
 [[release-notes-2.x]]
 === Go Agent version 2.x
+
+[[release-notes-2.4.2]]
+==== 2.4.2 - 2023/05/22
+
+- module/apmotel: handle resources {pull}1424[#1424]
+- Drop x/net dependency {pull}1434[#1434]
+- module/apmotel: bump go.opentelemetry.io/otel/metric {pull}1435[#1435]
+- module/apmotel: follow APM OTel spec and prefer delta temporality {pull}1437[#1437]
+- module/apmotel: set the proper trace ID and span ID in trace context {pull}1438[#1438]
+- module/apmotel: handle context flags when creating remote transactions and spans {pull}1441[#1441]
 
 [[release-notes-2.4.1]]
 ==== 2.4.1 - 2023/04/27

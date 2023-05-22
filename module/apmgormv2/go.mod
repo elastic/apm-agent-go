@@ -8,8 +8,8 @@ require (
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/mattn/go-sqlite3 v1.14.16 // indirect
 	github.com/stretchr/testify v1.8.0
-	go.elastic.co/apm/module/apmsql/v2 v2.4.1
-	go.elastic.co/apm/v2 v2.4.1
+	go.elastic.co/apm/module/apmsql/v2 v2.4.2
+	go.elastic.co/apm/v2 v2.4.2
 	gorm.io/driver/mysql v1.0.2
 	gorm.io/driver/postgres v1.3.4
 	gorm.io/driver/sqlite v1.3.1

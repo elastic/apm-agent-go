@@ -1,7 +1,7 @@
 module genmod/v2
 
 require (
-	go.elastic.co/apm/v2 v2.4.1
+	go.elastic.co/apm/v2 v2.4.2
 	golang.org/x/mod v0.5.1
 )
 

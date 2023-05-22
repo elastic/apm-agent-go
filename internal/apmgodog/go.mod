@@ -4,9 +4,9 @@ go 1.15
 
 require (
 	github.com/cucumber/godog v0.12.2
-	go.elastic.co/apm/module/apmgrpc/v2 v2.4.1
-	go.elastic.co/apm/module/apmhttp/v2 v2.4.1
-	go.elastic.co/apm/v2 v2.4.1
+	go.elastic.co/apm/module/apmgrpc/v2 v2.4.2
+	go.elastic.co/apm/module/apmhttp/v2 v2.4.2
+	go.elastic.co/apm/v2 v2.4.2
 	go.elastic.co/fastjson v1.1.0
 	google.golang.org/grpc v1.21.1
 )
