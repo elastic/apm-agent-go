@@ -32,7 +32,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pkg/errors"
 	"golang.org/x/mod/semver"
 
 	"go.elastic.co/apm/v2"
@@ -88,10 +87,7 @@ func main() {
 				if err != nil {
 					return err
 				}
-				// Skip non-public modules.
-				if strings.HasPrefix(gomod.Module.Path, "go.elastic.co/apm") {
-					modules[gomod.Module.Path] = gomod
-				}
+				modules[gomod.Module.Path] = gomod
 			}
 			return nil
 		}
@@ -156,13 +152,13 @@ func updateModule(dir string, gomod *GoMod, modules map[string]*GoMod) error {
 		cmd.Stderr = os.Stderr
 		cmd.Dir = dir
 		if err := cmd.Run(); err != nil {
-			return err
+			return fmt.Errorf("'go mod edit' failed: %w", err)
 		}
 	}
 	return nil
 }
 
-// checkModule checks that the require stanzas in $dir/go.mod have the
+// checkModule checks that the required stanzas in $dir/go.mod have the
 // correct versions, appropriate matching "replace" stanzas, and the
 // correct required Go version (if -go is specified).
 func checkModule(dir string, gomod *GoMod, modules map[string]*GoMod) error {
@@ -223,7 +219,7 @@ func checkModule(dir string, gomod *GoMod, modules map[string]*GoMod) error {
 		}
 	}
 	if gomodBad {
-		return errors.Errorf("%s/go.mod invalid", gomod.dir)
+		return fmt.Errorf("%s/go.mod invalid", gomod.dir)
 	}
 	return nil
 }
@@ -237,7 +233,7 @@ func checkModuleComplete(dir string, gomod *GoMod, modules map[string]*GoMod) er
 	cmd.Stderr = os.Stderr
 	cmd.Dir = gomod.dir
 	if err := cmd.Run(); err != nil {
-		return errors.Wrap(err, "'go mod download' failed")
+		return fmt.Errorf("'go mod download' failed: %w", err)
 	}
 
 	// Check we can build the module's tests and its transitive dependencies
@@ -246,7 +242,7 @@ func checkModuleComplete(dir string, gomod *GoMod, modules map[string]*GoMod) er
 	cmd.Stderr = os.Stderr
 	cmd.Dir = gomod.dir
 	if err := cmd.Run(); err != nil {
-		return errors.Wrap(err, "'go test' failed")
+		return fmt.Errorf("'go test' failed: %w", err)
 	}
 
 	// We create a temporary program which imports the module, and then
@@ -308,7 +304,7 @@ func main() {}
 	cmd.Stderr = os.Stderr
 	cmd.Dir = tmpdir
 	if err := cmd.Run(); err != nil {
-		return err
+		return fmt.Errorf("'go mod tidy' failed: %w", err)
 	}
 
 	cmd = exec.Command("diff", "-c", "-", "--label=old", tmpGomodPath, "--label=new")
@@ -330,7 +326,7 @@ func required(path string, modules map[string]*GoMod) []string {
 }
 
 // toposort topologically sorts the required modules, starting
-// with the moduled specified by path.
+// with the module specified by path.
 func toposort(path string, modules map[string]*GoMod, seen map[string]bool, paths *[]string) {
 	if seen[path] {
 		return
