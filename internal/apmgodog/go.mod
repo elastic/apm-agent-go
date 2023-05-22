@@ -1,6 +1,6 @@
 module apmgodog/v2
 
-go 1.13
+go 1.15
 
 require (
 	github.com/cucumber/godog v0.12.2
