@@ -158,7 +158,7 @@ func updateModule(dir string, gomod *GoMod, modules map[string]*GoMod) error {
 	return nil
 }
 
-// checkModule checks that the require stanzas in $dir/go.mod have the
+// checkModule checks that the required stanzas in $dir/go.mod have the
 // correct versions, appropriate matching "replace" stanzas, and the
 // correct required Go version (if -go is specified).
 func checkModule(dir string, gomod *GoMod, modules map[string]*GoMod) error {
@@ -326,7 +326,7 @@ func required(path string, modules map[string]*GoMod) []string {
 }
 
 // toposort topologically sorts the required modules, starting
-// with the moduled specified by path.
+// with the module specified by path.
 func toposort(path string, modules map[string]*GoMod, seen map[string]bool, paths *[]string) {
 	if seen[path] {
 		return
