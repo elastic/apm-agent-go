@@ -32,7 +32,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pkg/errors"
 	"golang.org/x/mod/semver"
 
 	"go.elastic.co/apm/v2"
@@ -153,7 +152,7 @@ func updateModule(dir string, gomod *GoMod, modules map[string]*GoMod) error {
 		cmd.Stderr = os.Stderr
 		cmd.Dir = dir
 		if err := cmd.Run(); err != nil {
-			return errors.Wrap(err, "'go mod edit' failed")
+			return fmt.Errorf("'go mod edit' failed: %w", err)
 		}
 	}
 	return nil
@@ -220,7 +219,7 @@ func checkModule(dir string, gomod *GoMod, modules map[string]*GoMod) error {
 		}
 	}
 	if gomodBad {
-		return errors.Errorf("%s/go.mod invalid", gomod.dir)
+		return fmt.Errorf("%s/go.mod invalid", gomod.dir)
 	}
 	return nil
 }
@@ -234,7 +233,7 @@ func checkModuleComplete(dir string, gomod *GoMod, modules map[string]*GoMod) er
 	cmd.Stderr = os.Stderr
 	cmd.Dir = gomod.dir
 	if err := cmd.Run(); err != nil {
-		return errors.Wrap(err, "'go mod download' failed")
+		return fmt.Errorf("'go mod download' failed: %w", err)
 	}
 
 	// Check we can build the module's tests and its transitive dependencies
@@ -243,7 +242,7 @@ func checkModuleComplete(dir string, gomod *GoMod, modules map[string]*GoMod) er
 	cmd.Stderr = os.Stderr
 	cmd.Dir = gomod.dir
 	if err := cmd.Run(); err != nil {
-		return errors.Wrap(err, "'go test' failed")
+		return fmt.Errorf("'go test' failed: %w", err)
 	}
 
 	// We create a temporary program which imports the module, and then
@@ -305,7 +304,7 @@ func main() {}
 	cmd.Stderr = os.Stderr
 	cmd.Dir = tmpdir
 	if err := cmd.Run(); err != nil {
-		return errors.Wrap(err, "'go mod tidy' failed")
+		return fmt.Errorf("'go mod tidy' failed: %w", err)
 	}
 
 	cmd = exec.Command("diff", "-c", "-", "--label=old", tmpGomodPath, "--label=new")
