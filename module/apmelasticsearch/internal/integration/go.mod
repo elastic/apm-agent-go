@@ -1,4 +1,4 @@
-module apmelasticsearch_integration
+module apmelasticsearch_integration/v2
 
 require (
 	github.com/elastic/go-elasticsearch/v7 v7.5.0

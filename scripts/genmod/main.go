@@ -88,10 +88,7 @@ func main() {
 				if err != nil {
 					return err
 				}
-				// Skip non-public modules.
-				if strings.HasPrefix(gomod.Module.Path, "go.elastic.co/apm") {
-					modules[gomod.Module.Path] = gomod
-				}
+				modules[gomod.Module.Path] = gomod
 			}
 			return nil
 		}
@@ -156,7 +153,7 @@ func updateModule(dir string, gomod *GoMod, modules map[string]*GoMod) error {
 		cmd.Stderr = os.Stderr
 		cmd.Dir = dir
 		if err := cmd.Run(); err != nil {
-			return err
+			return errors.Wrap(err, "'go mod edit' failed")
 		}
 	}
 	return nil
@@ -308,7 +305,7 @@ func main() {}
 	cmd.Stderr = os.Stderr
 	cmd.Dir = tmpdir
 	if err := cmd.Run(); err != nil {
-		return err
+		return errors.Wrap(err, "'go mod tidy' failed")
 	}
 
 	cmd = exec.Command("diff", "-c", "-", "--label=old", tmpGomodPath, "--label=new")

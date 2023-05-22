@@ -1,4 +1,4 @@
-module tracecontexttest
+module tracecontexttest/v2
 
 require go.elastic.co/apm/module/apmhttp/v2 v2.0.0
 

@@ -1,4 +1,4 @@
-module apmgodog
+module apmgodog/v2
 
 go 1.13
 
