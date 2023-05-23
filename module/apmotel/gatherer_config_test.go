@@ -26,10 +26,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/aggregation"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
 func TestNewGathererConfig(t *testing.T) {
 	aggregationSelector := func(metric.InstrumentKind) aggregation.Aggregation { return nil }
+	temporalitySelector := func(metric.InstrumentKind) metricdata.Temporality { return metricdata.CumulativeTemporality }
 
 	testCases := []struct {
 		name       string
@@ -48,12 +50,20 @@ func TestNewGathererConfig(t *testing.T) {
 			},
 			wantConfig: gathererConfig{},
 		},
+		{
+			name: "WithTemporalitySelector",
+			options: []GathererOption{
+				WithTemporalitySelector(temporalitySelector),
+			},
+			wantConfig: gathererConfig{},
+		},
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := newGathererConfig(tt.options...)
 			// tested by TestConfigManualReaderOptions
 			cfg.aggregation = nil
+			cfg.temporality = nil
 
 			assert.Equal(t, tt.wantConfig, cfg)
 		})
@@ -62,6 +72,7 @@ func TestNewGathererConfig(t *testing.T) {
 
 func TestConfigManualReaderOptions(t *testing.T) {
 	aggregationSelector := func(metric.InstrumentKind) aggregation.Aggregation { return nil }
+	temporalitySelector := func(metric.InstrumentKind) metricdata.Temporality { return metricdata.CumulativeTemporality }
 
 	testCases := []struct {
 		name            string
@@ -71,13 +82,22 @@ func TestConfigManualReaderOptions(t *testing.T) {
 		{
 			name:            "Default",
 			config:          gathererConfig{},
-			wantOptionCount: 1,
+			wantOptionCount: 0,
 		},
-
 		{
 			name:            "WithAggregationSelector",
 			config:          gathererConfig{aggregation: aggregationSelector},
 			wantOptionCount: 1,
+		},
+		{
+			name:            "WithTemporalitySelector",
+			config:          gathererConfig{temporality: temporalitySelector},
+			wantOptionCount: 1,
+		},
+		{
+			name:            "WithAggregationSelectorWithTemporalitySelector",
+			config:          gathererConfig{aggregation: aggregationSelector, temporality: temporalitySelector},
+			wantOptionCount: 2,
 		},
 	}
 	for _, tt := range testCases {

@@ -53,24 +53,62 @@ func TestTracerStartTransaction(t *testing.T) {
 
 	assert.NotNil(t, s.(*span).tx)
 	assert.Nil(t, s.(*span).span)
+
+	assert.True(t, trace.SpanContextFromContext(ctx).IsValid())
+	assert.True(t, trace.SpanContextFromContext(ctx).IsSampled())
 }
 
 func TestTracerStartTransactionWithParentContext(t *testing.T) {
-	tp, err := NewTracerProvider()
-	assert.NoError(t, err)
-	tracer := newTracer(tp.(*tracerProvider))
+	for _, tt := range []struct {
+		name string
 
-	ctx := context.Background()
-	psc := trace.NewSpanContext(trace.SpanContextConfig{
-		TraceID: [16]byte{1},
-		SpanID:  [8]byte{42},
-	})
-	ctx = trace.ContextWithSpanContext(context.Background(), psc)
+		spanContext     trace.SpanContext
+		expectedSampled bool
+	}{
+		{
+			name: "with an empty span context",
 
-	ctx, s := tracer.Start(ctx, "name")
+			expectedSampled: true,
+		},
+		{
+			name: "with a sampled span context",
+			spanContext: trace.NewSpanContext(trace.SpanContextConfig{
+				TraceID:    [16]byte{1},
+				SpanID:     [8]byte{42},
+				TraceFlags: trace.TraceFlags(0).WithSampled(true),
+			}),
 
-	assert.NotNil(t, s.(*span).tx)
-	assert.Nil(t, s.(*span).span)
+			expectedSampled: true,
+		},
+		{
+			name: "with a non-sampled span context",
+			spanContext: trace.NewSpanContext(trace.SpanContextConfig{
+				TraceID:    [16]byte{1},
+				SpanID:     [8]byte{42},
+				TraceFlags: trace.TraceFlags(0),
+			}),
+
+			expectedSampled: false,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+
+			tp, err := NewTracerProvider()
+			assert.NoError(t, err)
+			tracer := newTracer(tp.(*tracerProvider))
+
+			ctx := context.Background()
+			ctx = trace.ContextWithSpanContext(context.Background(), tt.spanContext)
+
+			ctx, s := tracer.Start(ctx, "name")
+
+			assert.NotNil(t, s.(*span).tx)
+			assert.Nil(t, s.(*span).span)
+
+			assert.True(t, trace.SpanContextFromContext(ctx).IsValid())
+			assert.Equal(t, trace.SpanContextFromContext(ctx).IsSampled(), tt.expectedSampled)
+		})
+	}
 }
 
 func TestTracerStartChildSpan(t *testing.T) {
@@ -84,21 +122,64 @@ func TestTracerStartChildSpan(t *testing.T) {
 
 	assert.Equal(t, ps.(*span).tx, cs.(*span).tx)
 	assert.NotNil(t, cs.(*span).span)
+
+	assert.True(t, trace.SpanContextFromContext(ctx).IsValid())
 }
 
 func TestTracerStartChildSpanFromTransactionInContext(t *testing.T) {
-	apmTracer, _ := transporttest.NewRecorderTracer()
-	tp, err := NewTracerProvider(WithAPMTracer(apmTracer))
-	assert.NoError(t, err)
-	tracer := newTracer(tp.(*tracerProvider))
+	for _, tt := range []struct {
+		name  string
+		txOpt apm.TransactionOptions
 
-	ctx := context.Background()
-	tx := apmTracer.StartTransaction("parent", "")
-	ctx = apm.ContextWithTransaction(context.Background(), tx)
-	ctx, cs := tracer.Start(ctx, "childSpan")
+		expectedSampled bool
+	}{
+		{
+			name: "with an empty trace context",
 
-	assert.Equal(t, tx, cs.(*span).tx)
-	assert.NotNil(t, cs.(*span).span)
+			expectedSampled: true,
+		},
+		{
+			name: "with a sampled transaction",
+			txOpt: apm.TransactionOptions{
+				TraceContext: apm.TraceContext{
+					Trace:   apm.TraceID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+					Options: apm.TraceOptions(0).WithRecorded(true),
+				},
+			},
+
+			expectedSampled: true,
+		},
+		{
+			name: "with a non-sampled transaction",
+			txOpt: apm.TransactionOptions{
+				TraceContext: apm.TraceContext{
+					Trace:   apm.TraceID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+					Options: apm.TraceOptions(0),
+				},
+			},
+
+			expectedSampled: false,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+
+			apmTracer, _ := transporttest.NewRecorderTracer()
+			tp, err := NewTracerProvider(WithAPMTracer(apmTracer))
+			assert.NoError(t, err)
+			tracer := newTracer(tp.(*tracerProvider))
+
+			ctx := context.Background()
+			tx := apmTracer.StartTransactionOptions("parent", "", tt.txOpt)
+			ctx = apm.ContextWithTransaction(context.Background(), tx)
+			ctx, cs := tracer.Start(ctx, "childSpan")
+
+			assert.Equal(t, tx, cs.(*span).tx)
+			assert.NotNil(t, cs.(*span).span)
+
+			assert.True(t, trace.SpanContextFromContext(ctx).IsValid())
+			assert.Equal(t, tt.expectedSampled, trace.SpanContextFromContext(ctx).IsSampled())
+		})
+	}
 }
 
 func TestTracerStartChildSpanWithNewRoot(t *testing.T) {

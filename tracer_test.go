@@ -612,9 +612,11 @@ func TestTracerDefaultTransport(t *testing.T) {
 }
 
 func TestTracerUnsampledTransactions(t *testing.T) {
-	newTracer := func(v, remoteV uint32) (*apm.Tracer, *serverVersionRecorderTransport) {
+	newTracer := func(v, remoteV uint32, blockRefresh chan struct{}) (*apm.Tracer, *serverVersionRecorderTransport) {
 		transport := serverVersionRecorderTransport{
 			RecorderTransport:   &transporttest.RecorderTransport{},
+			blockRefresh:        blockRefresh,
+			refreshed:           make(chan struct{}, 1),
 			ServerVersion:       v,
 			RemoteServerVersion: remoteV,
 		}
@@ -627,18 +629,26 @@ func TestTracerUnsampledTransactions(t *testing.T) {
 	}
 
 	t.Run("drop", func(t *testing.T) {
-		tracer, recorder := newTracer(0, 8)
+		blockRefresh := make(chan struct{})
+		tracer, recorder := newTracer(0, 8, blockRefresh)
 		defer tracer.Close()
 		tracer.SetSampler(apm.NewRatioSampler(0.0))
-		tx := tracer.StartTransaction("tx", "unsampled")
-		tx.End()
-		tracer.Flush(nil)
 
-		txs := recorder.Payloads().Transactions
-		require.Empty(t, txs)
+		// Until the server version has been fetched/refreshed,
+		// and thus known to be at least 8.0, non-sampled
+		// transactions are sent.
+		tracer.StartTransaction("tx", "unsampled").End()
+		tracer.Flush(nil)
+		require.Len(t, recorder.Payloads().Transactions, 1)
+
+		close(blockRefresh)
+		<-recorder.refreshed
+		tracer.StartTransaction("tx", "unsampled").End()
+		tracer.Flush(nil)
+		require.Len(t, recorder.Payloads().Transactions, 1) // no change
 	})
 	t.Run("send", func(t *testing.T) {
-		tracer, recorder := newTracer(0, 7)
+		tracer, recorder := newTracer(0, 7, nil)
 		defer tracer.Close()
 		tracer.SetSampler(apm.NewRatioSampler(0.0))
 		tx := tracer.StartTransaction("tx", "unsampled")
@@ -650,7 +660,7 @@ func TestTracerUnsampledTransactions(t *testing.T) {
 		assert.Equal(t, txs[0].Type, "unsampled")
 	})
 	t.Run("send-sampled-7", func(t *testing.T) {
-		tracer, recorder := newTracer(0, 8)
+		tracer, recorder := newTracer(0, 8, nil)
 		defer tracer.Close()
 		tx := tracer.StartTransaction("tx", "sampled")
 		tx.End()
@@ -661,7 +671,7 @@ func TestTracerUnsampledTransactions(t *testing.T) {
 		assert.Equal(t, txs[0].Type, "sampled")
 	})
 	t.Run("send-sampled-8", func(t *testing.T) {
-		tracer, recorder := newTracer(0, 8)
+		tracer, recorder := newTracer(0, 8, nil)
 		defer tracer.Close()
 		tx := tracer.StartTransaction("tx", "sampled")
 		tx.End()
@@ -684,7 +694,7 @@ func TestTracerUnsampledTransactions(t *testing.T) {
 		assert.Equal(t, txs[0].Type, "unsampled")
 	})
 	t.Run("send-onerror", func(t *testing.T) {
-		tracer, recorder := newTracer(0, 0)
+		tracer, recorder := newTracer(0, 0, nil)
 		defer tracer.Close()
 		tracer.SetSampler(apm.NewRatioSampler(0.0))
 		tx := tracer.StartTransaction("tx", "unsampled")
@@ -888,16 +898,27 @@ func (bt blockedTransport) SendStream(ctx context.Context, r io.Reader) error {
 	}
 }
 
-// serverVersionRecorderTransport wraps a RecorderTransport providing the
 type serverVersionRecorderTransport struct {
 	*transporttest.RecorderTransport
+	blockRefresh chan struct{}
+	refreshed    chan struct{}
+
 	ServerVersion       uint32
 	RemoteServerVersion uint32
 }
 
-// MajorServerVersion returns the stored version.
-func (r *serverVersionRecorderTransport) MajorServerVersion(_ context.Context, refreshStale bool) uint32 {
+func (r *serverVersionRecorderTransport) MajorServerVersion(ctx context.Context, refreshStale bool) uint32 {
 	if refreshStale {
+		if r.blockRefresh != nil {
+			select {
+			case <-ctx.Done():
+			case <-r.blockRefresh:
+			}
+		}
+		select {
+		case <-ctx.Done():
+		case r.refreshed <- struct{}{}:
+		}
 		atomic.StoreUint32(&r.ServerVersion, r.RemoteServerVersion)
 	}
 	return atomic.LoadUint32(&r.ServerVersion)
