@@ -18,12 +18,12 @@
 package apmgrpc // import "go.elastic.co/apm/module/apmgrpc/v2"
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"net/url"
 	"sync"
 
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"

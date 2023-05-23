@@ -87,6 +87,11 @@ func (t *tracer) Start(ctx context.Context, spanName string, opts ...trace.SpanS
 				Start:  startTime,
 			})
 			s.tx = parent.tx
+			s.spanContext = trace.NewSpanContext(trace.SpanContextConfig{
+				TraceID:    trace.TraceID(s.span.TraceContext().Trace),
+				SpanID:     trace.SpanID(s.span.TraceContext().Span),
+				TraceFlags: trace.TraceFlags(0).WithSampled(s.tx.Sampled()),
+			})
 			return trace.ContextWithSpan(ctx, s), s
 		}
 	}
@@ -94,11 +99,17 @@ func (t *tracer) Start(ctx context.Context, spanName string, opts ...trace.SpanS
 	var tranOpts apm.TransactionOptions
 	if psc.HasTraceID() && psc.HasSpanID() {
 		tranOpts.TraceContext = apm.TraceContext{
-			Trace: [16]byte(psc.TraceID()),
-			Span:  [8]byte(psc.SpanID()),
+			Trace:   [16]byte(psc.TraceID()),
+			Span:    [8]byte(psc.SpanID()),
+			Options: apm.TraceOptions(0).WithRecorded(psc.IsSampled()),
 		}
 	}
 	s.tx = t.provider.apmTracer.StartTransactionOptions(spanName, "", tranOpts)
+	s.spanContext = trace.NewSpanContext(trace.SpanContextConfig{
+		TraceID:    trace.TraceID(s.tx.TraceContext().Trace),
+		SpanID:     trace.SpanID(s.tx.TraceContext().Span),
+		TraceFlags: trace.TraceFlags(0).WithSampled(s.tx.Sampled()),
+	})
 
 	return trace.ContextWithSpan(ctx, s), s
 }

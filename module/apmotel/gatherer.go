@@ -60,14 +60,22 @@ func (e Gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 
 		for _, sm := range scopeMetrics.Metrics {
 			switch m := sm.Data.(type) {
-			case metricdata.Histogram:
+			case metricdata.Histogram[int64]:
+				addHistogramMetric(out, sm, m)
+			case metricdata.Histogram[float64]:
 				addHistogramMetric(out, sm, m)
 			case metricdata.Sum[int64]:
 				for _, dp := range m.DataPoints {
+					if m.Temporality == metricdata.DeltaTemporality && dp.Value == 0 {
+						continue
+					}
 					out.Add(sm.Name, makeLabels(dp.Attributes), float64(dp.Value))
 				}
 			case metricdata.Sum[float64]:
 				for _, dp := range m.DataPoints {
+					if m.Temporality == metricdata.DeltaTemporality && dp.Value == 0 {
+						continue
+					}
 					out.Add(sm.Name, makeLabels(dp.Attributes), dp.Value)
 				}
 			case metricdata.Gauge[int64]:
@@ -87,7 +95,7 @@ func (e Gatherer) GatherMetrics(ctx context.Context, out *apm.Metrics) error {
 	return nil
 }
 
-func addHistogramMetric(out *apm.Metrics, sm metricdata.Metrics, m metricdata.Histogram) {
+func addHistogramMetric[T int64 | float64](out *apm.Metrics, sm metricdata.Metrics, m metricdata.Histogram[T]) {
 	for _, dp := range m.DataPoints {
 		if len(dp.BucketCounts) != len(dp.Bounds)+1 || len(dp.Bounds) == 0 {
 			continue

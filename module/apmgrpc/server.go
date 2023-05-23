@@ -18,12 +18,12 @@
 package apmgrpc // import "go.elastic.co/apm/module/apmgrpc/v2"
 
 import (
+	"context"
 	"crypto/tls"
 	"net/http"
 	"net/url"
 	"strings"
 
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"

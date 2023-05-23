@@ -1,8 +1,7 @@
-module genmod
+module genmod/v2
 
 require (
-	github.com/pkg/errors v0.9.1
-	go.elastic.co/apm/v2 v2.1.0
+	go.elastic.co/apm/v2 v2.4.2
 	golang.org/x/mod v0.5.1
 )
 

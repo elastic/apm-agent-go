@@ -23,6 +23,7 @@ package apmotel // import "go.elastic.co/apm/module/apmotel/v2"
 import (
 	"sync"
 
+	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/trace"
 
 	"go.elastic.co/apm/v2"
@@ -33,7 +34,8 @@ type tracerProvider struct {
 
 	apmTracer *apm.Tracer
 
-	tracers map[string]*tracer
+	tracers  map[string]*tracer
+	resource *resource.Resource
 }
 
 // NewTracerProvider creates a new tracer provider which acts as a bridge with the Elastic Agent tracer.
@@ -42,6 +44,7 @@ func NewTracerProvider(opts ...TracerProviderOption) (trace.TracerProvider, erro
 	tp := &tracerProvider{
 		apmTracer: cfg.apmTracer,
 		tracers:   map[string]*tracer{},
+		resource:  cfg.resource,
 	}
 
 	return tp, nil

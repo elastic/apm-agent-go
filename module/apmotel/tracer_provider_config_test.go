@@ -24,6 +24,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"go.opentelemetry.io/otel/sdk/resource"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 
 	"go.elastic.co/apm/v2"
 	"go.elastic.co/apm/v2/transport/transporttest"
@@ -42,6 +44,7 @@ func TestNewTracerProviderConfig(t *testing.T) {
 			options: nil,
 			wantConfig: tracerProviderConfig{
 				apmTracer: apm.DefaultTracer(),
+				resource:  resource.Default(),
 			},
 		},
 		{
@@ -51,6 +54,17 @@ func TestNewTracerProviderConfig(t *testing.T) {
 			},
 			wantConfig: tracerProviderConfig{
 				apmTracer: apmTracer,
+				resource:  resource.Default(),
+			},
+		},
+		{
+			name: "WithResource",
+			options: []TracerProviderOption{
+				WithResource(resource.NewWithAttributes(semconv.SchemaURL)),
+			},
+			wantConfig: tracerProviderConfig{
+				apmTracer: apm.DefaultTracer(),
+				resource:  resource.NewWithAttributes(semconv.SchemaURL),
 			},
 		},
 	}
