@@ -56,6 +56,9 @@ func TestTracerStartTransaction(t *testing.T) {
 
 	assert.True(t, trace.SpanContextFromContext(ctx).IsValid())
 	assert.True(t, trace.SpanContextFromContext(ctx).IsSampled())
+
+	assert.True(t, apm.TransactionFromContext(ctx).Sampled())
+	assert.Nil(t, apm.SpanFromContext(ctx))
 }
 
 func TestTracerStartTransactionWithParentContext(t *testing.T) {
@@ -124,6 +127,9 @@ func TestTracerStartChildSpan(t *testing.T) {
 	assert.NotNil(t, cs.(*span).span)
 
 	assert.True(t, trace.SpanContextFromContext(ctx).IsValid())
+
+	assert.True(t, apm.TransactionFromContext(ctx).Sampled())
+	assert.False(t, apm.SpanFromContext(ctx).Dropped())
 }
 
 func TestTracerStartChildSpanFromTransactionInContext(t *testing.T) {
