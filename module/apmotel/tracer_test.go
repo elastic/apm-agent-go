@@ -168,7 +168,6 @@ func TestTracerStartChildSpanFromTransactionInContext(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-
 			apmTracer, _ := transporttest.NewRecorderTracer()
 			tp, err := NewTracerProvider(WithAPMTracer(apmTracer))
 			assert.NoError(t, err)
