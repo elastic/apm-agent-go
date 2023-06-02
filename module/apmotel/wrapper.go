@@ -23,8 +23,9 @@ package apmotel // import "go.elastic.co/apm/module/apmotel/v2"
 import (
 	"context"
 
-	"go.elastic.co/apm/v2"
 	"go.opentelemetry.io/otel/trace"
+
+	"go.elastic.co/apm/v2"
 )
 
 var (

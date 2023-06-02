@@ -25,9 +25,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"go.opentelemetry.io/otel/trace"
+
 	"go.elastic.co/apm/v2"
 	"go.elastic.co/apm/v2/transport/transporttest"
-	"go.opentelemetry.io/otel/trace"
 )
 
 func TestLinkAgentToOtel(t *testing.T) {
