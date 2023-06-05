@@ -7,7 +7,7 @@ require (
 	github.com/jackc/pgx/v4 v4.16.1 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/mattn/go-sqlite3 v1.14.16 // indirect
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.8.4
 	go.elastic.co/apm/module/apmsql/v2 v2.4.2
 	go.elastic.co/apm/v2 v2.4.2
 	gorm.io/driver/mysql v1.0.2

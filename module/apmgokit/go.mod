@@ -5,7 +5,7 @@ require (
 	github.com/go-logfmt/logfmt v0.4.0 // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.0
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.8.4
 	go.elastic.co/apm/module/apmgrpc/v2 v2.4.2
 	go.elastic.co/apm/module/apmhttp/v2 v2.4.2
 	go.elastic.co/apm/v2 v2.4.2

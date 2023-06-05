@@ -6,7 +6,7 @@ require (
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/onsi/ginkgo v1.8.0 // indirect
 	github.com/onsi/gomega v1.5.0 // indirect
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.8.4
 	go.elastic.co/apm/v2 v2.4.2
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
