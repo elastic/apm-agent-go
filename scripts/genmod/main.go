@@ -18,27 +18,19 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"go/build"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
-	"strconv"
 	"strings"
-
-	"golang.org/x/mod/semver"
 
 	"go.elastic.co/apm/v2"
 )
 
 var (
-	checkFlag     = flag.Bool("check", false, "check the go.mod files are complete, instead of updating them")
 	versionFlag   = flag.String("version", "v"+apm.AgentVersion, "module version (e.g. \"v1.0.0\"")
 	goVersionFlag = flag.String("go", "", "go version to expect in go.mod files")
 	excludedPaths = flag.String("exclude", "tools", "paths to exclude. Separated by ,")
@@ -110,18 +102,8 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		if !*checkFlag {
-			fmt.Fprintf(os.Stderr, "# updating %s\n", gomod.Module.Path)
-			if err := updateModule(absdir, gomod, modules); err != nil {
-				log.Fatal(err)
-			}
-		} else {
-			fmt.Fprintf(os.Stderr, "# checking %s\n", gomod.Module.Path)
-			if err := checkModule(absdir, gomod, modules); err != nil {
-				log.Fatal(err)
-			}
-		}
-		if err := checkModuleComplete(absdir, gomod, modules); err != nil {
+		fmt.Fprintf(os.Stderr, "# updating %s\n", gomod.Module.Path)
+		if err := updateModule(absdir, gomod, modules); err != nil {
 			log.Fatal(err)
 		}
 	}
@@ -133,9 +115,6 @@ func updateModule(dir string, gomod *GoMod, modules map[string]*GoMod) error {
 		if !ok {
 			continue
 		}
-		if require.Version == *versionFlag && (*goVersionFlag == "" || gomod.Go == *goVersionFlag) {
-			continue
-		}
 		relDir, err := filepath.Rel(dir, requireMod.dir)
 		if err != nil {
 			return err
@@ -145,9 +124,6 @@ func updateModule(dir string, gomod *GoMod, modules map[string]*GoMod) error {
 			"-require", require.Path + "@" + *versionFlag,
 			"-replace", require.Path + "=" + relDir,
 		}
-		if *goVersionFlag != "" && semver.Compare("v"+*goVersionFlag, "v"+gomod.Go) == 1 {
-			args = append(args, "-go", *goVersionFlag)
-		}
 		cmd := exec.Command("go", args...)
 		cmd.Stderr = os.Stderr
 		cmd.Dir = dir
@@ -155,174 +131,13 @@ func updateModule(dir string, gomod *GoMod, modules map[string]*GoMod) error {
 			return fmt.Errorf("'go mod edit' failed: %w", err)
 		}
 	}
-	return nil
-}
-
-// checkModule checks that the required stanzas in $dir/go.mod have the
-// correct versions, appropriate matching "replace" stanzas, and the
-// correct required Go version (if -go is specified).
-func checkModule(dir string, gomod *GoMod, modules map[string]*GoMod) error {
-	// Verify that any required module in modules has the version
-	// specified in versionFlag, and has a replacement stanza.
-	var gomodBad bool
-	if *goVersionFlag != "" {
-		if i := semver.Compare("v"+gomod.Go, "v"+*goVersionFlag); i == -1 {
-			fmt.Fprintf(
-				os.Stderr,
-				" - found \"go %s\", expected \"go %s\"\n",
-				gomod.Go, *goVersionFlag,
-			)
-			gomodBad = true
-		} else if i == 1 {
-			fmt.Fprintf(
-				os.Stderr,
-				" - found newer go version: \"go %s\", ignoring...\n",
-				gomod.Go,
-			)
-		}
-	}
-	for _, require := range gomod.Require {
-		requireMod, ok := modules[require.Path]
-		if !ok {
-			continue
-		}
-		if require.Version != *versionFlag {
-			fmt.Fprintf(
-				os.Stderr,
-				" - found \"require %s %s\", expected %s\n",
-				require.Path, require.Version, *versionFlag,
-			)
-			gomodBad = true
-		}
-		relDir, err := filepath.Rel(dir, requireMod.dir)
-		if err != nil {
-			return err
-		}
-		var foundReplace bool
-		for _, replace := range gomod.Replace {
-			if replace.Old.Path == require.Path && replace.Old.Version == "" {
-				if filepath.Clean(replace.New.Path) != relDir {
-					fmt.Fprintf(
-						os.Stderr,
-						" - found \"replace %s => %s\", expected %s\n",
-						replace.Old.Path, replace.New.Path, relDir,
-					)
-					gomodBad = true
-				}
-				foundReplace = true
-				break
-			}
-		}
-		if !foundReplace {
-			fmt.Fprintf(os.Stderr, " - missing \"replace %s => %s\"\n", require.Path, relDir)
-			gomodBad = true
-		}
-	}
-	if gomodBad {
-		return fmt.Errorf("%s/go.mod invalid", gomod.dir)
-	}
-	return nil
-}
-
-// checkModuleComplete checks that $dir/go.mod is complete by running
-// "go build" and "go mod tidy", ensuring no changes are required.
-func checkModuleComplete(dir string, gomod *GoMod, modules map[string]*GoMod) error {
-	// Make sure we have all of the module's dependencies first.
-	cmd := exec.Command("go", "mod", "download")
-	cmd.Env = append(os.Environ(), "GO111MODULE=on")
+	cmd := exec.Command("go", "mod", "tidy", "-v", "-go", *goVersionFlag)
 	cmd.Stderr = os.Stderr
-	cmd.Dir = gomod.dir
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("'go mod download' failed: %w", err)
-	}
-
-	// Check we can build the module's tests and its transitive dependencies
-	// without updating go.mod.
-	cmd = exec.Command("go", "test", "-c", "-mod=readonly", "-o", os.DevNull)
-	cmd.Stderr = os.Stderr
-	cmd.Dir = gomod.dir
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("'go test' failed: %w", err)
-	}
-
-	// We create a temporary program which imports the module, and then
-	// use "go mod tidy", checking if go.mod is changed. "go mod tidy"
-	// can require more packages than the previous "go build".
-	tmpdir, err := ioutil.TempDir("", "genmod")
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(tmpdir)
-
-	tmpGomodPath := filepath.Join(tmpdir, "go.mod")
-	tmpGomainPath := filepath.Join(tmpdir, "main.go")
-	tmpGomainContent := []byte(fmt.Sprintf(`
-package main
-import _ %q
-func main() {}
-`, gomod.Module.Path))
-
-	var tmpGomodContent bytes.Buffer
-	fmt.Fprintln(&tmpGomodContent, "module main")
-	required := required(gomod.Module.Path, modules)
-	sort.Strings(required)
-	for _, path := range required {
-		if path == gomod.Module.Path {
-			fmt.Fprintf(&tmpGomodContent, "\nrequire %s %s", path, *versionFlag)
-			fmt.Fprintln(&tmpGomodContent)
-		}
-	}
-	for _, path := range required {
-		gomod := modules[path]
-		fmt.Fprintf(&tmpGomodContent, "\nreplace %s => %s\n", path, gomod.dir)
-	}
-	// Add "go <version>", using the latest release tag.
-	tags := build.Default.ReleaseTags
-	// TODO(stn): go1.17 introduced changes to gomod, which breaks this
-	// check. Lock go1.17 and higher to go1.16 behavior for now.
-	tag := tags[len(tags)-1][2:]
-	minorVersion, err := strconv.Atoi(tag[2:4])
-	if err != nil {
-		return err
-	}
-	if minorVersion > 16 {
-		tag = "1.16"
-	}
-	fmt.Fprintf(&tmpGomodContent, "\ngo %s\n", tag)
-
-	if err := ioutil.WriteFile(tmpGomodPath, tmpGomodContent.Bytes(), 0644); err != nil {
-		return err
-	}
-	if err := ioutil.WriteFile(tmpGomainPath, tmpGomainContent, 0644); err != nil {
-		return err
-	}
-
-	cmd = exec.Command("go", "mod", "tidy", "-v")
-	if minorVersion > 16 {
-		cmd.Args = append(cmd.Args, "-go=1.16")
-	}
-	cmd.Stderr = os.Stderr
-	cmd.Dir = tmpdir
+	cmd.Dir = dir
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("'go mod tidy' failed: %w", err)
 	}
-
-	cmd = exec.Command("diff", "-c", "-", "--label=old", tmpGomodPath, "--label=new")
-	cmd.Stdin = bytes.NewReader(tmpGomodContent.Bytes())
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		return err
-	}
 	return nil
-}
-
-// required returns the transitive modules dependencies of
-// the module specified by path, including path itself.
-func required(path string, modules map[string]*GoMod) []string {
-	var paths []string
-	toposort(path, modules, make(map[string]bool), &paths)
-	return paths
 }
 
 // toposort topologically sorts the required modules, starting

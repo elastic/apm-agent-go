@@ -10,4 +10,14 @@ require (
 	golang.org/x/sys v0.0.0-20220209214540-3681064d5158
 )
 
-go 1.15
+require (
+	github.com/davecgh/go-spew v1.1.0 // indirect
+	github.com/elastic/go-windows v1.0.0 // indirect
+	github.com/joeshaw/multierror v0.0.0-20140124173710-69b34d4ec901 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/prometheus/procfs v0.0.0-20190425082905-87a4384529e0 // indirect
+	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
+	howett.net/plist v0.0.0-20181124034731-591f970eefbb // indirect
+)
+
+go 1.19
