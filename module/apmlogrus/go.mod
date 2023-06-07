@@ -3,7 +3,7 @@ module go.elastic.co/apm/module/apmlogrus/v2
 require (
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.2.0
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.8.4
 	go.elastic.co/apm/v2 v2.4.2
 )
 
@@ -20,7 +20,7 @@ require (
 	go.elastic.co/fastjson v1.1.0 // indirect
 	golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413 // indirect
 	golang.org/x/sys v0.0.0-20220209214540-3681064d5158 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	howett.net/plist v0.0.0-20181124034731-591f970eefbb // indirect
 )
 

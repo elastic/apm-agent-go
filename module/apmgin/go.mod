@@ -3,7 +3,7 @@ module go.elastic.co/apm/module/apmgin/v2
 require (
 	github.com/gin-gonic/gin v1.7.7
 	github.com/pkg/errors v0.9.1
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.8.4
 	go.elastic.co/apm/module/apmhttp/v2 v2.4.2
 	go.elastic.co/apm/v2 v2.4.2
 )
@@ -32,7 +32,7 @@ require (
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 // indirect
 	golang.org/x/sys v0.0.0-20220209214540-3681064d5158 // indirect
 	gopkg.in/yaml.v2 v2.2.8 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	howett.net/plist v0.0.0-20181124034731-591f970eefbb // indirect
 )
 

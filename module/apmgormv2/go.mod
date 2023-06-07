@@ -1,7 +1,7 @@
 module go.elastic.co/apm/module/apmgormv2/v2
 
 require (
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.8.4
 	go.elastic.co/apm/module/apmsql/v2 v2.4.2
 	go.elastic.co/apm/v2 v2.4.2
 	gorm.io/driver/mysql v1.0.2

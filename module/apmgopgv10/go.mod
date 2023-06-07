@@ -3,7 +3,7 @@ module go.elastic.co/apm/module/apmgopgv10/v2
 require (
 	github.com/go-pg/pg/v10 v10.7.3
 	github.com/pkg/errors v0.9.1
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.8.4
 	go.elastic.co/apm/module/apmsql/v2 v2.4.2
 	go.elastic.co/apm/v2 v2.4.2
 )
@@ -27,7 +27,7 @@ require (
 	go.opentelemetry.io/otel v0.14.0 // indirect
 	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d // indirect
 	golang.org/x/sys v0.0.0-20220224120231-95c6836cb0e7 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	howett.net/plist v0.0.0-20181124034731-591f970eefbb // indirect
 	mellium.im/sasl v0.2.1 // indirect
 )

@@ -6,7 +6,7 @@ require (
 	github.com/jackc/pgx/v4 v4.9.0
 	github.com/lib/pq v1.3.0
 	github.com/mattn/go-sqlite3 v1.10.0
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.8.4
 	go.elastic.co/apm/v2 v2.4.2
 )
 
@@ -34,7 +34,7 @@ require (
 	golang.org/x/sys v0.0.0-20220224120231-95c6836cb0e7 // indirect
 	golang.org/x/text v0.3.6 // indirect
 	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	howett.net/plist v0.0.0-20181124034731-591f970eefbb // indirect
 )
 
