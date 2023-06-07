@@ -21,7 +21,8 @@ go get go.elastic.co/apm/v2
 
 ## Requirements
 
-Tested with Go 1.15+ on Linux, Windows and MacOS.
+We support and test against the two latest major releases of Go,
+as described by the [Go release policy](https://go.dev/doc/devel/release#policy), on Linux, Windows and MacOS.
 
 Requires [APM Server](https://github.com/elastic/apm-server) v6.5 or newer.
 
