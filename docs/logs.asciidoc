@@ -1,3 +1,4 @@
+[[logs]]
 == Logs
 
 Elastic APM Go Agent provides <<log-correlation-ids>>.
