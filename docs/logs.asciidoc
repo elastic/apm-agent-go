@@ -50,7 +50,7 @@ or unstructured logging.
 ==== Manual log correlation (structured)
 
 For correlating structured logs with traces and services, the fields defined <<log-correlation-ids,above>>
-should be added to logs..
+should be added to logs.
 
 Given a transaction object, you can obtain its trace ID and transaction ID using
 the <<transaction-tracecontext, apm.Transaction.TraceContext>> method. Similarly,
