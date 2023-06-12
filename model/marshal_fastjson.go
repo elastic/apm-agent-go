@@ -918,11 +918,11 @@ func (v *ServiceSpanContext) MarshalFastJSON(w *fastjson.Writer) error {
 
 func (v *ServiceTargetSpanContext) MarshalFastJSON(w *fastjson.Writer) error {
 	w.RawByte('{')
-	w.RawString("\"name\":")
-	w.String(v.Name)
-	if v.Type != "" {
-		w.RawString(",\"type\":")
-		w.String(v.Type)
+	w.RawString("\"type\":")
+	w.String(v.Type)
+	if v.Name != "" {
+		w.RawString(",\"name\":")
+		w.String(v.Name)
 	}
 	w.RawByte('}')
 	return nil
