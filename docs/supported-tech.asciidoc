@@ -14,14 +14,11 @@ If you would like to get more involved, take a look at the <<contributing, contr
 [[supported-tech-go]]
 === Go
 
-The Elastic APM Go agent naturally requires Go. We will support, at a minimum,
-the last two major Go releases as described by
-https://golang.org/doc/devel/release.html#policy[Go's Release Policy]. Older
-versions of Go will be supported on a best-effort basis.
+The Elastic APM Go agent naturally requires Go. We support the last two major
+Go releases as described by https://golang.org/doc/devel/release.html#policy[Go's Release Policy]:
 
-We currently test the agent with all major versions of Go since 1.8. Some
-integration modules may require a more recent version of Go due to third-party
-dependencies.
+> Each major Go release is supported until there are two newer major releases.
+> For example, Go 1.5 was supported until the Go 1.7 release, and Go 1.6 was supported until the Go 1.8 release.
 
 [float]
 [[supported-tech-web-frameworks]]

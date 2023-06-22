@@ -15,9 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//go:build go1.18
-// +build go1.18
-
 package apmotel // import "go.elastic.co/apm/module/apmotel/v2"
 
 import (
@@ -86,6 +83,7 @@ func (t *tracer) Start(ctx context.Context, spanName string, opts ...trace.SpanS
 				Parent: tc,
 				Start:  startTime,
 			})
+			ctx = apm.ContextWithSpan(ctx, s.span)
 			s.tx = parent.tx
 			s.spanContext = trace.NewSpanContext(trace.SpanContextConfig{
 				TraceID:    trace.TraceID(s.span.TraceContext().Trace),
@@ -105,6 +103,7 @@ func (t *tracer) Start(ctx context.Context, spanName string, opts ...trace.SpanS
 		}
 	}
 	s.tx = t.provider.apmTracer.StartTransactionOptions(spanName, "", tranOpts)
+	ctx = apm.ContextWithTransaction(ctx, s.tx)
 	s.spanContext = trace.NewSpanContext(trace.SpanContextConfig{
 		TraceID:    trace.TraceID(s.tx.TraceContext().Trace),
 		SpanID:     trace.SpanID(s.tx.TraceContext().Span),
