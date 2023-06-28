@@ -26,6 +26,7 @@ import (
 	"sync"
 	"time"
 
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
@@ -60,6 +61,12 @@ type span struct {
 
 	tx   *apm.Transaction
 	span *apm.Span
+}
+
+type noopSpan struct {
+	spanContext trace.SpanContext
+	tx          *apm.Transaction
+	span        *apm.Span
 }
 
 func (s *span) End(options ...trace.SpanEndOption) {
@@ -397,4 +404,32 @@ func recordStackTrace() string {
 	n := runtime.Stack(stackTrace, false)
 
 	return string(stackTrace[0:n])
+}
+
+func (s *noopSpan) End(...trace.SpanEndOption) {}
+
+func (s *noopSpan) AddEvent(string, ...trace.EventOption) {}
+
+func (s *noopSpan) IsRecording() bool {
+	if s.span != nil {
+		return !s.span.Dropped()
+	}
+
+	return s.tx.Sampled()
+}
+
+func (s *noopSpan) RecordError(error, ...trace.EventOption) {}
+
+func (s *noopSpan) SpanContext() trace.SpanContext {
+	return s.spanContext
+}
+
+func (s *noopSpan) SetStatus(codes.Code, string) {}
+
+func (s *noopSpan) SetName(string) {}
+
+func (s *noopSpan) SetAttributes(...attribute.KeyValue) {}
+
+func (s *noopSpan) TracerProvider() trace.TracerProvider {
+	return otel.GetTracerProvider()
 }

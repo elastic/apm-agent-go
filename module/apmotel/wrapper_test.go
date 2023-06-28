@@ -25,12 +25,12 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"go.elastic.co/apm/v2"
-	"go.elastic.co/apm/v2/transport/transporttest"
+	"go.elastic.co/apm/v2/apmtest"
 )
 
 func TestLinkAgentToOtel(t *testing.T) {
-	apmTracer, _ := transporttest.NewRecorderTracer()
-	_, err := NewTracerProvider(WithAPMTracer(apmTracer))
+	apmTracer := apmtest.NewRecordingTracer()
+	_, err := NewTracerProvider(WithAPMTracer(apmTracer.Tracer))
 	assert.NoError(t, err)
 
 	ctx := context.Background()
@@ -42,11 +42,12 @@ func TestLinkAgentToOtel(t *testing.T) {
 
 	assert.Equal(t, [16]byte(apmTx.TraceContext().Trace), [16]byte(otelSpan.SpanContext().TraceID()))
 	assert.Equal(t, [8]byte(apmTx.TraceContext().Span), [8]byte(otelSpan.SpanContext().SpanID()))
+	assert.Equal(t, apmTx.Sampled(), otelSpan.IsRecording())
 }
 
 func TestLinkOtelToAgent(t *testing.T) {
-	apmTracer, _ := transporttest.NewRecorderTracer()
-	tp, err := NewTracerProvider(WithAPMTracer(apmTracer))
+	apmTracer := apmtest.NewRecordingTracer()
+	tp, err := NewTracerProvider(WithAPMTracer(apmTracer.Tracer))
 	assert.NoError(t, err)
 
 	ctx := context.Background()
@@ -57,4 +58,5 @@ func TestLinkOtelToAgent(t *testing.T) {
 
 	assert.Equal(t, [16]byte(apmTx.TraceContext().Trace), [16]byte(otelSpan.SpanContext().TraceID()))
 	assert.Equal(t, [8]byte(apmTx.TraceContext().Span), [8]byte(otelSpan.SpanContext().SpanID()))
+	assert.Equal(t, apmTx.Sampled(), otelSpan.IsRecording())
 }
