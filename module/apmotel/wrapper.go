@@ -20,6 +20,7 @@ package apmotel // import "go.elastic.co/apm/module/apmotel/v2"
 import (
 	"context"
 
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 
 	"go.elastic.co/apm/v2"
@@ -42,9 +43,16 @@ func init() {
 }
 
 func contextWithSpan(ctx context.Context, apmSpan *apm.Span) context.Context {
+	var provider *tracerProvider
+	if p, ok := otel.GetTracerProvider().(*tracerProvider); ok {
+		provider = p
+	}
+
 	ctx = oldOverrideContextWithSpan(ctx, apmSpan)
 
 	return trace.ContextWithSpan(ctx, &span{
+		provider: provider,
+
 		spanContext: trace.NewSpanContext(trace.SpanContextConfig{
 			TraceID:    trace.TraceID(apmSpan.TraceContext().Trace),
 			SpanID:     trace.SpanID(apmSpan.TraceContext().Span),
@@ -56,9 +64,15 @@ func contextWithSpan(ctx context.Context, apmSpan *apm.Span) context.Context {
 }
 
 func contextWithTransaction(ctx context.Context, apmTransaction *apm.Transaction) context.Context {
+	var provider *tracerProvider
+	if p, ok := otel.GetTracerProvider().(*tracerProvider); ok {
+		provider = p
+	}
 	ctx = oldOverrideContextWithTransaction(ctx, apmTransaction)
 
 	return trace.ContextWithSpan(ctx, &span{
+		provider: provider,
+
 		spanContext: trace.NewSpanContext(trace.SpanContextConfig{
 			TraceID:    trace.TraceID(apmTransaction.TraceContext().Trace),
 			SpanID:     trace.SpanID(apmTransaction.TraceContext().Span),
