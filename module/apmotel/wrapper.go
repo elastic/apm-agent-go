@@ -43,18 +43,28 @@ func init() {
 
 func contextWithSpan(ctx context.Context, apmSpan *apm.Span) context.Context {
 	ctx = oldOverrideContextWithSpan(ctx, apmSpan)
-	return trace.ContextWithSpanContext(ctx, trace.NewSpanContext(trace.SpanContextConfig{
-		TraceID:    trace.TraceID(apmSpan.TraceContext().Trace),
-		SpanID:     trace.SpanID(apmSpan.TraceContext().Span),
-		TraceFlags: trace.TraceFlags(0).WithSampled(!apmSpan.Dropped()),
-	}))
+
+	return trace.ContextWithSpan(ctx, &span{
+		spanContext: trace.NewSpanContext(trace.SpanContextConfig{
+			TraceID:    trace.TraceID(apmSpan.TraceContext().Trace),
+			SpanID:     trace.SpanID(apmSpan.TraceContext().Span),
+			TraceFlags: trace.TraceFlags(0).WithSampled(!apmSpan.Dropped()),
+		}),
+
+		span: apmSpan,
+	})
 }
 
 func contextWithTransaction(ctx context.Context, apmTransaction *apm.Transaction) context.Context {
 	ctx = oldOverrideContextWithTransaction(ctx, apmTransaction)
-	return trace.ContextWithSpanContext(ctx, trace.NewSpanContext(trace.SpanContextConfig{
-		TraceID:    trace.TraceID(apmTransaction.TraceContext().Trace),
-		SpanID:     trace.SpanID(apmTransaction.TraceContext().Span),
-		TraceFlags: trace.TraceFlags(0).WithSampled(apmTransaction.Sampled()),
-	}))
+
+	return trace.ContextWithSpan(ctx, &span{
+		spanContext: trace.NewSpanContext(trace.SpanContextConfig{
+			TraceID:    trace.TraceID(apmTransaction.TraceContext().Trace),
+			SpanID:     trace.SpanID(apmTransaction.TraceContext().Span),
+			TraceFlags: trace.TraceFlags(0).WithSampled(apmTransaction.Sampled()),
+		}),
+
+		tx: apmTransaction,
+	})
 }
