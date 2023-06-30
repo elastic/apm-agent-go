@@ -11,8 +11,6 @@ The Go agent enables you to trace the execution of operations in your applicatio
 sending performance metrics and errors to the Elastic APM server. You can find a
 list of the supported frameworks and other technologies in the [documentation](https://www.elastic.co/guide/en/apm/agent/go/current/supported-tech.html).
 
-We'd love to hear your feedback, please take a minute to fill out our [survey](https://docs.google.com/forms/d/e/1FAIpQLScbW7D8m-otPO7cxqeg7XstWR8vMnxG6brnXLs_TFVSTHuHvg/viewform?usp=sf_link).
-
 ## Installation
 
 ```bash
