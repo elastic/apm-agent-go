@@ -49,10 +49,8 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 			Context: Context{
 				captureBodyMask: CaptureBodyTransactions,
 			},
-			spanTimings: make(spanTimingsMap),
-			droppedSpansStats: &droppedSpanTimingsMap{
-				m: make(map[droppedSpanTimingsKey]spanTiming, maxDroppedSpanStats),
-			},
+			spanTimings:       make(spanTimingsMap),
+			droppedSpansStats: make(droppedSpanTimingsMap, maxDroppedSpanStats),
 		}
 		var seed int64
 		if err := binary.Read(cryptorand.Reader, binary.LittleEndian, &seed); err != nil {
@@ -411,7 +409,7 @@ type TransactionData struct {
 	spansDropped      int
 	childrenTimer     childrenTimer
 	spanTimings       spanTimingsMap
-	droppedSpansStats *droppedSpanTimingsMap
+	droppedSpansStats droppedSpanTimingsMap
 	rand              *rand.Rand // for ID generation
 
 	compressedSpan compressedSpan
@@ -441,35 +439,28 @@ type droppedSpanTimingsKey struct {
 }
 
 // droppedSpanTimingsMap records span timings for groups of dropped spans.
-type droppedSpanTimingsMap struct {
-	m  map[droppedSpanTimingsKey]spanTiming
-	mu sync.RWMutex
-}
+type droppedSpanTimingsMap map[droppedSpanTimingsKey]spanTiming
 
 // add accumulates the timing for a {destination, outcome} pair, silently drops
 // any pairs that would cause the map to exceed the maxDroppedSpanStats.
-func (m *droppedSpanTimingsMap) add(targetType, targetName, dst, outcome string, count int, d time.Duration) {
+func (m droppedSpanTimingsMap) add(targetType, targetName, dst, outcome string, count int, d time.Duration) {
 	k := droppedSpanTimingsKey{
 		serviceTargetType: targetType,
 		serviceTargetName: targetName,
 		destination:       dst,
 		outcome:           outcome,
 	}
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	timing, ok := m.m[k]
-	if ok || maxDroppedSpanStats > len(m.m) {
+	timing, ok := m[k]
+	if ok || maxDroppedSpanStats > len(m) {
 		timing.count += uint64(count)
 		timing.duration += int64(d)
-		m.m[k] = timing
+		m[k] = timing
 	}
 }
 
 // reset resets m back to its initial zero state.
-func (m *droppedSpanTimingsMap) reset() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	for k := range m.m {
-		delete(m.m, k)
+func (m droppedSpanTimingsMap) reset() {
+	for k := range m {
+		delete(m, k)
 	}
 }
