@@ -276,9 +276,11 @@ func normalizeOutcome(outcome string) string {
 	}
 }
 
-func buildDroppedSpansStats(dss droppedSpanTimingsMap) []model.DroppedSpansStats {
-	out := make([]model.DroppedSpansStats, 0, len(dss))
-	for k, timing := range dss {
+func buildDroppedSpansStats(dss *droppedSpanTimingsMap) []model.DroppedSpansStats {
+	dss.mu.RLock()
+	defer dss.mu.RUnlock()
+	out := make([]model.DroppedSpansStats, 0, len(dss.m))
+	for k, timing := range dss.m {
 		out = append(out, model.DroppedSpansStats{
 			DestinationServiceResource: k.destination,
 			ServiceTargetType:          k.serviceTargetType,
