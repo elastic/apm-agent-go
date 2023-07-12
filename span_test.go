@@ -1048,6 +1048,7 @@ func TestDroppedSpanParentConcurrent(t *testing.T) {
 	// This test verifies there aren't any deadlocks on calling
 	// span.End(), Parent.End() and tx.End().
 	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
 	tracer.SetExitSpanMinDuration(0)
 
 	tx := tracer.StartTransaction("name", "type")
