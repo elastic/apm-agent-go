@@ -21,5 +21,4 @@ require (
 	howett.net/plist v0.0.0-20181124034731-591f970eefbb // indirect
 )
 
-// keep this in sync with the documentation
 go 1.19
