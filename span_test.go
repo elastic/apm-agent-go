@@ -1074,7 +1074,8 @@ func TestDroppedSpanParentConcurrent(t *testing.T) {
 
 	// Wait until all the spans have ended.
 	wg.Wait()
-
+	parent.End()
+	tx.End()
 	tracer.Flush(nil)
 }
 
