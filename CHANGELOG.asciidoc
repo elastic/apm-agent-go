@@ -30,6 +30,9 @@ https://github.com/elastic/apm-agent-go/compare/v2.4.3...main[View commits]
 ==== 2.4.3 - 2023/06/22
 
 - Fixed a data race in HTTP client instrumentation {pull}1472[#1472]
+- Bumped minimum Go version to 1.19 {pull}1453[#1453]
+- Fixed mixing of OTel and Elastic APM instrumentation {pull}1450[#1450]
+- Updated to stable OTel metrics API {pull}1448[#1448]
 
 [[release-notes-2.4.2]]
 ==== 2.4.2 - 2023/05/22
