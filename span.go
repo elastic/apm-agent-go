@@ -397,6 +397,14 @@ func (s *Span) End() {
 
 		if s.Type != parentType || s.Subtype != parentSubtype {
 			s.dropWhen(true)
+			if s.tx != nil {
+				s.tx.mu.Lock()
+				defer s.tx.mu.Unlock()
+				if !s.tx.ended() {
+					s.tx.TransactionData.mu.Lock()
+					defer s.tx.TransactionData.mu.Unlock()
+				}
+			}
 			s.end()
 			return
 		}
