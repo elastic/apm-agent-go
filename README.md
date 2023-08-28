@@ -8,10 +8,7 @@
 This is the official Go package for [Elastic APM](https://www.elastic.co/solutions/apm).
 
 The Go agent enables you to trace the execution of operations in your application,
-sending performance metrics and errors to the Elastic APM server. You can find a
-list of the supported frameworks and other technologies in the [documentation](https://www.elastic.co/guide/en/apm/agent/go/current/supported-tech.html).
-
-We'd love to hear your feedback, please take a minute to fill out our [survey](https://docs.google.com/forms/d/e/1FAIpQLScbW7D8m-otPO7cxqeg7XstWR8vMnxG6brnXLs_TFVSTHuHvg/viewform?usp=sf_link).
+sending performance metrics and errors to the Elastic APM server.
 
 ## Installation
 
@@ -21,10 +18,10 @@ go get go.elastic.co/apm/v2
 
 ## Requirements
 
-We support and test against the two latest major releases of Go,
-as described by the [Go release policy](https://go.dev/doc/devel/release#policy), on Linux, Windows and MacOS.
-
 Requires [APM Server](https://github.com/elastic/apm-server) v6.5 or newer.
+
+You can find a list of the supported frameworks and other technologies in the
+[documentation](https://www.elastic.co/guide/en/apm/agent/go/current/supported-tech.html).
 
 ## License
 
