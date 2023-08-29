@@ -21,10 +21,17 @@ endif::[]
 [[unreleased]]
 === Unreleased
 
-https://github.com/elastic/apm-agent-go/compare/v2.4.3...main[View commits]
+https://github.com/elastic/apm-agent-go/compare/v2.4.4...main[View commits]
 
 [[release-notes-2.x]]
 === Go Agent version 2.x
+
+[[release-notes-2.4.4]]
+==== 2.4.4 - 2023/08/29
+
+- module/apmotel: Bumped minimum OpenTelemetry version {pull}1501[#1501]
+- module/apmotel: Return usable spans when retrieving them from otel.SpanFromContext {pull}1478[#1478]
+- Fixed concurrent map write condition where some child spans couldn't acquire the transaction lock {pull}1487[#1487]
 
 [[release-notes-2.4.3]]
 ==== 2.4.3 - 2023/06/22

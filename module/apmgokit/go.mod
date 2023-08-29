@@ -4,9 +4,9 @@ require (
 	github.com/go-kit/kit v0.8.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.0
 	github.com/stretchr/testify v1.8.4
-	go.elastic.co/apm/module/apmgrpc/v2 v2.4.3
-	go.elastic.co/apm/module/apmhttp/v2 v2.4.3
-	go.elastic.co/apm/v2 v2.4.3
+	go.elastic.co/apm/module/apmgrpc/v2 v2.4.4
+	go.elastic.co/apm/module/apmhttp/v2 v2.4.4
+	go.elastic.co/apm/v2 v2.4.4
 	google.golang.org/grpc v1.17.0
 )
 
