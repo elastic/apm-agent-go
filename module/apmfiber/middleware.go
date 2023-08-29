@@ -18,6 +18,7 @@
 package apmfiber // import "go.elastic.co/apm/module/apmfiber/v2"
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gofiber/fiber/v2"
@@ -56,7 +57,7 @@ type middleware struct {
 	panicPropagation bool
 }
 
-func (m *middleware) handle(c *fiber.Ctx) error {
+func (m *middleware) handle(c *fiber.Ctx) (result error) {
 	reqCtx := c.Context()
 	if !m.tracer.Recording() || m.requestIgnorer(reqCtx) {
 		return c.Next()
@@ -72,12 +73,14 @@ func (m *middleware) handle(c *fiber.Ctx) error {
 
 	defer func() {
 		resp := c.Response()
-		path := c.Route().Path
-		if path == "/" && resp.StatusCode() == http.StatusNotFound {
+		route := c.Route()
+
+		var fiberErr *fiber.Error
+		if route.Path == "/" && errors.As(result, &fiberErr) && fiberErr.Code == http.StatusNotFound {
 			tx.Name = string(reqCtx.Method()) + " unknown route"
 		} else {
 			// Workaround for set tx.Name as template path, not absolute
-			tx.Name = string(reqCtx.Method()) + " " + path
+			tx.Name = string(reqCtx.Method()) + " " + route.Path
 		}
 
 		if v := recover(); v != nil {
@@ -103,17 +106,16 @@ func (m *middleware) handle(c *fiber.Ctx) error {
 		body.Discard()
 	}()
 
-	nextErr := c.Next()
-	if nextErr != nil {
+	result = c.Next()
+	if result != nil {
 		resp := c.Response()
-		e := m.tracer.NewError(nextErr)
+		e := m.tracer.NewError(result)
 		e.Handled = true
 		e.SetTransaction(tx)
 		setContext(&e.Context, resp)
 		e.Send()
 	}
-
-	return nextErr
+	return result
 }
 
 func setContext(ctx *apm.Context, resp *fiber.Response) {
