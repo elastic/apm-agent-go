@@ -31,6 +31,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	"github.com/stretchr/testify/assert"
@@ -38,9 +39,12 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/examples/helloworld/helloworld"
 	pb "google.golang.org/grpc/examples/helloworld/helloworld"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/testing/protocmp"
 
 	"go.elastic.co/apm/module/apmgrpc/v2"
 	"go.elastic.co/apm/module/apmgrpc/v2/internal/testservice"
@@ -106,7 +110,7 @@ func testServerTransactionHappy(t *testing.T, p testParams) {
 		ctx := metadata.AppendToOutgoingContext(context.Background(), header, traceparentValue)
 		resp, err := p.client.SayHello(ctx, &pb.HelloRequest{Name: "birita"})
 		require.NoError(t, err)
-		assert.Equal(t, resp, &pb.HelloReply{Message: "hello, birita"})
+		assert.Empty(t, cmp.Diff(resp, &pb.HelloReply{Message: "hello, birita"}, protocmp.Transform()))
 	}
 	p.tracer.Flush(nil)
 	payloads := p.transport.Payloads()
@@ -248,7 +252,7 @@ func TestServerIgnorer(t *testing.T) {
 
 	resp, err := client.SayHello(context.Background(), &pb.HelloRequest{Name: "birita"})
 	require.NoError(t, err)
-	assert.Equal(t, resp, &pb.HelloReply{Message: "hello, birita"})
+	assert.Empty(t, cmp.Diff(resp, &pb.HelloReply{Message: "hello, birita"}, protocmp.Transform()))
 
 	tracer.Flush(nil)
 	assert.Empty(t, transport.Payloads())
@@ -312,7 +316,7 @@ func TestServerTLS(t *testing.T) {
 
 	resp, err := client.SayHello(context.Background(), &pb.HelloRequest{Name: "birita"})
 	require.NoError(t, err)
-	assert.Equal(t, resp, &pb.HelloReply{Message: "hello, birita"})
+	assert.Empty(t, cmp.Diff(resp, &pb.HelloReply{Message: "hello, birita"}, protocmp.Transform()))
 
 	tracer.Flush(nil)
 	payloads := transport.Payloads()
@@ -378,7 +382,7 @@ func newGreeterServerTLS(t *testing.T, tracer *apm.Tracer, tlsConfig *tls.Config
 
 func newGreeterClient(t *testing.T, addr net.Addr) (*grpc.ClientConn, pb.GreeterClient) {
 	conn, err := grpc.Dial(
-		addr.String(), grpc.WithInsecure(),
+		addr.String(), grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithUnaryInterceptor(apmgrpc.NewUnaryClientInterceptor()),
 		grpc.WithUserAgent("apmgrpc_test"),
 	)
@@ -422,7 +426,7 @@ func newAccumulatorServer(t *testing.T, tracer *apm.Tracer, opts ...apmgrpc.Serv
 
 func newAccumulatorClient(t *testing.T, addr net.Addr) (*grpc.ClientConn, testservice.AccumulatorClient) {
 	conn, err := grpc.Dial(
-		addr.String(), grpc.WithInsecure(),
+		addr.String(), grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithStreamInterceptor(apmgrpc.NewStreamClientInterceptor()),
 	)
 	require.NoError(t, err)
@@ -432,6 +436,7 @@ func newAccumulatorClient(t *testing.T, addr net.Addr) (*grpc.ClientConn, testse
 type helloworldServer struct {
 	panic bool
 	err   error
+	helloworld.UnimplementedGreeterServer
 }
 
 func (s *helloworldServer) SayHello(ctx context.Context, req *pb.HelloRequest) (*pb.HelloReply, error) {
@@ -463,6 +468,7 @@ type accumulator struct {
 	err   error
 
 	transactionFromContext *apm.Transaction
+	testservice.UnimplementedAccumulatorServer
 }
 
 func (a *accumulator) Accumulate(srv testservice.Accumulator_AccumulateServer) error {
