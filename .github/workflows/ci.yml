@@ -101,3 +101,21 @@ jobs:
           cache-dependency-path: '**/go.sum'
       - name: Unit tests
         run: make test
+
+  # Very last job to create a GitHub check with the status. This is handy to centralise the
+  # GitHub check validation in the Branch protection and to support the ci-docs.yml
+  ci:
+    if: always()
+    runs-on: ubuntu-latest
+    needs:
+      - check-update-modules
+      - precheck
+      - test
+      - test-macos
+      - test-windows
+    steps:
+      - id: check
+        uses: elastic/apm-pipeline-library/.github/actions/check-dependent-jobs@current
+        with:
+          needs: ${{ toJSON(needs) }}
+      - run: ${{ steps.check.outputs.isSuccess }}
