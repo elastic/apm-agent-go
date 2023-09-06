@@ -1,5 +1,13 @@
-[[log-correlation]]
-== Log Correlation
+[[logs]]
+== Logs
+
+Elastic APM Go Agent provides <<log-correlation-ids>>.
+The agent will automaticaly inject correlation IDs that allow navigation between logs, traces and services.
+
+This features is part of {observability-guide}/application-logs.html[Application log ingestion strategies].
+
+The {ecs-logging-go-logrus-ref}/intro.html[`ecslogrus`] and {ecs-logging-go-zap-ref}/intro.html[`ecszap`] libraries can also be used to use the {ecs-logging-ref}/intro.html[ECS logging] format without an APM agent.
+When deployed with the Go APM agent, the agent will provide <<log-correlation-ids,log correlation>> IDs.
 
 The Go agent provides integrations for popular logging frameworks that
 inject trace ID fields into the application's log records. You can find a list of
@@ -10,9 +18,25 @@ If your favorite logging framework is not already supported, there are two other
 * Open a feature request, or contribute code, for additional support as described in <<contributing>>.
 * Manually inject trace IDs into log records, as described below in <<log-correlation-manual>>.
 
-Regardless of how you integrate APM with logging, use {filebeat-ref}[Filebeat] to
-send your logs to Elasticsearch, in order to correlate your traces and logs and link from
-APM to the {observability-guide}/monitor-logs.html[Logs app].
+[[log-correlation-ids]]
+== Log Correlation
+
+{apm-guide-ref}/log-correlation.html[Log correlation] allows you to navigate to all logs belonging to a particular trace
+and vice-versa: for a specific log, see in which context it has been logged and which parameters the user provided.
+
+In order to correlate logs from your app with transactions captured by the
+Elastic APM Go Agent, your logs must contain one or more of the following identifiers:
+
+* {ecs-ref}/ecs-tracing.html[`transaction.id`]
+* {ecs-ref}/ecs-tracing.html[`trace.id`]
+* {ecs-ref}/ecs-error.html[`span.id`]
+
+In order to correlate the logs to the service and environment, the logs should also contain the
+following fields:
+
+- {ecs-ref}/ecs-service.html[`service.name`]
+- {ecs-ref}/ecs-service.html[`service.version`]
+- {ecs-ref}/ecs-service.html[`service.environment`]
 
 [float]
 [[log-correlation-manual]]
@@ -27,11 +51,8 @@ or unstructured logging.
 [[log-correlation-manual-structured]]
 ==== Manual log correlation (structured)
 
-For correlating structured logs with traces, the following fields should be added to your logs:
-
- - `trace.id`
- - `transaction.id`
- - `span.id` (if logging in the context of a span)
+For correlating structured logs with traces and services, the fields defined <<log-correlation-ids,above>>
+should be added to logs.
 
 Given a transaction object, you can obtain its trace ID and transaction ID using
 the <<transaction-tracecontext, apm.Transaction.TraceContext>> method. Similarly,

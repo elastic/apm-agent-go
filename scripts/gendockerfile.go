@@ -87,7 +87,7 @@ func main() {
 			return nil
 		}
 		name := info.Name()
-		if name != *baseFlag && (name == "vendor" || strings.HasPrefix(name, ".")) {
+		if name != *baseFlag && (name == "vendor" || name == "tools" || strings.HasPrefix(name, ".")) {
 			return filepath.SkipDir
 		}
 		return nil

@@ -1,6 +1,6 @@
 TEST_TIMEOUT?=5m
 GO_LICENSER_EXCLUDE=stacktrace/testdata
-GO_LANGUAGE_VERSION=1.15
+GO_LANGUAGE_VERSION=1.19
 
 .PHONY: check
 check: precheck check-modules test
@@ -18,11 +18,11 @@ check-dockerfile-testing:
 
 .PHONY: check-licenses
 check-licenses:
-	go run github.com/elastic/go-licenser -d $(patsubst %,-exclude %,$(GO_LICENSER_EXCLUDE)) .
+	go run -modfile=tools/go.mod github.com/elastic/go-licenser -d $(patsubst %,-exclude %,$(GO_LICENSER_EXCLUDE)) .
 
 .PHONY: check-modules
-check-modules:
-	go run scripts/genmod/main.go -go=$(GO_LANGUAGE_VERSION) -check .
+check-modules: update-modules
+	git diff --exit-code
 
 .PHONY: check-vanity-import
 check-vanity-import:
@@ -54,7 +54,7 @@ clean:
 
 .PHONY: update-modules
 update-modules:
-	go run scripts/genmod/main.go -go=$(GO_LANGUAGE_VERSION) .
+	cd scripts/genmod && go run main.go -go=$(GO_LANGUAGE_VERSION) ../..
 
 .PHONY: docs
 docs:
@@ -67,7 +67,7 @@ endif
 
 .PHONY: update-licenses
 update-licenses:
-	go-licenser $(patsubst %, -exclude %, $(GO_LICENSER_EXCLUDE)) .
+	go run -modfile=tools/go.mod github.com/elastic/go-licenser $(patsubst %, -exclude %, $(GO_LICENSER_EXCLUDE)) .
 
 model/marshal_fastjson.go: model/model.go
 	go generate ./model

@@ -18,11 +18,12 @@
 //go:build tools
 // +build tools
 
-package apm // import "go.elastic.co/apm/v2"
+package main
 
 import (
 	_ "github.com/jcchavezs/porto"
 	_ "golang.org/x/tools/cmd/goimports"
 
 	_ "github.com/elastic/go-licenser"
+	_ "go.elastic.co/fastjson/cmd/generate-fastjson"
 )

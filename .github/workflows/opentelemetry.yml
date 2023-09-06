@@ -5,6 +5,7 @@ on:
   workflow_run:
     workflows:
       - ci
+      - microbenchmark
       - updatecli
     types: [completed]
 

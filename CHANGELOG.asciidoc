@@ -21,10 +21,47 @@ endif::[]
 [[unreleased]]
 === Unreleased
 
-https://github.com/elastic/apm-agent-go/compare/v2.3.0...main[View commits]
+https://github.com/elastic/apm-agent-go/compare/v2.4.4...main[View commits]
 
 [[release-notes-2.x]]
 === Go Agent version 2.x
+
+[[release-notes-2.4.4]]
+==== 2.4.4 - 2023/08/29
+
+- module/apmotel: Bumped minimum OpenTelemetry version {pull}1501[#1501]
+- module/apmotel: Return usable spans when retrieving them from otel.SpanFromContext {pull}1478[#1478]
+- Fixed concurrent map write condition where some child spans couldn't acquire the transaction lock {pull}1487[#1487]
+
+[[release-notes-2.4.3]]
+==== 2.4.3 - 2023/06/22
+
+- Fixed a data race in HTTP client instrumentation {pull}1472[#1472]
+- Bumped minimum Go version to 1.19 {pull}1453[#1453]
+- Fixed mixing of OTel and Elastic APM instrumentation {pull}1450[#1450]
+- Updated to stable OTel metrics API {pull}1448[#1448]
+
+[[release-notes-2.4.2]]
+==== 2.4.2 - 2023/05/22
+
+- module/apmotel: handle resources {pull}1424[#1424]
+- Drop x/net dependency {pull}1434[#1434]
+- module/apmotel: bump go.opentelemetry.io/otel/metric {pull}1435[#1435]
+- module/apmotel: follow APM OTel spec and prefer delta temporality {pull}1437[#1437]
+- module/apmotel: set the proper trace ID and span ID in trace context {pull}1438[#1438]
+- module/apmotel: handle context flags when creating remote transactions and spans {pull}1441[#1441]
+
+[[release-notes-2.4.1]]
+==== 2.4.1 - 2023/04/27
+
+- Downgrade OpenTelemetry metrics from v1.15.0-rc.2 to 0.37.0 {pull}1420[#1420]
+- Mark OpenTelemetry metrics as technical preview {pull}1419[#1419]
+
+[[release-notes-2.4.0]]
+==== 2.4.0 - 2023/04/26
+
+- Add bridge to support OpenTelemetry metrics {pull}1407[#1407]
+- Add custom SDK support OpenTelemetry traces {pull}1410[#1410]
 
 [[release-notes-2.3.0]]
 ==== 2.3.0 - 2023/03/30

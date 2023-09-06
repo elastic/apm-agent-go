@@ -18,6 +18,7 @@
 package apmgrpc_test
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -34,7 +35,6 @@ import (
 	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
