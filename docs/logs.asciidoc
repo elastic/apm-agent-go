@@ -6,7 +6,7 @@ The agent will automaticaly inject correlation IDs that allow navigation between
 
 This features is part of {observability-guide}/application-logs.html[Application log ingestion strategies].
 
-The {ecs-logging-go-ref}/intro.html[`ecs-logging-go`] library can also be used to use the {ecs-logging-ref}/intro.html[ECS logging] format without an APM agent.
+The {ecs-logging-go-logrus-ref}/intro.html[`ecslogrus`] and {ecs-logging-go-zap-ref}/intro.html[`ecszap`] libraries can also be used to use the {ecs-logging-ref}/intro.html[ECS logging] format without an APM agent.
 When deployed with the Go APM agent, the agent will provide <<log-correlation-ids,log correlation>> IDs.
 
 The Go agent provides integrations for popular logging frameworks that
@@ -14,6 +14,7 @@ inject trace ID fields into the application's log records. You can find a list o
 the supported logging frameworks under <<supported-tech-logging, supported technologies>>.
 
 If your favorite logging framework is not already supported, there are two other options:
+
 * Open a feature request, or contribute code, for additional support as described in <<contributing>>.
 * Manually inject trace IDs into log records, as described below in <<log-correlation-manual>>.
 
