@@ -28,6 +28,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	pb "google.golang.org/grpc/examples/helloworld/helloworld"
 
 	"go.elastic.co/apm/module/apmgrpc/v2"
@@ -52,7 +53,7 @@ func Example_grpcServer() {
 		endpoint,
 		encodeRequest,
 		decodeResponse,
-	)}
+	), pb.UnimplementedGreeterServer{}}
 
 	// When creating the underlying gRPC server, use the apmgrpc.NewUnaryServerInterceptor
 	// function (from module/apmgrpc). This will trace all incoming requests.
@@ -153,6 +154,7 @@ func TestGRPCTransport(t *testing.T) {
 
 type helloWorldService struct {
 	sayHello *kitgrpc.Server
+	pb.UnimplementedGreeterServer
 }
 
 func (s *helloWorldService) SayHello(ctx context.Context, req *pb.HelloRequest) (*pb.HelloReply, error) {
@@ -186,7 +188,7 @@ func newServer(t *testing.T, tracer *apm.Tracer, server pb.GreeterServer, opts .
 
 func newClient(t *testing.T, addr net.Addr) *grpc.ClientConn {
 	conn, err := grpc.Dial(
-		addr.String(), grpc.WithInsecure(),
+		addr.String(), grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithUnaryInterceptor(apmgrpc.NewUnaryClientInterceptor()),
 	)
 	require.NoError(t, err)

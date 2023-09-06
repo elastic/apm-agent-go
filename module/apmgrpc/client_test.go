@@ -26,11 +26,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	pb "google.golang.org/grpc/examples/helloworld/helloworld"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/testing/protocmp"
 
 	"go.elastic.co/apm/module/apmgrpc/v2/internal/testservice"
 	"go.elastic.co/apm/module/apmhttp/v2"
@@ -65,7 +67,7 @@ func testClientSpan(t *testing.T, traceparentHeaders ...string) {
 	defer conn.Close()
 	resp, err := client.SayHello(context.Background(), &pb.HelloRequest{Name: "birita"})
 	require.NoError(t, err)
-	assert.Equal(t, resp, &pb.HelloReply{Message: "hello, birita"})
+	assert.Empty(t, cmp.Diff(resp, &pb.HelloReply{Message: "hello, birita"}, protocmp.Transform()))
 
 	// The client interceptor starts no transactions, only spans.
 	tracer.Flush(nil)
@@ -81,7 +83,7 @@ func testClientSpan(t *testing.T, traceparentHeaders ...string) {
 	}, func(ctx context.Context) {
 		resp, err = client.SayHello(ctx, &pb.HelloRequest{Name: "birita"})
 		require.NoError(t, err)
-		assert.Equal(t, resp, &pb.HelloReply{Message: "hello, birita"})
+		assert.Empty(t, cmp.Diff(resp, &pb.HelloReply{Message: "hello, birita"}, protocmp.Transform()))
 	})
 
 	require.Len(t, clientSpans, 1)

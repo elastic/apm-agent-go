@@ -72,5 +72,9 @@ update-licenses:
 model/marshal_fastjson.go: model/model.go
 	go generate ./model
 
+module/apmgrpc/internal/testservice/testservice.pb.go:
+	./scripts/install-protobuf.sh
+	./scripts/generate-testservice.sh
+
 scripts/Dockerfile-testing: $(wildcard module/*)
 	go generate ./scripts
