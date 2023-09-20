@@ -50,8 +50,7 @@ func TestGCPCloudMetadata(t *testing.T) {
 					Type: "n1-standard-1",
 				},
 				Project: &model.CloudProject{
-					ID:   "513326162531",
-					Name: "elastic-apm",
+					ID: "elastic-apm",
 				},
 			}, out)
 		}
@@ -73,8 +72,7 @@ func TestGCPCloudMetadata(t *testing.T) {
 				ID: "00bf4bf02ddbda278fb9b4d70365018bd18a7d3ea42991e2cb03320b48a72b69b6d3765ff526347d7b8e0934dda4591cb1be3ead93086f0b390187fae88ee7cf8acdae7383",
 			},
 			Project: &model.CloudProject{
-				ID:   "513326162531",
-				Name: "elastic-apm",
+				ID: "elastic-apm",
 			},
 		}, out)
 	})
