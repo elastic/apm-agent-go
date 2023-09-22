@@ -51,6 +51,7 @@ type span struct {
 
 	provider *tracerProvider
 
+	ended       bool
 	startTime   time.Time
 	attributes  []attribute.KeyValue
 	events      []event
@@ -65,6 +66,9 @@ type span struct {
 func (s *span) End(options ...trace.SpanEndOption) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.ended {
+		return
+	}
 
 	config := trace.NewSpanEndConfig(options...)
 
@@ -90,6 +94,7 @@ func (s *span) End(options ...trace.SpanEndOption) {
 	for iter := s.provider.resource.Iter(); iter.Next(); {
 		s.attributes = append(s.attributes, iter.Attribute())
 	}
+	s.ended = true
 
 	if s.span != nil {
 		s.setSpanAttributes()
