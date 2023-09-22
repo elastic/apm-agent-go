@@ -579,6 +579,56 @@ func TestSpanEnd(t *testing.T) {
 	}
 }
 
+func TestSpanEndTwice(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		getSpan func(context.Context, trace.Tracer) trace.Span
+
+		expectedSpansCount        int
+		expectedTransactionsCount int
+	}{
+		{
+			name: "with a transaction",
+			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
+				ctx, s := tracer.Start(ctx, "transaction")
+				return s
+			},
+
+			expectedTransactionsCount: 1,
+		},
+		{
+			name: "with a span",
+			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
+				ctx, _ = tracer.Start(ctx, "transaction")
+				ctx, s := tracer.Start(ctx, "span")
+				return s
+			},
+
+			expectedSpansCount: 1,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			apmTracer, recorder := transporttest.NewRecorderTracer()
+			tp, err := NewTracerProvider(
+				WithAPMTracer(apmTracer),
+			)
+			assert.NoError(t, err)
+			tracer := newTracer(tp.(*tracerProvider))
+
+			ctx := context.Background()
+			s := tt.getSpan(ctx, tracer)
+
+			s.End()
+			assert.NotPanics(t, func() { s.End() })
+
+			apmTracer.Flush(nil)
+			payloads := recorder.Payloads()
+			assert.Equal(t, tt.expectedSpansCount, len(payloads.Spans))
+			assert.Equal(t, tt.expectedTransactionsCount, len(payloads.Transactions))
+		})
+	}
+}
+
 func TestSpanAddEvent(t *testing.T) {
 	tp, err := NewTracerProvider()
 	assert.NoError(t, err)
