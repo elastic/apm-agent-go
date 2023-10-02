@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -exo pipefail
 
+export GO_VERSION=stable
+
 ## Buildkite specific configuration
 if [ "$CI" == "true" ] ; then
 	export GO111MODULE=on
