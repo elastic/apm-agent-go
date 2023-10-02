@@ -27,5 +27,3 @@ jobs:
           vault-secret-id: ${{ secrets.VAULT_SECRET_ID }}
           #slack-channel: "#apm-agent-go"
           script: scripts/ci/bench.sh
-          environments:
-            GO_VERSION=stable
