@@ -1,7 +1,7 @@
 module go.elastic.co/apm/module/apmgopgv10/v2
 
 require (
-	github.com/go-pg/pg/v10 v10.7.3
+	github.com/go-pg/pg/v10 v10.8.0
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.4
 	go.elastic.co/apm/module/apmsql/v2 v2.4.5
@@ -27,8 +27,9 @@ require (
 	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc // indirect
 	github.com/vmihailenco/bufpool v0.1.11 // indirect
-	github.com/vmihailenco/msgpack/v5 v5.0.0 // indirect
+	github.com/vmihailenco/msgpack/v5 v5.2.0 // indirect
 	github.com/vmihailenco/tagparser v0.1.2 // indirect
+	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	go.elastic.co/fastjson v1.1.0 // indirect
 	go.opentelemetry.io/otel v1.17.0 // indirect
 	go.opentelemetry.io/otel/metric v1.17.0 // indirect
