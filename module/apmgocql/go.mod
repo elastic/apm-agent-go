@@ -29,6 +29,4 @@ require (
 	howett.net/plist v1.0.0 // indirect
 )
 
-replace go.elastic.co/apm/v2 => ../..
-
 go 1.19

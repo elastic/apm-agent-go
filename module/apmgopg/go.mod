@@ -32,8 +32,4 @@ require (
 	mellium.im/sasl v0.3.1 // indirect
 )
 
-replace go.elastic.co/apm/v2 => ../..
-
-replace go.elastic.co/apm/module/apmsql/v2 => ../apmsql
-
 go 1.19

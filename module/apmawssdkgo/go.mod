@@ -29,7 +29,3 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	howett.net/plist v1.0.0 // indirect
 )
-
-replace go.elastic.co/apm/v2 => ../..
-
-replace go.elastic.co/apm/module/apmhttp/v2 => ../apmhttp
