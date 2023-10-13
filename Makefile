@@ -48,6 +48,11 @@ coverage:
 fmt:
 	@GOIMPORTSFLAGS=-w sh scripts/goimports.sh
 
+.PHONY: tidy
+tidy:
+	go list -f '{{.Dir}}' -m | xargs -L1 go mod tidy -C
+	go work sync
+
 .PHONY: clean
 clean:
 	rm -fr docs/html
