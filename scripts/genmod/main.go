@@ -111,18 +111,13 @@ func main() {
 
 func updateModule(dir string, gomod *GoMod, modules map[string]*GoMod) error {
 	for _, require := range gomod.Require {
-		requireMod, ok := modules[require.Path]
+		_, ok := modules[require.Path]
 		if !ok {
 			continue
-		}
-		relDir, err := filepath.Rel(dir, requireMod.dir)
-		if err != nil {
-			return err
 		}
 		args := []string{
 			"mod", "edit",
 			"-require", require.Path + "@" + *versionFlag,
-			"-replace", require.Path + "=" + relDir,
 		}
 		cmd := exec.Command("go", args...)
 		cmd.Stderr = os.Stderr
