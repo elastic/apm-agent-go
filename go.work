@@ -46,4 +46,5 @@ use (
 	./module/apmzap
 	./module/apmzerolog
 	./scripts/genmod
+	./tools
 )
