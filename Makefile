@@ -30,7 +30,7 @@ check-vanity-import:
 
 .PHONY: check-vet
 check-vet:
-	@for dir in $(shell scripts/moduledirs.sh); do (cd $$dir && go vet ./...) || exit $$?; done
+	go list -f '{{.Dir}}/...' -m | xargs go vet || exit $$?
 
 .PHONY: docker-test
 docker-test:
