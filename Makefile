@@ -18,7 +18,7 @@ check-dockerfile-testing:
 
 .PHONY: check-licenses
 check-licenses:
-	go run -modfile=tools/go.mod github.com/elastic/go-licenser -d $(patsubst %,-exclude %,$(GO_LICENSER_EXCLUDE)) .
+	go run github.com/elastic/go-licenser -d $(patsubst %,-exclude %,$(GO_LICENSER_EXCLUDE)) .
 
 .PHONY: check-modules
 check-modules: update-modules
@@ -72,7 +72,7 @@ endif
 
 .PHONY: update-licenses
 update-licenses:
-	go run -modfile=tools/go.mod github.com/elastic/go-licenser $(patsubst %, -exclude %, $(GO_LICENSER_EXCLUDE)) .
+	go run github.com/elastic/go-licenser $(patsubst %, -exclude %, $(GO_LICENSER_EXCLUDE)) .
 
 model/marshal_fastjson.go: model/model.go
 	go generate ./model
