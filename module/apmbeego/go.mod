@@ -42,4 +42,8 @@ require (
 	howett.net/plist v1.0.0 // indirect
 )
 
+// exclude broken unused transitive dependency that prevents go.sum and
+// workspaces from working correctly
+exclude github.com/ugorji/go v0.0.0-20171122102828-84cb69a8af83
+
 go 1.19
