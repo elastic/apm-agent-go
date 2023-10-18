@@ -122,6 +122,8 @@ jobs:
         cache-dependency-path: '**/go.sum'
     # Version: https://github.com/WillAbides/benchdiff-action/releases/tag/v0.3.3
     - uses: WillAbides/benchdiff-action@4d1d267fa96763646dd7c0d58e242817ce392c61
+      ## As long as we cannot use write permissions on forked pull requests, then let's avoid failing
+      continue-on-error: true
       id: benchdiff
       with:
         benchdiff_version: 0.9.1
@@ -139,6 +141,29 @@ jobs:
           --tolerance=20
           --benchmem
           --debug
+
+    - name: Summary
+      run: |
+        echo "${{ steps.benchdiff.outputs.benchstat_output }}" > benchdiff-report.md
+        {
+          echo "## Benchdiff Results"
+          echo ""
+          echo "HEAD: ${{ steps.benchdiff.outputs.head_sha }}"
+          echo "Base: ${{ steps.benchdiff.outputs.base_sha }}"
+          echo "Degraded: ${{ steps.benchdiff.outputs.degraded_result }}"
+          echo ""
+          echo "<details>"
+          echo "<summary>Results</summary>"
+          echo ""
+          echo "${{ steps.benchdiff.outputs.benchstat_output }}"
+          echo ""
+          echo "</details>"
+        } >> $GITHUB_STEP_SUMMARY
+
+    - uses: actions/upload-artifact@v3
+      with:
+        name: benchdiff-report
+        path: benchdiff-report.md
 
   # Very last job to create a GitHub check with the status. This is handy to centralise the
   # GitHub check validation in the Branch protection and to support the ci-docs.yml
