@@ -148,9 +148,9 @@ jobs:
         {
           echo "## Benchdiff Results"
           echo ""
-          echo "HEAD: `${{ steps.benchdiff.outputs.head_sha }}`"
-          echo "Base: `${{ steps.benchdiff.outputs.base_sha }}`"
-          echo "Degraded: `${{ steps.benchdiff.outputs.degraded_result }}`"
+          echo 'Head: `${{ steps.benchdiff.outputs.head_sha }}`'
+          echo 'Base: `${{ steps.benchdiff.outputs.base_sha }}`'
+          echo 'Degraded: `${{ steps.benchdiff.outputs.degraded_result }}`'
           echo ""
           echo "<details>"
           echo "<summary>See results</summary>"
