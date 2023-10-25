@@ -50,7 +50,7 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 				captureBodyMask: CaptureBodyTransactions,
 			},
 			spanTimings:       make(spanTimingsMap),
-			droppedSpansStats: make(droppedSpanTimingsMap, maxDroppedSpanStats),
+			droppedSpansStats: make(droppedSpanTimingsMap),
 		}
 		var seed int64
 		if err := binary.Read(cryptorand.Reader, binary.LittleEndian, &seed); err != nil {
