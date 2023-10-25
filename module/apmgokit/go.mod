@@ -7,7 +7,7 @@ require (
 	go.elastic.co/apm/module/apmgrpc/v2 v2.4.5
 	go.elastic.co/apm/module/apmhttp/v2 v2.4.5
 	go.elastic.co/apm/v2 v2.4.5
-	google.golang.org/grpc v1.57.0
+	google.golang.org/grpc v1.57.1
 	google.golang.org/grpc/examples v0.0.0-20230831183909-e498bbc9bd37
 )
 
