@@ -40,5 +40,6 @@ make test | tee ${OUT_FILE}
 if [ "$CI" == "true" ] ; then
 	set +x
 	set +u
+	echo "Sending data with gobench"
 	go run -modfile=scripts/ci/ci.go.mod github.com/elastic/gobench -index "benchmark-go" -es "${APM_AGENT_GO_CLOUD_SECRET}" < ${OUT_FILE}
 fi
