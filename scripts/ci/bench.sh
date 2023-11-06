@@ -23,6 +23,9 @@ if [ "$CI" == "true" ] ; then
 	trap clean_up EXIT
 fi
 
+## Fetch the latest stable goversion
+export GO_VERSION=$(curl 'https://go.dev/VERSION?m=text' | grep 'go' | sed 's#go##g')
+
 ## Bench specific
 set -u
 source ./scripts/ci/setenv.sh
