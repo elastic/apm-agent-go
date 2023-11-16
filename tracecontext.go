@@ -349,5 +349,5 @@ func formatElasticTracestateValue(sampleRate float64) string {
 	// 0       -> "s:0"
 	// 1       -> "s:1"
 	// 0.55555 -> "s:0.5555" (any rounding should be applied prior)
-	return fmt.Sprintf("s:%.4g", sampleRate)
+	return "s:" + strconv.FormatFloat(sampleRate, 'g', 4, 64)
 }

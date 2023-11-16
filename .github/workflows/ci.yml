@@ -28,11 +28,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v4
         with:
           go-version: stable
-          cache: true
           cache-dependency-path: '**/go.sum'
       - name: Precheck
         run: make precheck
@@ -44,11 +43,10 @@ jobs:
       matrix:
         go-version: [oldstable, stable]
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.go-version }}
-          cache: true
           cache-dependency-path: '**/go.sum'
       - name: Unit tests
         run: make test
@@ -57,11 +55,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v4
         with:
           go-version: stable
-          cache: true
           cache-dependency-path: '**/go.sum'
       - name: Check Update Modules Command
         run: make update-modules
@@ -70,11 +67,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v4
         with:
           go-version: stable
-          cache: true
           cache-dependency-path: '**/go.sum'
       - name: Integration tests
         run: |
@@ -86,11 +82,10 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v4
         with:
           go-version: stable
-          cache: true
           cache-dependency-path: '**/go.sum'
       - name: Unit tests
         run: go test -v ./...
@@ -99,11 +94,10 @@ jobs:
     runs-on: macos-12
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v4
         with:
           go-version: stable
-          cache: true
           cache-dependency-path: '**/go.sum'
       - name: Unit tests
         run: make test
