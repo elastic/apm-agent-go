@@ -139,11 +139,11 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 func SetHeaders(req *http.Request, traceContext apm.TraceContext, propagateLegacyHeader bool) {
 	headerValue := FormatTraceparentHeader(traceContext)
 	if propagateLegacyHeader {
-		req.Header.Set(ElasticTraceparentHeader, headerValue)
+		req.Header[ElasticTraceparentHeader] = []string{headerValue}
 	}
-	req.Header.Set(W3CTraceparentHeader, headerValue)
+	req.Header[W3CTraceparentHeader] = []string{headerValue}
 	if tracestate := traceContext.State.String(); tracestate != "" {
-		req.Header.Set(TracestateHeader, tracestate)
+		req.Header[TracestateHeader] = []string{tracestate}
 	}
 }
 

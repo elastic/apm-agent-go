@@ -89,3 +89,17 @@ func TestParseTracestateHeader(t *testing.T) {
 	tracestate, _ = assertParse("vendorname1=opaqueValue1", "vendorname2=opaqueValue2")
 	assert.Equal(t, "vendorname1=opaqueValue1,vendorname2=opaqueValue2", tracestate.String())
 }
+
+func BenchmarkTraceHeaders(b *testing.B) {
+	ctx := apm.TraceContext{
+		Trace:   apm.TraceID{1},
+		Span:    apm.SpanID{2},
+		Options: apm.TraceOptions(3),
+	}
+
+	b.Run("new", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			apmhttp.FormatTraceparentHeader(ctx)
+		}
+	})
+}

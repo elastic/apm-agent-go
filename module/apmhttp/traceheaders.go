@@ -19,7 +19,7 @@ package apmhttp // import "go.elastic.co/apm/module/apmhttp/v2"
 
 import (
 	"encoding/hex"
-	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -52,8 +52,18 @@ const (
 // FormatTraceparentHeader formats the given trace context as a
 // traceparent header.
 func FormatTraceparentHeader(c apm.TraceContext) string {
-	const version = 0
-	return fmt.Sprintf("%02x-%032x-%016x-%02x", 0, c.Trace[:], c.Span[:], c.Options)
+	var traceId [32]byte
+	hex.Encode(traceId[:], c.Trace[:])
+
+	var spanId [16]byte
+	hex.Encode(spanId[:], c.Span[:])
+
+	opts := strconv.FormatUint(uint64(c.Options), 16)
+	if len(opts) == 1 {
+		opts = "0" + opts
+	}
+
+	return "00-" + string(traceId[:]) + "-" + string(spanId[:]) + "-" + opts
 }
 
 // ParseTraceparentHeader parses the given header, which is expected to be in
