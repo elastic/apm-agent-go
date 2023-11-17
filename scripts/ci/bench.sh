@@ -23,6 +23,9 @@ if [ "$CI" == "true" ] ; then
 	trap clean_up EXIT
 fi
 
+## Fetch the latest stable goversion
+export GO_VERSION=$(curl 'https://go.dev/VERSION?m=text' | grep 'go' | sed 's#go##g')
+
 ## Bench specific
 set -u
 source ./scripts/ci/setenv.sh
@@ -37,5 +40,6 @@ make test | tee ${OUT_FILE}
 if [ "$CI" == "true" ] ; then
 	set +x
 	set +u
+	echo "Sending data with gobench"
 	go run -modfile=scripts/ci/ci.go.mod github.com/elastic/gobench -index "benchmark-go" -es "${APM_AGENT_GO_CLOUD_SECRET}" < ${OUT_FILE}
 fi
