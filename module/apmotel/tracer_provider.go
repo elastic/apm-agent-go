@@ -22,6 +22,7 @@ import (
 
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/embedded"
 
 	"go.elastic.co/apm/v2"
 )
@@ -33,6 +34,8 @@ type tracerProvider struct {
 
 	tracers  map[string]*tracer
 	resource *resource.Resource
+
+	embedded.TracerProvider
 }
 
 // NewTracerProvider creates a new tracer provider which acts as a bridge with the Elastic Agent tracer.

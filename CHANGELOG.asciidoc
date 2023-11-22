@@ -21,10 +21,15 @@ endif::[]
 [[unreleased]]
 === Unreleased
 
-https://github.com/elastic/apm-agent-go/compare/v2.4.4...main[View commits]
+https://github.com/elastic/apm-agent-go/compare/v2.4.5...main[View commits]
 
 [[release-notes-2.x]]
 === Go Agent version 2.x
+
+[[release-notes-2.4.5]]
+==== 2.4.5 - 2023/10/11
+
+- module/apmotel: Fix panic on multiple span close calls {pull}1512[#1512]
 
 [[release-notes-2.4.4]]
 ==== 2.4.4 - 2023/08/29
