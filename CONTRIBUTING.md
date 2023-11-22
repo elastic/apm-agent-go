@@ -84,6 +84,7 @@ For example, APM Server version `7.15.0` corresponds with the Go APM Agent versi
 
 1. Update `version.go` and `internal/apmversion/version.go`, and then run `make update-modules`
 2. Update [`CHANGELOG.asciidoc`](changelog.asciidoc), by adding a new version heading (`==== 1.x.x - yyyy/MM/dd`) and changing the base tag of the Unreleased comparison URL
+3. Run `make update-modules`to sync the dependencies version
 4. Merge changes into github.com/elastic/apm-agent-go@main
 5. Create tags: vN.N.N, and module/$MODULE/vN.N.N for each instrumentation module with the script `scripts/tagversion.sh`. Execute the output manually in your terminal. Note: The output assumes `upstream` is the name of the upstream remote.
 6. Create release on GitHub: `gh release create vN.N.N`
