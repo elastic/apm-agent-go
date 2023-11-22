@@ -30,6 +30,7 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/embedded"
 
 	"go.elastic.co/apm/module/apmhttp/v2"
 	"go.elastic.co/apm/v2"
@@ -61,6 +62,8 @@ type span struct {
 
 	tx   *apm.Transaction
 	span *apm.Span
+
+	embedded.Span
 }
 
 func (s *span) End(options ...trace.SpanEndOption) {
