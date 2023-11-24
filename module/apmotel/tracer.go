@@ -22,16 +22,19 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/embedded"
 
 	"go.elastic.co/apm/v2"
 )
 
 type tracer struct {
 	provider *tracerProvider
+
+	embedded.Tracer
 }
 
 func newTracer(p *tracerProvider) *tracer {
-	return &tracer{p}
+	return &tracer{p, nil}
 }
 
 // Start forwards the call to APM Agent
