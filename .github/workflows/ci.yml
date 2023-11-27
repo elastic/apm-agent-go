@@ -115,7 +115,7 @@ jobs:
         go-version: stable
         cache-dependency-path: '**/go.sum'
     # Version: https://github.com/WillAbides/benchdiff-action/releases/tag/v0.3.3
-    - uses: WillAbides/benchdiff-action@4d1d267fa96763646dd7c0d58e242817ce392c61
+    - uses: WillAbides/benchdiff-action@990b4c50b5420b485bf87e42c9f18234eba76fbc
       ## As long as we cannot use write permissions on forked pull requests, then let's avoid failing
       continue-on-error: true
       id: benchdiff
