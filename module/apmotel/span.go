@@ -129,6 +129,10 @@ func (s *span) IsRecording() bool {
 }
 
 func (s *span) RecordError(err error, opts ...trace.EventOption) {
+	if s == nil || err == nil || !s.IsRecording() {
+		return
+	}
+
 	opts = append(opts, trace.WithAttributes(
 		semconv.ExceptionType(typeStr(err)),
 		semconv.ExceptionMessage(err.Error()),

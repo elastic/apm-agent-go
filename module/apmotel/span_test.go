@@ -702,25 +702,64 @@ func TestSpanRecording(t *testing.T) {
 }
 
 func TestSpanRecordError(t *testing.T) {
-	tp, err := NewTracerProvider()
-	assert.NoError(t, err)
-	tracer := newTracer(tp.(*tracerProvider))
-	_, s := tracer.Start(context.Background(), "mySpan")
-
-	assert.Equal(t, []event(nil), s.(*span).events)
-
-	now := time.Now()
-	s.RecordError(errors.New("test"), trace.WithTimestamp(now))
-	assert.Equal(t, []event{
-		event{
-			Name: "exception",
-			Attributes: []attribute.KeyValue{
-				attribute.String("exception.type", "*errors.errorString"),
-				attribute.String("exception.message", "test"),
+	for _, tt := range []struct {
+		name              string
+		getSpan           func(context.Context, trace.Tracer) trace.Span
+		err               error
+		getExpectedEvents func(time.Time) []event
+	}{
+		{
+			name: "with a valid error",
+			getSpan: func(ctx context.Context, t trace.Tracer) trace.Span {
+				_, s := t.Start(context.Background(), "mySpan")
+				return s
 			},
-			Time: now,
+			err: errors.New("test"),
+			getExpectedEvents: func(t time.Time) []event {
+				return []event{{
+					Name: "exception",
+					Attributes: []attribute.KeyValue{
+						attribute.String("exception.type", "*errors.errorString"),
+						attribute.String("exception.message", "test"),
+					},
+					Time: t,
+				}}
+			},
 		},
-	}, s.(*span).events)
+		{
+			name: "with a nil error",
+			getSpan: func(ctx context.Context, t trace.Tracer) trace.Span {
+				_, s := t.Start(context.Background(), "mySpan")
+				return s
+			},
+			err:               nil,
+			getExpectedEvents: func(t time.Time) []event { return []event(nil) },
+		},
+		{
+			name: "with a non recording span",
+			getSpan: func(ctx context.Context, t trace.Tracer) trace.Span {
+				return &span{
+					tx: &apm.Transaction{},
+				}
+			},
+			err:               errors.New("test"),
+			getExpectedEvents: func(t time.Time) []event { return []event(nil) },
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			tp, err := NewTracerProvider()
+			assert.NoError(t, err)
+			tracer := newTracer(tp.(*tracerProvider))
+			s := tt.getSpan(context.Background(), tracer)
+
+			assert.Equal(t, []event(nil), s.(*span).events)
+
+			now := time.Now()
+			s.RecordError(tt.err, trace.WithTimestamp(now))
+
+			assert.Equal(t, tt.getExpectedEvents(now), s.(*span).events)
+		})
+	}
 }
 
 func TestSpanSetStatus(t *testing.T) {
