@@ -21,10 +21,15 @@ endif::[]
 [[unreleased]]
 === Unreleased
 
-https://github.com/elastic/apm-agent-go/compare/v2.4.7...main[View commits]
+https://github.com/elastic/apm-agent-go/compare/v2.4.8...main[View commits]
 
 [[release-notes-2.x]]
 === Go Agent version 2.x
+
+[[release-notes-2.4.8]]
+==== 2.4.8 - 2024/01/16
+
+- module/apmotel: Add nil and recording check to span.RecordError {pull}1566[#1566]
 
 [[release-notes-2.4.7]]
 ==== 2.4.7 - 2023/11/23

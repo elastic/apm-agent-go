@@ -7,7 +7,7 @@ require (
 	github.com/lib/pq v1.3.0
 	github.com/mattn/go-sqlite3 v1.10.0
 	github.com/stretchr/testify v1.8.4
-	go.elastic.co/apm/v2 v2.4.7
+	go.elastic.co/apm/v2 v2.4.8
 )
 
 require (
