@@ -15,9 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//go:build go1.18
-// +build go1.18
-
 package apmotel
 
 import (
@@ -56,6 +53,9 @@ func TestTracerStartTransaction(t *testing.T) {
 
 	assert.True(t, trace.SpanContextFromContext(ctx).IsValid())
 	assert.True(t, trace.SpanContextFromContext(ctx).IsSampled())
+
+	assert.True(t, apm.TransactionFromContext(ctx).Sampled())
+	assert.Nil(t, apm.SpanFromContext(ctx))
 }
 
 func TestTracerStartTransactionWithParentContext(t *testing.T) {
@@ -124,6 +124,9 @@ func TestTracerStartChildSpan(t *testing.T) {
 	assert.NotNil(t, cs.(*span).span)
 
 	assert.True(t, trace.SpanContextFromContext(ctx).IsValid())
+
+	assert.True(t, apm.TransactionFromContext(ctx).Sampled())
+	assert.False(t, apm.SpanFromContext(ctx).Dropped())
 }
 
 func TestTracerStartChildSpanFromTransactionInContext(t *testing.T) {
@@ -162,7 +165,6 @@ func TestTracerStartChildSpanFromTransactionInContext(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-
 			apmTracer, _ := transporttest.NewRecorderTracer()
 			tp, err := NewTracerProvider(WithAPMTracer(apmTracer))
 			assert.NoError(t, err)

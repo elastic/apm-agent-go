@@ -1,6 +1,6 @@
 TEST_TIMEOUT?=5m
 GO_LICENSER_EXCLUDE=stacktrace/testdata
-GO_LANGUAGE_VERSION=1.15
+GO_LANGUAGE_VERSION=1.19
 
 .PHONY: check
 check: precheck check-modules test
@@ -21,8 +21,8 @@ check-licenses:
 	go run -modfile=tools/go.mod github.com/elastic/go-licenser -d $(patsubst %,-exclude %,$(GO_LICENSER_EXCLUDE)) .
 
 .PHONY: check-modules
-check-modules:
-	cd scripts/genmod && go run main.go -go=$(GO_LANGUAGE_VERSION) -check ../..
+check-modules: update-modules
+	git diff --exit-code
 
 .PHONY: check-vanity-import
 check-vanity-import:
@@ -71,6 +71,10 @@ update-licenses:
 
 model/marshal_fastjson.go: model/model.go
 	go generate ./model
+
+module/apmgrpc/internal/testservice/testservice.pb.go:
+	./scripts/install-protobuf.sh
+	./scripts/generate-testservice.sh
 
 scripts/Dockerfile-testing: $(wildcard module/*)
 	go generate ./scripts

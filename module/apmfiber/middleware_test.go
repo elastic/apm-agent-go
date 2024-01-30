@@ -126,7 +126,7 @@ func TestMiddleware(t *testing.T) {
 		},
 		Request: &model.Request{
 			Socket: &model.RequestSocket{
-				RemoteAddress: "remote-addr",
+				RemoteAddress: "0.0.0.0",
 			},
 			URL: model.URL{
 				Full:     "http://server.testing/hello/isbel",

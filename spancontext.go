@@ -196,7 +196,15 @@ func (c *SpanContext) SetHTTPRequest(req *http.Request) {
 	if req.URL == nil {
 		return
 	}
-	c.http.URL = req.URL
+
+	// Clone the URL, since callers of http.RoundTrip may mutate the
+	// Request after the response body is closed.
+	clonedURL := *req.URL
+	if req.URL.User != nil {
+		clonedURLUser := *req.URL.User
+		clonedURL.User = &clonedURLUser
+	}
+	c.http.URL = &clonedURL
 	c.model.HTTP = &c.http
 
 	addr, port := apmhttputil.DestinationAddr(req)

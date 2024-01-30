@@ -25,4 +25,5 @@ import (
 	_ "golang.org/x/tools/cmd/goimports"
 
 	_ "github.com/elastic/go-licenser"
+	_ "go.elastic.co/fastjson/cmd/generate-fastjson"
 )

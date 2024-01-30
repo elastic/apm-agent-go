@@ -15,9 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//go:build go1.18
-// +build go1.18
-
 package apmotel // import "go.elastic.co/apm/module/apmotel/v2"
 
 import (
@@ -25,16 +22,19 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/embedded"
 
 	"go.elastic.co/apm/v2"
 )
 
 type tracer struct {
 	provider *tracerProvider
+
+	embedded.Tracer
 }
 
 func newTracer(p *tracerProvider) *tracer {
-	return &tracer{p}
+	return &tracer{p, nil}
 }
 
 // Start forwards the call to APM Agent
@@ -86,6 +86,7 @@ func (t *tracer) Start(ctx context.Context, spanName string, opts ...trace.SpanS
 				Parent: tc,
 				Start:  startTime,
 			})
+			ctx = apm.ContextWithSpan(ctx, s.span)
 			s.tx = parent.tx
 			s.spanContext = trace.NewSpanContext(trace.SpanContextConfig{
 				TraceID:    trace.TraceID(s.span.TraceContext().Trace),
@@ -105,6 +106,7 @@ func (t *tracer) Start(ctx context.Context, spanName string, opts ...trace.SpanS
 		}
 	}
 	s.tx = t.provider.apmTracer.StartTransactionOptions(spanName, "", tranOpts)
+	ctx = apm.ContextWithTransaction(ctx, s.tx)
 	s.spanContext = trace.NewSpanContext(trace.SpanContextConfig{
 		TraceID:    trace.TraceID(s.tx.TraceContext().Trace),
 		SpanID:     trace.SpanID(s.tx.TraceContext().Span),

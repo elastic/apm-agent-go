@@ -17,16 +17,21 @@ on:
 permissions:
   contents: read
 
+## Concurrency only allowed in the main branch.
+## So old builds running for old commits within the same Pull Request are cancelled
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   precheck:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: stable
-          cache: true
           cache-dependency-path: '**/go.sum'
       - name: Precheck
         run: make precheck
@@ -36,13 +41,12 @@ jobs:
     timeout-minutes: 30
     strategy:
       matrix:
-        go-version: [ "1.15", "1.16", "1.17", "1.18", "1.19", "oldstable", "stable" ]
+        go-version: [oldstable, stable]
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
-          cache: true
           cache-dependency-path: '**/go.sum'
       - name: Unit tests
         run: make test
@@ -51,11 +55,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: stable
-          cache: true
           cache-dependency-path: '**/go.sum'
       - name: Check Update Modules Command
         run: make update-modules
@@ -64,11 +67,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: stable
-          cache: true
           cache-dependency-path: '**/go.sum'
       - name: Integration tests
         run: |
@@ -80,11 +82,10 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
-          cache: true
+          go-version: stable
           cache-dependency-path: '**/go.sum'
       - name: Unit tests
         run: go test -v ./...
@@ -93,11 +94,85 @@ jobs:
     runs-on: macos-12
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
-          go-version: '1.19'
-          cache: true
+          go-version: stable
           cache-dependency-path: '**/go.sum'
       - name: Unit tests
         run: make test
+
+  run-benchdiff:
+    runs-on: ubuntu-latest
+    permissions:
+      checks: write
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - uses: actions/setup-go@v5
+      with:
+        go-version: stable
+        cache-dependency-path: '**/go.sum'
+    # Version: https://github.com/WillAbides/benchdiff-action/releases/tag/v0.3.3
+    - uses: WillAbides/benchdiff-action@990b4c50b5420b485bf87e42c9f18234eba76fbc
+      ## As long as we cannot use write permissions on forked pull requests, then let's avoid failing
+      continue-on-error: true
+      id: benchdiff
+      with:
+        benchdiff_version: 0.9.1
+        status_sha: ${{ github.sha }}
+        status_name: benchdiff-result
+        status_on_degraded: neutral
+        # See https://github.com/WillAbides/benchdiff
+        benchdiff_args: |
+          --base-ref=origin/main
+          --cpu=1,2
+          --count=5
+          --warmup-count=1
+          --warmup-time=10ms
+          --benchtime=100ms
+          --tolerance=20
+          --benchmem
+          --debug
+
+    - name: Summary
+      run: |
+        echo "${{ steps.benchdiff.outputs.benchstat_output }}" > benchdiff-report.md
+        {
+          echo "## Benchdiff Results"
+          echo ""
+          echo 'Head: `${{ steps.benchdiff.outputs.head_sha }}`'
+          echo 'Base: `${{ steps.benchdiff.outputs.base_sha }}`'
+          echo 'Degraded: `${{ steps.benchdiff.outputs.degraded_result }}`'
+          echo ""
+          echo "<details>"
+          echo "<summary>See results</summary>"
+          echo ""
+          echo "${{ steps.benchdiff.outputs.benchstat_output }}"
+          echo ""
+          echo "</details>"
+        } >> $GITHUB_STEP_SUMMARY
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: benchdiff-report
+        path: benchdiff-report.md
+
+  # Very last job to create a GitHub check with the status. This is handy to centralise the
+  # GitHub check validation in the Branch protection and to support the ci-docs.yml
+  ci:
+    if: always()
+    runs-on: ubuntu-latest
+    needs:
+      - check-update-modules
+      - precheck
+      - test
+      - test-macos
+      - test-windows
+    steps:
+      - id: check
+        uses: elastic/apm-pipeline-library/.github/actions/check-dependent-jobs@current
+        with:
+          needs: ${{ toJSON(needs) }}
+      - run: ${{ steps.check.outputs.isSuccess }}

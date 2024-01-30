@@ -29,11 +29,11 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/cucumber/godog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	pb "google.golang.org/grpc/examples/helloworld/helloworld"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
@@ -93,8 +93,8 @@ func (c *featureContext) initTestSuite(s *godog.TestSuiteContext) {
 		pb.RegisterGreeterServer(c.grpcServer, c.grpcService)
 		grpcListener := bufconn.Listen(1)
 		grpcClient, err := grpc.Dial("bufconn",
-			grpc.WithInsecure(),
-			grpc.WithDialer(func(string, time.Duration) (net.Conn, error) { return grpcListener.Dial() }),
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithContextDialer(func(ctx context.Context, s string) (net.Conn, error) { return grpcListener.DialContext(ctx) }),
 			grpc.WithUnaryInterceptor(apmgrpc.NewUnaryClientInterceptor()),
 		)
 		if err != nil {
@@ -478,6 +478,7 @@ func parseGRPCStatusCode(s string) (codes.Code, error) {
 type helloworldGRPCService struct {
 	panic bool
 	err   error
+	pb.UnimplementedGreeterServer
 }
 
 func (h *helloworldGRPCService) SayHello(ctx context.Context, req *pb.HelloRequest) (*pb.HelloReply, error) {

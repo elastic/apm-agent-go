@@ -1044,6 +1044,42 @@ func TestCompressSpanSameKindConcurrent(t *testing.T) {
 	assert.Equal(t, 101, spanCount)
 }
 
+func TestDroppedSpanParentConcurrent(t *testing.T) {
+	// This test verifies there aren't any deadlocks on calling
+	// span.End(), Parent.End() and tx.End().
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+	tracer.SetExitSpanMinDuration(0)
+
+	tx := tracer.StartTransaction("name", "type")
+	ctx := apm.ContextWithTransaction(context.Background(), tx)
+
+	parent, _ := apm.StartSpanOptions(ctx, "parent", "request", apm.SpanOptions{
+		ExitSpan: true,
+	})
+	ctx = apm.ContextWithSpan(ctx, parent)
+
+	var wg sync.WaitGroup
+	count := 100
+	wg.Add(count)
+	for i := 0; i < count; i++ {
+		go func(i int) {
+			child, _ := apm.StartSpanOptions(ctx, fmt.Sprint(i), fmt.Sprintf("request%d", i), apm.SpanOptions{
+				ExitSpan: true,
+			})
+			child.Context.SetDestinationService(apm.DestinationServiceSpanContext{Resource: fmt.Sprintf("foo%d", i)})
+			child.End()
+			wg.Done()
+		}(i)
+	}
+
+	// Wait until all the spans have ended.
+	wg.Wait()
+	parent.End()
+	tx.End()
+	tracer.Flush(nil)
+}
+
 func TestCompressSpanPrematureEnd(t *testing.T) {
 	// This test cases assert that the cached spans are sent when the span or
 	// tx that holds their cache is ended and the cache isn't lost.

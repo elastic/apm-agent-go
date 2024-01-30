@@ -15,9 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//go:build go1.18
-// +build go1.18
-
 package apmotel
 
 import (
@@ -32,7 +29,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
-	"go.opentelemetry.io/otel/sdk/metric/aggregation"
 
 	"go.elastic.co/apm/v2"
 	"go.elastic.co/apm/v2/apmtest"
@@ -248,7 +244,7 @@ func TestGathererWithCustomView(t *testing.T) {
 		sdkmetric.WithReader(gatherer),
 		sdkmetric.WithView(sdkmetric.NewView(
 			sdkmetric.Instrument{Name: "*"},
-			sdkmetric.Stream{Aggregation: aggregation.ExplicitBucketHistogram{
+			sdkmetric.Stream{Aggregation: sdkmetric.AggregationExplicitBucketHistogram{
 				Boundaries: []float64{0, 5, 10, 25, 50, 75, 100, 250, 500, 1000},
 			}},
 		)),

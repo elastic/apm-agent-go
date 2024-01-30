@@ -655,7 +655,7 @@ for backwards compatibility with older versions of Elastic APM agents.
 [options="header"]
 |============
 | Environment                  | Default  | Example
-| `ELASTIC_APM_CLOUD_PROVIDER` | `"none"` | `"aws"`
+| `ELASTIC_APM_CLOUD_PROVIDER` | `"auto"` | `"aws"`
 |============
 
 This config value allows you to specify which cloud provider should be assumed

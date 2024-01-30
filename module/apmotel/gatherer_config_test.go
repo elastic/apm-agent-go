@@ -15,9 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//go:build go1.18
-// +build go1.18
-
 package apmotel // import "go.elastic.co/apm/module/apmotel/v2"
 
 import (
@@ -25,12 +22,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/otel/sdk/metric"
-	"go.opentelemetry.io/otel/sdk/metric/aggregation"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
 func TestNewGathererConfig(t *testing.T) {
-	aggregationSelector := func(metric.InstrumentKind) aggregation.Aggregation { return nil }
+	aggregationSelector := func(metric.InstrumentKind) metric.Aggregation { return nil }
 	temporalitySelector := func(metric.InstrumentKind) metricdata.Temporality { return metricdata.CumulativeTemporality }
 
 	testCases := []struct {
@@ -71,7 +67,7 @@ func TestNewGathererConfig(t *testing.T) {
 }
 
 func TestConfigManualReaderOptions(t *testing.T) {
-	aggregationSelector := func(metric.InstrumentKind) aggregation.Aggregation { return nil }
+	aggregationSelector := func(metric.InstrumentKind) metric.Aggregation { return nil }
 	temporalitySelector := func(metric.InstrumentKind) metricdata.Temporality { return metricdata.CumulativeTemporality }
 
 	testCases := []struct {

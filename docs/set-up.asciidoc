@@ -21,7 +21,8 @@ go get -u go.elastic.co/apm/v2
 [float]
 === Requirements
 
-The Go agent is tested with Go 1.8+ on Linux, Windows, and MacOS.
+You can find a list of the supported frameworks and other technologies in the
+<<supported-tech>> section.
 
 [float]
 [[instrumenting-source]]

@@ -12,6 +12,11 @@ The whole process should look like:
 
 `Checkout` -> `Lint` -> `Test` -> `Coverage` -> `Benchmark` -> `Release`
 
+There are some other stages that run for every push on the main branches:
+
+* [Snapshoty](./snapshoty.yml)
+* [Microbenchmark](./microbenchmark.yml)
+
 ### Scenarios
 
 * Matrix compatibility runs on branches, tags and PRs basis.
@@ -40,7 +45,6 @@ Every time there is a merge to main or any release branches the whole workflow w
 #### Release process
 
 This process has been fully automated and it gets triggered when a tag release has been created, Continuous Deployment based, aka no input approval required.
-
 
 ### OpenTelemetry
 
