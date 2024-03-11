@@ -12,6 +12,10 @@ on:
     - '*.asciidoc'
     - 'docs/**'
 
+permissions:
+  contents: read
+  actions: read
+
 jobs:
   upload:
     runs-on: ubuntu-latest
