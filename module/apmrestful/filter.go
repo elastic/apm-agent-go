@@ -20,7 +20,7 @@ package apmrestful // import "go.elastic.co/apm/module/apmrestful/v2"
 import (
 	"net/http"
 
-	restful "github.com/emicklei/go-restful"
+	restful "github.com/emicklei/go-restful/v3"
 
 	"go.elastic.co/apm/module/apmhttp/v2"
 	"go.elastic.co/apm/v2"

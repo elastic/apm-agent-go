@@ -1,11 +1,11 @@
 module go.elastic.co/apm/module/apmsql/v2
 
 require (
-	github.com/denisenkom/go-mssqldb v0.12.3
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/jackc/pgx/v4 v4.9.0
 	github.com/lib/pq v1.3.0
 	github.com/mattn/go-sqlite3 v1.10.0
+	github.com/microsoft/go-mssqldb v1.6.0
 	github.com/stretchr/testify v1.8.4
 	go.elastic.co/apm/v2 v2.4.8
 )
@@ -15,7 +15,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/elastic/go-sysinfo v1.7.1 // indirect
 	github.com/elastic/go-windows v1.0.0 // indirect
-	github.com/golang-sql/civil v0.0.0-20190719163853-cb61b32ac6fe // indirect
+	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
 	github.com/google/go-cmp v0.5.4 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
@@ -30,9 +30,9 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/procfs v0.0.0-20190425082905-87a4384529e0 // indirect
 	go.elastic.co/fastjson v1.1.0 // indirect
-	golang.org/x/crypto v0.9.0 // indirect
-	golang.org/x/sys v0.8.0 // indirect
-	golang.org/x/text v0.9.0 // indirect
+	golang.org/x/crypto v0.17.0 // indirect
+	golang.org/x/sys v0.15.0 // indirect
+	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	howett.net/plist v0.0.0-20181124034731-591f970eefbb // indirect
