@@ -3,8 +3,8 @@ module go.elastic.co/apm/module/apmgopg/v2
 require (
 	github.com/go-pg/pg v8.0.7+incompatible
 	github.com/stretchr/testify v1.8.4
-	go.elastic.co/apm/module/apmsql/v2 v2.4.8
-	go.elastic.co/apm/v2 v2.4.8
+	go.elastic.co/apm/module/apmsql/v2 v2.5.0
+	go.elastic.co/apm/v2 v2.5.0
 )
 
 require (
