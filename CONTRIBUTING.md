@@ -71,7 +71,7 @@ ready to submit for review:
 ### Testing
 
 The tests currently do not require any external resources, so just run `go test ./...`.
-We test with all versions of Go from 1.8 onwards using [Travis CI](https://travis-ci.org).
+We test with all supported versions of Go using GitHub Actions.
 
 We track code coverage. 100% coverage is not a goal, but please do check that your tests
 adequately cover the code using `go test -cover`.
