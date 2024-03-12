@@ -5,8 +5,8 @@ go 1.19
 require (
 	github.com/jackc/pgx/v5 v5.0.4
 	github.com/stretchr/testify v1.8.4
-	go.elastic.co/apm/module/apmsql/v2 v2.4.7
-	go.elastic.co/apm/v2 v2.4.7
+	go.elastic.co/apm/module/apmsql/v2 v2.4.8
+	go.elastic.co/apm/v2 v2.4.8
 )
 
 require (
@@ -24,9 +24,9 @@ require (
 	github.com/prometheus/procfs v0.0.0-20190425082905-87a4384529e0 // indirect
 	github.com/rogpeppe/go-internal v1.6.1 // indirect
 	go.elastic.co/fastjson v1.1.0 // indirect
-	golang.org/x/crypto v0.9.0 // indirect
-	golang.org/x/sys v0.8.0 // indirect
-	golang.org/x/text v0.9.0 // indirect
+	golang.org/x/crypto v0.17.0 // indirect
+	golang.org/x/sys v0.15.0 // indirect
+	golang.org/x/text v0.14.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	howett.net/plist v0.0.0-20181124034731-591f970eefbb // indirect
 )

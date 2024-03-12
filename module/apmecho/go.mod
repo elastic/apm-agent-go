@@ -4,8 +4,8 @@ require (
 	github.com/labstack/echo v3.3.10+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.4
-	go.elastic.co/apm/module/apmhttp/v2 v2.4.7
-	go.elastic.co/apm/v2 v2.4.7
+	go.elastic.co/apm/module/apmhttp/v2 v2.4.8
+	go.elastic.co/apm/v2 v2.4.8
 )
 
 require (
@@ -23,10 +23,10 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v0.0.0-20170224212429-dcecefd839c4 // indirect
 	go.elastic.co/fastjson v1.1.0 // indirect
-	golang.org/x/crypto v0.14.0 // indirect
+	golang.org/x/crypto v0.17.0 // indirect
 	golang.org/x/net v0.17.0 // indirect
-	golang.org/x/sys v0.13.0 // indirect
-	golang.org/x/text v0.13.0 // indirect
+	golang.org/x/sys v0.15.0 // indirect
+	golang.org/x/text v0.14.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	howett.net/plist v0.0.0-20181124034731-591f970eefbb // indirect
 )
