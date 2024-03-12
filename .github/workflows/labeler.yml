@@ -5,6 +5,10 @@ on:
   pull_request_target:
     types: [opened]
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   triage:
     runs-on: ubuntu-latest
