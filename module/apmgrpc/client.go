@@ -91,7 +91,7 @@ func NewUnaryClientInterceptor(o ...ClientOption) grpc.UnaryClientInterceptor {
 	}
 }
 
-// NewStreamClientInterceptor returns a grpc.UnaryClientInterceptor that
+// NewStreamClientInterceptor returns a grpc.StreamClientInterceptor that
 // traces gRPC requests with the given options.
 //
 // The interceptor will trace spans with the "external.grpc" type for each
