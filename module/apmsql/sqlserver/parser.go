@@ -18,14 +18,14 @@
 package apmsqlserver // import "go.elastic.co/apm/module/apmsql/v2/sqlserver"
 
 import (
-	"github.com/denisenkom/go-mssqldb/msdsn"
+	"github.com/microsoft/go-mssqldb/msdsn"
 
 	"go.elastic.co/apm/module/apmsql/v2"
 )
 
-// ParseDSN parses the given denisenkom/go-mssqldb datasource name.
+// ParseDSN parses the given microsoft/go-mssqldb datasource name.
 func ParseDSN(name string) apmsql.DSNInfo {
-	cfg, _, err := msdsn.Parse(name)
+	cfg, err := msdsn.Parse(name)
 	if err != nil {
 		// sqlserver.Open will fail with the same error,
 		// so just return a zero value.
