@@ -8,7 +8,7 @@ require (
 	go.elastic.co/apm/v2 v2.5.0
 	google.golang.org/grpc v1.57.1
 	google.golang.org/grpc/examples v0.0.0-20230831183909-e498bbc9bd37
-	google.golang.org/protobuf v1.31.0
+	google.golang.org/protobuf v1.33.0
 )
 
 require (
