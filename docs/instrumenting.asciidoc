@@ -776,6 +776,48 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
 }
 ----
 
+[[builtin-modules-apmslog]]
+==== module/apmslog
+Package apmslog provides a https://pkg.go.dev/log/slog[slog] Handler
+implementation for sending error messages to Elastic APM, as well as automatically
+attaching trace context fields to log records while using the context aware
+logging methods.
+
+[source,go]
+----
+import (
+	"context"
+	"log/slog"
+
+	"go.elastic.co/apm/module/apmslog/v2"
+)
+
+func ExampleHandler() {
+	// Report slog "ERROR" level messages to Elastic APM using
+	// apm.DefaultTracer() while utilizing some specific slog handler
+	// to format logging messages
+	apmHandler = apmslog.NewApmHandler(
+		apmslog.WithHandler(
+			slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
+				Level: slog.LevelInfo,
+			}),
+		),
+	)
+	logger = slog.New(apmHandler)
+
+	// while using slog context aware methods, any existing trace,
+	// transaction, or span ID are added from the given context
+	tx := apm.DefaultTracer().StartTransaction("name", "type")
+	defer tx.End()
+
+	ctx := apm.ContextWithTransaction(context.Background(), tx)
+	span, ctx := apm.StartSpan(ctx, "name", "type")
+	defer span.End()
+
+	logger.InfoContext(ctx, "I should have a trace, transaction, and span id attached!")
+}
+----
+
 [[builtin-modules-apmzerolog]]
 ==== module/apmzerolog
 Package apmzerolog provides an implementation of https://github.com/rs/zerolog[Zerolog]'s
