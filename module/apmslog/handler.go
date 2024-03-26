@@ -20,6 +20,7 @@ package apmslog // import "go.elastic.co/apm/module/apmslog/v2"
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"log/slog"
 	"slices"
@@ -37,6 +38,10 @@ const (
 
 	// FieldKeySpanID is the field key for the span ID.
 	FieldKeySpanID = "span.id"
+
+	// SlogErrorKey* are the key name values that are reported as APM Errors
+	SlogErrorKeyErr   = "err"
+	SlogErrorKeyError = "error"
 )
 
 type ApmHandler struct {
@@ -45,40 +50,51 @@ type ApmHandler struct {
 	Handler      slog.Handler
 }
 
-func (s *ApmHandler) tracer() *apm.Tracer {
-	if s.Tracer == nil {
+func (h *ApmHandler) tracer() *apm.Tracer {
+	if h.Tracer == nil {
 		return apm.DefaultTracer()
 	}
-	return s.Tracer
-}
-
-func (s *ApmHandler) levels() []slog.Level {
-	if s.ReportLevels == nil {
-		return []slog.Level{slog.LevelError}
-	}
-	return s.ReportLevels
+	return h.Tracer
 }
 
 // Enabled reports whether the handler handles records at the given level.
-func (s *ApmHandler) Enabled(ctx context.Context, level slog.Level) bool {
-	return s.Handler.Enabled(ctx, level)
+func (h *ApmHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	return h.Handler.Enabled(ctx, level)
 }
 
 // WithAttrs returns a new ApmHandler with passed attributes attached.
-func (s *ApmHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return &ApmHandler{s.Tracer, s.ReportLevels, s.Handler.WithAttrs(attrs)}
+func (h *ApmHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &ApmHandler{h.Tracer, h.ReportLevels, h.Handler.WithAttrs(attrs)}
 }
 
 // WithGroup returns a new ApmHandler with passed group attached.
-func (s *ApmHandler) WithGroup(name string) slog.Handler {
-	return &ApmHandler{s.Tracer, s.ReportLevels, s.Handler.WithGroup(name)}
+func (h *ApmHandler) WithGroup(name string) slog.Handler {
+	return &ApmHandler{h.Tracer, h.ReportLevels, h.Handler.WithGroup(name)}
 }
 
-func (s *ApmHandler) Handle(ctx context.Context, r slog.Record) error {
+func (h *ApmHandler) Handle(ctx context.Context, r slog.Record) error {
+
+	// attempt to extract any available trace info from context
+	var traceId apm.TraceID
+	var transactionId apm.SpanID
+	var parentId apm.SpanID
+	if tx := apm.TransactionFromContext(ctx); tx != nil {
+		traceId = tx.TraceContext().Trace
+		transactionId = tx.TraceContext().Span
+		parentId = tx.TraceContext().Span
+		// add trace/transaction ids to slog record to be logged
+		r.Add(FieldKeyTraceID, traceId)
+		r.Add(FieldKeyTransactionID, transactionId)
+	}
+	if span := apm.SpanFromContext(ctx); span != nil {
+		parentId = span.TraceContext().Span
+		// add span id to slog record to be logged
+		r.Add(FieldKeySpanID, parentId)
+	}
 
 	// report record as APM error
-	tracer := s.tracer()
-	if slices.Contains(s.levels(), r.Level) && tracer.Recording() {
+	tracer := h.tracer()
+	if slices.Contains(h.ReportLevels, r.Level) && tracer.Recording() {
 
 		// attempt to find error/err attribute
 		// slog doesnt have a standard way of attaching an
@@ -87,67 +103,52 @@ func (s *ApmHandler) Handle(ctx context.Context, r slog.Record) error {
 		// seems like a likely way to do it.
 		var err error
 		r.Attrs(func(a slog.Attr) bool {
-			if a.Key == "error" || a.Key == "err" {
+			if a.Key == SlogErrorKeyErr || a.Key == SlogErrorKeyError {
 				if v, ok := a.Value.Any().(error); ok {
 					err = v
 					return false
-				}
-				if v, ok := a.Value.Any().(string); ok {
-					err = errors.New(v)
+				} else {
+					err = errors.Join(err, fmt.Errorf("%s", a.Value.String()))
 					return false
 				}
-				return false
 			}
 			return true
 		})
-		// if error/err attribute exists, use it as Error value
-		var errLogRecord apm.ErrorLogRecord
-		if err != nil {
-			errLogRecord = apm.ErrorLogRecord{
-				Message: r.Message,
-				Level:   strings.ToLower(r.Level.String()),
-				Error:   err,
-			}
-		} else {
-			errLogRecord = apm.ErrorLogRecord{
-				Message: r.Message,
-				Level:   strings.ToLower(r.Level.String()),
-			}
-		}
 
-		errlog := tracer.NewErrorLog(errLogRecord)
+		errlog := tracer.NewErrorLog(apm.ErrorLogRecord{
+			Message: r.Message,
+			Level:   strings.ToLower(r.Level.String()),
+			Error:   err,
+		})
 		errlog.Handled = true
 		errlog.Timestamp = r.Time.UTC()
 		errlog.SetStacktrace(2)
 
-        // extract available trace info from context
-		if tx := apm.TransactionFromContext(ctx); tx != nil {
-			errlog.TraceID = tx.TraceContext().Trace
-			errlog.TransactionID = tx.TraceContext().Span
-			errlog.ParentID = tx.TraceContext().Span
+		// add available trace info if not zero type
+		if traceId != (apm.TraceID{}) {
+			errlog.TraceID = traceId
 		}
-		if span := apm.SpanFromContext(ctx); span != nil {
-			errlog.ParentID = span.TraceContext().Span
+		if transactionId != (apm.SpanID{}) {
+			errlog.TransactionID = transactionId
 		}
+		if parentId != (apm.SpanID{}) {
+			errlog.ParentID = parentId
+		}
+		// send error to APM
 		errlog.Send()
 	}
 
-	// attach trace context if exists and attach to record
-	if tx := apm.TransactionFromContext(ctx); tx != nil {
-		r.Add(FieldKeyTraceID, tx.TraceContext().Trace)
-		r.Add(FieldKeyTransactionID, tx.TraceContext().Span)
-	}
-	if span := apm.SpanFromContext(ctx); span != nil {
-		r.Add(FieldKeySpanID, span.TraceContext().Span)
-	}
-
-	return s.Handler.Handle(ctx, r)
+	return h.Handler.Handle(ctx, r)
 }
 
 type apmHandlerOption func(h *ApmHandler)
 
 func NewApmHandler(opts ...apmHandlerOption) *ApmHandler {
-	h := &ApmHandler{apm.DefaultTracer(), []slog.Level{slog.LevelError}, slog.Default().Handler()}
+	h := &ApmHandler{
+		apm.DefaultTracer(),
+		[]slog.Level{slog.LevelError},
+		slog.Default().Handler(),
+	}
 	for _, opt := range opts {
 		opt(h)
 	}

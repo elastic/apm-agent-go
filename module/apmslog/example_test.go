@@ -20,7 +20,6 @@ package apmslog_test
 import (
 	"context"
 	"log/slog"
-	"os"
 
 	"go.elastic.co/apm/module/apmslog/v2"
 	"go.elastic.co/apm/v2"
@@ -32,34 +31,6 @@ func ExampleHandler() {
 	// to format logging messages
 	apmHandler := apmslog.NewApmHandler()
 	logger := slog.New(apmHandler)
-
-	// Report slog "ERROR" level messages to Elastic APM using
-	// some specific tracer while utilizing slog.Default().Handler()
-	// to format logging messages
-	apmHandler = apmslog.NewApmHandler(
-		apmslog.WithTracer(&apm.Tracer{}),
-	)
-	logger = slog.New(apmHandler)
-
-	// Report slog "ERROR" and "WARN level messages to Elastic APM using
-	// apm.DefaultTracer() while utilizing slog.Default().Handler()
-	// to format logging messages
-	apmHandler = apmslog.NewApmHandler(
-		apmslog.WithReportLevel([]slog.Level{slog.LevelError, slog.LevelWarn}),
-	)
-	logger = slog.New(apmHandler)
-
-	// Report slog "ERROR" level messages to Elastic APM using
-	// apm.DefaultTracer() while utilizing some specific slog handler
-	// to format logging messages
-	apmHandler = apmslog.NewApmHandler(
-		apmslog.WithHandler(
-			slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
-				Level: slog.LevelInfo,
-			}),
-		),
-	)
-	logger = slog.New(apmHandler)
 
 	// while using slog context aware methods, any existing trace,
 	// transaction, or span ID are added from the given context

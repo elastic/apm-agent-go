@@ -123,11 +123,14 @@ func mockFuncError() error {
 
 func TestHandlerTracerClosed(t *testing.T) {
 	tracer, _ := transporttest.NewRecorderTracer()
-	tracer.Close() // close it straight away, hook should return immediately
+	tracer.Close()
 
-	h := newApmslogHandler(io.Discard, tracer)
+	var buf bytes.Buffer
+
+	h := newApmslogHandler(&buf, tracer)
 	logger := slog.New(h)
-	logger.Error("fail")
+	logger.Error("hello world")
+	assert.Equal(t, `{"time":"1970-01-01T00:00:00Z","level":"ERROR","msg":"hello world"}`+"\n", buf.String())
 }
 
 func newApmslogHandler(writer io.Writer, tracer *apm.Tracer) *apmslog.ApmHandler {
