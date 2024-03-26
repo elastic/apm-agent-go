@@ -303,6 +303,16 @@ See <<builtin-modules-apmzerolog, module/apmzerolog>> for more information
 about Zerolog integration.
 
 [float]
+==== Slog
+
+We support log correlation and error tracking with
+https://pkg.go.dev/log/slog/[Slog],
+https://pkg.go.dev/log/slog@go1.21.0/[v1.21.0] and greater.
+
+See <<builtin-modules-apmslog, module/apmslog>> for more information
+about slog integration.
+
+[float]
 [[supported-tech-object-storage]]
 === Object Storage
 

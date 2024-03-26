@@ -43,6 +43,7 @@ COPY module/apmprometheus/go.mod module/apmprometheus/go.sum /go/src/go.elastic.
 COPY module/apmredigo/go.mod module/apmredigo/go.sum /go/src/go.elastic.co/apm/module/apmredigo/
 COPY module/apmrestful/go.mod module/apmrestful/go.sum /go/src/go.elastic.co/apm/module/apmrestful/
 COPY module/apmrestfulv3/go.mod module/apmrestfulv3/go.sum /go/src/go.elastic.co/apm/module/apmrestfulv3/
+COPY module/apmslog/go.mod module/apmslog/go.sum /go/src/go.elastic.co/apm/module/apmslog/
 COPY module/apmsql/go.mod module/apmsql/go.sum /go/src/go.elastic.co/apm/module/apmsql/
 COPY module/apmzap/go.mod module/apmzap/go.sum /go/src/go.elastic.co/apm/module/apmzap/
 COPY module/apmzerolog/go.mod module/apmzerolog/go.sum /go/src/go.elastic.co/apm/module/apmzerolog/
@@ -89,6 +90,7 @@ RUN cd /go/src/go.elastic.co/apm/module/apmprometheus && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmredigo && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmrestful && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmrestfulv3 && go mod download
+RUN cd /go/src/go.elastic.co/apm/module/apmslog && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmsql && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmzap && go mod download
 RUN cd /go/src/go.elastic.co/apm/module/apmzerolog && go mod download
