@@ -11,7 +11,7 @@ To start reporting your Go application's performance to Elastic APM, you need to
 [[installation]]
 == Install the Agent
 
-Install the Elastic APM Go agent package using `go get`:
+Within a Go module, install the Elastic APM Go agent package using `go get`:
 
 [source,bash]
 ----
