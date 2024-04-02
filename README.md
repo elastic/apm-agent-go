@@ -12,6 +12,8 @@ sending performance metrics and errors to the Elastic APM server.
 
 ## Installation
 
+Within a Go module:
+
 ```bash
 go get go.elastic.co/apm/v2
 ```
