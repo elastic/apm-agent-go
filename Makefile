@@ -1,6 +1,6 @@
 TEST_TIMEOUT?=5m
 GO_LICENSER_EXCLUDE=stacktrace/testdata
-GO_LANGUAGE_VERSION=1.19
+GO_LANGUAGE_VERSION=1.21
 
 .PHONY: check
 check: precheck check-modules test
