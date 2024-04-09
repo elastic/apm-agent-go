@@ -120,6 +120,10 @@ func (s *span) AddEvent(name string, opts ...trace.EventOption) {
 	s.mu.Unlock()
 }
 
+func (s *span) AddLink(l trace.Link) {
+	// noop
+}
+
 func (s *span) IsRecording() bool {
 	if s.span != nil {
 		return !s.span.Dropped()
