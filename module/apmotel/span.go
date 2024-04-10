@@ -120,8 +120,20 @@ func (s *span) AddEvent(name string, opts ...trace.EventOption) {
 	s.mu.Unlock()
 }
 
-func (s *span) AddLink(l trace.Link) {
-	// noop
+func (s *span) AddLink(tl trace.Link) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	l := apm.SpanLink{
+		Trace: [16]byte(tl.SpanContext.TraceID()),
+		Span:  [8]byte(tl.SpanContext.SpanID()),
+	}
+
+	if s.span != nil {
+		s.span.AddLink(l)
+	} else {
+		s.tx.AddLink(l)
+	}
 }
 
 func (s *span) IsRecording() bool {
