@@ -3,8 +3,8 @@ module go.elastic.co/apm/module/apmchi/v2
 require (
 	github.com/go-chi/chi v1.5.1
 	github.com/stretchr/testify v1.8.4
-	go.elastic.co/apm/module/apmhttp/v2 v2.5.0
-	go.elastic.co/apm/v2 v2.5.0
+	go.elastic.co/apm/module/apmhttp/v2 v2.6.0
+	go.elastic.co/apm/v2 v2.6.0
 )
 
 require (

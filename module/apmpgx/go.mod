@@ -5,8 +5,8 @@ go 1.21
 require (
 	github.com/jackc/pgx/v4 v4.18.2
 	github.com/stretchr/testify v1.8.4
-	go.elastic.co/apm/module/apmsql/v2 v2.5.0
-	go.elastic.co/apm/v2 v2.5.0
+	go.elastic.co/apm/module/apmsql/v2 v2.6.0
+	go.elastic.co/apm/v2 v2.6.0
 )
 
 require (
