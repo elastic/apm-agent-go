@@ -53,6 +53,14 @@ func (t *tracer) Start(ctx context.Context, spanName string, opts ...trace.SpanS
 		startTime:  startTime,
 	}
 
+	var links []apm.SpanLink
+	for _, l := range config.Links() {
+		links = append(links, apm.SpanLink{
+			Trace: [16]byte(l.SpanContext.TraceID()),
+			Span:  [8]byte(l.SpanContext.SpanID()),
+		})
+	}
+
 	var psc trace.SpanContext
 	if config.NewRoot() {
 		ctx = trace.ContextWithSpanContext(ctx, psc)
@@ -85,6 +93,7 @@ func (t *tracer) Start(ctx context.Context, spanName string, opts ...trace.SpanS
 			s.span = parent.tx.StartSpanOptions(spanName, "", apm.SpanOptions{
 				Parent: tc,
 				Start:  startTime,
+				Links:  links,
 			})
 			ctx = apm.ContextWithSpan(ctx, s.span)
 			s.tx = parent.tx
@@ -97,7 +106,9 @@ func (t *tracer) Start(ctx context.Context, spanName string, opts ...trace.SpanS
 		}
 	}
 
-	var tranOpts apm.TransactionOptions
+	tranOpts := apm.TransactionOptions{
+		Links: links,
+	}
 	if psc.HasTraceID() && psc.HasSpanID() {
 		tranOpts.TraceContext = apm.TraceContext{
 			Trace:   [16]byte(psc.TraceID()),

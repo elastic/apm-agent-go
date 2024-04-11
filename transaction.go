@@ -267,6 +267,17 @@ func (tx *Transaction) EnsureParent() SpanID {
 	return tx.parentID
 }
 
+// AddLink adds a link.
+func (tx *Transaction) AddLink(l SpanLink) {
+	tx.mu.Lock()
+	defer tx.mu.Unlock()
+	if tx.ended() {
+		return
+	}
+
+	tx.links = append(tx.links, l)
+}
+
 // ParentID returns the ID of the transaction's Parent or a zero (invalid) SpanID.
 func (tx *Transaction) ParentID() SpanID {
 	if tx == nil {
