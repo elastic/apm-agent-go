@@ -21,10 +21,16 @@ endif::[]
 [[unreleased]]
 === Unreleased
 
-https://github.com/elastic/apm-agent-go/compare/v2.5.0...main[View commits]
+https://github.com/elastic/apm-agent-go/compare/v2.6.0...main[View commits]
 
 [[release-notes-2.x]]
 === Go Agent version 2.x
+
+[[release-notes-2.5.0]]
+==== 2.6.0 - 2024/04/11
+
+- Bump minimum Go version to 1.21 {pull}1602[#1602]
+- module/apmotel: fix compatibility issue with newer version of otel libs. {pull}1605[#1605]
 
 [[release-notes-2.5.0]]
 ==== 2.5.0 - 2024/03/12
