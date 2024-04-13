@@ -814,7 +814,17 @@ func ExampleHandler() {
 	span, ctx := apm.StartSpan(ctx, "name", "type")
 	defer span.End()
 
+	// log msg will have a trace, transaction, and a span attached
 	logger.InfoContext(ctx, "I should have a trace, transaction, and span id attached!")
+
+	// the log msg will be reported to apm
+	logger.ErrorContext(ctx, "I want this to be reported, but have no error to attach")
+
+	// the log msg with its error will be reported to apm
+	logger.ErrorContext(ctx, "I will report this error to apm", "error", errors.New("new error"))
+
+	// BOTH errors with the log msg will be reported to apm. [ error, err ] slog attribute keys are by default reported
+	logger.ErrorContext(ctx, "I will report this error to apm", "error", errors.New("new error"), "err", errors.New("new err"))
 }
 ----
 
