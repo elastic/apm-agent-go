@@ -4,7 +4,7 @@
 [![codecov.io](https://codecov.io/github/elastic/apm-agent-go/coverage.svg?branch=main)](https://codecov.io/github/elastic/apm-agent-go?branch=main)
 
 **NOTE**: This repository is in maintenance mode. Bug fixes will continue to be
-applied, but no further development will take place. To replace this agent, we
+applied, but no new features will be implemented. To replace this agent, we
 recommend you to [migrate to the OpenTelemetry Go API and
 SDK](https://www.elastic.co/blog/elastic-go-apm-agent-to-opentelemetry-go-sdk),
 which provides similar features. In order to help you do a seamless migration,
