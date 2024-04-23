@@ -80,7 +80,7 @@ func TestHandlerWithContext(t *testing.T) {
 
 	var msg MsgWithTrace
 	err := json.Unmarshal([]byte(buf.String()), &msg)
-    assert.NoError(t, err)
+	assert.NoError(t, err)
 
 	// assert that we added the correct traces to buff
 	assert.Equal(t, tx.TraceContext().Trace.String(), msg.TraceId)
@@ -161,7 +161,7 @@ func TestHandlerErrorWithContext(t *testing.T) {
 
 	var msg MsgWithTrace
 	err := json.Unmarshal([]byte(buf.String()), &msg)
-    assert.NoError(t, err)
+	assert.NoError(t, err)
 
 	// assert that we added the correct traces to buff
 	assert.Equal(t, tx.TraceContext().Trace.String(), msg.TraceId)
@@ -223,7 +223,7 @@ func TestHandlerMultiErrorWithContext(t *testing.T) {
 
 	var msg MsgWithTrace
 	err := json.Unmarshal([]byte(buf.String()), &msg)
-    assert.NoError(t, err)
+	assert.NoError(t, err)
 
 	// assert that we added the correct traces to buff
 	assert.Equal(t, tx.TraceContext().Trace.String(), msg.TraceId)
