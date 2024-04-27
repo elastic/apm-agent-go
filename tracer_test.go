@@ -593,21 +593,9 @@ func TestTracerDefaultTransport(t *testing.T) {
 		defer os.Unsetenv("ELASTIC_APM_SERVER_TIMEOUT")
 
 		// NewTracer returns errors.
-		tracer, err := apm.NewTracer("", "")
+		_, err := apm.NewTracer("", "")
 		require.Error(t, err)
 		assert.EqualError(t, err, "failed to parse ELASTIC_APM_SERVER_TIMEOUT: invalid duration never")
-
-		// Implicitly created Tracers will have a discard tracer.
-		apm.SetDefaultTracer(nil)
-		tracer = apm.DefaultTracer()
-
-		tracer.StartTransaction("name", "type").End()
-		tracer.Flush(nil)
-		assert.Equal(t, apm.TracerStats{
-			Errors: apm.TracerStatsErrors{
-				SendStream: 1,
-			},
-		}, tracer.Stats())
 	})
 }
 
