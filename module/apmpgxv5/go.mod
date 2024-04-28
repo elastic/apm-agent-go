@@ -1,12 +1,12 @@
 module go.elastic.co/apm/module/apmpgxv5/v2
 
-go 1.19
+go 1.21
 
 require (
 	github.com/jackc/pgx/v5 v5.5.4
 	github.com/stretchr/testify v1.8.4
-	go.elastic.co/apm/module/apmsql/v2 v2.5.0
-	go.elastic.co/apm/v2 v2.5.0
+	go.elastic.co/apm/module/apmsql/v2 v2.6.0
+	go.elastic.co/apm/v2 v2.6.0
 )
 
 require (

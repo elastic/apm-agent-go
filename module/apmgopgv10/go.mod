@@ -4,8 +4,8 @@ require (
 	github.com/go-pg/pg/v10 v10.7.3
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.4
-	go.elastic.co/apm/module/apmsql/v2 v2.5.0
-	go.elastic.co/apm/v2 v2.5.0
+	go.elastic.co/apm/module/apmsql/v2 v2.6.0
+	go.elastic.co/apm/v2 v2.6.0
 )
 
 require (
@@ -36,4 +36,4 @@ replace go.elastic.co/apm/v2 => ../..
 
 replace go.elastic.co/apm/module/apmsql/v2 => ../apmsql
 
-go 1.19
+go 1.21
