@@ -312,7 +312,7 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 	if opts.Transport == nil {
 		initialTransport, err := initialTransport(opts.ServiceName, opts.ServiceVersion)
 		if failed(err) {
-			opts.active = false
+			active = false
 		} else {
 			opts.Transport = initialTransport
 		}
