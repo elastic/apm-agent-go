@@ -605,6 +605,17 @@ func (s *Span) IsExitSpan() bool {
 	return s.exit
 }
 
+// AddLink adds a link.
+func (s *Span) AddLink(l SpanLink) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.ended() {
+		return
+	}
+
+	s.links = append(s.links, l)
+}
+
 // aggregateDroppedSpanStats aggregates the current span into the transaction
 // dropped spans stats timings.
 //

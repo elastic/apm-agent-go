@@ -128,7 +128,7 @@ func updateModule(dir string, gomod *GoMod, modules map[string]*GoMod) error {
 		cmd.Stderr = os.Stderr
 		cmd.Dir = dir
 		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("'go mod edit' failed: %w", err)
+			return fmt.Errorf("'go mod edit' replace failed: %w", err)
 		}
 	}
 	cmd := exec.Command("go", "mod", "tidy", "-v", "-go", *goVersionFlag)
@@ -137,6 +137,13 @@ func updateModule(dir string, gomod *GoMod, modules map[string]*GoMod) error {
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("'go mod tidy' failed: %w", err)
 	}
+	cmd = exec.Command("go", "mod", "edit", "-toolchain", "none")
+	cmd.Stderr = os.Stderr
+	cmd.Dir = dir
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("'go mod edit' toolchain failed: %w", err)
+	}
+
 	return nil
 }
 

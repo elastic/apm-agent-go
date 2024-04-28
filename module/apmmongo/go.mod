@@ -2,7 +2,7 @@ module go.elastic.co/apm/module/apmmongo/v2
 
 require (
 	github.com/stretchr/testify v1.8.4
-	go.elastic.co/apm/v2 v2.5.0
+	go.elastic.co/apm/v2 v2.6.0
 	go.mongodb.org/mongo-driver v1.5.1
 )
 
@@ -36,4 +36,4 @@ require (
 
 replace go.elastic.co/apm/v2 => ../..
 
-go 1.19
+go 1.21
