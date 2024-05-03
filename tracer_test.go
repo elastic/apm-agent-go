@@ -597,7 +597,6 @@ func TestTracerDefaultTransport(t *testing.T) {
 		require.Error(t, err)
 		assert.EqualError(t, err, "failed to parse ELASTIC_APM_SERVER_TIMEOUT: invalid duration never")
 
-
 		// Implicitly created Tracers will have Inactive tracer in case of invalid configuration
 		apm.SetDefaultTracer(nil)
 		tracer = apm.DefaultTracer()
