@@ -23,9 +23,17 @@ import (
 	"os"
 
 	"go.elastic.co/apm/v2"
+	"go.elastic.co/apm/v2/apmtest"
 )
 
 func ExampleTransaction_EnsureParent() {
+	// When environment variables aren't set, the default tracer is inactive.
+	// For the sake of this example, we want a discarded tracer instead, so we do
+	// have trace and span IDs generated.
+	//
+	// This setup is now something you should be using in your own code.
+	apm.SetDefaultTracer(apmtest.NewDiscardTracer())
+
 	tx := apm.DefaultTracer().StartTransactionOptions("name", "type", apm.TransactionOptions{
 		TraceContext: apm.TraceContext{
 			Trace: apm.TraceID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},

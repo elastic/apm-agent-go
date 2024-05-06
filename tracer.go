@@ -53,10 +53,8 @@ var (
 // DefaultTracer returns the default global Tracer, set the first time the
 // function is called, or after calling SetDefaultTracer(nil).
 //
-// The default tracer is configured via environment variables, and will always
-// be non-nil. If any of the environment variables are invalid, the
-// corresponding errors will be logged to stderr and the default values will be
-// used instead.
+// The default tracer is configured via environment variables, and if the those are invalid
+// the tracer will be disabled.
 func DefaultTracer() *Tracer {
 	tracerMu.RLock()
 	if defaultTracer != nil {
@@ -314,7 +312,7 @@ func (opts *TracerOptions) initDefaults(continueOnError bool) error {
 	if opts.Transport == nil {
 		initialTransport, err := initialTransport(opts.ServiceName, opts.ServiceVersion)
 		if failed(err) {
-			opts.Transport = transport.NewDiscardTransport(err)
+			active = false
 		} else {
 			opts.Transport = initialTransport
 		}
