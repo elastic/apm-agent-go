@@ -142,6 +142,7 @@ type testSanitizeRaw struct {
 
 type testSanitizeRawInfos struct {
 	Id       string                  `json:"id"`
+	Balance  interface{}             `json:"balance"` // interface{} to allow unmarshalling the sanitized body as number or string
 	CardInfo testSanitizeRawCardInfo `json:"cardInfo"`
 }
 
@@ -153,13 +154,14 @@ func TestSanitizeRaw(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
 
-	tracer.SetSanitizedFieldNames("id", "cardNumber")
+	tracer.SetSanitizedFieldNames("id", "balance", "cardNumber")
 	tracer.SetCaptureBody(apm.CaptureBodyAll)
 
 	body := testSanitizeRaw{
 		Name: "Helias",
 		Infos: testSanitizeRawInfos{
-			Id: "12345678912",
+			Id:      "12345678912",
+			Balance: 123.45,
 			CardInfo: testSanitizeRawCardInfo{
 				CardNumber: "321321321321321",
 			},
@@ -186,6 +188,7 @@ func TestSanitizeRaw(t *testing.T) {
 
 	body.Infos.Id = "[REDACTED]"
 	body.Infos.CardInfo.CardNumber = "[REDACTED]"
+	body.Infos.Balance = "[REDACTED]"
 
 	var sanitizedBody testSanitizeRaw
 	err := json.Unmarshal([]byte(payloads.Transactions[0].Context.Request.Body.Raw), &sanitizedBody)
@@ -194,4 +197,5 @@ func TestSanitizeRaw(t *testing.T) {
 	}
 	assert.Equal(t, body.Infos.Id, sanitizedBody.Infos.Id)
 	assert.Equal(t, body.Infos.CardInfo.CardNumber, sanitizedBody.Infos.CardInfo.CardNumber)
+	assert.Equal(t, body.Infos.Balance, sanitizedBody.Infos.Balance)
 }
