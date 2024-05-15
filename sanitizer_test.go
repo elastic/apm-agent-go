@@ -18,7 +18,9 @@
 package apm_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"testing"
 
@@ -131,4 +133,65 @@ func testSetSanitizedFieldNames(t *testing.T, expect string, sanitized ...string
 	assert.Equal(t, payloads.Transactions[0].Context.Request.Cookies, model.Cookies{
 		{Name: "secret", Value: expect},
 	})
+}
+
+type testSanitizeRaw struct {
+	Name  string               `json:"name"`
+	Infos testSanitizeRawInfos `json:"infos"`
+}
+
+type testSanitizeRawInfos struct {
+	Id       string                  `json:"id"`
+	CardInfo testSanitizeRawCardInfo `json:"cardInfo"`
+}
+
+type testSanitizeRawCardInfo struct {
+	CardNumber string `json:"cardNumber"`
+}
+
+func TestSanitizeRaw(t *testing.T) {
+	tracer, transport := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	tracer.SetSanitizedFieldNames("id", "cardNumber")
+	tracer.SetCaptureBody(apm.CaptureBodyAll)
+
+	body := testSanitizeRaw{
+		Name: "Helias",
+		Infos: testSanitizeRawInfos{
+			Id: "12345678912",
+			CardInfo: testSanitizeRawCardInfo{
+				CardNumber: "321321321321321",
+			},
+		},
+	}
+
+	bodyBytes, _ := json.Marshal(body)
+
+	req, _ := http.NewRequest("POST", "http://server.testing/", bytes.NewBufferString(string(bodyBytes)))
+	req.Header.Set("Content-Type", "application/json")
+	req.ParseForm()
+
+	tx := tracer.StartTransaction("name", "type")
+
+	bodyCapturer := tracer.CaptureHTTPRequestBody(req)
+	tx.Context.SetHTTPRequestBody(bodyCapturer)
+	bodyCapturer.Discard()
+
+	tx.Context.SetHTTPRequest(req)
+	tx.End()
+	tracer.Flush(nil)
+	payloads := transport.Payloads()
+	require.Len(t, payloads.Transactions, 1)
+
+	body.Infos.Id = "[REDACTED]"
+	body.Infos.CardInfo.CardNumber = "[REDACTED]"
+
+	var sanitizedBody testSanitizeRaw
+	err := json.Unmarshal([]byte(payloads.Transactions[0].Context.Request.Body.Raw), &sanitizedBody)
+	if err != nil {
+		t.Error(err)
+	}
+	assert.Equal(t, body.Infos.Id, sanitizedBody.Infos.Id)
+	assert.Equal(t, body.Infos.CardInfo.CardNumber, sanitizedBody.Infos.CardInfo.CardNumber)
 }
