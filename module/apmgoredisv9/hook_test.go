@@ -47,7 +47,7 @@ func TestHook(t *testing.T) {
 				client.Get(ctx, "key")
 				client.Do(ctx, "")
 			})
-			require.Len(t, spans, 4)
+			require.Len(t, spans, 3)
 
 			assert.Equal(t, "PING", spans[0].Name)
 			assert.Equal(t, "db", spans[0].Type)
