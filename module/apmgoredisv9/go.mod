@@ -3,7 +3,7 @@ module go.elastic.co/apm/module/apmgoredisv9/v2
 go 1.21
 
 require (
-	github.com/go-redis/redis/v8 v8.11.5
+	github.com/redis/go-redis/v9 v9.5.1
 	github.com/stretchr/testify v1.8.4
 	go.elastic.co/apm/v2 v2.6.0
 )
@@ -20,9 +20,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/procfs v0.0.0-20190425082905-87a4384529e0 // indirect
-	github.com/redis/go-redis/v9 v9.5.1 // indirect
 	go.elastic.co/fastjson v1.1.0 // indirect
-	golang.org/x/net v0.23.0 // indirect
 	golang.org/x/sys v0.18.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	howett.net/plist v0.0.0-20181124034731-591f970eefbb // indirect
