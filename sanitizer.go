@@ -18,6 +18,8 @@
 package apm // import "go.elastic.co/apm/v2"
 
 import (
+	"encoding/json"
+
 	"go.elastic.co/apm/v2/internal/wildcard"
 	"go.elastic.co/apm/v2/model"
 )
@@ -27,7 +29,7 @@ const redacted = "[REDACTED]"
 var redactedValues = []string{redacted}
 
 // sanitizeRequest sanitizes HTTP request data, redacting the
-// values of cookies, headers and forms whose corresponding keys
+// values of cookies, headers, forms and raw whose corresponding keys
 // match any of the given wildcard patterns.
 func sanitizeRequest(r *model.Request, matchers wildcard.Matchers) {
 	for _, c := range r.Cookies {
@@ -44,7 +46,35 @@ func sanitizeRequest(r *model.Request, matchers wildcard.Matchers) {
 			}
 			r.Body.Form[key] = redactedValues
 		}
+	} else if r.Body != nil && json.Valid([]byte(r.Body.Raw)) {
+		var body map[string]interface{}
+
+		err := json.Unmarshal([]byte(r.Body.Raw), &body)
+		if err == nil && body != nil {
+			sanitizedBody := sanitizeRawData(body, matchers)
+
+			sanitizedBodyBytes, err := json.Marshal(sanitizedBody)
+			if err == nil {
+				r.Body.Raw = string(sanitizedBodyBytes)
+			}
+		}
 	}
+}
+
+// sanitizeRawData is a recursive function that redacts
+// fields that match any of the given wildcard patterns
+func sanitizeRawData(body map[string]interface{}, matchers wildcard.Matchers) map[string]interface{} {
+	for key, value := range body {
+		switch v := value.(type) {
+		case map[string]interface{}:
+			body[key] = sanitizeRawData(v, matchers)
+		default:
+			if matchers.MatchAny(key) {
+				body[key] = redacted
+			}
+		}
+	}
+	return body
 }
 
 // sanitizeResponse sanitizes HTTP response data, redacting
