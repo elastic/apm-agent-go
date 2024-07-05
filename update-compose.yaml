@@ -16,3 +16,9 @@ policies:
     values:
       - .ci/updatecli/values.d/scm.yml
       - .ci/updatecli/values.d/apm-json-specs.yml
+
+  - name: Update Updatecli policies
+    policy: ghcr.io/updatecli/policies/updatecli/updatecli:0.4.0@sha256:254367f5b1454fd6032b88b314450cd3b6d5e8d5b6c953eb242a6464105eb869
+    values:
+      - .ci/updatecli/values.d/scm.yaml
+      - .ci/updatecli/values.d/update-compose.yaml
