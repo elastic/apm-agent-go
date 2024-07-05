@@ -2,5 +2,7 @@ spec:
   files:
     - "update-compose.yaml"
 
-# set explicitly here
-signedcommit: false
+# this policy requires further values to be set
+scm:
+  user: obltmachine
+  email: obltmachine@users.noreply.github.com
