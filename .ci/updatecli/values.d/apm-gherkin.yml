@@ -1,1 +1,4 @@
 apm_gherkin_specs_path: features
+
+# set explicitly here
+signedcommit: true

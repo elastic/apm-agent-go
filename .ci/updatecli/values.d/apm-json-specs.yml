@@ -1,1 +1,4 @@
 apm_json_specs_path: internal/testdata/json-specs
+
+# set explicitly here
+signedcommit: true

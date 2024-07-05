@@ -1,1 +1,4 @@
 apm_schema_specs_path: internal/apmschema/jsonschema
+
+# set explicitly here
+signedcommit: true
