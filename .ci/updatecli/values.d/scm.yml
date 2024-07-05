@@ -3,5 +3,9 @@ scm:
   owner: elastic
   repository: apm-agent-go
   branch: main
+  # begin update-compose policy values
+  user: obltmachine
+  email: obltmachine@users.noreply.github.com
+  # end update-compose policy values
 
 signedcommit: true
