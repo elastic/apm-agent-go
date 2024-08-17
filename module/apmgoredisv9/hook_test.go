@@ -66,20 +66,36 @@ func TestHook(t *testing.T) {
 				client.Get(ctx, "key")
 				client.Do(ctx, "")
 			})
-			require.Len(t, spans, 4) // 3 commands + 1 connection
-			assert.Equal(t, "redis.connect", spans[0].Name)
-			assert.Equal(t, "PING", spans[1].Name)
-			assert.Equal(t, "db", spans[1].Type)
-			assert.Equal(t, "redis", spans[1].Subtype)
-			assert.Equal(t, "redis", spans[1].Context.Destination.Service.Resource)
-			assert.Equal(t, "GET", spans[2].Name)
-			assert.Equal(t, "db", spans[2].Type)
-			assert.Equal(t, "redis", spans[2].Subtype)
-			assert.Equal(t, "redis", spans[2].Context.Destination.Service.Resource)
-			assert.Equal(t, "(empty command)", spans[3].Name)
-			assert.Equal(t, "db", spans[3].Type)
-			assert.Equal(t, "redis", spans[3].Subtype)
-			assert.Equal(t, "redis", spans[3].Context.Destination.Service.Resource)
+			if i == 0 {
+				require.Len(t, spans, 4) // 3 commands + 1 connection
+				assert.Equal(t, "redis.connect", spans[0].Name)
+				assert.Equal(t, "PING", spans[1].Name)
+				assert.Equal(t, "db", spans[1].Type)
+				assert.Equal(t, "redis", spans[1].Subtype)
+				assert.Equal(t, "redis", spans[1].Context.Destination.Service.Resource)
+				assert.Equal(t, "GET", spans[2].Name)
+				assert.Equal(t, "db", spans[2].Type)
+				assert.Equal(t, "redis", spans[2].Subtype)
+				assert.Equal(t, "redis", spans[2].Context.Destination.Service.Resource)
+				assert.Equal(t, "(empty command)", spans[3].Name)
+				assert.Equal(t, "db", spans[3].Type)
+				assert.Equal(t, "redis", spans[3].Subtype)
+				assert.Equal(t, "redis", spans[3].Context.Destination.Service.Resource)
+			} else {
+				require.Len(t, spans, 3)
+				assert.Equal(t, "PING", spans[0].Name)
+				assert.Equal(t, "db", spans[0].Type)
+				assert.Equal(t, "redis", spans[0].Subtype)
+				assert.Equal(t, "redis", spans[0].Context.Destination.Service.Resource)
+				assert.Equal(t, "GET", spans[1].Name)
+				assert.Equal(t, "db", spans[1].Type)
+				assert.Equal(t, "redis", spans[1].Subtype)
+				assert.Equal(t, "redis", spans[1].Context.Destination.Service.Resource)
+				assert.Equal(t, "(empty command)", spans[2].Name)
+				assert.Equal(t, "db", spans[2].Type)
+				assert.Equal(t, "redis", spans[2].Subtype)
+				assert.Equal(t, "redis", spans[2].Context.Destination.Service.Resource)
+			}
 		})
 	}
 }
@@ -97,13 +113,20 @@ func TestHookPipeline(t *testing.T) {
 				pipe.Do(ctx, "")
 				_, _ = pipe.Exec(ctx)
 			})
-
-			require.Len(t, spans, 2) // 1 connection + 1 pipeline
-			assert.Equal(t, "redis.connect", spans[0].Name)
-			assert.Equal(t, "GET, SET, GET, (empty command)", spans[1].Name)
-			assert.Equal(t, "db", spans[1].Type)
-			assert.Equal(t, "redis", spans[1].Subtype)
-			assert.Equal(t, "redis", spans[1].Context.Destination.Service.Resource)
+			if i == 0 {
+				require.Len(t, spans, 2) // 1 connection + 1 pipeline
+				assert.Equal(t, "redis.connect", spans[0].Name)
+				assert.Equal(t, "GET, SET, GET, (empty command)", spans[1].Name)
+				assert.Equal(t, "db", spans[1].Type)
+				assert.Equal(t, "redis", spans[1].Subtype)
+				assert.Equal(t, "redis", spans[1].Context.Destination.Service.Resource)
+			} else {
+				require.Len(t, spans, 1)
+				assert.Equal(t, "GET, SET, GET, (empty command)", spans[0].Name)
+				assert.Equal(t, "db", spans[0].Type)
+				assert.Equal(t, "redis", spans[0].Subtype)
+				assert.Equal(t, "redis", spans[0].Context.Destination.Service.Resource)
+			}
 		})
 	}
 }
@@ -121,20 +144,20 @@ func TestHookTxPipeline(t *testing.T) {
 				pipe.Do(ctx, "")
 				_, _ = pipe.Exec(ctx)
 			})
-
-			require.Len(t, spans, 2) // 1 connection + 1 pipeline
-			assert.Equal(t, "redis.connect", spans[0].Name)
-			if _, ok := client.(*redis.Ring); ok {
-				// *redis.Ring doesn't wrap queued commands with MULTI/EXEC
-				// in (*redis.Client) processTxPipeline, whereas *redis.Client
-				// and *redis.ClusterClient do.
-				assert.Equal(t, "GET, SET, GET, (empty command)", spans[1].Name)
-			} else {
+			if i == 0 {
+				require.Len(t, spans, 2) // 1 connection + 1 pipeline
+				assert.Equal(t, "redis.connect", spans[0].Name)
 				assert.Equal(t, "MULTI, GET, SET, GET, (empty command), EXEC", spans[1].Name)
+				assert.Equal(t, "db", spans[1].Type)
+				assert.Equal(t, "redis", spans[1].Subtype)
+				assert.Equal(t, "redis", spans[1].Context.Destination.Service.Resource)
+			} else {
+				require.Len(t, spans, 1)
+				assert.Equal(t, "MULTI, GET, SET, GET, (empty command), EXEC", spans[0].Name)
+				assert.Equal(t, "db", spans[0].Type)
+				assert.Equal(t, "redis", spans[0].Subtype)
+				assert.Equal(t, "redis", spans[0].Context.Destination.Service.Resource)
 			}
-			assert.Equal(t, "db", spans[1].Type)
-			assert.Equal(t, "redis", spans[1].Subtype)
-			assert.Equal(t, "redis", spans[1].Context.Destination.Service.Resource)
 		})
 	}
 }
