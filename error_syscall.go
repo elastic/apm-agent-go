@@ -15,30 +15,21 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//go:build go1.20
-// +build go1.20
+//go:build unix || windows
 
-package apm_test
+package apm // import "go.elastic.co/apm/v2"
 
 import (
-	"context"
-	"errors"
-	"testing"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
-	"go.elastic.co/apm/v2"
-	"go.elastic.co/apm/v2/apmtest"
+	"reflect"
+	"syscall"
 )
 
-func TestErrorCauseUnwrapJoined(t *testing.T) {
-	err := errors.Join(errors.New("cause1"), errors.New("cause2"))
-	_, _, errors := apmtest.WithTransaction(func(ctx context.Context) {
-		apm.CaptureError(ctx, err).Send()
-	})
-	require.Len(t, errors, 1)
-	require.Len(t, errors[0].Exception.Cause, 2)
-	assert.Equal(t, "cause1", errors[0].Exception.Cause[0].Message)
-	assert.Equal(t, "cause2", errors[0].Exception.Cause[1].Message)
+func init() {
+	RegisterTypeErrorDetailer(reflect.TypeOf(syscall.Errno(0)), ErrorDetailerFunc(func(err error, details *ErrorDetails) {
+		errno := err.(syscall.Errno)
+		details.Code.String = errnoName(errno)
+		if details.Code.String == "" {
+			details.Code.Number = float64(errno)
+		}
+	}))
 }
