@@ -6,7 +6,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/santhosh-tekuri/jsonschema v1.2.4
 	github.com/stretchr/testify v1.8.4
-	go.elastic.co/apm/v2 v2.6.0
+	go.elastic.co/apm/v2 v2.6.2
 )
 
 require (

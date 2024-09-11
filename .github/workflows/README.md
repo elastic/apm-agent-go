@@ -14,7 +14,6 @@ The whole process should look like:
 
 There are some other stages that run for every push on the main branches:
 
-* [Snapshoty](./snapshoty.yml)
 * [Microbenchmark](./microbenchmark.yml)
 
 ### Scenarios
@@ -48,4 +47,4 @@ This process has been fully automated and it gets triggered when a tag release h
 
 ### OpenTelemetry
 
-There is a GitHub workflow in charge to populate what the workflow run in terms of jobs and steps. Those details can be seen in [here](https://ela.st/oblt-ci-cd-stats) (**NOTE**: only available for Elasticians).
+Every workflow and its logs are exported to OpenTelemetry traces/logs/metrics. Those details can be seen [here](https://ela.st/oblt-ci-cd-stats) (**NOTE**: only available for Elasticians).

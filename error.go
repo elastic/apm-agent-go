@@ -23,7 +23,6 @@ import (
 	"net"
 	"os"
 	"reflect"
-	"syscall"
 	"time"
 
 	"go.elastic.co/apm/v2/model"
@@ -595,13 +594,6 @@ func init() {
 		syscallErr := err.(*os.SyscallError)
 		details.SetAttr("syscall", syscallErr.Syscall)
 		details.Cause = append(details.Cause, syscallErr.Err)
-	}))
-	RegisterTypeErrorDetailer(reflect.TypeOf(syscall.Errno(0)), ErrorDetailerFunc(func(err error, details *ErrorDetails) {
-		errno := err.(syscall.Errno)
-		details.Code.String = errnoName(errno)
-		if details.Code.String == "" {
-			details.Code.Number = float64(errno)
-		}
 	}))
 }
 
