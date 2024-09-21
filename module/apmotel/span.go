@@ -384,7 +384,7 @@ func (s *span) setTransactionAttributes() {
 	if s.tx.Type == "" {
 		if s.spanKind == trace.SpanKindServer && (isHTTP || isRPC) {
 			s.tx.Type = "request"
-		} else if s.spanKind == trace.SpanKindConsumer && isMessaging {
+		} else if (s.spanKind == trace.SpanKindConsumer || s.spanKind == trace.SpanKindProducer) && isMessaging {
 			s.tx.Type = "messaging"
 		} else {
 			s.tx.Type = "unknown"
