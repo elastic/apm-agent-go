@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package go.elastic.co.apm.module.apmgrpc.testservice;
 
-option go_package = "go.elastic.co/apm/module/apmgrpc/internal/testservice";
+option go_package = "go.elastic.co/apm/module/apmgrpc/v2/internal/testservice";
 
 service Accumulator {
   rpc Accumulate(stream AccumulateRequest) returns (stream AccumulateReply) {}

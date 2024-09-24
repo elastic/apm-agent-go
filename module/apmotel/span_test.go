@@ -227,6 +227,27 @@ func TestSpanEnd(t *testing.T) {
 			},
 		},
 		{
+			name: "a root span with links",
+			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
+				ctx, s := tracer.Start(ctx, "name", trace.WithLinks(trace.Link{}))
+				return s
+			},
+			expectedTransactions: []model.Transaction{
+				{
+					Name:    "name",
+					Type:    "unknown",
+					Outcome: "unknown",
+					OTel: &model.OTel{
+						SpanKind:   "unspecified",
+						Attributes: map[string]interface{}{},
+					},
+					Links: []model.SpanLink{
+						{},
+					},
+				},
+			},
+		},
+		{
 			name: "with a child span",
 			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
 				ctx, _ = tracer.Start(ctx, "parentSpan")
@@ -515,6 +536,28 @@ func TestSpanEnd(t *testing.T) {
 			},
 		},
 		{
+			name: "a child span with links",
+			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
+				ctx, _ = tracer.Start(ctx, "parentSpan")
+				ctx, s := tracer.Start(ctx, "name", trace.WithLinks(trace.Link{}))
+				return s
+			},
+			expectedSpans: []model.Span{
+				{
+					Name:    "name",
+					Type:    "custom",
+					Outcome: "unknown",
+					OTel: &model.OTel{
+						SpanKind:   "unspecified",
+						Attributes: map[string]interface{}{},
+					},
+					Links: []model.SpanLink{
+						{},
+					},
+				},
+			},
+		},
+		{
 			name: "with a grand child span",
 			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
 				ctx, _ = tracer.Start(ctx, "parentSpan")
@@ -579,6 +622,56 @@ func TestSpanEnd(t *testing.T) {
 	}
 }
 
+func TestSpanEndTwice(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		getSpan func(context.Context, trace.Tracer) trace.Span
+
+		expectedSpansCount        int
+		expectedTransactionsCount int
+	}{
+		{
+			name: "with a transaction",
+			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
+				ctx, s := tracer.Start(ctx, "transaction")
+				return s
+			},
+
+			expectedTransactionsCount: 1,
+		},
+		{
+			name: "with a span",
+			getSpan: func(ctx context.Context, tracer trace.Tracer) trace.Span {
+				ctx, _ = tracer.Start(ctx, "transaction")
+				ctx, s := tracer.Start(ctx, "span")
+				return s
+			},
+
+			expectedSpansCount: 1,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			apmTracer, recorder := transporttest.NewRecorderTracer()
+			tp, err := NewTracerProvider(
+				WithAPMTracer(apmTracer),
+			)
+			assert.NoError(t, err)
+			tracer := newTracer(tp.(*tracerProvider))
+
+			ctx := context.Background()
+			s := tt.getSpan(ctx, tracer)
+
+			s.End()
+			assert.NotPanics(t, func() { s.End() })
+
+			apmTracer.Flush(nil)
+			payloads := recorder.Payloads()
+			assert.Equal(t, tt.expectedSpansCount, len(payloads.Spans))
+			assert.Equal(t, tt.expectedTransactionsCount, len(payloads.Transactions))
+		})
+	}
+}
+
 func TestSpanAddEvent(t *testing.T) {
 	tp, err := NewTracerProvider()
 	assert.NoError(t, err)
@@ -595,6 +688,85 @@ func TestSpanAddEvent(t *testing.T) {
 			Time: now,
 		},
 	}, s.(*span).events)
+}
+
+func TestSpanAddLink(t *testing.T) {
+	apmTracer, recorder := transporttest.NewRecorderTracer()
+	tp, err := NewTracerProvider(
+		WithAPMTracer(apmTracer),
+		WithResource(nil),
+	)
+	assert.NoError(t, err)
+	tracer := newTracer(tp.(*tracerProvider))
+
+	ctx, _ := tracer.Start(context.Background(), "myTx")
+	ctx, s := tracer.Start(ctx, "mySpan")
+	s.AddLink(trace.Link{})
+	s.End()
+
+	apmTracer.Flush(nil)
+	payloads := recorder.Payloads()
+
+	assert.Len(t, payloads.Spans, 1)
+
+	payloads.Spans[0].ID = model.SpanID{}
+	payloads.Spans[0].TransactionID = model.SpanID{}
+	payloads.Spans[0].ParentID = model.SpanID{}
+	payloads.Spans[0].TraceID = model.TraceID{}
+	payloads.Spans[0].SampleRate = nil
+	payloads.Spans[0].Duration = 0
+	payloads.Spans[0].Timestamp = model.Time{}
+
+	assert.Equal(t, model.Span{
+		Name:    "mySpan",
+		Type:    "custom",
+		Outcome: "unknown",
+		OTel: &model.OTel{
+			SpanKind:   "unspecified",
+			Attributes: map[string]interface{}{},
+		},
+		Links: []model.SpanLink{
+			{},
+		},
+	}, payloads.Spans[0])
+}
+
+func TestTransactionAddLink(t *testing.T) {
+	apmTracer, recorder := transporttest.NewRecorderTracer()
+	tp, err := NewTracerProvider(
+		WithAPMTracer(apmTracer),
+		WithResource(nil),
+	)
+	assert.NoError(t, err)
+	tracer := newTracer(tp.(*tracerProvider))
+
+	_, s := tracer.Start(context.Background(), "myTx")
+	s.AddLink(trace.Link{})
+	s.End()
+
+	apmTracer.Flush(nil)
+	payloads := recorder.Payloads()
+
+	assert.Len(t, payloads.Transactions, 1)
+
+	payloads.Transactions[0].ID = model.SpanID{}
+	payloads.Transactions[0].TraceID = model.TraceID{}
+	payloads.Transactions[0].SampleRate = nil
+	payloads.Transactions[0].Duration = 0
+	payloads.Transactions[0].Timestamp = model.Time{}
+
+	assert.Equal(t, model.Transaction{
+		Name:    "myTx",
+		Type:    "unknown",
+		Outcome: "unknown",
+		OTel: &model.OTel{
+			SpanKind:   "unspecified",
+			Attributes: map[string]interface{}{},
+		},
+		Links: []model.SpanLink{
+			{},
+		},
+	}, payloads.Transactions[0])
 }
 
 func TestSpanRecording(t *testing.T) {
@@ -652,25 +824,64 @@ func TestSpanRecording(t *testing.T) {
 }
 
 func TestSpanRecordError(t *testing.T) {
-	tp, err := NewTracerProvider()
-	assert.NoError(t, err)
-	tracer := newTracer(tp.(*tracerProvider))
-	_, s := tracer.Start(context.Background(), "mySpan")
-
-	assert.Equal(t, []event(nil), s.(*span).events)
-
-	now := time.Now()
-	s.RecordError(errors.New("test"), trace.WithTimestamp(now))
-	assert.Equal(t, []event{
-		event{
-			Name: "exception",
-			Attributes: []attribute.KeyValue{
-				attribute.String("exception.type", "*errors.errorString"),
-				attribute.String("exception.message", "test"),
+	for _, tt := range []struct {
+		name              string
+		getSpan           func(context.Context, trace.Tracer) trace.Span
+		err               error
+		getExpectedEvents func(time.Time) []event
+	}{
+		{
+			name: "with a valid error",
+			getSpan: func(ctx context.Context, t trace.Tracer) trace.Span {
+				_, s := t.Start(context.Background(), "mySpan")
+				return s
 			},
-			Time: now,
+			err: errors.New("test"),
+			getExpectedEvents: func(t time.Time) []event {
+				return []event{{
+					Name: "exception",
+					Attributes: []attribute.KeyValue{
+						attribute.String("exception.type", "*errors.errorString"),
+						attribute.String("exception.message", "test"),
+					},
+					Time: t,
+				}}
+			},
 		},
-	}, s.(*span).events)
+		{
+			name: "with a nil error",
+			getSpan: func(ctx context.Context, t trace.Tracer) trace.Span {
+				_, s := t.Start(context.Background(), "mySpan")
+				return s
+			},
+			err:               nil,
+			getExpectedEvents: func(t time.Time) []event { return []event(nil) },
+		},
+		{
+			name: "with a non recording span",
+			getSpan: func(ctx context.Context, t trace.Tracer) trace.Span {
+				return &span{
+					tx: &apm.Transaction{},
+				}
+			},
+			err:               errors.New("test"),
+			getExpectedEvents: func(t time.Time) []event { return []event(nil) },
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			tp, err := NewTracerProvider()
+			assert.NoError(t, err)
+			tracer := newTracer(tp.(*tracerProvider))
+			s := tt.getSpan(context.Background(), tracer)
+
+			assert.Equal(t, []event(nil), s.(*span).events)
+
+			now := time.Now()
+			s.RecordError(tt.err, trace.WithTimestamp(now))
+
+			assert.Equal(t, tt.getExpectedEvents(now), s.(*span).events)
+		})
+	}
 }
 
 func TestSpanSetStatus(t *testing.T) {

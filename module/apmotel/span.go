@@ -30,6 +30,7 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/embedded"
 
 	"go.elastic.co/apm/module/apmhttp/v2"
 	"go.elastic.co/apm/v2"
@@ -51,6 +52,7 @@ type span struct {
 
 	provider *tracerProvider
 
+	ended       bool
 	startTime   time.Time
 	attributes  []attribute.KeyValue
 	events      []event
@@ -60,11 +62,16 @@ type span struct {
 
 	tx   *apm.Transaction
 	span *apm.Span
+
+	embedded.Span
 }
 
 func (s *span) End(options ...trace.SpanEndOption) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.ended {
+		return
+	}
 
 	config := trace.NewSpanEndConfig(options...)
 
@@ -90,6 +97,7 @@ func (s *span) End(options ...trace.SpanEndOption) {
 	for iter := s.provider.resource.Iter(); iter.Next(); {
 		s.attributes = append(s.attributes, iter.Attribute())
 	}
+	s.ended = true
 
 	if s.span != nil {
 		s.setSpanAttributes()
@@ -112,6 +120,22 @@ func (s *span) AddEvent(name string, opts ...trace.EventOption) {
 	s.mu.Unlock()
 }
 
+func (s *span) AddLink(tl trace.Link) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	l := apm.SpanLink{
+		Trace: [16]byte(tl.SpanContext.TraceID()),
+		Span:  [8]byte(tl.SpanContext.SpanID()),
+	}
+
+	if s.span != nil {
+		s.span.AddLink(l)
+	} else {
+		s.tx.AddLink(l)
+	}
+}
+
 func (s *span) IsRecording() bool {
 	if s.span != nil {
 		return !s.span.Dropped()
@@ -121,6 +145,10 @@ func (s *span) IsRecording() bool {
 }
 
 func (s *span) RecordError(err error, opts ...trace.EventOption) {
+	if s == nil || err == nil || !s.IsRecording() {
+		return
+	}
+
 	opts = append(opts, trace.WithAttributes(
 		semconv.ExceptionType(typeStr(err)),
 		semconv.ExceptionMessage(err.Error()),

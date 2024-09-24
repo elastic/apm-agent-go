@@ -397,6 +397,14 @@ func (s *Span) End() {
 
 		if s.Type != parentType || s.Subtype != parentSubtype {
 			s.dropWhen(true)
+			if s.tx != nil {
+				s.tx.mu.Lock()
+				defer s.tx.mu.Unlock()
+				if !s.tx.ended() {
+					s.tx.TransactionData.mu.Lock()
+					defer s.tx.TransactionData.mu.Unlock()
+				}
+			}
 			s.end()
 			return
 		}
@@ -595,6 +603,17 @@ func (s *Span) IsExitSpan() bool {
 		return false
 	}
 	return s.exit
+}
+
+// AddLink adds a link.
+func (s *Span) AddLink(l SpanLink) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.ended() {
+		return
+	}
+
+	s.links = append(s.links, l)
 }
 
 // aggregateDroppedSpanStats aggregates the current span into the transaction

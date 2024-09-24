@@ -19,6 +19,7 @@ package apm_test
 
 import (
 	"context"
+	goerrors "errors"
 	"fmt"
 	"net"
 	"os"
@@ -50,6 +51,17 @@ func TestErrorID(t *testing.T) {
 	require.Len(t, errors, 1)
 	assert.NotZero(t, errorID)
 	assert.Equal(t, model.TraceID(errorID), errors[0].ID)
+}
+
+func TestErrorCauseUnwrapJoined(t *testing.T) {
+	err := goerrors.Join(errors.New("cause1"), errors.New("cause2"))
+	_, _, errors := apmtest.WithTransaction(func(ctx context.Context) {
+		apm.CaptureError(ctx, err).Send()
+	})
+	require.Len(t, errors, 1)
+	require.Len(t, errors[0].Exception.Cause, 2)
+	assert.Equal(t, "cause1", errors[0].Exception.Cause[0].Message)
+	assert.Equal(t, "cause2", errors[0].Exception.Cause[1].Message)
 }
 
 func TestErrorsStackTrace(t *testing.T) {

@@ -83,7 +83,7 @@ type HTTPTransportOptions struct {
 	// for authenticating the agent.
 	//
 	// If unspecified, SecretToken will be initialized using the
-	// ELASTIC_APM_SECRET_TOKEN envirohnment variable.
+	// ELASTIC_APM_SECRET_TOKEN environment variable.
 	SecretToken string
 
 	// ServerURLs holds the URLs for your Elastic APM Server. The Server
@@ -787,7 +787,7 @@ func parseCacheControl(s string) cacheControl {
 }
 
 // parseMajorVersion returns the major version given a version string. Accepts
-// the string as long as it contans a `.` and the runes preceding `.` can be
+// the string as long as it contains a `.` and the runes preceding `.` can be
 // parsed to a number. If the operation succeeded, the second return value will
 // be true.
 func parseMajorVersion(v string) (uint32, bool) {

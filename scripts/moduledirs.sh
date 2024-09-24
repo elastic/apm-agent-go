@@ -6,5 +6,9 @@
 if test -z "$(go env GOMOD)"; then
     pwd
 else
-    find . -type f -not -path '*/tools/*' -name go.mod -exec dirname '{}' \;
+    # Remove the folder internal/scripts ignore once
+    # https://github.com/golang/go/issues/65653 has been fixed
+    find . -type f -not -path '*/tools/*' \
+      -not -path '*/internal/*' -not -path '*/scripts/*' \
+      -name go.mod -exec dirname '{}' \;
 fi

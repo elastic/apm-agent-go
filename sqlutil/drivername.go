@@ -46,7 +46,7 @@ func DriverName(d driver.Driver) string {
 			return "postgresql"
 		}
 
-		if strings.HasPrefix(t.PkgPath(), "github.com/denisenkom/go-mssqldb") {
+		if strings.HasPrefix(t.PkgPath(), "github.com/microsoft/go-mssqldb") {
 			return "sqlserver"
 		}
 	}

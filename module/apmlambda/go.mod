@@ -2,7 +2,7 @@ module go.elastic.co/apm/module/apmlambda/v2
 
 require (
 	github.com/aws/aws-lambda-go v1.8.0
-	go.elastic.co/apm/v2 v2.4.3
+	go.elastic.co/apm/v2 v2.6.2
 )
 
 require (
@@ -19,4 +19,4 @@ require (
 
 replace go.elastic.co/apm/v2 => ../..
 
-go 1.19
+go 1.21

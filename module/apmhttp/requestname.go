@@ -19,36 +19,21 @@ package apmhttp // import "go.elastic.co/apm/module/apmhttp/v2"
 
 import (
 	"net/http"
-	"strings"
 )
 
 // UnknownRouteRequestName returns the transaction name for the server request, req,
 // when the route could not be determined.
 func UnknownRouteRequestName(req *http.Request) string {
 	const suffix = " unknown route"
-	var b strings.Builder
-	b.Grow(len(req.Method) + len(suffix))
-	b.WriteString(req.Method)
-	b.WriteString(suffix)
-	return b.String()
+	return req.Method + suffix
 }
 
 // ServerRequestName returns the transaction name for the server request, req.
 func ServerRequestName(req *http.Request) string {
-	var b strings.Builder
-	b.Grow(len(req.Method) + len(req.URL.Path) + 1)
-	b.WriteString(req.Method)
-	b.WriteByte(' ')
-	b.WriteString(req.URL.Path)
-	return b.String()
+	return req.Method + " " + req.URL.Path
 }
 
 // ClientRequestName returns the span name for the client request, req.
 func ClientRequestName(req *http.Request) string {
-	var b strings.Builder
-	b.Grow(len(req.Method) + len(req.URL.Host) + 1)
-	b.WriteString(req.Method)
-	b.WriteByte(' ')
-	b.WriteString(req.URL.Host)
-	return b.String()
+	return req.Method + " " + req.URL.Host
 }

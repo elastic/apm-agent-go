@@ -511,6 +511,29 @@ func TestTransactionSpanLink(t *testing.T) {
 	assert.Equal(t, expectedLinks, payloads.Transactions[0].Links)
 }
 
+func TestTransactionAddLink(t *testing.T) {
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+
+	tx := tracer.StartTransactionOptions("name", "type", apm.TransactionOptions{})
+	tx.AddLink(apm.SpanLink{
+		Trace: apm.TraceID{1},
+		Span:  apm.SpanID{1},
+	})
+	tx.End()
+
+	tracer.Flush(nil)
+
+	payloads := tracer.Payloads()
+	assert.Len(t, payloads.Transactions, 1)
+
+	// Assert span links are identical.
+	expectedLinks := []model.SpanLink{
+		{TraceID: model.TraceID{1}, SpanID: model.SpanID{1}},
+	}
+	assert.Equal(t, expectedLinks, payloads.Transactions[0].Links)
+}
+
 func TestTransactionDiscard(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()

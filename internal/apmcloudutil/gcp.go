@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"net/http"
 	"path"
-	"strconv"
 	"strings"
 
 	"go.elastic.co/apm/v2/model"
@@ -60,8 +59,7 @@ func getGCPCloudMetadata(ctx context.Context, client *http.Client, out *model.Cl
 			Zone        string      `json:"zone"`
 		} `json:"instance"`
 		Project struct {
-			NumericProjectID *int   `json:"numericProjectId"`
-			ProjectID        string `json:"projectId"`
+			ProjectID string `json:"projectId"`
 		} `json:"project"`
 	}
 	decoder := json.NewDecoder(resp.Body)
@@ -82,11 +80,8 @@ func getGCPCloudMetadata(ctx context.Context, client *http.Client, out *model.Cl
 	if gcpMetadata.Instance.MachineType != "" {
 		out.Machine = &model.CloudMachine{Type: splitGCPMachineType(gcpMetadata.Instance.MachineType)}
 	}
-	if gcpMetadata.Project.NumericProjectID != nil || gcpMetadata.Project.ProjectID != "" {
-		out.Project = &model.CloudProject{Name: gcpMetadata.Project.ProjectID}
-		if gcpMetadata.Project.NumericProjectID != nil {
-			out.Project.ID = strconv.Itoa(*gcpMetadata.Project.NumericProjectID)
-		}
+	if gcpMetadata.Project.ProjectID != "" {
+		out.Project = &model.CloudProject{ID: gcpMetadata.Project.ProjectID}
 	}
 	return nil
 }

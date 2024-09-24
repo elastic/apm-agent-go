@@ -1,0 +1,26 @@
+# This workflow sets the test / all status check to success in case it's a docs only PR and test.yml is not triggered
+# https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/defining-the-mergeability-of-pull-requests/troubleshooting-required-status-checks#handling-skipped-but-required-checks
+name: ci # The name must be the same as in ci.yml
+
+on:
+  pull_request:
+    paths-ignore: # This expression needs to match the paths ignored on ci.yml.
+      - '**'
+      - '!**/*.md'
+      - '!**/*.asciidoc'
+
+permissions:
+  contents: read
+
+## Concurrency only allowed in the main branch.
+## So old builds running for old commits within the same Pull Request are cancelled
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  # dummy steps that allow to bypass those mandatory checks for tests
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - run: 'echo "Not required for docs"'

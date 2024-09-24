@@ -1,2 +1,2 @@
 #!/bin/sh
-exec docker-compose -p apm-agent-go-testing -f scripts/docker-compose-testing.yml "$@"
+exec docker compose -p apm-agent-go-testing -f scripts/docker-compose-testing.yml "$@"

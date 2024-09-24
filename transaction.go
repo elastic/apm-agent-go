@@ -50,7 +50,7 @@ func (t *Tracer) StartTransactionOptions(name, transactionType string, opts Tran
 				captureBodyMask: CaptureBodyTransactions,
 			},
 			spanTimings:       make(spanTimingsMap),
-			droppedSpansStats: make(droppedSpanTimingsMap, maxDroppedSpanStats),
+			droppedSpansStats: make(droppedSpanTimingsMap),
 		}
 		var seed int64
 		if err := binary.Read(cryptorand.Reader, binary.LittleEndian, &seed); err != nil {
@@ -265,6 +265,17 @@ func (tx *Transaction) EnsureParent() SpanID {
 		copy(tx.parentID[:], tx.traceContext.Trace[8:])
 	}
 	return tx.parentID
+}
+
+// AddLink adds a link.
+func (tx *Transaction) AddLink(l SpanLink) {
+	tx.mu.Lock()
+	defer tx.mu.Unlock()
+	if tx.ended() {
+		return
+	}
+
+	tx.links = append(tx.links, l)
 }
 
 // ParentID returns the ID of the transaction's Parent or a zero (invalid) SpanID.

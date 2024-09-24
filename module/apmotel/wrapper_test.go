@@ -42,6 +42,7 @@ func TestLinkAgentToOtel(t *testing.T) {
 
 	assert.Equal(t, [16]byte(apmTx.TraceContext().Trace), [16]byte(otelSpan.SpanContext().TraceID()))
 	assert.Equal(t, [8]byte(apmTx.TraceContext().Span), [8]byte(otelSpan.SpanContext().SpanID()))
+	assert.Equal(t, apmTx.Sampled(), otelSpan.IsRecording())
 }
 
 func TestLinkOtelToAgent(t *testing.T) {
@@ -57,4 +58,5 @@ func TestLinkOtelToAgent(t *testing.T) {
 
 	assert.Equal(t, [16]byte(apmTx.TraceContext().Trace), [16]byte(otelSpan.SpanContext().TraceID()))
 	assert.Equal(t, [8]byte(apmTx.TraceContext().Span), [8]byte(otelSpan.SpanContext().SpanID()))
+	assert.Equal(t, apmTx.Sampled(), otelSpan.IsRecording())
 }

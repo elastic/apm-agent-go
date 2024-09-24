@@ -3,10 +3,8 @@
 
 This page describes the technologies supported by the Elastic APM Go agent.
 
-If your favorite technology is not supported yet, you can vote for it by
-participating in our https://docs.google.com/forms/d/e/1FAIpQLScbW7D8m-otPO7cxqeg7XstWR8vMnxG6brnXLs_TFVSTHuHvg/viewform?usp=sf_link[survey], or joining the conversation in the https://discuss.elastic.co/c/apm[Discuss forum].
-We will use the results of the survey and Discuss topics to add support
-for the most requested technologies.
+If your favorite technology is not supported yet, you start a conversation
+in the https://discuss.elastic.co/c/apm[Discuss forum].
 
 If you would like to get more involved, take a look at the <<contributing, contributing guide>>.
 
@@ -303,6 +301,16 @@ https://github.com/rs/zerolog/releases/tag/v1.12.0[v1.12.0] and greater.
 
 See <<builtin-modules-apmzerolog, module/apmzerolog>> for more information
 about Zerolog integration.
+
+[float]
+==== Slog
+
+We support log correlation and error tracking with
+https://pkg.go.dev/log/slog/[Slog],
+https://pkg.go.dev/log/slog@go1.21.0/[v1.21.0] and greater.
+
+See <<builtin-modules-apmslog, module/apmslog>> for more information
+about slog integration.
 
 [float]
 [[supported-tech-object-storage]]
