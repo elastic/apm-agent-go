@@ -1,0 +1,21 @@
+{
+	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
+	"extends": [
+		"config:recommended"
+	],
+	"ignorePaths": [],
+	"ignoreDeps": [],
+	"labels": [],
+	"separateMajorMinor": true,
+	"postUpdateOptions" : [
+		"gomodTidy"
+	],
+	"packageRules": [
+		{
+			"matchManagers": ["gomod"],
+			"matchDepTypes": ["indirect"],
+			"schedule": ["after 10pm on sunday"],
+			"enabled": true
+		}
+	]
+}
