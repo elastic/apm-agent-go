@@ -1,6 +1,6 @@
 TEST_TIMEOUT?=5m
 GO_LICENSER_EXCLUDE=stacktrace/testdata
-GO_LANGUAGE_VERSION=1.19
+GO_LANGUAGE_VERSION=1.21
 
 .PHONY: check
 check: precheck check-modules test
@@ -71,6 +71,10 @@ update-licenses:
 
 model/marshal_fastjson.go: model/model.go
 	go generate ./model
+
+module/apmgrpc/internal/testservice/testservice.pb.go:
+	./scripts/install-protobuf.sh
+	./scripts/generate-testservice.sh
 
 scripts/Dockerfile-testing: $(wildcard module/*)
 	go generate ./scripts

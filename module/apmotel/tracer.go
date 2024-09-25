@@ -22,16 +22,19 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/embedded"
 
 	"go.elastic.co/apm/v2"
 )
 
 type tracer struct {
 	provider *tracerProvider
+
+	embedded.Tracer
 }
 
 func newTracer(p *tracerProvider) *tracer {
-	return &tracer{p}
+	return &tracer{p, nil}
 }
 
 // Start forwards the call to APM Agent
@@ -48,6 +51,14 @@ func (t *tracer) Start(ctx context.Context, spanName string, opts ...trace.SpanS
 		attributes: config.Attributes(),
 		spanKind:   config.SpanKind(),
 		startTime:  startTime,
+	}
+
+	var links []apm.SpanLink
+	for _, l := range config.Links() {
+		links = append(links, apm.SpanLink{
+			Trace: [16]byte(l.SpanContext.TraceID()),
+			Span:  [8]byte(l.SpanContext.SpanID()),
+		})
 	}
 
 	var psc trace.SpanContext
@@ -82,6 +93,7 @@ func (t *tracer) Start(ctx context.Context, spanName string, opts ...trace.SpanS
 			s.span = parent.tx.StartSpanOptions(spanName, "", apm.SpanOptions{
 				Parent: tc,
 				Start:  startTime,
+				Links:  links,
 			})
 			ctx = apm.ContextWithSpan(ctx, s.span)
 			s.tx = parent.tx
@@ -94,7 +106,9 @@ func (t *tracer) Start(ctx context.Context, spanName string, opts ...trace.SpanS
 		}
 	}
 
-	var tranOpts apm.TransactionOptions
+	tranOpts := apm.TransactionOptions{
+		Links: links,
+	}
 	if psc.HasTraceID() && psc.HasSpanID() {
 		tranOpts.TraceContext = apm.TraceContext{
 			Trace:   [16]byte(psc.TraceID()),

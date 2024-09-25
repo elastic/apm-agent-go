@@ -56,6 +56,6 @@ func (h traceContextHook) Run(e *zerolog.Event, level zerolog.Level, message str
 	e.Hex(TransactionIDFieldName, traceContext.Span[:])
 	if span := apm.SpanFromContext(h.ctx); span != nil {
 		spanTraceContext := span.TraceContext()
-		e.Hex("span.id", spanTraceContext.Span[:])
+		e.Hex(SpanIDFieldName, spanTraceContext.Span[:])
 	}
 }

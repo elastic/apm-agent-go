@@ -165,6 +165,34 @@ func TestSpanLink(t *testing.T) {
 	assert.Equal(t, expectedLinks, payloads.Spans[0].Links)
 }
 
+func TestSpanAddLink(t *testing.T) {
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+
+	tx := tracer.StartTransaction("name", "type")
+	span := tx.StartSpanOptions("name", "type", apm.SpanOptions{})
+
+	span.AddLink(apm.SpanLink{
+		Trace: apm.TraceID{1},
+		Span:  apm.SpanID{1},
+	})
+
+	span.End()
+	tx.End()
+
+	tracer.Flush(nil)
+
+	payloads := tracer.Payloads()
+	require.Len(t, payloads.Spans, 1)
+	require.Len(t, payloads.Spans[0].Links, 1)
+
+	// Assert span links are identical.
+	expectedLinks := []model.SpanLink{
+		{TraceID: model.TraceID{1}, SpanID: model.SpanID{1}},
+	}
+	assert.Equal(t, expectedLinks, payloads.Spans[0].Links)
+}
+
 func TestSpanTiming(t *testing.T) {
 	var spanStart, spanEnd time.Time
 	txStart := time.Now()
@@ -1042,6 +1070,42 @@ func TestCompressSpanSameKindConcurrent(t *testing.T) {
 
 	// Asserts that the total spancount is 101, (100 generated spans + parent).
 	assert.Equal(t, 101, spanCount)
+}
+
+func TestDroppedSpanParentConcurrent(t *testing.T) {
+	// This test verifies there aren't any deadlocks on calling
+	// span.End(), Parent.End() and tx.End().
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+	tracer.SetExitSpanMinDuration(0)
+
+	tx := tracer.StartTransaction("name", "type")
+	ctx := apm.ContextWithTransaction(context.Background(), tx)
+
+	parent, _ := apm.StartSpanOptions(ctx, "parent", "request", apm.SpanOptions{
+		ExitSpan: true,
+	})
+	ctx = apm.ContextWithSpan(ctx, parent)
+
+	var wg sync.WaitGroup
+	count := 100
+	wg.Add(count)
+	for i := 0; i < count; i++ {
+		go func(i int) {
+			child, _ := apm.StartSpanOptions(ctx, fmt.Sprint(i), fmt.Sprintf("request%d", i), apm.SpanOptions{
+				ExitSpan: true,
+			})
+			child.Context.SetDestinationService(apm.DestinationServiceSpanContext{Resource: fmt.Sprintf("foo%d", i)})
+			child.End()
+			wg.Done()
+		}(i)
+	}
+
+	// Wait until all the spans have ended.
+	wg.Wait()
+	parent.End()
+	tx.End()
+	tracer.Flush(nil)
 }
 
 func TestCompressSpanPrematureEnd(t *testing.T) {

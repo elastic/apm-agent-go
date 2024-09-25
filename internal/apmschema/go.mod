@@ -1,12 +1,12 @@
 module go.elastic.co/apm/internal/apmschema/v2
 
-go 1.19
+go 1.21
 
 require (
 	github.com/pkg/errors v0.9.1
 	github.com/santhosh-tekuri/jsonschema v1.2.4
 	github.com/stretchr/testify v1.8.4
-	go.elastic.co/apm/v2 v2.4.3
+	go.elastic.co/apm/v2 v2.6.2
 )
 
 require (
