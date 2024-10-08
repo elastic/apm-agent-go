@@ -11,6 +11,20 @@ jobs:
     runs-on: ubuntu-latest
     name: Assign issues to APM Project for the Server Team
     steps:
+      - name: Get token
+        id: get_token
+        uses: tibdex/github-app-token@3beb63f4bd073e61482598c45c71c1019b59b73a # v2.1.0
+        with:
+          app_id: ${{ secrets.OBS_AUTOMATION_APP_ID }}
+          private_key: ${{ secrets.OBS_AUTOMATION_APP_PEM }}
+          installation_retrieval_mode: organization
+          installation_retrieval_payload: elastic
+          permissions: >-
+            {
+              "organization_projects": "write",
+              "issues": "read"
+            }
+
       - uses: octokit/graphql-action@v2.x
         id: add_to_project
         with:
@@ -28,7 +42,8 @@ jobs:
           contentid: ${{ github.event.issue.node_id }}
         env:
           PROJECT_ID: "PVT_kwDOAGc3Zs0VSg"
-          GITHUB_TOKEN: ${{ secrets.APM_TECH_USER_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.get_token.outputs.token }}
+
       - uses: octokit/graphql-action@v2.x
         id: label_team
         with:
@@ -51,4 +66,4 @@ jobs:
           value: "6c538d8a"
         env:
           PROJECT_ID: "PVT_kwDOAGc3Zs0VSg"
-          GITHUB_TOKEN: ${{ secrets.APM_TECH_USER_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.get_token.outputs.token }}
