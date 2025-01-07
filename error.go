@@ -492,6 +492,9 @@ func (b *exceptionDataBuilder) init(e *exceptionData, err error) bool {
 	e.stacktrace = stacktrace.AppendErrorStacktrace(e.stacktrace, err, b.stackTraceLimit)
 
 	for _, err := range e.ErrorDetails.Cause {
+		if err == nil {
+			break
+		}
 		if b.errorCount >= maxErrorTreeNodes {
 			break
 		}
