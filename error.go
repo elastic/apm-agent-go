@@ -470,7 +470,11 @@ func (b *exceptionDataBuilder) init(e *exceptionData, err error) bool {
 		}
 	case interface{ Unwrap() []error }:
 		if causes := err.Unwrap(); causes != nil {
-			e.ErrorDetails.Cause = append(e.ErrorDetails.Cause, causes...)
+			for _, cause := range causes {
+				if cause != nil {
+					e.ErrorDetails.Cause = append(e.ErrorDetails.Cause, cause)
+				}
+			}
 		}
 	case interface{ Cause() error }:
 		if cause := err.Cause(); cause != nil {
@@ -492,9 +496,6 @@ func (b *exceptionDataBuilder) init(e *exceptionData, err error) bool {
 	e.stacktrace = stacktrace.AppendErrorStacktrace(e.stacktrace, err, b.stackTraceLimit)
 
 	for _, err := range e.ErrorDetails.Cause {
-		if err == nil {
-			break
-		}
 		if b.errorCount >= maxErrorTreeNodes {
 			break
 		}
