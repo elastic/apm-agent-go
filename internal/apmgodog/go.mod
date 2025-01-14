@@ -4,9 +4,9 @@ go 1.21
 
 require (
 	github.com/cucumber/godog v0.12.2
-	go.elastic.co/apm/module/apmgrpc/v2 v2.6.2
-	go.elastic.co/apm/module/apmhttp/v2 v2.6.2
-	go.elastic.co/apm/v2 v2.6.2
+	go.elastic.co/apm/module/apmgrpc/v2 v2.6.3
+	go.elastic.co/apm/module/apmhttp/v2 v2.6.3
+	go.elastic.co/apm/v2 v2.6.3
 	go.elastic.co/fastjson v1.1.0
 	google.golang.org/grpc v1.57.1
 	google.golang.org/grpc/examples v0.0.0-20230831183909-e498bbc9bd37
