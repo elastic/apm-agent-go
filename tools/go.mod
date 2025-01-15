@@ -1,6 +1,6 @@
 module go.elastic.co/apm/v2/tools
 
-go 1.21
+go 1.22
 
 require (
 	github.com/elastic/go-licenser v0.4.0

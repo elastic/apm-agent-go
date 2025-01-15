@@ -1,6 +1,6 @@
 module go.elastic.co/apm/module/apmpgxv5/v2
 
-go 1.21
+go 1.22
 
 require (
 	github.com/jackc/pgx/v5 v5.5.4
