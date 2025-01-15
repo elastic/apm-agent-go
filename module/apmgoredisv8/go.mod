@@ -1,6 +1,6 @@
 module go.elastic.co/apm/module/apmgoredisv8/v2
 
-go 1.21
+go 1.22
 
 require (
 	github.com/go-redis/redis/v8 v8.11.4
