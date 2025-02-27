@@ -27,6 +27,7 @@ import (
 	"os"
 
 	"github.com/pkg/errors"
+
 	"go.elastic.co/apm/v2/internal/configutil"
 )
 
