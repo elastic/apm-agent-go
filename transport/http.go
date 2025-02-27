@@ -49,14 +49,13 @@ const (
 	profilePath = "/intake/v2/profile"
 	configPath  = "/config/v1/agents"
 
-	envAPIKey           = "ELASTIC_APM_API_KEY"
-	envSecretToken      = "ELASTIC_APM_SECRET_TOKEN"
-	envServerURLs       = "ELASTIC_APM_SERVER_URLS"
-	envServerURL        = "ELASTIC_APM_SERVER_URL"
-	envServerTimeout    = "ELASTIC_APM_SERVER_TIMEOUT"
-	envServerCert       = "ELASTIC_APM_SERVER_CERT"
-	envVerifyServerCert = "ELASTIC_APM_VERIFY_SERVER_CERT"
-	envServerCACert     = "ELASTIC_APM_SERVER_CA_CERT_FILE"
+	envAPIKey        = "ELASTIC_APM_API_KEY"
+	envSecretToken   = "ELASTIC_APM_SECRET_TOKEN"
+	envServerURLs    = "ELASTIC_APM_SERVER_URLS"
+	envServerURL     = "ELASTIC_APM_SERVER_URL"
+	envServerTimeout = "ELASTIC_APM_SERVER_TIMEOUT"
+	envServerCert    = "ELASTIC_APM_SERVER_CERT"
+	envServerCACert  = "ELASTIC_APM_SERVER_CA_CERT_FILE"
 )
 
 var (
@@ -248,15 +247,20 @@ func newHTTPTransportOptions(opts HTTPTransportOptions) (*HTTPTransport, error) 
 }
 
 func newEnvTLSClientConfig() (*tls.Config, error) {
-	verifyServerCert, err := configutil.ParseBoolEnv(envVerifyServerCert, true)
+	//
+	// Certificate verification can be disabled, except if the client has FIPs
+	// compliance enabled.
+	// So we conditionnally make this customization using the `requirefips` build flag
+	//
+	verifyServerCert, err := checkVerifyServerCert()
 	if err != nil {
 		return nil, err
 	}
 	tlsClientConfig := &tls.Config{InsecureSkipVerify: !verifyServerCert}
 
 	//
-	// Cert path and CA cert path can be customized, except if the client needs
-	// to be FIPs compliant.
+	// Cert path and CA cert path can be customized, except if the client has
+	// FIPs compliance enabled.
 	// So we conditionnally make this customization using the `requirefips` build flag
 	//
 	err = addCertPath(tlsClientConfig)

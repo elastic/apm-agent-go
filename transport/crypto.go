@@ -24,11 +24,17 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"github.com/pkg/errors"
+	"go.elastic.co/apm/v2/internal/configutil"
 )
+
+const envVerifyServerCert = "ELASTIC_APM_VERIFY_SERVER_CERT"
+
+func checkVerifyServerCert() (bool, error) {
+	return configutil.ParseBoolEnv(envVerifyServerCert, true)
+}
 
 func addCertPath(tlsClientConfig *tls.Config) error {
 	if serverCertPath := os.Getenv(envServerCert); serverCertPath != "" {
@@ -45,7 +51,7 @@ func addCertPath(tlsClientConfig *tls.Config) error {
 	}
 	if serverCACertPath := os.Getenv(envServerCACert); serverCACertPath != "" {
 		rootCAs := x509.NewCertPool()
-		additionalCerts, err := ioutil.ReadFile(serverCACertPath)
+		additionalCerts, err := os.ReadFile(serverCACertPath)
 		if err != nil {
 			return errors.Wrapf(err, "failed to load root CA file from %s", serverCACertPath)
 		}
@@ -59,7 +65,7 @@ func addCertPath(tlsClientConfig *tls.Config) error {
 }
 
 func loadCertificate(path string) (*x509.Certificate, error) {
-	pemBytes, err := ioutil.ReadFile(path)
+	pemBytes, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}

@@ -21,6 +21,10 @@ package transport // import "go.elastic.co/apm/v2/transport"
 
 import "crypto/tls"
 
+func checkVerifyServerCert() (bool, error) {
+	return true, nil
+}
+
 func addCertPath(tlsClientConfig *tls.Config) error {
 	return nil
 }
