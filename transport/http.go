@@ -21,9 +21,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -255,28 +253,15 @@ func newEnvTLSClientConfig() (*tls.Config, error) {
 		return nil, err
 	}
 	tlsClientConfig := &tls.Config{InsecureSkipVerify: !verifyServerCert}
-	if serverCertPath := os.Getenv(envServerCert); serverCertPath != "" {
-		serverCert, err := loadCertificate(serverCertPath)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to load certificate from %s", serverCertPath)
-		}
-		// Disable standard verification, we'll check that the
-		// server supplies the exact certificate provided.
-		tlsClientConfig.InsecureSkipVerify = true
-		tlsClientConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-			return verifyPeerCertificate(rawCerts, serverCert)
-		}
-	}
-	if serverCACertPath := os.Getenv(envServerCACert); serverCACertPath != "" {
-		rootCAs := x509.NewCertPool()
-		additionalCerts, err := ioutil.ReadFile(serverCACertPath)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to load root CA file from %s", serverCACertPath)
-		}
-		if !rootCAs.AppendCertsFromPEM(additionalCerts) {
-			return nil, fmt.Errorf("failed to load CA certs from %s", serverCACertPath)
-		}
-		tlsClientConfig.RootCAs = rootCAs
+
+	//
+	// Cert path and CA cert path can be customized, except if the client needs
+	// to be FIPs compliant.
+	// So we conditionnally make this customization using the `requirefips` build flag
+	//
+	err = addCertPath(tlsClientConfig)
+	if err != nil {
+		return nil, err
 	}
 	return tlsClientConfig, nil
 }
@@ -710,37 +695,6 @@ func requestWithContext(ctx context.Context, req *http.Request) *http.Request {
 	reqCopy.URL = url
 	req.URL = url
 	return reqCopy
-}
-
-func loadCertificate(path string) (*x509.Certificate, error) {
-	pemBytes, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	for {
-		var certBlock *pem.Block
-		certBlock, pemBytes = pem.Decode(pemBytes)
-		if certBlock == nil {
-			return nil, errors.New("missing or invalid certificate")
-		}
-		if certBlock.Type == "CERTIFICATE" {
-			return x509.ParseCertificate(certBlock.Bytes)
-		}
-	}
-}
-
-func verifyPeerCertificate(rawCerts [][]byte, trusted *x509.Certificate) error {
-	if len(rawCerts) == 0 {
-		return errors.New("missing leaf certificate")
-	}
-	cert, err := x509.ParseCertificate(rawCerts[0])
-	if err != nil {
-		return errors.Wrap(err, "failed to parse certificate from server")
-	}
-	if !cert.Equal(trusted) {
-		return errors.New("failed to verify server certificate")
-	}
-	return nil
 }
 
 // DefaultUserAgent returns the default value to use for the User-Agent header:

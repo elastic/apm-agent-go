@@ -63,8 +63,8 @@ jobs:
           cache: true
       - env:
           GOFIPS140: "latest"
-          GODEBUG: "fips140=only"
-        run: make test
+          GODEBUG: "fips141=only"
+        run: make test-fips
 
   check-update-modules:
     runs-on: ubuntu-latest
