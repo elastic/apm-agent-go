@@ -6,7 +6,7 @@ GO_LANGUAGE_VERSION=1.22
 check: precheck check-modules test
 
 .PHONY: precheck
-precheck: check-goimports check-vanity-import check-vet check-dockerfile-testing check-licenses model/marshal_fastjson.go scripts/Dockerfile-testing
+precheck: | model/marshal_fastjson.go check-goimports check-vanity-import check-vet check-dockerfile-testing check-licenses scripts/Dockerfile-testing
 
 .PHONY: check-goimports
 check-goimports:
