@@ -40,7 +40,7 @@ docker-test:
 test-fips: ARGS=-tags=requirefips
 test-fips: test
 test:
-	@for dir in $(shell scripts/moduledirs.sh); do cd "$$dir" && go test -race -v -timeout=$(TEST_TIMEOUT) $(ARGS) ./... || exit $$?; done
+	@for dir in $(shell scripts/moduledirs.sh); do (cd $$dir && go test -race -v -timeout=$(TEST_TIMEOUT) $(ARGS) ./...) || exit $$?; done
 
 .PHONY: coverage
 coverage:
