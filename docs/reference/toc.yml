@@ -1,0 +1,18 @@
+project: 'APM Go agent reference'
+toc:
+  - file: index.md
+  - file: set-up-apm-go-agent.md
+    children:
+      - file: builtin-modules.md
+      - file: custom-instrumentation.md
+      - file: custom-instrumentation-propagation.md
+  - file: supported-technologies.md
+  - file: configuration.md
+  - file: api-documentation.md
+  - file: metrics.md
+  - file: logs.md
+  - file: log-correlation.md
+  - file: opentelemetry-api.md
+  - file: opentracing-api.md
+  - file: contributing.md
+  - file: upgrading.md
