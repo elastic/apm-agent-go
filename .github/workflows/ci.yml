@@ -51,6 +51,21 @@ jobs:
       - name: Unit tests
         run: make test
 
+  test-fips:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          # TODO switch to go.mod once we update to 1.24+
+          go-version: 1.24
+          cache: true
+      - env:
+          GOFIPS140: "latest"
+          GODEBUG: "fips141=only"
+        run: make test-fips
+
   check-update-modules:
     runs-on: ubuntu-latest
     timeout-minutes: 30
