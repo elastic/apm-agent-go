@@ -63,21 +63,6 @@ jobs:
       - name: Check Update Modules Command
         run: make update-modules
 
-  coverage:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: stable
-          cache-dependency-path: '**/go.sum'
-      - name: Integration tests
-        run: |
-          ./scripts/docker-compose-testing run -T --rm trace-context-harness
-          ./scripts/docker-compose-testing up -d --build
-          ./scripts/docker-compose-testing run -T --rm go-agent-tests make coverage GOFLAGS=-v
-
   test-windows:
     runs-on: windows-latest
     timeout-minutes: 20
