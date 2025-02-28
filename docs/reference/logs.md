@@ -9,7 +9,7 @@ Elastic APM Go Agent provides [*Log Correlation*](/reference/log-correlation.md)
 
 This features is part of [Application log ingestion strategies](docs-content://solutions/observability/logs/stream-application-logs.md).
 
-The [`ecslogrus`](ecs-logging-go-logrus://docs/reference/index.md) and [`ecszap`](ecs-logging-go-zap://docs/reference/index.md) libraries can also be used to use the [ECS logging](ecs-logging://docs/reference/intro.md) format without an APM agent. When deployed with the Go APM agent, the agent will provide [log correlation](/reference/log-correlation.md) IDs.
+The [`ecslogrus`](ecs-logging-go-logrus://reference/index.md) and [`ecszap`](ecs-logging-go-zap://reference/index.md) libraries can also be used to use the [ECS logging](ecs-logging://reference/intro.md) format without an APM agent. When deployed with the Go APM agent, the agent will provide [log correlation](/reference/log-correlation.md) IDs.
 
 The Go agent provides integrations for popular logging frameworks that inject trace ID fields into the application’s log records. You can find a list of the supported logging frameworks under [supported technologies](/reference/supported-technologies.md#supported-tech-logging).
 

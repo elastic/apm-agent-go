@@ -9,15 +9,15 @@ mapped_pages:
 
 In order to correlate logs from your app with transactions captured by the Elastic APM Go Agent, your logs must contain one or more of the following identifiers:
 
-* [`transaction.id`](ecs://docs/reference/ecs-tracing.md)
-* [`trace.id`](ecs://docs/reference/ecs-tracing.md)
-* [`span.id`](ecs://docs/reference/ecs-error.md)
+* [`transaction.id`](ecs://reference/ecs-tracing.md)
+* [`trace.id`](ecs://reference/ecs-tracing.md)
+* [`span.id`](ecs://reference/ecs-error.md)
 
 In order to correlate the logs to the service and environment, the logs should also contain the following fields:
 
-* [`service.name`](ecs://docs/reference/ecs-service.md)
-* [`service.version`](ecs://docs/reference/ecs-service.md)
-* [`service.environment`](ecs://docs/reference/ecs-service.md)
+* [`service.name`](ecs://reference/ecs-service.md)
+* [`service.version`](ecs://reference/ecs-service.md)
+* [`service.environment`](ecs://reference/ecs-service.md)
 
 
 ## Manual log correlation [log-correlation-manual]
@@ -72,7 +72,7 @@ This would print a log message along the lines of:
 ```
 2019/09/17 14:48:02 ERROR [trace.id=cd04f33b9c0c35ae8abe77e799f126b7 transaction.id=cd04f33b9c0c35ae span.id=960834f4538880a4] an error occurred
 ```
-For log correlation to work, the trace IDs must be extracted from the log message and stored in separate fields in the Elasticsearch document. This can be achieved by [using an ingest pipeline to parse the data](beats://docs/reference/filebeat/configuring-ingest-node.md), in particular by using [the grok processor](elasticsearch://docs/reference/ingestion-tools/enrich-processor/grok-processor.md).
+For log correlation to work, the trace IDs must be extracted from the log message and stored in separate fields in the Elasticsearch document. This can be achieved by [using an ingest pipeline to parse the data](beats://reference/filebeat/configuring-ingest-node.md), in particular by using [the grok processor](elasticsearch://reference/ingestion-tools/enrich-processor/grok-processor.md).
 
 ```json
 {

@@ -115,7 +115,7 @@ func initialPageHandler(w http.ResponseWriter, req *http.Request) {
 }
 ```
 
-See the [JavaScript RUM agent documentation](apm-agent-rum-js://docs/reference/index.md) for more information.
+See the [JavaScript RUM agent documentation](apm-agent-rum-js://reference/index.md) for more information.
 
 
 ### `func (*Transaction) ParentID() SpanID` [transaction-parentid]
