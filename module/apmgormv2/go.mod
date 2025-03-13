@@ -52,4 +52,4 @@ replace go.elastic.co/apm/v2 => ../..
 
 replace go.elastic.co/apm/module/apmsql/v2 => ../apmsql
 
-go 1.22
+go 1.23

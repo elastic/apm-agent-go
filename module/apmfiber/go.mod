@@ -40,4 +40,4 @@ replace go.elastic.co/apm/module/apmhttp/v2 => ../apmhttp
 
 replace go.elastic.co/apm/module/apmfasthttp/v2 => ../apmfasthttp
 
-go 1.22
+go 1.23

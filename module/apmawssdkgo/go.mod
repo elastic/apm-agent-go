@@ -1,6 +1,6 @@
 module go.elastic.co/apm/module/apmawssdkgo/v2
 
-go 1.22
+go 1.23
 
 require (
 	github.com/aws/aws-sdk-go v1.38.14
