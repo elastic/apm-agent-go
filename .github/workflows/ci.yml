@@ -51,6 +51,21 @@ jobs:
       - name: Unit tests
         run: make test
 
+  test-fips:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          # TODO switch to go.mod once we update to 1.24+
+          go-version: 1.24
+          cache: true
+      - env:
+          GOFIPS140: "latest"
+          GODEBUG: "fips141=only"
+        run: make test-fips
+
   check-update-modules:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -62,21 +77,6 @@ jobs:
           cache-dependency-path: '**/go.sum'
       - name: Check Update Modules Command
         run: make update-modules
-
-  coverage:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: stable
-          cache-dependency-path: '**/go.sum'
-      - name: Integration tests
-        run: |
-          ./scripts/docker-compose-testing run -T --rm trace-context-harness
-          ./scripts/docker-compose-testing up -d --build
-          ./scripts/docker-compose-testing run -T --rm go-agent-tests make coverage GOFLAGS=-v
 
   test-windows:
     runs-on: windows-latest
@@ -91,7 +91,7 @@ jobs:
         run: go test -v ./...
 
   test-macos:
-    runs-on: macos-12
+    runs-on: macos-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -172,7 +172,7 @@ jobs:
       - test-windows
     steps:
       - id: check
-        uses: elastic/apm-pipeline-library/.github/actions/check-dependent-jobs@current
+        uses: elastic/oblt-actions/check-dependent-jobs@v1
         with:
-          needs: ${{ toJSON(needs) }}
-      - run: ${{ steps.check.outputs.isSuccess }}
+          jobs: ${{ toJSON(needs) }}
+      - run: ${{ steps.check.outputs.is-success }}
