@@ -2,7 +2,7 @@ module go.elastic.co/apm/module/apmmongo/v2
 
 require (
 	github.com/stretchr/testify v1.8.4
-	go.elastic.co/apm/v2 v2.6.2
+	go.elastic.co/apm/v2 v2.7.0
 	go.mongodb.org/mongo-driver v1.5.1
 )
 
@@ -26,14 +26,14 @@ require (
 	github.com/xdg-go/stringprep v1.0.2 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d // indirect
 	go.elastic.co/fastjson v1.1.0 // indirect
-	golang.org/x/crypto v0.17.0 // indirect
-	golang.org/x/sync v0.2.0 // indirect
-	golang.org/x/sys v0.15.0 // indirect
-	golang.org/x/text v0.14.0 // indirect
+	golang.org/x/crypto v0.31.0 // indirect
+	golang.org/x/sync v0.10.0 // indirect
+	golang.org/x/sys v0.28.0 // indirect
+	golang.org/x/text v0.21.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	howett.net/plist v0.0.0-20181124034731-591f970eefbb // indirect
 )
 
 replace go.elastic.co/apm/v2 => ../..
 
-go 1.21
+go 1.23

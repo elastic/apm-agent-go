@@ -470,7 +470,11 @@ func (b *exceptionDataBuilder) init(e *exceptionData, err error) bool {
 		}
 	case interface{ Unwrap() []error }:
 		if causes := err.Unwrap(); causes != nil {
-			e.ErrorDetails.Cause = append(e.ErrorDetails.Cause, causes...)
+			for _, cause := range causes {
+				if cause != nil {
+					e.ErrorDetails.Cause = append(e.ErrorDetails.Cause, cause)
+				}
+			}
 		}
 	case interface{ Cause() error }:
 		if cause := err.Cause(); cause != nil {

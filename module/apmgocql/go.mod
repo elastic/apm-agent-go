@@ -3,7 +3,7 @@ module go.elastic.co/apm/module/apmgocql/v2
 require (
 	github.com/gocql/gocql v0.0.0-20181124151448-70385f88b28b
 	github.com/stretchr/testify v1.8.4
-	go.elastic.co/apm/v2 v2.6.2
+	go.elastic.co/apm/v2 v2.7.0
 )
 
 require (
@@ -29,4 +29,4 @@ require (
 
 replace go.elastic.co/apm/v2 => ../..
 
-go 1.21
+go 1.23

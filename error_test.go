@@ -583,6 +583,23 @@ func TestErrorCauseUnwrap(t *testing.T) {
 	assert.Equal(t, "cause", payloads.Errors[0].Exception.Cause[0].Message)
 }
 
+func TestErrorCauseNilElementUnwrap(t *testing.T) {
+	err := errorJoin{errors.New("foo"), nil, errors.New("bar")}
+
+	tracer, recorder := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+	tracer.NewError(err).Send()
+	tracer.Flush(nil)
+
+	payloads := recorder.Payloads()
+	require.Len(t, payloads.Errors, 1)
+	assert.Equal(t, "TestErrorCauseNilElementUnwrap", payloads.Errors[0].Culprit)
+
+	require.Len(t, payloads.Errors[0].Exception.Cause, 2)
+	assert.Equal(t, "foo", payloads.Errors[0].Exception.Cause[0].Message)
+	assert.Equal(t, "bar", payloads.Errors[0].Exception.Cause[1].Message)
+}
+
 func assertErrorTransactionSampled(t *testing.T, e model.Error, sampled bool) {
 	assert.Equal(t, &sampled, e.Transaction.Sampled)
 	if sampled {
@@ -689,6 +706,16 @@ func (es errorslice) Error() string {
 
 func (es errorslice) Cause() error {
 	return es[0]
+}
+
+type errorJoin []error
+
+func (es errorJoin) Error() string {
+	return "errorjoin"
+}
+
+func (es errorJoin) Unwrap() []error {
+	return es
 }
 
 type runtimeStackTracer struct {

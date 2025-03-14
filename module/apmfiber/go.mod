@@ -5,9 +5,9 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.4
 	github.com/valyala/fasthttp v1.51.0
-	go.elastic.co/apm/module/apmfasthttp/v2 v2.6.2
-	go.elastic.co/apm/module/apmhttp/v2 v2.6.2
-	go.elastic.co/apm/v2 v2.6.2
+	go.elastic.co/apm/module/apmfasthttp/v2 v2.7.0
+	go.elastic.co/apm/module/apmhttp/v2 v2.7.0
+	go.elastic.co/apm/v2 v2.7.0
 )
 
 require (
@@ -40,4 +40,4 @@ replace go.elastic.co/apm/module/apmhttp/v2 => ../apmhttp
 
 replace go.elastic.co/apm/module/apmfasthttp/v2 => ../apmfasthttp
 
-go 1.21
+go 1.23
