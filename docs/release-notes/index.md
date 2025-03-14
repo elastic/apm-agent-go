@@ -23,12 +23,6 @@ To check for security updates, go to [Security announcements for the Elastic sta
 ## 2.7.0
 **Release date:** March 13, 2025
 
-### Fixes [elastic-apm-go-agent-2-7-0-fixes]
-
-* Add `requirefips` build tag which disables non-fips compliant features:
-	* Setting a custom CA and TLS certificate
-	* Disabling certificate check
-
 ## 2.6.3 [elastic-apm-go-agent-2-6-3-release-notes]
 **Release date:** January 13, 2025
 
