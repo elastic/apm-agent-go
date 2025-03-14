@@ -5,7 +5,7 @@ go 1.23
 require (
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/stretchr/testify v1.8.4
-	go.elastic.co/apm/v2 v2.6.3
+	go.elastic.co/apm/v2 v2.7.0
 )
 
 require (
