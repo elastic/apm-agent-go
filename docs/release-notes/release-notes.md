@@ -5,9 +5,9 @@ mapped_pages:
   - https://www.elastic.co/guide/en/apm/agent/go/current/release-notes.html
 ---
 
-# Elastic APM Go Agent release notes [elastic-apm-go-agent-release-notes]
+# {{apm-go-agent}} release notes [elastic-apm-go-agent-release-notes]
 
-Review the changes, fixes, and more in each version of Elastic APM Go Agent.
+Review the changes, fixes, and more in each version of {{apm-go-agent}}.
 
 To check for security updates, go to [Security announcements for the Elastic stack](https://discuss.elastic.co/c/announcements/security-announcements/31).
 
@@ -19,9 +19,6 @@ To check for security updates, go to [Security announcements for the Elastic sta
 % ### Features and enhancements [elastic-apm-go-agent-versionext-features-enhancements]
 
 % ### Fixes [elastic-apm-go-agent-versionext-fixes]
-
-## 2.7.0
-**Release date:** March 13, 2025
 
 ## 2.6.3 [elastic-apm-go-agent-2-6-3-release-notes]
 **Release date:** January 13, 2025

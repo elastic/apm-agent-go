@@ -1,12 +1,11 @@
 ---
-navigation_title: "Elastic APM Go Agent"
+navigation_title: "Deprecations"
 ---
 
-# Elastic APM deprecations
+# {{apm-go-agent}} deprecations [elastic-apm-go-agent-deprecations]
+Over time, certain Elastic functionality becomes outdated and is replaced or removed. To help with the transition, Elastic deprecates functionality for a period before removal, giving you time to update your applications. 
 
-Review the deprecated functionality for your Elastic APM version. While deprecations have no immediate impact, we strongly encourage you update your implementation after you upgrade.
-
-% To learn how to upgrade, check out <upgrade docs>.
+Review the deprecated functionality for {{apm-go-agent}}. While deprecations have no immediate impact, we strongly encourage you update your implementation after you upgrade. To learn how to upgrade, check out [Upgrading](/reference/upgrading.md).
 
 % ## Next version
 % **Release date:** Month day, year
@@ -18,7 +17,7 @@ Review the deprecated functionality for your Elastic APM version. While deprecat
 % **Action**<br> Steps for mitigating deprecation impact.
 % ::::
 
-## 2.7.0 [2-7-0]
+## 2.7.0 [elastic-apm-go-agent-270-deprecations]
 **Release date:** March 13, 2025
 
 ::::{dropdown} Drop support for Go 1.22
