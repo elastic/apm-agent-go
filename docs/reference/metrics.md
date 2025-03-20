@@ -10,7 +10,7 @@ The Go agent periodically gathers and reports metrics. Control how often metrics
 
 ## System metrics [metrics-system]
 
-The Go agent reports basic system-level and process-level CPU and memory metrics. For more system metrics, consider installing [Metricbeat](beats://reference/metricbeat/metricbeat.md) on your hosts.
+The Go agent reports basic system-level and process-level CPU and memory metrics. For more system metrics, consider installing [Metricbeat](beats://reference/metricbeat/index.md) on your hosts.
 
 As of Elastic Stack version 6.6, these metrics will be visualized in the APM app.
 
