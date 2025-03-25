@@ -7,7 +7,7 @@ mapped_pages:
 
 Adapt the Elastic APM Go agent to your needs with one of the following methods—​listed in descending order of precedence:
 
-1. [APM Agent Configuration via Kibana](docs-content://solutions/observability/apps/apm-agent-central-configuration.md) (supported options are marked with [![dynamic config](../images/dynamic-config.svg "") ](#dynamic-configuration))
+1. [APM Agent Configuration via Kibana](docs-content://solutions/observability/apps/apm-agent-central-configuration.md) (supported options are marked with [![dynamic config](images/dynamic-config.svg "") ](#dynamic-configuration))
 2. In code, using the [Tracer Config API](/reference/api-documentation.md#tracer-config-api)
 3. Environment variables
 
@@ -18,7 +18,7 @@ To simplify development and testing, the agent defaults to sending data to the E
 
 ## Dynamic configuration [dynamic-configuration]
 
-Configuration options marked with the ![dynamic config](../images/dynamic-config.svg "") badge can be changed at runtime when set from a supported source.
+Configuration options marked with the ![dynamic config](images/dynamic-config.svg "") badge can be changed at runtime when set from a supported source.
 
 The Go Agent supports [Central configuration](docs-content://solutions/observability/apps/apm-agent-central-configuration.md), which allows you to fine-tune certain configurations via the APM app. This feature is enabled in the Agent by default, with [`ELASTIC_APM_CENTRAL_CONFIG`](#config-central-config).
 
@@ -174,7 +174,7 @@ Enable or disable the agent. If set to false, then the Go agent does not send an
 
 ## `ELASTIC_APM_RECORDING` [config-recording]
 
-[![dynamic config](../images/dynamic-config.svg "") ](#dynamic-configuration)
+[![dynamic config](images/dynamic-config.svg "") ](#dynamic-configuration)
 
 | Environment | Default | Example |
 | --- | --- | --- |
@@ -223,7 +223,7 @@ This option supports the wildcard `*`, which matches zero or more characters. Ex
 
 ## `ELASTIC_APM_CAPTURE_HEADERS` [config-capture-headers]
 
-[![dynamic config](../images/dynamic-config.svg "") ](#dynamic-configuration)
+[![dynamic config](images/dynamic-config.svg "") ](#dynamic-configuration)
 
 | Environment | Default |
 | --- | --- |
@@ -238,7 +238,7 @@ Captured headers are subject to sanitization, per [`ELASTIC_APM_SANITIZE_FIELD_N
 
 ## `ELASTIC_APM_CAPTURE_BODY` [config-capture-body]
 
-[![dynamic config](../images/dynamic-config.svg "") ](#dynamic-configuration)
+[![dynamic config](images/dynamic-config.svg "") ](#dynamic-configuration)
 
 | Environment | Default |
 | --- | --- |
@@ -292,7 +292,7 @@ The maximum number of bytes of uncompressed, encoded events to store in memory w
 
 ## `ELASTIC_APM_TRANSACTION_MAX_SPANS` [config-transaction-max-spans]
 
-[![dynamic config](../images/dynamic-config.svg "") ](#dynamic-configuration)
+[![dynamic config](images/dynamic-config.svg "") ](#dynamic-configuration)
 
 | Environment | Default |
 | --- | --- |
@@ -305,7 +305,7 @@ This is helpful in cases where a transaction creates a large number of spans (e.
 
 ## `ELASTIC_APM_EXIT_SPAN_MIN_DURATION` [config-exit-span-min-duration]
 
-[![dynamic config](../images/dynamic-config.svg "") ](#dynamic-configuration)
+[![dynamic config](images/dynamic-config.svg "") ](#dynamic-configuration)
 
 | Environment | Default |
 | --- | --- |
@@ -320,7 +320,7 @@ The minimum duration allowed for this setting is 1 microsecond (`us`).
 
 ## `ELASTIC_APM_SPAN_FRAMES_MIN_DURATION` [config-span-frames-min-duration-ms]
 
-[![dynamic config](../images/dynamic-config.svg "") ](#dynamic-configuration)
+[![dynamic config](images/dynamic-config.svg "") ](#dynamic-configuration)
 
 | Environment | Default |
 | --- | --- |
@@ -336,7 +336,7 @@ This configuration has been deprecated and will be removed in a future major ver
 
 ## `ELASTIC_APM_SPAN_STACK_TRACE_MIN_DURATION` [config-span-stack-trace-min-duration]
 
-[![dynamic config](../images/dynamic-config.svg "") ](#dynamic-configuration)
+[![dynamic config](images/dynamic-config.svg "") ](#dynamic-configuration)
 
 | Environment | Default |
 | --- | --- |
@@ -352,7 +352,7 @@ This configuration was previously known as `ELASTIC_APM_SPAN_FRAMES_MIN_DURATION
 
 ## `ELASTIC_APM_STACK_TRACE_LIMIT` [config-stack-trace-limit]
 
-[![dynamic config](../images/dynamic-config.svg "") ](#dynamic-configuration)
+[![dynamic config](images/dynamic-config.svg "") ](#dynamic-configuration)
 
 | Environment | Default |
 | --- | --- |
@@ -365,7 +365,7 @@ Setting the limit to 0 will disable stack trace collection, while any positive i
 
 ## `ELASTIC_APM_TRANSACTION_SAMPLE_RATE` [config-transaction-sample-rate]
 
-[![dynamic config](../images/dynamic-config.svg "") ](#dynamic-configuration)
+[![dynamic config](images/dynamic-config.svg "") ](#dynamic-configuration)
 
 | Environment | Default |
 | --- | --- |
@@ -491,7 +491,7 @@ Valid options are `"none"`, `"auto"`, `"aws"`, `"gcp"`, and `"azure"` If this co
 
 ## `ELASTIC_APM_SPAN_COMPRESSION_ENABLED` [config-span-compression-enabled]
 
-[![dynamic config](../images/dynamic-config.svg "") ](#dynamic-configuration)
+[![dynamic config](images/dynamic-config.svg "") ](#dynamic-configuration)
 
 | Environment | Default |
 | --- | --- |
@@ -523,7 +523,7 @@ This feature is experimental and requires APM Server v7.15 or later.
 
 ## `ELASTIC_APM_SPAN_COMPRESSION_EXACT_MATCH_MAX_DURATION` [config-span-compression-exact-match-duration]
 
-[![dynamic config](../images/dynamic-config.svg "") ](#dynamic-configuration)
+[![dynamic config](images/dynamic-config.svg "") ](#dynamic-configuration)
 
 | Environment | Default |
 | --- | --- |
@@ -534,7 +534,7 @@ The maximum duration to consider for compressing sibling exit spans that are an 
 
 ## `ELASTIC_APM_SPAN_COMPRESSION_SAME_KIND_MAX_DURATION` [config-span-compression-same-kind-duration]
 
-[![dynamic config](../images/dynamic-config.svg "") ](#dynamic-configuration)
+[![dynamic config](images/dynamic-config.svg "") ](#dynamic-configuration)
 
 | Environment | Default |
 | --- | --- |
@@ -545,7 +545,7 @@ The maximum duration to consider for compressing sibling exit spans that are of 
 
 ## `ELASTIC_APM_TRACE_CONTINUATION_STRATEGY` [config-trace-continuation-strategy]
 
-[![dynamic config](../images/dynamic-config.svg "") ](#dynamic-configuration)
+[![dynamic config](images/dynamic-config.svg "") ](#dynamic-configuration)
 
 | Environment | Default |
 | --- | --- |
