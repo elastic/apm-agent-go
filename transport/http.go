@@ -247,22 +247,12 @@ func newHTTPTransportOptions(opts HTTPTransportOptions) (*HTTPTransport, error) 
 }
 
 func newEnvTLSClientConfig() (*tls.Config, error) {
-	//
-	// Certificate verification can be disabled, except if the client has FIPs
-	// compliance enabled.
-	// So we conditionnally make this customization using the `requirefips` build flag
-	//
 	verifyServerCert, err := checkVerifyServerCert()
 	if err != nil {
 		return nil, err
 	}
 	tlsClientConfig := &tls.Config{InsecureSkipVerify: !verifyServerCert}
 
-	//
-	// Cert path and CA cert path can be customized, except if the client has
-	// FIPs compliance enabled.
-	// So we conditionnally make this customization using the `requirefips` build flag
-	//
 	err = addCertPath(tlsClientConfig)
 	if err != nil {
 		return nil, err
