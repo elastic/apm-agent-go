@@ -15,8 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//go:build !requirefips
-
 package transport // import "go.elastic.co/apm/v2/transport"
 
 import (
