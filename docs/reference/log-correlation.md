@@ -72,7 +72,7 @@ This would print a log message along the lines of:
 ```
 2019/09/17 14:48:02 ERROR [trace.id=cd04f33b9c0c35ae8abe77e799f126b7 transaction.id=cd04f33b9c0c35ae span.id=960834f4538880a4] an error occurred
 ```
-For log correlation to work, the trace IDs must be extracted from the log message and stored in separate fields in the Elasticsearch document. This can be achieved by [using an ingest pipeline to parse the data](beats://reference/filebeat/configuring-ingest-node.md), in particular by using [the grok processor](elasticsearch://reference/ingestion-tools/enrich-processor/grok-processor.md).
+For log correlation to work, the trace IDs must be extracted from the log message and stored in separate fields in the Elasticsearch document. This can be achieved by [using an ingest pipeline to parse the data](beats://reference/filebeat/configuring-ingest-node.md), in particular by using [the grok processor](elasticsearch://reference/enrich-processor/grok-processor.md).
 
 ```json
 {
