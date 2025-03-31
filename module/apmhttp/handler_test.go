@@ -555,6 +555,30 @@ func TestHandlerReaderFrom(t *testing.T) {
 	assert.Equal(t, "hello", string(content))
 }
 
+func TestHandlerWithResponseController(t *testing.T) {
+	recorder := apmtest.NewRecordingTracer()
+	t.Cleanup(recorder.Close)
+
+	mux := http.NewServeMux()
+	var (
+		errRead  error
+		errWrite error
+	)
+	mux.Handle("/", http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		rc := http.NewResponseController(rw)
+		errRead = rc.SetReadDeadline(time.Time{})
+		errWrite = rc.SetWriteDeadline(time.Time{})
+	}))
+
+	srv := httptest.NewServer(apmhttp.Wrap(mux, apmhttp.WithTracer(recorder.Tracer)))
+	t.Cleanup(srv.Close)
+
+	_, err := http.Get(srv.URL)
+	require.NoError(t, err)
+	assert.NoError(t, errRead)
+	assert.NoError(t, errWrite)
+}
+
 func panicHandler(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusTeapot)
 	panic("foo")
