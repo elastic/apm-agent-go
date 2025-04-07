@@ -241,6 +241,12 @@ type responseWriter struct {
 	resp Response
 }
 
+// Unwrap is required for Go's http.ResponseController to get the underlying response writer
+// that may implement the necessary methods for response control (see Go's http.NewResponseController).
+func (w *responseWriter) Unwrap() http.ResponseWriter {
+	return w.ResponseWriter
+}
+
 // WriteHeader sets w.resp.StatusCode and calls through to the embedded
 // ResponseWriter.
 func (w *responseWriter) WriteHeader(statusCode int) {
