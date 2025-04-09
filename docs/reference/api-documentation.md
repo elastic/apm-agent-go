@@ -248,7 +248,7 @@ If the value is numerical or boolean, then it will be sent to the server as a JS
 String values longer than 1024 characters will be truncated. Labels are indexed in Elasticsearch as keyword fields.
 
 ::::{tip}
-Before using labels, ensure you understand the different types of [metadata](docs-content://solutions/observability/apps/metadata.md) that are available.
+Before using labels, ensure you understand the different types of [metadata](docs-content://solutions/observability/apm/metadata.md) that are available.
 ::::
 
 
@@ -267,7 +267,7 @@ Non-indexed means the data is not searchable or aggregatable in Elasticsearch, a
 The value can be of any type that can be encoded using `encoding/json`.
 
 ::::{tip}
-Before using custom context, ensure you understand the different types of [metadata](docs-content://solutions/observability/apps/metadata.md) that are available.
+Before using custom context, ensure you understand the different types of [metadata](docs-content://solutions/observability/apm/metadata.md) that are available.
 ::::
 
 

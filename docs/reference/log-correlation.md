@@ -5,7 +5,7 @@ mapped_pages:
 
 # Log correlation [log-correlation-ids]
 
-[Log correlation](docs-content://solutions/observability/apps/logs.md) allows you to navigate to all logs belonging to a particular trace and vice-versa: for a specific log, see in which context it has been logged and which parameters the user provided.
+[Log correlation](docs-content://solutions/observability/apm/logs.md) allows you to navigate to all logs belonging to a particular trace and vice-versa: for a specific log, see in which context it has been logged and which parameters the user provided.
 
 In order to correlate logs from your app with transactions captured by the Elastic APM Go Agent, your logs must contain one or more of the following identifiers:
 
