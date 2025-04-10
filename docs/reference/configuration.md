@@ -7,7 +7,7 @@ mapped_pages:
 
 Adapt the Elastic APM Go agent to your needs with one of the following methods—​listed in descending order of precedence:
 
-1. [APM Agent Configuration via Kibana](docs-content://solutions/observability/apps/apm-agent-central-configuration.md) (supported options are marked with [![dynamic config](images/dynamic-config.svg "") ](#dynamic-configuration))
+1. [APM Agent Configuration via Kibana](docs-content://solutions/observability/apm/apm-agent-central-configuration.md) (supported options are marked with [![dynamic config](images/dynamic-config.svg "") ](#dynamic-configuration))
 2. In code, using the [Tracer Config API](/reference/api-documentation.md#tracer-config-api)
 3. Environment variables
 
@@ -20,7 +20,7 @@ To simplify development and testing, the agent defaults to sending data to the E
 
 Configuration options marked with the ![dynamic config](images/dynamic-config.svg "") badge can be changed at runtime when set from a supported source.
 
-The Go Agent supports [Central configuration](docs-content://solutions/observability/apps/apm-agent-central-configuration.md), which allows you to fine-tune certain configurations via the APM app. This feature is enabled in the Agent by default, with [`ELASTIC_APM_CENTRAL_CONFIG`](#config-central-config).
+The Go Agent supports [Central configuration](docs-content://solutions/observability/apm/apm-agent-central-configuration.md), which allows you to fine-tune certain configurations via the APM app. This feature is enabled in the Agent by default, with [`ELASTIC_APM_CENTRAL_CONFIG`](#config-central-config).
 
 
 ## Configuration formats [_configuration_formats]
@@ -98,7 +98,7 @@ The secret token is sent as plain-text in every request to the server, so you sh
 | --- | --- | --- |
 | `ELASTIC_APM_API_KEY` |  | "A base64-encoded string" |
 
-This base64-encoded string is used to ensure that only your agents can send data to your APM server. The API key must be created using the APM Server [command line tool](docs-content://solutions/observability/apps/api-keys.md).
+This base64-encoded string is used to ensure that only your agents can send data to your APM server. The API key must be created using the APM Server [command line tool](docs-content://solutions/observability/apm/api-keys.md).
 
 ::::{warning}
 The API Key is sent as plain-text in every request to the server, so you should also secure your communications using HTTPS. Unless you do so, your API Key could be observed by an attacker.
@@ -155,7 +155,7 @@ This feature is fully supported in the APM Server versions >= 7.5.
 
 The name of the environment this service is deployed in, e.g. "production" or "staging".
 
-Environments allow you to easily filter data on a global level in the APM app. It’s important to be consistent when naming environments across agents. See [environment selector](docs-content://solutions/observability/apps/filter-application-data.md#apm-filter-your-data-service-environment-filter) in the APM app for more information.
+Environments allow you to easily filter data on a global level in the APM app. It’s important to be consistent when naming environments across agents. See [environment selector](docs-content://solutions/observability/apm/filter-data.md#apm-filter-your-data-service-environment-filter) in the APM app for more information.
 
 ::::{note}
 This feature is fully supported in the APM app in Kibana versions >= 7.2. You must use the query bar to filter for a specific environment in versions prior to 7.2.
@@ -458,7 +458,7 @@ This environment variable will be ignored if a logger is configured programatica
 | --- | --- |
 | `ELASTIC_APM_CENTRAL_CONFIG` | `true` |
 
-Activate APM Agent central configuration via Kibana. By default the agent will poll the server for agent configuration changes. This can be disabled by changing the setting to `false`. See [APM Agent central configuration](docs-content://solutions/observability/apps/apm-agent-central-configuration.md) for more information.
+Activate APM Agent central configuration via Kibana. By default the agent will poll the server for agent configuration changes. This can be disabled by changing the setting to `false`. See [APM Agent central configuration](docs-content://solutions/observability/apm/apm-agent-central-configuration.md) for more information.
 
 ::::{note}
 This feature requires APM Server v7.3 or later.
@@ -473,7 +473,7 @@ This feature requires APM Server v7.3 or later.
 | Environment | Default |
 | `ELASTIC_APM_USE_ELASTIC_TRACEPARENT_HEADER` | `true` |
 
-To enable [distributed tracing](docs-content://solutions/observability/apps/traces.md), the agent adds trace context headers to outgoing HTTP requests made with [module/apmhttp](/reference/builtin-modules.md#builtin-modules-apmhttp). These headers (`traceparent` and `tracestate`) are defined in the [W3C Trace Context](https://www.w3.org/TR/trace-context-1/) specification.
+To enable [distributed tracing](docs-content://solutions/observability/apm/traces.md), the agent adds trace context headers to outgoing HTTP requests made with [module/apmhttp](/reference/builtin-modules.md#builtin-modules-apmhttp). These headers (`traceparent` and `tracestate`) are defined in the [W3C Trace Context](https://www.w3.org/TR/trace-context-1/) specification.
 
 When this setting is `true`, the agent will also add the header `elastic-apm-traceparent` for backwards compatibility with older versions of Elastic APM agents.
 
