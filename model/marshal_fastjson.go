@@ -20,7 +20,15 @@
 package model
 
 import (
+	"errors"
+	"math"
+
 	"go.elastic.co/fastjson"
+)
+
+var (
+	_ = errors.New
+	_ = math.IsNaN
 )
 
 func (v *Service) MarshalFastJSON(w *fastjson.Writer) error {
@@ -485,6 +493,12 @@ func (v *Transaction) MarshalFastJSON(w *fastjson.Writer) error {
 	var firstErr error
 	w.RawByte('{')
 	w.RawString("\"duration\":")
+	if math.IsNaN(v.Duration) {
+		return errors.New("json: 'v.Duration': unsupported value: NaN")
+	}
+	if math.IsInf(v.Duration, 0) {
+		return errors.New("json: 'v.Duration': unsupported value: Inf")
+	}
 	w.Float64(v.Duration)
 	w.RawString(",\"id\":")
 	if err := v.ID.MarshalFastJSON(w); err != nil && firstErr == nil {
@@ -566,6 +580,12 @@ func (v *Transaction) MarshalFastJSON(w *fastjson.Writer) error {
 	}
 	if v.SampleRate != nil {
 		w.RawString(",\"sample_rate\":")
+		if math.IsNaN(*v.SampleRate) {
+			return errors.New("json: '*v.SampleRate': unsupported value: NaN")
+		}
+		if math.IsInf(*v.SampleRate, 0) {
+			return errors.New("json: '*v.SampleRate': unsupported value: Inf")
+		}
 		w.Float64(*v.SampleRate)
 	}
 	if v.Sampled != nil {
@@ -663,6 +683,12 @@ func (v *Span) MarshalFastJSON(w *fastjson.Writer) error {
 	var firstErr error
 	w.RawByte('{')
 	w.RawString("\"duration\":")
+	if math.IsNaN(v.Duration) {
+		return errors.New("json: 'v.Duration': unsupported value: NaN")
+	}
+	if math.IsInf(v.Duration, 0) {
+		return errors.New("json: 'v.Duration': unsupported value: Inf")
+	}
 	w.Float64(v.Duration)
 	w.RawString(",\"id\":")
 	if err := v.ID.MarshalFastJSON(w); err != nil && firstErr == nil {
@@ -727,6 +753,12 @@ func (v *Span) MarshalFastJSON(w *fastjson.Writer) error {
 	}
 	if v.SampleRate != nil {
 		w.RawString(",\"sample_rate\":")
+		if math.IsNaN(*v.SampleRate) {
+			return errors.New("json: '*v.SampleRate': unsupported value: NaN")
+		}
+		if math.IsInf(*v.SampleRate, 0) {
+			return errors.New("json: '*v.SampleRate': unsupported value: Inf")
+		}
 		w.Float64(*v.SampleRate)
 	}
 	if v.Stacktrace != nil {
@@ -1041,6 +1073,12 @@ func (v *CompositeSpan) MarshalFastJSON(w *fastjson.Writer) error {
 	w.RawString(",\"count\":")
 	w.Int64(int64(v.Count))
 	w.RawString(",\"sum\":")
+	if math.IsNaN(v.Sum) {
+		return errors.New("json: 'v.Sum': unsupported value: NaN")
+	}
+	if math.IsInf(v.Sum, 0) {
+		return errors.New("json: 'v.Sum': unsupported value: Inf")
+	}
 	w.Float64(v.Sum)
 	w.RawByte('}')
 	return nil
