@@ -19,9 +19,11 @@ package apm // import "go.elastic.co/apm/v2"
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"runtime/debug"
 	"sync"
 	"unicode/utf8"
 
@@ -210,6 +212,17 @@ func (b *limitedBuffer) Write(p []byte) (n int, err error) {
 	if n > rem {
 		p = p[:rem]
 	}
+
+	// Install a panic handler, so that I/O errors don't
+	// cause crashes.
+	old := debug.SetPanicOnFault(true)
+	defer func() {
+		debug.SetPanicOnFault(old)
+		if recover() != nil {
+			err = fmt.Errorf("recovered from panicking on buffer operation")
+		}
+	}()
+
 	written, err := b.Buffer.Write(p)
 	if err != nil {
 		n = written
