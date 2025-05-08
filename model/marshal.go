@@ -20,6 +20,7 @@ package model // import "go.elastic.co/apm/v2/model"
 import (
 	"encoding/hex"
 	"encoding/json"
+	"math"
 	"net/http"
 	"net/url"
 	"sort"
@@ -424,6 +425,12 @@ func (c *ExceptionCode) MarshalFastJSON(w *fastjson.Writer) error {
 	if c.String != "" {
 		w.String(c.String)
 	} else {
+		if math.IsNaN(c.Number) {
+			return errors.New("json: 'v.Value': unsupported value: NaN")
+		}
+		if math.IsInf(c.Number, 0) {
+			return errors.New("json: 'v.Value': unsupported value: Inf")
+		}
 		w.Float64(c.Number)
 	}
 	return nil
@@ -681,6 +688,12 @@ func (v *Metric) MarshalFastJSON(w *fastjson.Writer) error {
 			if i != 0 {
 				w.RawByte(',')
 			}
+			if math.IsNaN(v) {
+				return errors.New("json: 'v': unsupported value: NaN")
+			}
+			if math.IsInf(v, 0) {
+				return errors.New("json: 'v': unsupported value: Inf")
+			}
 			w.Float64(v)
 		}
 		w.RawByte(']')
@@ -695,6 +708,12 @@ func (v *Metric) MarshalFastJSON(w *fastjson.Writer) error {
 		w.RawByte(']')
 	} else {
 		w.RawString("\"value\":")
+		if math.IsNaN(v.Value) {
+			return errors.New("json: 'v.Value': unsupported value: NaN")
+		}
+		if math.IsInf(v.Value, 0) {
+			return errors.New("json: 'v.Value': unsupported value: Inf")
+		}
 		w.Float64(v.Value)
 	}
 	if v.Type != "" {
