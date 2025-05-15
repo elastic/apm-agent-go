@@ -21,12 +21,13 @@ import (
 	"context"
 	"testing"
 	"time"
+	"errors"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/event"
-	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/event"
 
 	"go.elastic.co/apm/module/apmmongo/v2"
 	"go.elastic.co/apm/v2"
@@ -115,7 +116,7 @@ func testCommandMonitorFinished(t *testing.T, failure string) {
 			Command:      mustRawBSON(bson.D{{Key: "find", Value: "test_coll"}}),
 		})
 		finished := event.CommandFinishedEvent{
-			DurationNanos: int64(123 * time.Millisecond),
+			Duration: 123 * time.Millisecond,
 			CommandName:   "find",
 			RequestID:     42,
 			ConnectionID:  "rainbow",
@@ -127,7 +128,7 @@ func testCommandMonitorFinished(t *testing.T, failure string) {
 		} else {
 			cm.Failed(ctx, &event.CommandFailedEvent{
 				CommandFinishedEvent: finished,
-				Failure:              failure,
+				Failure:              errors.New(failure),
 			})
 		}
 	})
@@ -181,12 +182,12 @@ func TestCommandMonitorFinishedNotStarted(t *testing.T) {
 	_, spans, errs := apmtest.WithTransaction(func(ctx context.Context) {
 		cm.Failed(ctx, &event.CommandFailedEvent{
 			CommandFinishedEvent: event.CommandFinishedEvent{
-				DurationNanos: int64(123 * time.Millisecond),
+				Duration: 123 * time.Millisecond,
 				CommandName:   "find",
 				RequestID:     42,
 				ConnectionID:  "rainbow",
 			},
-			Failure: "buhbow",
+			Failure: errors.New("buhbow"),
 		})
 	})
 	assert.Empty(t, spans)
@@ -208,7 +209,7 @@ func TestCommandErrorDetails(t *testing.T) {
 	assert.Equal(t, model.Exception{
 		Message: `(UserNotFound) Robert'); DROP TABLE Students;-- not found`,
 		Type:    "CommandError",
-		Module:  "go.mongodb.org/mongo-driver/mongo",
+		Module:  "go.mongodb.org/mongo-driver/v2/mongo",
 		Code:    model.ExceptionCode{String: "UserNotFound"},
 		Handled: true,
 		Attributes: map[string]interface{}{

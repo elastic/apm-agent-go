@@ -23,22 +23,11 @@ import (
 	"sync"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/bsoncodec"
-	"go.mongodb.org/mongo-driver/bson/bsonrw"
-	"go.mongodb.org/mongo-driver/event"
-	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/event"
 
 	"go.elastic.co/apm/v2"
-)
-
-var (
-	extjPool = bsonrw.NewExtJSONValueWriterPool()
-	swPool   = sync.Pool{
-		New: func() interface{} {
-			return &bsonrw.SliceWriter{}
-		},
-	}
 )
 
 func init() {
@@ -58,7 +47,7 @@ func init() {
 // for each command executed within a context containing a sampled transaction.
 func CommandMonitor(opts ...Option) *event.CommandMonitor {
 	cm := commandMonitor{
-		bsonRegistry: bson.DefaultRegistry,
+		bsonRegistry: bson.NewRegistry(),
 		spans:        make(map[commandKey]*apm.Span),
 	}
 	for _, o := range opts {
@@ -74,7 +63,7 @@ func CommandMonitor(opts ...Option) *event.CommandMonitor {
 type commandMonitor struct {
 	// TODO(axw) record number of active commands and report as a
 	// metric so users can, for example, identify unclosed cursors.
-	bsonRegistry *bsoncodec.Registry
+	bsonRegistry *bson.Registry
 
 	mu    sync.Mutex
 	spans map[commandKey]*apm.Span
@@ -101,17 +90,10 @@ func (c *commandMonitor) started(ctx context.Context, event *event.CommandStarte
 	if len(event.Command) > 0 {
 		// Encode the command as MongoDB Extended JSON
 		// for the "statement" in database span context.
-		sw := swPool.Get().(*bsonrw.SliceWriter)
-		ejvw := extjPool.Get(sw, false /* non-canonical */, false /* don't escape HTML */)
-		ec := bsoncodec.EncodeContext{Registry: c.bsonRegistry}
-		if enc, err := bson.NewEncoderWithContext(ec, ejvw); err == nil {
-			if err := enc.Encode(event.Command); err == nil {
-				statement = string(*sw)
-			}
+		jsonBytes, err := bson.MarshalExtJSON(event.Command, false /* canonical */, false /* escapeHTML */)
+		if err == nil {
+			statement = string(jsonBytes)
 		}
-		*sw = (*sw)[:0]
-		extjPool.Put(ejvw)
-		swPool.Put(sw)
 	}
 
 	span.Context.SetDatabase(apm.DatabaseSpanContext{
@@ -150,7 +132,7 @@ func (c *commandMonitor) finished(ctx context.Context, event *event.CommandFinis
 	delete(c.spans, key)
 	c.mu.Unlock()
 
-	span.Duration = time.Duration(event.DurationNanos)
+	span.Duration = time.Duration(event.Duration)
 	span.End()
 }
 

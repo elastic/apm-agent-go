@@ -23,9 +23,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
 	"go.elastic.co/apm/module/apmmongo/v2"
 	"go.elastic.co/apm/v2"
@@ -51,7 +51,6 @@ func (suite *IntegrationSuite) SetupSuite() {
 		suite.T().Skipf("MONGO_URL not specified")
 	}
 	client, err := mongo.Connect(
-		context.Background(),
 		options.Client().ApplyURI(mongoURL).SetMonitor(apmmongo.CommandMonitor()).SetAuth(
 			options.Credential{
 				Username: "admin",
