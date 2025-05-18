@@ -19,6 +19,7 @@ package apm // import "go.elastic.co/apm/v2"
 
 import (
 	"context"
+	"math"
 	"sort"
 	"strings"
 	"sync"
@@ -88,6 +89,9 @@ func (m *Metrics) AddHistogram(name string, labels []MetricLabel, values []float
 
 func (m *Metrics) addMetric(name string, labels []MetricLabel, metric model.Metric) {
 	if m.disabled.MatchAny(name) {
+		return
+	}
+	if math.IsNaN(metric.Value) || math.IsInf(metric.Value, 0) {
 		return
 	}
 	m.mu.Lock()
