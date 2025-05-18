@@ -5,7 +5,7 @@ go 1.23
 require (
 	github.com/elastic/go-licenser v0.4.0
 	github.com/jcchavezs/porto v0.1.0
-	go.elastic.co/fastjson v1.5.0
+	go.elastic.co/fastjson v1.5.1
 	golang.org/x/tools v0.30.0
 )
 
