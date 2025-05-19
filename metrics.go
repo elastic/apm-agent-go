@@ -76,6 +76,7 @@ func (f GatherMetricsFunc) GatherMetrics(ctx context.Context, m *Metrics) error 
 
 // Add adds a metric with the given name, labels, and value,
 // The labels are expected to be sorted lexicographically.
+// NaN and Inf values will be ignored
 func (m *Metrics) Add(name string, labels []MetricLabel, value float64) {
 	m.addMetric(name, labels, model.Metric{Value: value})
 }
