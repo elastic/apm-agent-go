@@ -23,6 +23,8 @@ To check for security updates, go to [Security announcements for the Elastic sta
 ## 2.7.0
 **Release date:** March 13, 2025
 
+_No new features, enhancements, and fixes_
+
 ## 2.6.3 [elastic-apm-go-agent-2-6-3-release-notes]
 **Release date:** January 13, 2025
 
