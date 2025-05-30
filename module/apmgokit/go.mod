@@ -4,9 +4,9 @@ require (
 	github.com/go-kit/kit v0.8.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.0
 	github.com/stretchr/testify v1.8.4
-	go.elastic.co/apm/module/apmgrpc/v2 v2.7.0
-	go.elastic.co/apm/module/apmhttp/v2 v2.7.0
-	go.elastic.co/apm/v2 v2.7.0
+	go.elastic.co/apm/module/apmgrpc/v2 v2.7.1
+	go.elastic.co/apm/module/apmhttp/v2 v2.7.1
+	go.elastic.co/apm/v2 v2.7.1
 	google.golang.org/grpc v1.57.1
 	google.golang.org/grpc/examples v0.0.0-20230831183909-e498bbc9bd37
 )
@@ -25,10 +25,10 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/procfs v0.0.0-20190425082905-87a4384529e0 // indirect
-	go.elastic.co/fastjson v1.1.0 // indirect
-	golang.org/x/net v0.33.0 // indirect
-	golang.org/x/sys v0.28.0 // indirect
-	golang.org/x/text v0.21.0 // indirect
+	go.elastic.co/fastjson v1.5.1 // indirect
+	golang.org/x/net v0.38.0 // indirect
+	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/text v0.23.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230822172742-b8732ec3820d // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
@@ -41,4 +41,4 @@ replace go.elastic.co/apm/module/apmgrpc/v2 => ../apmgrpc
 
 replace go.elastic.co/apm/module/apmhttp/v2 => ../apmhttp
 
-go 1.23
+go 1.23.0

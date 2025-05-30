@@ -1,12 +1,12 @@
 module go.elastic.co/apm/module/apmpgx/v2
 
-go 1.23
+go 1.23.0
 
 require (
 	github.com/jackc/pgx/v4 v4.18.2
 	github.com/stretchr/testify v1.8.4
-	go.elastic.co/apm/module/apmsql/v2 v2.7.0
-	go.elastic.co/apm/v2 v2.7.0
+	go.elastic.co/apm/module/apmsql/v2 v2.7.1
+	go.elastic.co/apm/v2 v2.7.1
 )
 
 require (
@@ -26,10 +26,10 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/procfs v0.0.0-20190425082905-87a4384529e0 // indirect
-	go.elastic.co/fastjson v1.1.0 // indirect
-	golang.org/x/crypto v0.31.0 // indirect
-	golang.org/x/sys v0.28.0 // indirect
-	golang.org/x/text v0.21.0 // indirect
+	go.elastic.co/fastjson v1.5.1 // indirect
+	golang.org/x/crypto v0.35.0 // indirect
+	golang.org/x/sys v0.30.0 // indirect
+	golang.org/x/text v0.22.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	howett.net/plist v0.0.0-20181124034731-591f970eefbb // indirect
 )

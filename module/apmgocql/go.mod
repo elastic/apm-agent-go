@@ -3,7 +3,7 @@ module go.elastic.co/apm/module/apmgocql/v2
 require (
 	github.com/gocql/gocql v0.0.0-20181124151448-70385f88b28b
 	github.com/stretchr/testify v1.8.4
-	go.elastic.co/apm/v2 v2.7.0
+	go.elastic.co/apm/v2 v2.7.1
 )
 
 require (
@@ -20,7 +20,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/procfs v0.0.0-20190425082905-87a4384529e0 // indirect
-	go.elastic.co/fastjson v1.1.0 // indirect
+	go.elastic.co/fastjson v1.5.1 // indirect
 	golang.org/x/sys v0.8.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
@@ -29,4 +29,4 @@ require (
 
 replace go.elastic.co/apm/v2 => ../..
 
-go 1.23
+go 1.23.0

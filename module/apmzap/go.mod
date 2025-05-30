@@ -3,7 +3,7 @@ module go.elastic.co/apm/module/apmzap/v2
 require (
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.4
-	go.elastic.co/apm/v2 v2.7.0
+	go.elastic.co/apm/v2 v2.7.1
 	go.uber.org/zap v1.9.1
 )
 
@@ -16,7 +16,7 @@ require (
 	github.com/joeshaw/multierror v0.0.0-20140124173710-69b34d4ec901 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/procfs v0.0.0-20190425082905-87a4384529e0 // indirect
-	go.elastic.co/fastjson v1.1.0 // indirect
+	go.elastic.co/fastjson v1.5.1 // indirect
 	go.uber.org/atomic v1.3.2 // indirect
 	go.uber.org/multierr v1.1.0 // indirect
 	golang.org/x/sys v0.8.0 // indirect
@@ -26,4 +26,4 @@ require (
 
 replace go.elastic.co/apm/v2 => ../..
 
-go 1.23
+go 1.23.0

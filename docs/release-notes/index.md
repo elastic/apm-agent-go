@@ -20,6 +20,12 @@ To check for security updates, go to [Security announcements for the Elastic sta
 
 % ### Fixes [elastic-apm-go-agent-versionext-fixes]
 
+## 2.7.1
+**Release date:** May 26, 2025
+
+### Fixes [elastic-apm-go-agent-2-7-1-fixes]
+* Avoid sending invalid float values (NaN, Inf)
+
 ## 2.7.0
 **Release date:** March 13, 2025
 

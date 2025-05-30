@@ -6,7 +6,7 @@ require (
 	github.com/google/go-cmp v0.5.4
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.4
-	go.elastic.co/fastjson v1.1.0
+	go.elastic.co/fastjson v1.5.1
 	golang.org/x/sys v0.8.0
 )
 
@@ -21,4 +21,4 @@ require (
 	howett.net/plist v0.0.0-20181124034731-591f970eefbb // indirect
 )
 
-go 1.23
+go 1.23.0

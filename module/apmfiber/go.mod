@@ -5,9 +5,9 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.4
 	github.com/valyala/fasthttp v1.51.0
-	go.elastic.co/apm/module/apmfasthttp/v2 v2.7.0
-	go.elastic.co/apm/module/apmhttp/v2 v2.7.0
-	go.elastic.co/apm/v2 v2.7.0
+	go.elastic.co/apm/module/apmfasthttp/v2 v2.7.1
+	go.elastic.co/apm/module/apmhttp/v2 v2.7.1
+	go.elastic.co/apm/v2 v2.7.1
 )
 
 require (
@@ -28,7 +28,7 @@ require (
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/tcplisten v1.0.0 // indirect
-	go.elastic.co/fastjson v1.1.0 // indirect
+	go.elastic.co/fastjson v1.5.1 // indirect
 	golang.org/x/sys v0.15.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	howett.net/plist v0.0.0-20181124034731-591f970eefbb // indirect
@@ -40,4 +40,4 @@ replace go.elastic.co/apm/module/apmhttp/v2 => ../apmhttp
 
 replace go.elastic.co/apm/module/apmfasthttp/v2 => ../apmfasthttp
 
-go 1.23
+go 1.23.0
