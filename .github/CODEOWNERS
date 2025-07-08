@@ -2,4 +2,4 @@
 * @elastic/apm-agent-go
 
 # Sub-directories/files ownership
-/.github @elastic/observablt-ci
+/.github/workflows @elastic/observablt-ci
