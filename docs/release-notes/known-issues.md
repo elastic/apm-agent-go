@@ -1,6 +1,15 @@
 ---
 navigation_title: "Known issues"
-
+applies_to:
+  stack:
+  serverless:
+    observability:
+  product:
+    apm_agent_go: ga
+products:
+  - id: cloud-serverless
+  - id: observability
+  - id: apm
 ---
 
 # Elastic APM Go Agent known issues [elastic-apm-go-agent-known-issues]
