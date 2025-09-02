@@ -2,7 +2,7 @@
 
 set -ex
 
-BRANCH=master
+BRANCH=main
 
 FILES=( \
     "error.json" \
@@ -14,5 +14,5 @@ FILES=( \
 
 for i in "${FILES[@]}"; do
   o=jsonschema/$i
-  curl -sf https://raw.githubusercontent.com/elastic/apm-server/${BRANCH}/docs/spec/v2/${i} --compressed -o $o
+  curl -sf https://raw.githubusercontent.com/elastic/apm-data/${BRANCH}/input/elasticapm/docs/spec/v2/${i} --compressed -o $o
 done
