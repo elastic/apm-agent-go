@@ -159,7 +159,7 @@ The formatter understands the following formats:
 * %x: transaction ID only
 * %s: span ID only
 
-The "+" option can be used to format the values in "key=value" style, with the field names `trace.id`, `transaction.id`, and `span.id`. For example, using "%+v" as the format would yield "trace.id=…  transaction.id=…  span.id=… ".
+The "+" option can be used to format the values in "key=value" style, with the field names `trace.id`, `transaction.id`, and `span.id`. For example, using "%+v" as the format would yield "trace.id=…  transaction.id=…  span.id=…".
 
 For a more in-depth example, see [Manual log correlation (unstructured)](/reference/log-correlation.md#log-correlation-manual-unstructured).
 
