@@ -11,7 +11,7 @@ applies_to:
 
 # Configuration [configuration]
 
-Adapt the Elastic APM Go agent to your needs with one of the following methods— listed in descending order of precedence:
+Adapt the Elastic APM Go agent to your needs with one of the following methods — listed in descending order of precedence:
 
 1. [APM Agent Configuration via Kibana](docs-content://solutions/observability/apm/apm-agent-central-configuration.md) (supported options are marked with [![dynamic config](images/dynamic-config.svg "") ](#dynamic-configuration))
 2. In code, using the [Tracer Config API](/reference/api-documentation.md#tracer-config-api)
