@@ -7,10 +7,6 @@ applies_to:
     observability:
   product:
     apm_agent_go: ga
-products:
-  - id: cloud-serverless
-  - id: observability
-  - id: apm
 ---
 
 # OpenTelemetry API [opentelemetry]

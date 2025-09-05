@@ -7,10 +7,6 @@ applies_to:
     observability:
   product:
     apm_agent_go: ga
-products:
-  - id: cloud-serverless
-  - id: observability
-  - id: apm
 ---
 
 # Custom instrumentation [custom-instrumentation]
@@ -21,7 +17,7 @@ To report on the performance of transactions served by your application, use the
 * [Span within a transaction](#custom-instrumentation-spans) - An operation within a transaction, such as a database query, or a request to another service.
 * [Error](#custom-instrumentation-errors) - May refer to Go errors or panics.
 
-To report these, use a [apm.Tracer](/reference/api-documentation.md#tracer-api) — typically `apm.DefaultTracer()`, which is configured via environment variables. In the code examples below, we will refer to `apm.DefaultTracer()`. Please refer to the [API documentation](/reference/api-documentation.md) for a more thorough description of the types and methods.
+To report these, use a [apm.Tracer](/reference/api-documentation.md#tracer-api) — typically `apm.DefaultTracer()`, which is configured via environment variables. In the code examples below, we will refer to `apm.DefaultTracer()`. Please refer to the [API documentation](/reference/api-documentation.md) for a more thorough description of the types and methods.
 
 ## Transactions [custom-instrumentation-transactions]
 
