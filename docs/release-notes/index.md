@@ -9,10 +9,6 @@ applies_to:
     observability:
   product:
     apm_agent_go: ga
-products:
-  - id: cloud-serverless
-  - id: observability
-  - id: apm  
 ---
 
 # Elastic APM Go Agent release notes [elastic-apm-go-agent-release-notes]
