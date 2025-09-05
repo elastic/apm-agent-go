@@ -1,5 +1,11 @@
 ---
 navigation_title: "Deprecations"
+applies_to:
+  stack:
+  serverless:
+    observability:
+  product:
+    apm_agent_go: ga
 ---
 
 # Elastic APM deprecations

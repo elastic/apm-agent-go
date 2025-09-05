@@ -1,6 +1,12 @@
 ---
 mapped_pages:
   - https://www.elastic.co/guide/en/apm/agent/go/current/api.html
+applies_to:
+  stack:
+  serverless:
+    observability:
+  product:
+    apm_agent_go: ga
 ---
 
 # API documentation [api]
@@ -84,7 +90,7 @@ TraceContext returns the transaction’s [trace context](#trace-context).
 
 ### `func (*Transaction) EnsureParent() SpanID` [transaction-ensureparent]
 
-EnsureParent returns the transaction’s parent span ID—​generating and recording one if it did not previously have one.
+EnsureParent returns the transaction’s parent span ID — generating and recording one if it did not previously have one.
 
 EnsureParent enables correlation with spans created by the JavaScript Real User Monitoring (RUM) agent for the initial page load. If your backend service generates the HTML page dynamically, you can inject the trace and parent span ID into the page in order to initialize the JavaScript RUM agent, such that the web browser’s page load appears as the root of the trace.
 
@@ -153,7 +159,7 @@ The formatter understands the following formats:
 * %x: transaction ID only
 * %s: span ID only
 
-The "+" option can be used to format the values in "key=value" style, with the field names `trace.id`, `transaction.id`, and `span.id`. For example, using "%+v" as the format would yield "trace.id=…​ transaction.id=…​ span.id=…​".
+The "+" option can be used to format the values in "key=value" style, with the field names `trace.id`, `transaction.id`, and `span.id`. For example, using "%+v" as the format would yield "trace.id=…  transaction.id=…  span.id=…".
 
 For a more in-depth example, see [Manual log correlation (unstructured)](/reference/log-correlation.md#log-correlation-manual-unstructured).
 

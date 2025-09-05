@@ -3,6 +3,12 @@ navigation_title: "Elastic APM Go Agent"
 mapped_pages:
   - https://www.elastic.co/guide/en/apm/agent/go/current/release-notes-2.x.html
   - https://www.elastic.co/guide/en/apm/agent/go/current/release-notes.html
+applies_to:
+  stack:
+  serverless:
+    observability:
+  product:
+    apm_agent_go: ga
 ---
 
 # Elastic APM Go Agent release notes [elastic-apm-go-agent-release-notes]
