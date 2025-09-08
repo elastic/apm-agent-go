@@ -1,6 +1,12 @@
 ---
 mapped_pages:
   - https://www.elastic.co/guide/en/apm/agent/go/current/builtin-modules.html
+applies_to:
+  stack:
+  serverless:
+    observability:
+  product:
+    apm_agent_go: ga
 ---
 
 # Built-in instrumentation modules [builtin-modules]
