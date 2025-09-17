@@ -16,3 +16,5 @@ toc:
   - file: opentracing-api.md
   - file: contributing.md
   - file: upgrading.md
+  - title: Troubleshooting
+    crosslink: docs-content://troubleshoot/observability/apm-agent-go/apm-go-agent.md
