@@ -34,4 +34,4 @@ APM Agents work in conjunction with the [APM Server](docs-content://solutions/ob
 
 ## Troubleshooting
 
-If you're experiencing issues with the APM Go agent, refer to [Troubleshooting](docs-content://troubleshoot/observability/apm-agent-go/apm-go-agent.md).
+If you're experiencing issues with the APM Go agent, refer to [Troubleshoot APM Go Agent](docs-content://troubleshoot/observability/apm-agent-go/apm-go-agent.md).
