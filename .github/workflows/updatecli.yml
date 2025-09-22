@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Get token from GitHub App
+      - name: Get token
         id: get_token
         uses: actions/create-github-app-token@v2
         with:
