@@ -46,3 +46,5 @@ Apache 2.0.
 
 If you find a bug, please [report an issue](https://github.com/elastic/apm-agent-go/issues).
 For any other assistance, please open or add to a topic on the [APM discuss forum](https://discuss.elastic.co/c/apm).
+
+
