@@ -330,7 +330,7 @@ func TestWithClientTrace(t *testing.T) {
 	})
 
 	require.Len(t, spans, 4)
-	assert.Equal(t, fmt.Sprintf(fmt.Sprintf("Connect %s", server.Listener.Addr())), spans[0].Name)
+	assert.Equal(t, fmt.Sprintf("Connect %s", server.Listener.Addr()), spans[0].Name)
 	assert.Equal(t, "Request", spans[1].Name)
 	assert.Equal(t, "Response", spans[2].Name)
 }
