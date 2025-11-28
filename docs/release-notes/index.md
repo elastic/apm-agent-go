@@ -26,6 +26,12 @@ To check for security updates, go to [Security announcements for the Elastic sta
 
 % ### Fixes [elastic-apm-go-agent-versionext-fixes]
 
+## 2.7.2
+**Release date:** November 28, 2025
+
+### Fixes [elastic-apm-go-agent-2-7-2-fixes]
+* Always enforce a body limit in apmelasticsearch
+
 ## 2.7.1
 **Release date:** May 26, 2025
 

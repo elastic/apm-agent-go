@@ -5,7 +5,7 @@ go 1.24.0
 require (
 	github.com/go-redis/redis/v8 v8.11.4
 	github.com/stretchr/testify v1.8.4
-	go.elastic.co/apm/v2 v2.7.1
+	go.elastic.co/apm/v2 v2.7.2
 )
 
 require (

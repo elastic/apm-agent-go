@@ -4,8 +4,8 @@ require (
 	github.com/google/go-cmp v0.5.9
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.0
 	github.com/stretchr/testify v1.8.4
-	go.elastic.co/apm/module/apmhttp/v2 v2.7.1
-	go.elastic.co/apm/v2 v2.7.1
+	go.elastic.co/apm/module/apmhttp/v2 v2.7.2
+	go.elastic.co/apm/v2 v2.7.2
 	google.golang.org/grpc v1.57.1
 	google.golang.org/grpc/examples v0.0.0-20230831183909-e498bbc9bd37
 	google.golang.org/protobuf v1.33.0
