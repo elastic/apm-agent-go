@@ -256,10 +256,7 @@ func limitedBody(r io.Reader, n int64) io.Reader {
 	// set to 10000 to match the maximum length of the "db.statement"
 	// span context field.
 	const maxLimit = 10000
-	if n <= 0 {
-		return r
-	}
-	if n > maxLimit {
+	if n <= 0 || n > maxLimit {
 		n = maxLimit
 	}
 	return &io.LimitedReader{R: r, N: n}
