@@ -19,5 +19,5 @@ package apm // import "go.elastic.co/apm/v2"
 
 const (
 	// AgentVersion is the Elastic APM Go Agent version.
-	AgentVersion = "2.7.1"
+	AgentVersion = "2.7.2"
 )
