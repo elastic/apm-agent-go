@@ -31,7 +31,7 @@ We support several third-party web frameworks, as well as Go’s standard `net/h
 
 ### fasthttp [_fasthttp]
 
-We support [valyala/fasthttp](https://github.com/valyala/fasthttp), [v1.26.0](https://github.com/valyala/fasthttp/releases/tag/v1.26.0) and greater.
+We support [valyala/fasthttp](https://github.com/valyala/fasthttp), [v1.26.0](https://github.com/valyala/fasthttp/releases/tag/v1.26.0) <= v1.69.0.
 
 See [module/apmfasthttp](/reference/builtin-modules.md#builtin-modules-apmfasthttp) for more information about fasthttp instrumentation.
 
@@ -45,7 +45,7 @@ See [module/apmhttprouter](/reference/builtin-modules.md#builtin-modules-apmhttp
 
 ### Echo [_echo]
 
-We support the [Echo](https://echo.labstack.com/) web framework, [v3.3.5](https://github.com/labstack/echo/releases/tag/3.3.5) and greater.
+We support the [Echo](https://echo.labstack.com/) web framework, [v3.3.5](https://github.com/labstack/echo/releases/tag/3.3.5) <= v3.3.10 for v3.x and >= v4.0.0 <= v4.15.0 for v4.x.
 
 We provide different packages for the Echo v3 and v4 versions: `module/apmecho` for Echo v3.x, and `module/apmechov4` for Echo v4.x.
 
@@ -54,49 +54,49 @@ See [module/apmecho](/reference/builtin-modules.md#builtin-modules-apmecho) for 
 
 ### Gin [_gin]
 
-We support the [Gin](https://gin-gonic.com/) web framework, [v1.2](https://github.com/gin-gonic/gin/releases/tag/v1.2) and greater.
+We support the [Gin](https://gin-gonic.com/) web framework, [v1.2](https://github.com/gin-gonic/gin/releases/tag/v1.2) <= v1.11.0.
 
 See [module/apmgin](/reference/builtin-modules.md#builtin-modules-apmgin) for more information about Gin instrumentation.
 
 
 ### Fiber [_fiber]
 
-We support the [Fiber](https://gofiber.io/) web framework, [v2.18.0](https://github.com/gofiber/fiber/releases/tag/v2.18.0) and greater.
+We support the [Fiber](https://gofiber.io/) web framework, [v2.18.0](https://github.com/gofiber/fiber/releases/tag/v2.18.0) <= v2.52.10.
 
 We provide package only for the Fiber v2. See [module/apmfiber](/reference/builtin-modules.md#builtin-modules-apmfiber) for more information about Fiber instrumentation.
 
 
 ### Beego [_beego]
 
-We support the [Beego](https://beego.me/) web framework, [v1.10.0](https://github.com/astaxie/beego/releases/tag/v1.10.0) and greater.
+We support the [Beego](https://beego.me/) web framework, [v1.10.0](https://github.com/astaxie/beego/releases/tag/v1.10.0) <= v1.12.3.
 
 See [module/apmbeego](/reference/builtin-modules.md#builtin-modules-apmbeego) for more information about Beego instrumentation.
 
 
 ### gorilla/mux [_gorillamux]
 
-We support [gorilla/mux](http://www.gorillatoolkit.org/pkg/mux) [v1.6.1](https://github.com/gorilla/mux/releases/tag/v1.6.1) and greater. Older versions are not supported due to the use of gorilla.Middleware.
+We support [gorilla/mux](http://www.gorillatoolkit.org/pkg/mux) [v1.6.1](https://github.com/gorilla/mux/releases/tag/v1.6.1) <= v1.8.1. Older versions are not supported due to the use of gorilla.Middleware.
 
 See [module/apmgorilla](/reference/builtin-modules.md#builtin-modules-apmgorilla) for more information about gorilla/mux instrumentation.
 
 
 ### go-restful [_go_restful]
 
-We support [go-restful](https://github.com/emicklei/go-restful), [2.0.0](https://github.com/emicklei/go-restful/releases/tag/2.0.0) and greater.
+We support [go-restful](https://github.com/emicklei/go-restful), [2.0.0](https://github.com/emicklei/go-restful/releases/tag/2.0.0) <= v3.13.0.
 
 See [module/apmrestful](/reference/builtin-modules.md#builtin-modules-apmrestful) for more information about go-restful instrumentation.
 
 
 ### chi [_chi]
 
-We support [chi](https://github.com/go-chi/chi), [v4.0.0](https://github.com/go-chi/chi/releases/tag/v4.0.0) and greater.
+We support [chi](https://github.com/go-chi/chi), [v4.0.0](https://github.com/go-chi/chi/releases/tag/v4.0.0) <= v5.2.3.
 
 See [module/apmchi](/reference/builtin-modules.md#builtin-modules-apmchi) for more information about chi instrumentation.
 
 
 ### negroni [_negroni]
 
-We support [negroni](https://github.com/urfave/negroni), [v1.0.0](https://github.com/urfave/negroni/releases/tag/v1.0.0) and greater.
+We support [negroni](https://github.com/urfave/negroni), [v1.0.0](https://github.com/urfave/negroni/releases/tag/v1.0.0) <= v3.1.1.
 
 See [module/apmnegroni](/reference/builtin-modules.md#builtin-modules-apmnegroni) for more information about negroni instrumentation.
 
@@ -120,18 +120,18 @@ See [module/apmsql](/reference/builtin-modules.md#builtin-modules-apmsql) for mo
 
 ### GORM [_gorm]
 
-We support the [GORM](http://gorm.io/) object-relational mapping library, [v1.9](https://github.com/jinzhu/gorm/releases/tag/v1.9) and greater. Spans will be created for each create, query, update, and delete operation.
+We support the [GORM](http://gorm.io/) object-relational mapping library, [>= v1.9.10](https://github.com/jinzhu/gorm/releases/tag/v1.9.10) <= v1.9.16 for v1.x and >= v1.25.5 <= v1.31.1 for v2.x. Spans will be created for each create, query, update, and delete operation.
 
 As with `database/sql` support we provide additional support for the postgres, mysql, and sqlite dialects.
 
-We provide different packages for the Gorm v1 and v2 versions: `module/apmgorm` for Gorm v1.x, and `module/apmgormv2` for Gorm v2.x.
+We provide different packages for the Gorm v1 and v2 versions: `module/apmgorm` for Gorm v1.x, and `module/apmgormv2` for Gorm v2.x
 
 See [module/apmgorm](/reference/builtin-modules.md#builtin-modules-apmgorm) or [module/apmgormv2](/reference/builtin-modules.md#builtin-modules-apmgorm) for more information about GORM instrumentation.
 
 
 ### go-pg/pg [_go_pgpg]
 
-We support the [go-pg/pg](https://github.com/go-pg/pg) PostgreSQL ORM, [v8.0.4](https://github.com/go-pg/pg/releases/tag/v8.0.4). Spans will be created for each database operation.
+We support the [go-pg/pg](https://github.com/go-pg/pg) PostgreSQL ORM, [v8.0.4](https://github.com/go-pg/pg/releases/tag/v8.0.4) <= v10.15.0. Spans will be created for each database operation.
 
 See [module/apmgopg](/reference/builtin-modules.md#builtin-modules-apmgopg) for more information about go-pg instrumentation.
 
@@ -145,14 +145,14 @@ See [module/apmgocql](/reference/builtin-modules.md#builtin-modules-apmgocql) fo
 
 ### Redis (gomodule/redigo) [_redis_gomoduleredigo]
 
-We support [Redigo](https://github.com/gomodule/redigo), [v2.0.0](https://github.com/gomodule/redigo/tree/v2.0.0) and greater. We provide helper functions for reporting Redis commands as spans.
+We support [Redigo](https://github.com/gomodule/redigo), [v1.8.2](https://github.com/gomodule/redigo/releases/tag/v1.8.2) <= v1.9.3. We provide helper functions for reporting Redis commands as spans.
 
 See [module/apmredigo](/reference/builtin-modules.md#builtin-modules-apmredigo) for more information about Redigo instrumentation.
 
 
 ### Redis (go-redis/redis) [_redis_go_redisredis]
 
-We support [go-redis](https://github.com/go-redis/redis), [v6.15.3](https://github.com/go-redis/redis/tree/v6.15.3). We provide helper functions for reporting Redis commands as spans.
+We support [go-redis](https://github.com/go-redis/redis), [v6.15.3](https://github.com/go-redis/redis/releases/tag/v6.15.3) <= v9.17.2. We provide helper functions for reporting Redis commands as spans.
 
 See [module/apmgoredis](/reference/builtin-modules.md#builtin-modules-apmgoredis) for more information about go-redis instrumentation.
 
@@ -166,7 +166,7 @@ See [module/apmelasticsearch](/reference/builtin-modules.md#builtin-modules-apme
 
 ### MongoDB [_mongodb]
 
-We provide instrumentation for the official [MongoDB Go Driver](https://github.com/mongodb/mongo-go-driver), [v1.0.0](https://github.com/mongodb/mongo-go-driver/releases/tag/v1.0.0) and greater. Spans will be created for each MongoDB command executed within a context containing a transaction.
+We provide instrumentation for the official [MongoDB Go Driver](https://github.com/mongodb/mongo-go-driver), [v1.0.0](https://github.com/mongodb/mongo-go-driver/releases/tag/v1.0.0) <= v2.4.1. Spans will be created for each MongoDB command executed within a context containing a transaction.
 
 See [module/apmmongo](/reference/builtin-modules.md#builtin-modules-apmmongo) for more information about the MongoDB Go Driver instrumentation.
 
@@ -183,7 +183,7 @@ See [module/apmawssdkgo](/reference/builtin-modules.md#builtin-modules-apmawssdk
 
 ### gRPC [_grpc]
 
-We support [gRPC](https://grpc.io/) [v1.3.0](https://github.com/grpc/grpc-go/releases/tag/v1.3.0) and greater. We provide unary and stream interceptors for both the client and server. The server interceptor will create a transaction for each incoming request, and the client interceptor will create a span for each outgoing request.
+We support [gRPC](https://grpc.io/) [v1.3.0](https://github.com/grpc/grpc-go/releases/tag/v1.3.0) <= v1.78.0. We provide unary and stream interceptors for both the client and server. The server interceptor will create a transaction for each incoming request, and the client interceptor will create a span for each outgoing request.
 
 See [module/apmgrpc](/reference/builtin-modules.md#builtin-modules-apmgrpc) for more information about gRPC instrumentation.
 
@@ -203,28 +203,28 @@ Code examples are available at [https://pkg.go.dev/go.elastic.co/apm/module/apmg
 
 ### Logrus [_logrus]
 
-We support log correlation and exception tracking with [Logrus](https://github.com/sirupsen/logrus/), [v1.1.0](https://github.com/sirupsen/logrus/releases/tag/v1.1.0) and greater.
+We support log correlation and exception tracking with [Logrus](https://github.com/sirupsen/logrus/), [v1.1.0](https://github.com/sirupsen/logrus/releases/tag/v1.1.0) <= v1.9.3.
 
 See [module/apmlogrus](/reference/builtin-modules.md#builtin-modules-apmlogrus) for more information about Logrus integration.
 
 
 ### Zap [_zap]
 
-We support log correlation and exception tracking with [Zap](https://github.com/uber-go/zap/), [v1.0.0](https://github.com/uber-go/zap/releases/tag/v1.0.0) and greater.
+We support log correlation and exception tracking with [Zap](https://github.com/uber-go/zap/), [v1.0.0](https://github.com/uber-go/zap/releases/tag/v1.0.0) <= v1.27.1.
 
 See [module/apmzap](/reference/builtin-modules.md#builtin-modules-apmzap) for more information about Zap integration.
 
 
 ### Zerolog [_zerolog]
 
-We support log correlation and exception tracking with [Zerolog](https://github.com/rs/zerolog/), [v1.12.0](https://github.com/rs/zerolog/releases/tag/v1.12.0) and greater.
+We support log correlation and exception tracking with [Zerolog](https://github.com/rs/zerolog/), [v1.12.0](https://github.com/rs/zerolog/releases/tag/v1.12.0) <= v1.34.0.
 
 See [module/apmzerolog](/reference/builtin-modules.md#builtin-modules-apmzerolog) for more information about Zerolog integration.
 
 
 ### Slog [_slog]
 
-We support log correlation and error tracking with [Slog](https://pkg.go.dev/log/slog/), [v1.21.0](https://pkg.go.dev/log/slog@go1.21.0/) and greater.
+We support log correlation and error tracking with [Slog](https://pkg.go.dev/log/slog/), [v1.21.0](https://pkg.go.dev/log/slog@go1.21.0/) <= v1.25.5.
 
 See [module/apmslog](/reference/builtin-modules.md#builtin-modules-apmslog) for more information about slog integration.
 
