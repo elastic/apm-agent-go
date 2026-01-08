@@ -120,7 +120,7 @@ See [module/apmsql](/reference/builtin-modules.md#builtin-modules-apmsql) for mo
 
 ### GORM [_gorm]
 
-We support the [GORM](http://gorm.io/) object-relational mapping library, [>= v1.9.0](https://github.com/jinzhu/gorm/releases/tag/v1.9.0) <= v1.9.16 for v1.x and v2.0.0. Spans will be created for each create, query, update, and delete operation.
+We support the [GORM](http://gorm.io/) object-relational mapping library, [>= v1.9.10](https://github.com/jinzhu/gorm/releases/tag/v1.9.10) <= v1.9.16 for v1.x and >= v1.25.5 <= v1.31.1 for v2.x. Spans will be created for each create, query, update, and delete operation.
 
 As with `database/sql` support we provide additional support for the postgres, mysql, and sqlite dialects.
 
@@ -145,7 +145,7 @@ See [module/apmgocql](/reference/builtin-modules.md#builtin-modules-apmgocql) fo
 
 ### Redis (gomodule/redigo) [_redis_gomoduleredigo]
 
-We support [Redigo](https://github.com/gomodule/redigo), [v2.0.0](https://github.com/gomodule/redigo/releases/tag/v2.0.0) <= v2.0.0. We provide helper functions for reporting Redis commands as spans.
+We support [Redigo](https://github.com/gomodule/redigo), [v1.8.2](https://github.com/gomodule/redigo/releases/tag/v1.8.2) <= v1.9.3. We provide helper functions for reporting Redis commands as spans.
 
 See [module/apmredigo](/reference/builtin-modules.md#builtin-modules-apmredigo) for more information about Redigo instrumentation.
 
