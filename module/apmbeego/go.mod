@@ -3,9 +3,9 @@ module go.elastic.co/apm/module/apmbeego/v2
 require (
 	github.com/astaxie/beego v1.12.3
 	github.com/stretchr/testify v1.8.4
-	go.elastic.co/apm/module/apmhttp/v2 v2.7.2
-	go.elastic.co/apm/module/apmsql/v2 v2.7.2
-	go.elastic.co/apm/v2 v2.7.2
+	go.elastic.co/apm/module/apmhttp/v2 v2.7.3
+	go.elastic.co/apm/module/apmsql/v2 v2.7.3
+	go.elastic.co/apm/v2 v2.7.3
 )
 
 require (
