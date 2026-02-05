@@ -4,8 +4,8 @@ require (
 	github.com/labstack/echo v3.3.10+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.4
-	go.elastic.co/apm/module/apmhttp/v2 v2.7.2
-	go.elastic.co/apm/v2 v2.7.2
+	go.elastic.co/apm/module/apmhttp/v2 v2.7.3
+	go.elastic.co/apm/v2 v2.7.3
 )
 
 require (
