@@ -30,7 +30,7 @@ To check for security updates, go to [Security announcements for the Elastic sta
 **Release date:** February 5, 2026
 
 ### Fixes [elastic-apm-go-agent-2-7-3-fixes]
-* Upgrade the OpenTelemetry Go SDK in apmotel to fix CVE
+* Upgrade the OpenTelemetry Go SDK in apmotel to fix CVE-2026-24051
 
 ## 2.7.2
 **Release date:** November 28, 2025
