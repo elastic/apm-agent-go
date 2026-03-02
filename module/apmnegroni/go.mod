@@ -5,8 +5,8 @@ go 1.24.0
 require (
 	github.com/stretchr/testify v1.8.4
 	github.com/urfave/negroni v1.0.0
-	go.elastic.co/apm/module/apmhttp/v2 v2.7.2
-	go.elastic.co/apm/v2 v2.7.2
+	go.elastic.co/apm/module/apmhttp/v2 v2.7.3
+	go.elastic.co/apm/v2 v2.7.3
 )
 
 require (

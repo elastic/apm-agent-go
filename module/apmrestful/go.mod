@@ -3,8 +3,8 @@ module go.elastic.co/apm/module/apmrestful/v2
 require (
 	github.com/emicklei/go-restful/v3 v3.12.0
 	github.com/stretchr/testify v1.8.4
-	go.elastic.co/apm/module/apmhttp/v2 v2.7.2
-	go.elastic.co/apm/v2 v2.7.2
+	go.elastic.co/apm/module/apmhttp/v2 v2.7.3
+	go.elastic.co/apm/v2 v2.7.3
 )
 
 require (

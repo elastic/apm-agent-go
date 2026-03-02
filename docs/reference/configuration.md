@@ -458,7 +458,7 @@ There are two special file names that the agent recognizes: `stdout` and `stderr
 This environment variable will be ignored if a logger is configured programatically.
 
 
-### `ELASTIC_APM_CENTRAL_CONFIG` [config-central-config]
+## `ELASTIC_APM_CENTRAL_CONFIG` [config-central-config]
 
 | Environment | Default |
 | --- | --- |
@@ -472,7 +472,7 @@ This feature requires APM Server v7.3 or later.
 
 
 
-### `ELASTIC_APM_USE_ELASTIC_TRACEPARENT_HEADER` [config-use-elastic-traceparent-header]
+## `ELASTIC_APM_USE_ELASTIC_TRACEPARENT_HEADER` [config-use-elastic-traceparent-header]
 
 |     |     |
 | --- | --- |
@@ -484,7 +484,7 @@ To enable [distributed tracing](docs-content://solutions/observability/apm/trace
 When this setting is `true`, the agent will also add the header `elastic-apm-traceparent` for backwards compatibility with older versions of Elastic APM agents.
 
 
-### `ELASTIC_APM_CLOUD_PROVIDER` [config-cloud-provider]
+## `ELASTIC_APM_CLOUD_PROVIDER` [config-cloud-provider]
 
 | Environment | Default | Example |
 | --- | --- | --- |

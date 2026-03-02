@@ -1,13 +1,13 @@
 module go.elastic.co/apm/module/apmfiber/v2
 
 require (
-	github.com/gofiber/fiber/v2 v2.52.9
+	github.com/gofiber/fiber/v2 v2.52.12
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.4
 	github.com/valyala/fasthttp v1.51.0
-	go.elastic.co/apm/module/apmfasthttp/v2 v2.7.2
-	go.elastic.co/apm/module/apmhttp/v2 v2.7.2
-	go.elastic.co/apm/v2 v2.7.2
+	go.elastic.co/apm/module/apmfasthttp/v2 v2.7.3
+	go.elastic.co/apm/module/apmhttp/v2 v2.7.3
+	go.elastic.co/apm/v2 v2.7.3
 )
 
 require (
