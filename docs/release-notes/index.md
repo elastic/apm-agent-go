@@ -26,6 +26,12 @@ To check for security updates, go to [Security announcements for the Elastic sta
 
 % ### Fixes [elastic-apm-go-agent-versionext-fixes]
 
+## 2.7.5
+**Release date:** March 19, 2026
+
+### Fixes [elastic-apm-go-agent-2-7-5-fixes]
+* Upgrade gogrpc to 1.79.3.12 to fix CVE-2026-33186
+
 ## 2.7.4
 **Release date:** March 2, 2026
 
