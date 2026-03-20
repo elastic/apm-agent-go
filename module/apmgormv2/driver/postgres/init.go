@@ -23,14 +23,14 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
-	apmpgxv4 "go.elastic.co/apm/module/apmsql/v2/pgxv4"
+	apmpgxv5 "go.elastic.co/apm/module/apmsql/v2/pgxv5"
 )
 
 // Open creates a dialect with apmsql
 func Open(dsn string) gorm.Dialector {
 	dialect := &postgres.Dialector{
 		Config: &postgres.Config{
-			DriverName: apmpgxv4.DriverName,
+			DriverName: apmpgxv5.DriverName,
 			DSN:        dsn,
 		},
 	}
