@@ -21,9 +21,9 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/tracelog"
+	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -31,35 +31,34 @@ import (
 	"go.elastic.co/apm/v2/apmtest"
 )
 
-func TestInstrument(t *testing.T) {
-	cfg, err := pgx.ParseConfig("postgres://postgres@localhost/test")
-	require.NoError(t, err)
+type testLogger struct{}
 
-	originalTracer := cfg.Tracer
-	apmpgx.Instrument(cfg)
+func (t *testLogger) Log(_ context.Context, _ pgx.LogLevel, _ string, _ map[string]interface{}) {}
 
-	// Verify that the tracer was instrumented
-	assert.NotNil(t, cfg.Tracer)
-	assert.NotEqual(t, originalTracer, cfg.Tracer)
-}
-
-func TestTraceQueryStart(t *testing.T) {
-	cfg, err := pgx.ParseConfig("postgres://testuser@localhost:5432/testdb")
-	require.NoError(t, err)
-
-	apmpgx.Instrument(cfg)
-
+func TestLog(t *testing.T) {
 	testcases := []struct {
-		name string
-		sql  string
+		name, msg string
+		logger    pgx.Logger
 	}{
 		{
-			name: "simple SELECT",
-			sql:  "SELECT * FROM foo.bar",
+			name:   "QUERY trace",
+			msg:    "Query",
+			logger: nil,
 		},
 		{
-			name: "INSERT",
-			sql:  "INSERT INTO foo (id) VALUES (1)",
+			name:   "EXEC trace",
+			msg:    "Exec",
+			logger: nil,
+		},
+		{
+			name:   "COPY FROM trace",
+			msg:    "CopyFrom",
+			logger: nil,
+		},
+		{
+			name:   "logger test",
+			msg:    "Query",
+			logger: &testLogger{},
 		},
 	}
 
@@ -69,51 +68,50 @@ func TestTraceQueryStart(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			_, spans, errs := apmtest.WithTransaction(func(ctx context.Context) {
-				data := pgx.TraceQueryStartData{
-					SQL: test.sql,
-				}
-				ctx = cfg.Tracer.TraceQueryStart(ctx, nil, data)
-				// Must call TraceQueryEnd to complete the span
-				cfg.Tracer.TraceQueryEnd(ctx, nil, pgx.TraceQueryEndData{
-					Err: nil,
-				})
-			})
+			cfg := &pgx.ConnConfig{
+				Logger: nil,
+			}
 
-			require.Len(t, spans, 1)
-			assert.Equal(t, "db", spans[0].Type)
-			assert.Equal(t, "postgresql", spans[0].Subtype)
-			assert.Equal(t, "testdb", spans[0].Context.Database.Instance)
-			assert.Equal(t, "testuser", spans[0].Context.Database.User)
-			assert.Equal(t, test.sql, spans[0].Context.Database.Statement)
-			assert.Len(t, errs, 0)
+			apmpgx.Instrument(cfg)
+
+			cfg.Logger.Log(context.TODO(), pgx.LogLevelNone, test.msg, nil)
 		})
 	}
 }
 
-func TestTraceQueryEnd(t *testing.T) {
-	cfg, err := pgx.ParseConfig("postgres://testuser@localhost:5432/testdb")
-	require.NoError(t, err)
+func TestQueryTrace(t *testing.T) {
+	cfg := &pgx.ConnConfig{
+		Logger: nil,
+	}
 
 	apmpgx.Instrument(cfg)
 
 	testcases := []struct {
-		name          string
-		sql           string
-		withError     bool
-		expectOutcome string
+		name      string
+		expectErr bool
+		data      map[string]interface{}
 	}{
 		{
-			name:          "successful query",
-			sql:           "SELECT * FROM foo",
-			withError:     false,
-			expectOutcome: "success",
+			name:      "QUERY span, no error",
+			expectErr: false,
+			data: map[string]interface{}{
+				"time": 3 * time.Millisecond,
+				"sql":  "SELECT * FROM foo.bar",
+			},
 		},
 		{
-			name:          "failed query",
-			sql:           "SELECT * FROM foo",
-			withError:     true,
-			expectOutcome: "failure",
+			name:      "QUERY span, empty data",
+			expectErr: true,
+			data:      nil,
+		},
+		{
+			name:      "QUERY span, error in data object",
+			expectErr: true,
+			data: map[string]interface{}{
+				"time": 3 * time.Millisecond,
+				"sql":  "SELECT * FROM foo.bar",
+				"err":  errors.New("test error"),
+			},
 		},
 	}
 
@@ -124,76 +122,61 @@ func TestTraceQueryEnd(t *testing.T) {
 			t.Parallel()
 
 			_, spans, errs := apmtest.WithTransaction(func(ctx context.Context) {
-				traceCtx := cfg.Tracer.TraceQueryStart(ctx, nil, pgx.TraceQueryStartData{
-					SQL: test.sql,
-				})
-
-				queryErr := errors.New("query failed")
-				if !test.withError {
-					queryErr = nil
-				}
-
-				cfg.Tracer.TraceQueryEnd(traceCtx, nil, pgx.TraceQueryEndData{
-					Err: queryErr,
-				})
+				cfg.Logger.Log(ctx, pgx.LogLevelNone, "Query", test.data)
 			})
 
-			assert.Len(t, spans, 1)
-			assert.Equal(t, test.expectOutcome, spans[0].Outcome)
-
-			if test.withError {
-				assert.Len(t, errs, 1)
+			if test.expectErr {
+				require.Len(t, errs, 1)
 			} else {
-				assert.Len(t, errs, 0)
+				assert.Equal(t, "db", spans[0].Type)
+				assert.Equal(t, "postgresql", spans[0].Subtype)
+				assert.Equal(t, "query", spans[0].Action)
+				assert.Equal(t, "SELECT FROM foo.bar", spans[0].Name)
+				assert.Equal(t, "SELECT * FROM foo.bar", spans[0].Context.Database.Statement)
+
+				assert.Equal(t, 0, len(spans[0].Stacktrace))
+
+				require.Len(t, errs, 0)
 			}
 		})
 	}
 }
 
-func TestPublicLogAPI(t *testing.T) {
-	cfg, err := pgx.ParseConfig("postgres://testuser@localhost:5432/testdb")
-	require.NoError(t, err)
+func TestCopyTrace(t *testing.T) {
+	cfg := &pgx.ConnConfig{
+		Logger: nil,
+	}
 
 	apmpgx.Instrument(cfg)
 
 	testcases := []struct {
-		name       string
-		msg        string
-		data       map[string]interface{}
-		expectName string
+		name      string
+		expectErr bool
+		data      map[string]interface{}
 	}{
 		{
-			name: "Query message",
-			msg:  "Query",
+			name:      "COPY span, no error",
+			expectErr: false,
 			data: map[string]interface{}{
-				"sql": "SELECT * FROM users",
+				"time":        3 * time.Millisecond,
+				"tableName":   pgx.Identifier{"foo"},
+				"columnNames": pgx.Identifier{"id,name,age"},
 			},
-			expectName: "SELECT FROM users",
 		},
 		{
-			name: "Exec message",
-			msg:  "Exec",
-			data: map[string]interface{}{
-				"sql": "INSERT INTO users (name) VALUES ($1)",
-			},
-			expectName: "INSERT INTO users",
+			name:      "COPY span, empty data",
+			expectErr: true,
+			data:      nil,
 		},
 		{
-			name: "CopyFrom message",
-			msg:  "CopyFrom",
+			name:      "COPY span, error in data object",
+			expectErr: true,
 			data: map[string]interface{}{
-				"tableName":   pgx.Identifier{"users"},
-				"columnNames": pgx.Identifier{"id", "name"},
+				"time":        3 * time.Millisecond,
+				"tableName":   pgx.Identifier{"foo"},
+				"columnNames": pgx.Identifier{"id,name,age"},
+				"err":         errors.New("test error"),
 			},
-			expectName: "COPY TO users",
-		},
-		{
-			name: "SendBatch message",
-			msg:  "SendBatch",
-			data: map[string]interface{}{
-				"batchLen": 5,
-			},
-			expectName: "BATCH",
 		},
 	}
 
@@ -203,21 +186,92 @@ func TestPublicLogAPI(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			tracer := cfg.Tracer
-			_, spans, _ := apmtest.WithTransaction(func(ctx context.Context) {
-				// Cast to access public Log method
-				if logTracer, ok := tracer.(interface {
-					Log(context.Context, tracelog.LogLevel, string, map[string]interface{})
-				}); ok {
-					logTracer.Log(ctx, tracelog.LogLevelInfo, test.msg, test.data)
-				}
+			_, spans, errs := apmtest.WithTransaction(func(ctx context.Context) {
+				cfg.Logger.Log(ctx, pgx.LogLevelNone, "CopyFrom", test.data)
 			})
 
-			require.Len(t, spans, 1)
-			assert.Equal(t, test.expectName, spans[0].Name)
-			assert.Equal(t, "db", spans[0].Type)
-			assert.Equal(t, "postgresql", spans[0].Subtype)
-			assert.Equal(t, "success", spans[0].Outcome)
+			if test.expectErr && test.data != nil {
+				require.Len(t, errs, 1)
+			}
+
+			if !test.expectErr {
+				assert.Equal(t, "db", spans[0].Type)
+				assert.Equal(t, "postgresql", spans[0].Subtype)
+				assert.Equal(t, "copy", spans[0].Action)
+				assert.Equal(t, "COPY TO foo", spans[0].Name)
+
+				assert.Equal(t, len(spans[0].Stacktrace), 0)
+
+				require.Len(t, errs, 0)
+			}
+		})
+	}
+}
+
+func TestBatchTrace(t *testing.T) {
+	cfg := &pgx.ConnConfig{
+		Logger: nil,
+	}
+
+	apmpgx.Instrument(cfg)
+
+	testcases := []struct {
+		name      string
+		expectErr bool
+		data      map[string]interface{}
+	}{
+		{
+			name:      "BATCH span, no error",
+			expectErr: false,
+			data: map[string]interface{}{
+				"time":     3 * time.Millisecond,
+				"batchLen": 5,
+			},
+		},
+		{
+			name:      "BATCH span, no batch len",
+			expectErr: false,
+			data: map[string]interface{}{
+				"time": 3 * time.Millisecond,
+			},
+		},
+		{
+			name:      "BATCH span, error in data object",
+			expectErr: true,
+			data: map[string]interface{}{
+				"time":     3 * time.Millisecond,
+				"batchLen": 5,
+				"err":      errors.New("test error"),
+			},
+		},
+	}
+
+	for _, test := range testcases {
+		test := test
+
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, spans, errs := apmtest.WithTransaction(func(ctx context.Context) {
+				cfg.Logger.Log(ctx, pgx.LogLevelNone, "SendBatch", test.data)
+			})
+
+			if test.expectErr {
+				require.Len(t, errs, 1)
+			} else {
+				assert.Equal(t, "db", spans[0].Type)
+				assert.Equal(t, "postgresql", spans[0].Subtype)
+				assert.Equal(t, "batch", spans[0].Action)
+				assert.Equal(t, "BATCH", spans[0].Name)
+
+				assert.Equal(t, len(spans[0].Stacktrace), 0)
+
+				if len(spans[0].Context.Tags) > 0 {
+					assert.Equal(t, float64(5), spans[0].Context.Tags[0].Value)
+				}
+
+				require.Len(t, errs, 0)
+			}
 		})
 	}
 }
