@@ -3,7 +3,7 @@ module go.elastic.co/apm/module/apmpgxv5/v2
 go 1.24.0
 
 require (
-	github.com/jackc/pgx/v5 v5.5.4
+	github.com/jackc/pgx/v5 v5.5.5
 	github.com/stretchr/testify v1.8.4
 	go.elastic.co/apm/module/apmsql/v2 v2.7.5
 	go.elastic.co/apm/v2 v2.7.5
@@ -22,7 +22,6 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/procfs v0.0.0-20190425082905-87a4384529e0 // indirect
-	github.com/rogpeppe/go-internal v1.6.1 // indirect
 	go.elastic.co/fastjson v1.5.1 // indirect
 	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/sys v0.38.0 // indirect

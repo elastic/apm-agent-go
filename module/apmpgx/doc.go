@@ -16,4 +16,6 @@
 // under the License.
 
 // Package apmpgx provides helpers for tracing github.com/jackc/pgx/v4. Minimal required version is v4.17
+//
+// Deprecated: Migrate to the OpenTelemetry Go API and SDK
 package apmpgx // import "go.elastic.co/apm/module/apmpgx/v2"

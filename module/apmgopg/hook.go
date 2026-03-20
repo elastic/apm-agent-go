@@ -38,6 +38,8 @@ const elasticApmSpanKey = "go-apm-agent:span"
 // to Elastic APM if they occur within the context of a captured transaction.
 //
 // If Instrument cannot instrument db, then an error will be returned.
+//
+// Deprecated: Migrate to the OpenTelemetry Go API and SDK
 func Instrument(db *pg.DB) error {
 	qh := &queryHook{}
 	switch qh := ((interface{})(qh)).(type) {
@@ -52,6 +54,8 @@ func Instrument(db *pg.DB) error {
 type queryHook struct{}
 
 // BeforeQuery initiates the span for the database query
+//
+// Deprecated: Migrate to the OpenTelemetry Go API and SDK
 func (qh *queryHook) BeforeQuery(evt *pg.QueryEvent) {
 	var (
 		database string
@@ -84,6 +88,8 @@ func (qh *queryHook) BeforeQuery(evt *pg.QueryEvent) {
 }
 
 // AfterQuery ends the initiated span from BeforeQuery
+//
+// Deprecated: Migrate to the OpenTelemetry Go API and SDK
 func (qh *queryHook) AfterQuery(evt *pg.QueryEvent) {
 	span, ok := evt.Data[elasticApmSpanKey]
 	if !ok {

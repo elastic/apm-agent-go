@@ -60,6 +60,8 @@ type tracer struct {
 
 // Instrument is getting pgx.ConnConfig and wrap logger into tracer.
 // It's safe to pass nil logger into pgx.ConnConfig, if so, then only spans will be created
+//
+// Deprecated: Migrate to the OpenTelemetry Go API and SDK
 func Instrument(cfg *pgx.ConnConfig) {
 	cfg.Logger = &tracer{
 		cfg:    cfg,
@@ -70,6 +72,8 @@ func Instrument(cfg *pgx.ConnConfig) {
 // Log is getting type of SQL expression from msg and run suitable trace.
 // If logger in tracer struct isn't nil, than log will be
 // written to your logger that implements pgx.Logger interface.
+//
+// Deprecated: Migrate to the OpenTelemetry Go API and SDK
 func (t *tracer) Log(ctx context.Context, level pgx.LogLevel, msg string, data map[string]interface{}) {
 	if t.logger != nil {
 		t.logger.Log(ctx, level, msg, data)
@@ -86,6 +90,8 @@ func (t *tracer) Log(ctx context.Context, level pgx.LogLevel, msg string, data m
 }
 
 // QueryTrace traces query and creates spans for them.
+//
+// Deprecated: Migrate to the OpenTelemetry Go API and SDK
 func (t *tracer) QueryTrace(ctx context.Context, data map[string]interface{}) {
 	statement, ok := data["sql"].(string)
 	if !ok {
@@ -106,6 +112,8 @@ func (t *tracer) QueryTrace(ctx context.Context, data map[string]interface{}) {
 }
 
 // CopyTrace traces copy queries and creates spans for them.
+//
+// Deprecated: Migrate to the OpenTelemetry Go API and SDK
 func (t *tracer) CopyTrace(ctx context.Context, data map[string]interface{}) {
 	tableName, ok := data["tableName"].(pgx.Identifier)
 	if !ok {
@@ -141,6 +149,8 @@ func (t *tracer) CopyTrace(ctx context.Context, data map[string]interface{}) {
 }
 
 // BatchTrace traces batch execution and creates spans for the whole batch.
+//
+// Deprecated: Migrate to the OpenTelemetry Go API and SDK
 func (t *tracer) BatchTrace(ctx context.Context, data map[string]interface{}) {
 	span, ok := t.startSpan(ctx, "BATCH", batchSpanType, "", data)
 	if !ok {

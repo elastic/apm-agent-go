@@ -15,6 +15,18 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Package apmpgxv4 registers the "postgres" driver with
-// apmsql, so that you can trace pgx/v4 database connections.
-package apmpgxv4 // import "go.elastic.co/apm/module/apmsql/v2/pgxv4"
+package apmpgxv5 // import "go.elastic.co/apm/module/apmsql/v2/pgxv5"
+
+import (
+	"github.com/jackc/pgx/v5/stdlib"
+
+	"go.elastic.co/apm/module/apmsql/v2"
+	"go.elastic.co/apm/module/apmsql/v2/internal/pgutil"
+)
+
+// DriverName for pgx v5
+const DriverName = apmsql.DriverPrefix + "pgx/v5"
+
+func init() {
+	apmsql.Register("pgx/v5", stdlib.GetDefaultDriver(), apmsql.WithDSNParser(pgutil.ParseDSN))
+}
