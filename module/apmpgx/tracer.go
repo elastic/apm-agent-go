@@ -21,13 +21,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
-	"time"
 
 	"go.elastic.co/apm/module/apmsql/v2"
 	"go.elastic.co/apm/v2"
 
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/tracelog"
 )
 
 const (
@@ -42,37 +41,46 @@ const (
 )
 
 var (
-	// ErrUnsupportedPgxVersion is indicating that data doesn't contain value for "time" key. This field appeared in pgx v4.17
-	ErrUnsupportedPgxVersion = errors.New("this version of pgx is unsupported, please upgrade to v4.17+")
+	// ErrUnsupportedPgxVersion is indicating that pgx version is unsupported
+	ErrUnsupportedPgxVersion = errors.New("this version of pgx is unsupported")
 
 	// ErrInvalidType is indicating that field type doesn't meet expected one
 	ErrInvalidType = errors.New("invalid field type")
 )
 
-// tracer struct contains pgx.ConnConfig inside and pgx.Logger implementation.
+// tracer struct contains pgx.ConnConfig inside and pgx.QueryTracer implementation.
 type tracer struct {
 	// cfg is the pgx.ConnConfig which used for setting metadata in spans such as host, port, etc.
 	cfg *pgx.ConnConfig
 
-	// logger used for writing data to log. If it's nil, then data won't be written to log, and only spans will be created.
-	logger pgx.Logger
+	// parentTracer is the original tracer if one was set. If it's nil, then only spans will be created.
+	parentTracer pgx.QueryTracer
+
+	// parentLogger is the original logger if one was set. If it's nil, then no additional logging is done.
+	parentLogger tracelog.Logger
 }
 
-// Instrument is getting pgx.ConnConfig and wrap logger into tracer.
-// It's safe to pass nil logger into pgx.ConnConfig, if so, then only spans will be created
-func Instrument(cfg *pgx.ConnConfig) {
-	cfg.Logger = &tracer{
-		cfg:    cfg,
-		logger: cfg.Logger,
+// Instrument wraps a pgx.ConnConfig with an APM tracer.
+// It's safe to pass a config with no existing tracer, in which case only spans will be created.
+// An optional parent logger can be provided to delegate log calls to (pass nil if not needed).
+func Instrument(cfg *pgx.ConnConfig, parentLogger ...tracelog.Logger) {
+	originalTracer := cfg.Tracer
+	var logger tracelog.Logger
+	if len(parentLogger) > 0 {
+		logger = parentLogger[0]
+	}
+	cfg.Tracer = &tracer{
+		cfg:          cfg,
+		parentTracer: originalTracer,
+		parentLogger: logger,
 	}
 }
 
-// Log is getting type of SQL expression from msg and run suitable trace.
-// If logger in tracer struct isn't nil, than log will be
-// written to your logger that implements pgx.Logger interface.
-func (t *tracer) Log(ctx context.Context, level pgx.LogLevel, msg string, data map[string]interface{}) {
-	if t.logger != nil {
-		t.logger.Log(ctx, level, msg, data)
+// Log dispatches to the appropriate trace method based on msg type.
+// This method maintains backwards compatibility with the pgx v4 Logger interface.
+func (t *tracer) Log(ctx context.Context, level tracelog.LogLevel, msg string, data map[string]interface{}) {
+	if t.parentLogger != nil {
+		t.parentLogger.Log(ctx, level, msg, data)
 	}
 
 	switch msg {
@@ -98,11 +106,7 @@ func (t *tracer) QueryTrace(ctx context.Context, data map[string]interface{}) {
 		return
 	}
 
-	span, ok := t.startSpan(ctx, apmsql.QuerySignature(statement), querySpanType, statement, data)
-	if !ok {
-		return
-	}
-	defer span.End()
+	t.startSpan(ctx, apmsql.QuerySignature(statement), querySpanType, statement, data)
 }
 
 // CopyTrace traces copy queries and creates spans for them.
@@ -123,56 +127,28 @@ func (t *tracer) CopyTrace(ctx context.Context, data map[string]interface{}) {
 		return
 	}
 
-	statement := fmt.Sprintf("COPY TO %s(%s)",
-		strings.Join(tableName, ", "),
-		strings.Join(columnNames, ", "),
-	)
+	statement := "COPY TO " + tableName[0] + "(" + columnNames[0] + ")"
+	spanName := "COPY TO " + tableName[0]
 
-	span, ok := t.startSpan(ctx,
-		fmt.Sprintf("COPY TO %s", strings.Join(tableName, ", ")),
-		copySpanType,
-		statement,
-		data,
-	)
-	if !ok {
-		return
-	}
-	defer span.End()
+	t.startSpan(ctx, spanName, copySpanType, statement, data)
 }
 
 // BatchTrace traces batch execution and creates spans for the whole batch.
 func (t *tracer) BatchTrace(ctx context.Context, data map[string]interface{}) {
-	span, ok := t.startSpan(ctx, "BATCH", batchSpanType, "", data)
-	if !ok {
-		return
-	}
-	defer span.End()
-
-	if batchLen, ok := data["batchLen"].(int); ok {
-		span.Context.SetLabel("batch.length", batchLen)
-	}
+	t.startSpan(ctx, "BATCH", batchSpanType, "", data)
 }
 
-func (t *tracer) startSpan(ctx context.Context, spanName, spanType, statement string, data map[string]interface{}) (*apm.Span, bool) {
-	stop := time.Now()
-
-	duration, ok := data["time"].(time.Duration)
-	if !ok {
-		apm.CaptureError(ctx, ErrUnsupportedPgxVersion).Send()
-		return nil, false
-	}
-
+// startSpan is a helper that creates and manages spans.
+func (t *tracer) startSpan(ctx context.Context, spanName, spanType, statement string, data map[string]interface{}) {
 	span, _ := apm.StartSpanOptions(ctx, spanName, spanType, apm.SpanOptions{
-		Start:    stop.Add(-duration),
 		ExitSpan: true,
 	})
 
 	if span.Dropped() {
 		span.End()
-		return nil, false
+		return
 	}
 
-	span.Duration = duration
 	span.Context.SetDatabase(apm.DatabaseSpanContext{
 		Instance:  t.cfg.Database,
 		Statement: statement,
@@ -190,12 +166,89 @@ func (t *tracer) startSpan(ctx context.Context, spanName, spanType, statement st
 		Resource: "postgresql",
 	})
 
-	if err, ok := data["err"].(error); ok {
-		e := apm.CaptureError(ctx, err)
-		e.Timestamp = stop
-		e.SetSpan(span)
-		e.Send()
+	if batchLen, ok := data["batchLen"].(int); ok {
+		span.Context.SetLabel("batch.length", batchLen)
 	}
 
-	return span, true
+	if err, ok := data["err"].(error); ok {
+		e := apm.CaptureError(ctx, err)
+		e.SetSpan(span)
+		e.Send()
+		span.Outcome = "failure"
+	} else {
+		span.Outcome = "success"
+	}
+
+	span.End()
 }
+
+// TraceQueryStart is called at the beginning of Query, QueryRow, and Exec calls.
+func (t *tracer) TraceQueryStart(ctx context.Context, conn *pgx.Conn, data pgx.TraceQueryStartData) context.Context {
+	if t.parentTracer != nil {
+		ctx = t.parentTracer.TraceQueryStart(ctx, conn, data)
+	}
+
+	statement := data.SQL
+	spanName := apmsql.QuerySignature(statement)
+
+	span, _ := apm.StartSpanOptions(ctx, spanName, querySpanType, apm.SpanOptions{
+		ExitSpan: true,
+	})
+
+	if span.Dropped() {
+		span.End()
+		return ctx
+	}
+
+	span.Context.SetDatabase(apm.DatabaseSpanContext{
+		Instance:  t.cfg.Database,
+		Statement: statement,
+		Type:      "sql",
+		User:      t.cfg.User,
+	})
+
+	span.Context.SetDestinationAddress(t.cfg.Host, int(t.cfg.Port))
+	span.Context.SetServiceTarget(apm.ServiceTargetSpanContext{
+		Type: "postgresql",
+		Name: t.cfg.Database,
+	})
+	span.Context.SetDestinationService(apm.DestinationServiceSpanContext{
+		Name:     "postgresql",
+		Resource: "postgresql",
+	})
+
+	return context.WithValue(ctx, spanKey, span)
+}
+
+// TraceQueryEnd is called at the end of Query, QueryRow, and Exec calls.
+func (t *tracer) TraceQueryEnd(ctx context.Context, conn *pgx.Conn, data pgx.TraceQueryEndData) {
+	span := t.extractSpan(ctx)
+	if span != nil {
+		if data.Err != nil {
+			e := apm.CaptureError(ctx, data.Err)
+			e.SetSpan(span)
+			e.Send()
+			span.Outcome = "failure"
+		} else {
+			span.Outcome = "success"
+		}
+		span.End()
+	}
+
+	if t.parentTracer != nil {
+		t.parentTracer.TraceQueryEnd(ctx, conn, data)
+	}
+}
+
+func (t *tracer) extractSpan(ctx context.Context) *apm.Span {
+	span, ok := ctx.Value(spanKey).(*apm.Span)
+	if !ok {
+		return nil
+	}
+	return span
+}
+
+// Context key for storing the span
+type contextKey string
+
+const spanKey contextKey = "apmSpan"
