@@ -16,4 +16,6 @@
 // under the License.
 
 // Package apmgopg provides wrappers for tracing go-pg operations.
+//
+// Deprecated: Migrate to the OpenTelemetry Go API and SDK
 package apmgopg // import "go.elastic.co/apm/module/apmgopg/v2"
