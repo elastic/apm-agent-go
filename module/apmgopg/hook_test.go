@@ -23,8 +23,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/go-pg/pg/v10"
-	"github.com/go-pg/pg/v10/orm"
+	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -58,8 +58,8 @@ func TestWithContext(t *testing.T) {
 		_, err = db.Exec("SELECT 1")
 		require.NoError(t, err)
 
-		db.Model(&User{}).DropTable(&orm.DropTableOptions{})
-		db.Model(&User{}).CreateTable(&orm.CreateTableOptions{})
+		db.DropTable(&User{}, &orm.DropTableOptions{})
+		db.CreateTable(&User{}, &orm.CreateTableOptions{})
 
 		defer db.Close()
 		db = db.WithContext(ctx)
