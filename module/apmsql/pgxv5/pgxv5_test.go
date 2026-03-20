@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package apmpgxv4_test
+package apmpgxv5_test
 
 import (
 	"context"
@@ -26,7 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"go.elastic.co/apm/module/apmsql/v2"
-	_ "go.elastic.co/apm/module/apmsql/v2/pgxv4"
+	_ "go.elastic.co/apm/module/apmsql/v2/pgxv5"
 	"go.elastic.co/apm/v2/apmtest"
 	"go.elastic.co/apm/v2/model"
 )
@@ -36,7 +36,7 @@ func TestQueryContext(t *testing.T) {
 		t.Skipf("PGHOST not specified")
 	}
 
-	db, err := apmsql.Open("pgx", "user=postgres password=hunter2 dbname=test_db sslmode=disable")
+	db, err := apmsql.Open("pgx/v5", "user=postgres password=hunter2 dbname=test_db sslmode=disable")
 	require.NoError(t, err)
 	defer db.Close()
 
