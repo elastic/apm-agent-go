@@ -42,6 +42,9 @@ test-fips: test
 test:
 	@for dir in $(shell scripts/moduledirs.sh); do (cd "$$dir" && go test -race -v -timeout=$(TEST_TIMEOUT) $(ARGS) ./...) || exit $$?; done
 
+tidy:
+	@for dir in $(shell scripts/moduledirs.sh); do (cd "$$dir" && go mod tidy) || exit $$?; done
+
 .PHONY: coverage
 coverage:
 	@bash scripts/test_coverage.sh
