@@ -26,6 +26,12 @@ To check for security updates, go to [Security announcements for the Elastic sta
 
 % ### Fixes [elastic-apm-go-agent-versionext-fixes]
 
+## 2.7.6
+**Release date:** March 31, 2026
+
+### Fixes [elastic-apm-go-agent-2-7-5-fixes]
+* Upgrade msgpack to 5.4.1 to fix CVE-2026-2454
+
 ## 2.7.5
 **Release date:** March 19, 2026
 
