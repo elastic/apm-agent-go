@@ -26,4 +26,4 @@ replace go.elastic.co/apm/v2 => ../..
 
 replace go.elastic.co/apm/module/apmhttp/v2 => ../apmhttp
 
-go 1.25.8
+go 1.25.0

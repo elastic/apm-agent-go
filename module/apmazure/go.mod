@@ -1,6 +1,6 @@
 module go.elastic.co/apm/module/apmazure/v2
 
-go 1.25.8
+go 1.25.0
 
 require (
 	github.com/Azure/azure-pipeline-go v0.2.3
