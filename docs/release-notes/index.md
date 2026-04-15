@@ -26,10 +26,16 @@ To check for security updates, go to [Security announcements for the Elastic sta
 
 % ### Fixes [elastic-apm-go-agent-versionext-fixes]
 
+## 2.7.7
+**Release date:** April 15, 2026
+
+### Fixes [elastic-apm-go-agent-2-7-7-fixes]
+* Upgrade go.opentelemetry.io/otel to v1.43.0 to fix CVE-2026-29181
+
 ## 2.7.6
 **Release date:** March 31, 2026
 
-### Fixes [elastic-apm-go-agent-2-7-5-fixes]
+### Fixes [elastic-apm-go-agent-2-7-6-fixes]
 * Upgrade msgpack to 5.4.1 to fix CVE-2026-2454
 
 ## 2.7.5

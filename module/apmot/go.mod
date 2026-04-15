@@ -3,8 +3,8 @@ module go.elastic.co/apm/module/apmot/v2
 require (
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/stretchr/testify v1.8.4
-	go.elastic.co/apm/module/apmhttp/v2 v2.7.6
-	go.elastic.co/apm/v2 v2.7.6
+	go.elastic.co/apm/module/apmhttp/v2 v2.7.7
+	go.elastic.co/apm/v2 v2.7.7
 )
 
 require (
