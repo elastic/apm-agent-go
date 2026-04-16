@@ -26,6 +26,12 @@ To check for security updates, go to [Security announcements for the Elastic sta
 
 % ### Fixes [elastic-apm-go-agent-versionext-fixes]
 
+## 2.7.8
+**Release date:** April 16, 2026
+
+### Fixes [elastic-apm-go-agent-2-7-8-fixes]
+* Update github.com/jackc/pgx/v5/pgproto3 to v5.9.1 to fix CVE-2026-33816
+
 ## 2.7.7
 **Release date:** April 15, 2026
 
