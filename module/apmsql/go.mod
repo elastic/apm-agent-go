@@ -7,7 +7,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.10.0
 	github.com/microsoft/go-mssqldb v1.6.0
 	github.com/stretchr/testify v1.11.1
-	go.elastic.co/apm/v2 v2.7.7
+	go.elastic.co/apm/v2 v2.7.8
 )
 
 require (
