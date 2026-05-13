@@ -26,6 +26,12 @@ To check for security updates, go to [Security announcements for the Elastic sta
 
 % ### Fixes [elastic-apm-go-agent-versionext-fixes]
 
+## 2.7.9
+**Release date:** May 13, 2026
+
+### Fixes [elastic-apm-go-agent-2-7-9-fixes]
+* Update github.com/gofiber/fiber/v2 to v2.52.13 to fix CVE-2026-42554
+
 ## 2.7.8
 **Release date:** April 16, 2026
 
