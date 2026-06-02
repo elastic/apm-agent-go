@@ -1,6 +1,6 @@
 module genmod/v2
 
-require go.elastic.co/apm/v2 v2.7.11
+require go.elastic.co/apm/v2 v2.7.12
 
 require (
 	github.com/armon/go-radix v1.0.0 // indirect

@@ -26,6 +26,12 @@ To check for security updates, go to [Security announcements for the Elastic sta
 
 % ### Fixes [elastic-apm-go-agent-versionext-fixes]
 
+## 2.7.12
+**Release date:** June 02, 2026
+
+### Fixes [elastic-apm-go-agent-2-7-12-fixes]
+* Update golang.org/x/net to v0.55.0 to fix CVE-2026-39821.
+
 ## 2.7.11
 **Release date:** June 02, 2026
 
