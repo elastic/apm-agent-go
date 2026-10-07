@@ -207,6 +207,11 @@ type limitedBuffer struct {
 func (b *limitedBuffer) Write(p []byte) (n int, err error) {
 	rem := (stringLengthLimit * utf8.UTFMax) - b.Len()
 	n = len(p)
+	if rem < 0 {
+		// The underlying buffer can grow past our cap if callers reuse
+		// it; clamp so p[:rem] stays in-bounds and doesn't panic.
+		rem = 0
+	}
 	if n > rem {
 		p = p[:rem]
 	}
