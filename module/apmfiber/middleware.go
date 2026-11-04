@@ -64,7 +64,9 @@ func (m *middleware) handle(c *fiber.Ctx) (result error) {
 	}
 
 	name := string(reqCtx.Method()) + " " + c.Path()
-	tx, body, err := apmfasthttp.StartTransactionWithBody(reqCtx, m.tracer, name)
+	// The body capturer is owned by the closer registered by StartTransactionWithBody,
+	// which discards it after the request has been handled.
+	tx, _, err := apmfasthttp.StartTransactionWithBody(reqCtx, m.tracer, name)
 	if err != nil {
 		reqCtx.Error(err.Error(), http.StatusInternalServerError)
 
@@ -102,8 +104,6 @@ func (m *middleware) handle(c *fiber.Ctx) (result error) {
 		if tx.Sampled() {
 			setContext(&tx.Context, resp)
 		}
-
-		body.Discard()
 	}()
 
 	result = c.Next()
