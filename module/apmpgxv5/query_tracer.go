@@ -35,7 +35,7 @@ func (q QueryTracer) TraceQueryStart(ctx context.Context, conn *pgx.Conn, data p
 		ExitSpan: true,
 	})
 	if !ok {
-		return ctx
+		return spanCtx
 	}
 
 	return apm.ContextWithSpan(spanCtx, span)
