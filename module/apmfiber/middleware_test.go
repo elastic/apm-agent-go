@@ -23,6 +23,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"runtime"
+	"runtime/debug"
+	"strings"
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
@@ -33,6 +36,7 @@ import (
 	"github.com/valyala/fasthttp"
 
 	"go.elastic.co/apm/module/apmfiber/v2"
+	"go.elastic.co/apm/v2"
 	"go.elastic.co/apm/v2/apmtest"
 	"go.elastic.co/apm/v2/model"
 	"go.elastic.co/apm/v2/transport/transporttest"
@@ -284,6 +288,59 @@ func TestMiddlewareRequestIgnorer(t *testing.T) {
 
 	assert.Equal(t, 1, len(tracer.Payloads().Transactions))
 	assert.Equal(t, "GET /hello2", tracer.Payloads().Transactions[0].Name)
+}
+
+func TestMiddlewareCaptureBody(t *testing.T) {
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+	tracer.SetCaptureBody(apm.CaptureBodyAll)
+
+	app := fiber.New()
+	app.Use(apmfiber.Middleware(apmfiber.WithTracer(tracer.Tracer)))
+	app.Post("/", func(c *fiber.Ctx) error { return c.SendStatus(http.StatusOK) })
+
+	body := strings.Repeat("x", 700)
+	req, err := http.NewRequest(http.MethodPost, "/", strings.NewReader(body))
+	require.NoError(t, err)
+	_, err = app.Test(req, -1)
+	require.NoError(t, err)
+	tracer.Flush(nil)
+
+	transactions := tracer.Payloads().Transactions
+	require.Len(t, transactions, 1)
+	require.NotNil(t, transactions[0].Context.Request.Body)
+	assert.Equal(t, body, transactions[0].Context.Request.Body.Raw)
+}
+
+// TestMiddlewareBodyCapturerDiscardedOnce checks that a request returns its
+// BodyCapturer to the pool once. A BodyCapturer returned twice is handed out to
+// two concurrent requests, which corrupts its buffer.
+func TestMiddlewareBodyCapturerDiscardedOnce(t *testing.T) {
+	// Keep sync.Pool deterministic: one P, and no GC to clear it.
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+	tracer.SetCaptureBody(apm.CaptureBodyAll)
+
+	app := fiber.New()
+	app.Use(apmfiber.Middleware(apmfiber.WithTracer(tracer.Tracer)))
+	app.Post("/", func(c *fiber.Ctx) error { return c.SendStatus(http.StatusOK) })
+
+	req, err := http.NewRequest(http.MethodPost, "/", strings.NewReader("body"))
+	require.NoError(t, err)
+	_, err = app.Test(req, -1)
+	require.NoError(t, err)
+
+	capture := func() *apm.BodyCapturer {
+		req, err := http.NewRequest(http.MethodPost, "/", strings.NewReader("body"))
+		require.NoError(t, err)
+		return tracer.CaptureHTTPRequestBody(req)
+	}
+	first, second := capture(), capture()
+	require.NotNil(t, first)
+	assert.NotSame(t, first, second)
 }
 
 func assertError(t *testing.T, payloads transporttest.Payloads, message string, handled bool) model.Error {
