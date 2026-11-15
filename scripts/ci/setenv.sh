@@ -37,7 +37,7 @@ fi
 echo "UNMET DEP: Installing Go"
 mkdir -p "${HOME}/bin"
 
-curl -sSLo "${GVM_CMD}" "https://github.com/andrewkroh/gvm/releases/download/v0.5.2/gvm-${OS}-${GVM_ARCH_SUFFIX}"
+curl -sSLo "${GVM_CMD}" "https://github.com/andrewkroh/gvm/releases/download/v0.6.0/gvm-${OS}-${GVM_ARCH_SUFFIX}"
 chmod +x "${GVM_CMD}"
 
 eval "$("${GVM_CMD}" "${GO_VERSION}")"
