@@ -165,6 +165,21 @@ func TestEchoMiddlewarePanic(t *testing.T) {
 	assertError(t, transport.Payloads(), "handlePanic", "boom", false)
 }
 
+func TestEchoMiddlewareEndedTxn(t *testing.T) {
+	tracer, _ := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	e := echo.New()
+	e.Use(apmecho.Middleware(apmecho.WithTracer(tracer)))
+	e.GET("/end-txn", handleEndTxn)
+
+	assert.NotPanics(t, func() {
+		w := doRequest(e, "GET", "http://server.testing/end-txn")
+		assert.Equal(t, http.StatusOK, w.Code)
+		tracer.Flush(nil)
+	})
+}
+
 func TestEchoMiddlewarePanicHeadersSent(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
@@ -216,6 +231,12 @@ func handlePanic(c echo.Context) error {
 func handlePanicAfterHeaders(c echo.Context) error {
 	c.String(200, "")
 	panic("boom")
+}
+
+func handleEndTxn(c echo.Context) error {
+	txn := apm.TransactionFromContext(c.Request().Context())
+	txn.End()
+	return nil
 }
 
 func handleError(c echo.Context) error {

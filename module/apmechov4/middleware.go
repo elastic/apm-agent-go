@@ -81,7 +81,10 @@ func (m *middleware) handle(c echo.Context) error {
 	}
 	name := m.requestName(c)
 	tx, body, req := apmhttp.StartTransactionWithBody(m.tracer, name, req)
-	defer tx.End()
+	defer func() {
+		body.Discard()
+		tx.End()
+	}()
 	c.SetRequest(req)
 
 	resp := c.Response()
@@ -106,11 +109,14 @@ func (m *middleware) handle(c echo.Context) error {
 			e.Handled = true
 			e.Send()
 		}
+
+		if txEnded := tx.TransactionData == nil; txEnded {
+			return
+		}
 		tx.Result = apmhttp.StatusCodeResult(resp.Status)
 		if tx.Sampled() {
 			setContext(&tx.Context, req, resp, body)
 		}
-		body.Discard()
 	}()
 
 	handlerErr = m.handler(c)
