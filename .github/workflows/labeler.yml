@@ -1,20 +1,25 @@
 name: "Issue Labeler"
+
+# pull_request_target is kept so that PRs from forks can be labeled (the pull_request token
+# is read-only for forks). No PR code is checked out or run: the labeler reads its config
+# from the base branch through the API (GITHUB_SHA is the base branch commit).
 on:
   issues:
     types: [opened]
   pull_request_target:
     types: [opened]
 
-permissions:
-  contents: read
-  issues: write
-  pull-requests: write
+permissions: {}
 
 jobs:
   triage:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
     steps:
-    - uses: AlexanderWert/issue-labeler@v2.3
+    - uses: AlexanderWert/issue-labeler@32be4a3c3d8f009c2741af471994337c34b4cb6f # v2.3
       with:
         repo-token: "${{ secrets.GITHUB_TOKEN }}"
         configuration-path: .github/labeler-config.yml
