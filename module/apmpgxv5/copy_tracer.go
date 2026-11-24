@@ -43,7 +43,7 @@ func (c CopyFromTracer) TraceCopyFromStart(ctx context.Context, conn *pgx.Conn, 
 			ExitSpan: true,
 		})
 	if !ok {
-		return ctx
+		return spanCtx
 	}
 
 	return apm.ContextWithSpan(spanCtx, span)

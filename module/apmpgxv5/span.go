@@ -40,6 +40,8 @@ const (
 	destinationServiceType = "db"
 )
 
+type spanKey struct{}
+
 var action = map[spanType]string{
 	querySpanType:   "query",
 	connectSpanType: "connect",
@@ -52,7 +54,7 @@ func startSpan(ctx context.Context, name string, spanType spanType, conn *pgx.Co
 
 	if span.Dropped() {
 		span.End()
-		return nil, ctx, false
+		return nil, contextWithTracerSpan(ctx, nil), false
 	}
 
 	if conn != nil {
@@ -76,11 +78,20 @@ func startSpan(ctx context.Context, name string, spanType spanType, conn *pgx.Co
 		Resource: "postgresql",
 	})
 
-	return span, spanCtx, true
+	return span, contextWithTracerSpan(spanCtx, span), true
+}
+
+func contextWithTracerSpan(ctx context.Context, span *apm.Span) context.Context {
+	return context.WithValue(ctx, spanKey{}, span)
+}
+
+func tracerSpanFromContext(ctx context.Context) *apm.Span {
+	span, _ := ctx.Value(spanKey{}).(*apm.Span)
+	return span
 }
 
 func endSpan(ctx context.Context, err error) {
-	span := apm.SpanFromContext(ctx)
+	span := tracerSpanFromContext(ctx)
 	if span == nil {
 		return
 	}

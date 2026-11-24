@@ -22,12 +22,14 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"go.elastic.co/apm/module/apmpgxv5/v2"
+	"go.elastic.co/apm/v2"
 	"go.elastic.co/apm/v2/apmtest"
 )
 
@@ -77,4 +79,31 @@ func Test_Connect(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_Connect_DroppedSpanKeepsCallerSpanOpen(t *testing.T) {
+	cfg, err := pgx.ParseConfig("postgres://postgres:hunter2@127.0.0.1:5432/test_db")
+	require.NoError(t, err)
+
+	tracer := apmtest.NewRecordingTracer()
+	defer tracer.Close()
+	tracer.SetMaxSpans(1)
+
+	tx := tracer.StartTransaction("name", "type")
+	callerSpan, ctx := apm.StartSpan(apm.ContextWithTransaction(context.Background(), tx), "caller", "custom")
+
+	var connectTracer apmpgxv5.ConnectTracer
+	connectCtx := connectTracer.TraceConnectStart(ctx, pgx.TraceConnectStartData{ConnConfig: cfg})
+	connectTracer.TraceConnectEnd(connectCtx, pgx.TraceConnectEndData{})
+
+	callerSpanDuration := 10 * time.Millisecond
+	time.Sleep(callerSpanDuration)
+	callerSpan.End()
+	tx.End()
+	tracer.Flush(nil)
+
+	spans := tracer.Payloads().Spans
+	require.Len(t, spans, 1)
+	assert.Equal(t, "caller", spans[0].Name)
+	assert.GreaterOrEqual(t, spans[0].Duration, float64(callerSpanDuration.Milliseconds()))
 }

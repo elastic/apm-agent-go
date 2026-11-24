@@ -37,7 +37,7 @@ func (c ConnectTracer) TraceConnectStart(ctx context.Context, conn pgx.TraceConn
 			ExitSpan: false,
 		})
 	if !ok {
-		return ctx
+		return spanCtx
 	}
 
 	return apm.ContextWithSpan(spanCtx, span)
